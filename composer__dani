@@ -1,0 +1,15 @@
+
+composer require phpoffice/phpspreadsheet
+
+composer require barryvdh/laravel-debugbar --dev
+
+
+
+
+
+php artisan cache:clear
+php artisan config:clear
+composer dump-autoload
+
+git config --global user.name "daniDevCrisar"
+git config --global user.email "llamadas.ia.crisar@gmail.com"
