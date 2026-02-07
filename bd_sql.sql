@@ -288,7 +288,7 @@ CREATE TABLE tmp_lotes_det (
     created_at_excel VARCHAR(50),
 
     llamada_tipo VARCHAR(50),
-    ref VARCHAR(100),
+    ref VARCHAR(10),
     origen VARCHAR(100),
     destino VARCHAR(100),
     telefono VARCHAR(30),
@@ -348,4 +348,51 @@ CREATE TABLE tmp_lotes (
     nombre VARCHAR(50) NOT NULL,
     comentario VARCHAR(200) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE tmp_lotes_ref_completo (
+
+    lote_id VARCHAR(100) NOT NULL,
+
+    ref VARCHAR(10) NULL,
+    trt VARCHAR(100) NULL,
+    tlf_conductor VARCHAR(50) NULL,
+    titulo_viaje VARCHAR(200) NULL,
+    placa VARCHAR(20) NULL,
+
+    fin_descargue VARCHAR(50) NULL,
+    inicio_descargue VARCHAR(50) NULL,
+    qr_llegada_destino VARCHAR(50) NULL,
+    fin_de_carga VARCHAR(50) NULL,
+    inicio_de_carga VARCHAR(50) NULL,
+    presenta_para_carga VARCHAR(50) NULL,
+
+
+    INDEX idx_lote_id (lote_id),
+    INDEX idx_ref (ref),
+    INDEX idx_placa (placa),
+    INDEX idx_tlf_conductor (tlf_conductor)
+);
+
+
+CREATE TABLE tmp_lotes_ref_compromiso (
+
+    lote_id VARCHAR(100) NOT NULL,
+
+    ref VARCHAR(10) NULL,
+    trt VARCHAR(100) NULL,
+    tlf_conductor VARCHAR(50) NULL,
+    titulo_viaje VARCHAR(200) NULL,
+    placa VARCHAR(20) NULL,
+
+    fin_de_carga VARCHAR(50) NULL,
+    inicio_de_carga VARCHAR(50) NULL,
+    presenta_para_carga VARCHAR(50) NULL,
+
+    INDEX idx_lote_id (lote_id),
+    INDEX idx_ref (ref),
+    INDEX idx_placa (placa),
+    INDEX idx_tlf_conductor (tlf_conductor)
+
 );
