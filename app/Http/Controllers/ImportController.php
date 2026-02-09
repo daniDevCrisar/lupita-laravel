@@ -101,4 +101,13 @@ class ImportController extends Controller
 
     }
 
+    public function procesar_json()
+    {
+        return view('import.importar_json');
+    }
+
+
+
+
+
 }
