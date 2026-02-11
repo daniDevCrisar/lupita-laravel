@@ -330,6 +330,7 @@ CREATE TABLE tmp_lotes_det (
 
     conductor_cuelga VARCHAR(10),
     conductor_no_contesta VARCHAR(10),
+    conductor_conducta_inapropiada VARCHAR(10),
 
     error_tecnico_llamada VARCHAR(10),
     error_audio VARCHAR(10),
@@ -351,7 +352,7 @@ CREATE TABLE tmp_lotes (
 );
 
 
-CREATE TABLE tmp_lotes_ref_completo (
+CREATE TABLE tmp_lotes_ref (
 
     lote_id VARCHAR(100) NOT NULL,
 
@@ -383,9 +384,13 @@ CREATE TABLE tmp_lotes_ref_compromiso (
     ref VARCHAR(10) NULL,
     trt VARCHAR(100) NULL,
     tlf_conductor VARCHAR(50) NULL,
+    fecha_despachadora VARCHAR(50) NULL,
     titulo_viaje VARCHAR(200) NULL,
     placa VARCHAR(20) NULL,
 
+    fin_descargue VARCHAR(50) NULL,
+    inicio_descargue VARCHAR(50) NULL,
+    qr_llegada_destino VARCHAR(50) NULL,
     fin_de_carga VARCHAR(50) NULL,
     inicio_de_carga VARCHAR(50) NULL,
     presenta_para_carga VARCHAR(50) NULL,

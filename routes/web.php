@@ -25,8 +25,8 @@ Route::prefix('importar')->group(function () {
     Route::get('/json', [ImportController::class, 'procesar_json']);
     //Route::post('/json/procesar', [ImportController::class, 'jsonProcesar']);
 
-    //Route::get('/excel', [ImportController::class, 'excelView']);
-    //Route::post('/excel/subir', [ImportController::class, 'procesar_excel']);
+    Route::get('/excel', [ImportController::class, 'cargar_excel']);
+    Route::post('/excel/procesar', [ImportController::class, 'procesar_excel_llamadas']);
 
     //Route::get('/excel/ia-prompt/{lote}', [ImportController::class, 'iaPrompt']);
 

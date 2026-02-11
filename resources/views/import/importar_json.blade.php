@@ -6,6 +6,19 @@
 
 
 <div class="container-fluid">
+    <div class="row mb-3">
+        <!-- IZQUIERDA -->
+        <div class="col text-start">
+        </div>
+
+        <!-- DERECHA -->
+        <div class="col text-end">
+            <a href="{{ url('/importar/excel') }}" class="btn btn-success btn-sm">
+                Siguiente <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+    </div>
     <!-- Header -->
     <header class="text-center mb-5">
         <h1 class="display-5 text-info mb-2">
@@ -36,7 +49,7 @@
         <div class="col-12">
 
             <!-- File Upload Section -->
-            <div class="card shadow mb-4 bg-dark border-secondary">
+            <div class="card shadow mb-4 bg-dark ">
                 <div class="card-header bg-primary text-white">
                     <h2 class="h5 mb-0">
                         <i class="bi bi-upload"></i> Cargar Archivo JSON
@@ -47,13 +60,13 @@
 
                     <div class="mb-3">
                         <label for="jsonFile" class="form-label">Selecciona un archivo JSON:</label>
-                        <input class="form-control bg-dark text-white border-secondary"
+                        <input class="form-control"
                                type="file"
                                id="jsonFile"
                                accept=".json,application/json">
                     </div>
 
-                    <div class="d-flex flex-column align-items-center p-5 border border-secondary rounded bg-dark upload-area">
+                    <div class="d-flex flex-column align-items-center p-5 border rounded bg-dark upload-area">
                         <div class="text-center mb-3">
                             <i class="bi bi-file-earmark-text display-1 text-info"></i>
                         </div>

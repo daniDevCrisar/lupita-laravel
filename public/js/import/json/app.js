@@ -134,7 +134,7 @@ function formatFileSize(bytes) {
 
 
 
-function generarExcelDesdeArray(analisisArray) {
+function generarExcelDesdeArray(analisisArray , nombre_hoja = 'VAPI') {
     // Verificar si SheetJS está cargado
     if (typeof XLSX === 'undefined') {
         console.error('SheetJS no está disponible. Incluye el CDN:');
@@ -180,7 +180,7 @@ function generarExcelDesdeArray(analisisArray) {
         const hoja = XLSX.utils.json_to_sheet(datosProcesados);
         
         // Agregar la hoja al libro
-        XLSX.utils.book_append_sheet(libro, hoja, 'Análisis');
+        XLSX.utils.book_append_sheet(libro, hoja, nombre_hoja);
         
         // Generar nombre de archivo con fecha
         const fecha = new Date();

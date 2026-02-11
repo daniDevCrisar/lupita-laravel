@@ -29,8 +29,8 @@ class ExcelTool
         if ($valor === '') return '';
 
         // Reemplazo manual de tildes
-        $buscar = ['á','é','í','ó','ú','Á','É','Í','Ó','Ú','ü','Ü'];
-        $reemplazar = ['a','e','i','o','u','A','E','I','O','U','u','U'];
+        $buscar = ['á','é','í','ó','ú','Á','É','Í','Ó','Ú','ü','Ü','Ñ','ñ'];
+        $reemplazar = ['a','e','i','o','u','A','E','I','O','U','u','U','N','n'];
 
         $valor = str_replace($buscar, $reemplazar, $valor);
 

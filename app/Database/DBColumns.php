@@ -48,6 +48,7 @@ class DBColumns
             'ia_mala_pronunciacion',
             'conductor_cuelga',
             'conductor_no_contesta',
+            'conductor_conducta_inapropiada',
             'error_tecnico_llamada',
             'error_audio',
             'error_origen',

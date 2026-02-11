@@ -11,5 +11,8 @@ php artisan cache:clear
 php artisan config:clear
 composer dump-autoload
 
+php artisan key:generate
+
+
 git config --global user.name "daniDevCrisar"
 git config --global user.email "llamadas.ia.crisar@gmail.com"

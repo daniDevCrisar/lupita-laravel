@@ -143,6 +143,7 @@ function generar_excel_llamadas(json){
         
         'conductor_cuelga' : vapi_conductor_cuelga, 
         'conductor_no_contesta':vapi_conductor_no_contesta, 
+        'conductor_conducta_inapropiada': '',
         'error_tecnico_llamada': '',
         'error_audio' : '',
         'error_origen' : vapi_error_origen,
