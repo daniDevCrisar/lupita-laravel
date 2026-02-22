@@ -22,6 +22,7 @@ class DBColumns
             'fecha_prometida',
             'mensajes_conten',
             'audio',
+            'audio_duracion',
             'exitosa_segun_ia',
             'entro_llamada',
             'razon_finalizacion',
@@ -53,6 +54,41 @@ class DBColumns
             'error_audio',
             'error_origen',
             'llamada_exitosa'
+        ];
+    }
+    public static function tmp_lotes_ref(){
+        return [
+            'lote_id',
+            'ref',
+            'trt',
+            'tlf_conductor',
+            'titulo_viaje',
+            'placa',
+            'fin_descargue',
+            'inicio_descargue',
+            'qr_llegada_destino',
+            'fin_de_carga',
+            'inicio_de_carga',
+            'presenta_para_carga'
+        ];
+    }
+
+    public static function tmp_lotes_ref_compromiso(){
+        return [
+            'lote_id',
+            'ref',
+            'fecha_llamada',
+            'trt',
+            'tlf_conductor',
+            'fecha_despachador',
+            'titulo_viaje',
+            'placa',
+            'fin_descargue',
+            'inicio_descargue',
+            'qr_llegada_destino',
+            'fin_de_carga',
+            'inicio_de_carga',
+            'presenta_para_carga'
         ];
     }
 }

@@ -11,41 +11,104 @@ VALUES ('DaniXtrem','Pedro Daniel Sotelo Aguirre', '');
 
 
 
-CREATE TABLE transportistas (
+CREATE TABLE trts (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
-    sis_id VARCHAR(50) NULL,
-    vapi_id VARCHAR(50) NULL,
+    sis_id VARCHAR(9) NULL,
+    vapi_id VARCHAR(9) NULL,
 
-    nombre_empresa VARCHAR(150) NOT NULL,
+    nombres VARCHAR(150) NOT NULL,
 
-    telefono VARCHAR(20) NULL,
-    correo VARCHAR(100) NULL,
-    direccion VARCHAR(200) NULL,
+    ruc VARCHAR(12) NULL,
 
     activo TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-
-    UNIQUE KEY uk_sis (sis_id),
-    UNIQUE KEY uk_vapi (vapi_id)
 );
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_insertar_o_obtener_trts(
+    IN p_sis_id   VARCHAR(9),
+    IN p_vapi_id  VARCHAR(9),
+    IN p_nombres  VARCHAR(150),
+    IN p_ruc      VARCHAR(12)
+)
+BEGIN
+    DECLARE v_id INT;
+    DECLARE v_es_nuevo BOOLEAN DEFAULT FALSE;
+
+    -- Buscar si ya existe por nombre
+    SELECT id INTO v_id
+    FROM trts
+    WHERE nombres = p_nombres
+    LIMIT 1;
+
+    -- Si no existe, insertar
+    IF v_id IS NULL THEN
+        INSERT INTO trts (
+            sis_id,
+            vapi_id,
+            nombres,
+            ruc
+        ) VALUES (
+            p_sis_id,
+            p_vapi_id,
+            p_nombres,
+            p_ruc
+        );
+
+        SET v_id = LAST_INSERT_ID();
+        SET v_es_nuevo = TRUE;
+    END IF;
+
+    -- Devolver resultado
+    SELECT 
+        v_id AS id,
+        v_es_nuevo AS es_nuevo;
+END $$
 
 
 
 CREATE TABLE conductores (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
-    sis_id VARCHAR(50) NULL,
-    vapi_id VARCHAR(50) NULL,
+    sis_id VARCHAR(9) NULL,
+    vapi_id VARCHAR(9) NULL,
 
     nombres VARCHAR(150) NOT NULL,
-    telefono VARCHAR(20) NULL,
 
     activo TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    FULLTEXT(nombres) 
+);
+ALTER TABLE conductores ADD FULLTEXT(nombres);
 
-    UNIQUE KEY uk_sis (sis_id),
-    UNIQUE KEY uk_vapi (vapi_id)
+CREATE TABLE tlf_conductores (
+    conductor_id INT NOT NULL,
+    telefono VARCHAR(20) NOT NULL,
+    
+    PRIMARY KEY (conductor_id, telefono),
+    INDEX idx_telefono (telefono)
+);
+
+
+CREATE TABLE referencias (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ref VARCHAR(10),
+    fecha_llamada TIMESTAMP DEFAULT NULL,
+    trt_id INT,
+    conductor_id INT NOT NULL,
+    fecha_despachador TIMESTAMP DEFAULT NULL,
+    titulo_viaje VARCHAR(200) NOT NULL DEFAULT '',
+    placa VARCHAR(10) NOT NULL DEFAULT '',
+
+    fin_descargue TIMESTAMP DEFAULT NULL,
+    inicio_descargue TIMESTAMP DEFAULT NULL,
+    qr_llegada_destino TIMESTAMP DEFAULT NULL,
+    fin_de_carga TIMESTAMP DEFAULT NULL,
+    inicio_de_carga TIMESTAMP DEFAULT NULL,
+    presenta_para_carga TIMESTAMP DEFAULT NULL
 );
 
 
@@ -197,70 +260,77 @@ CREATE TABLE llamadas (
     -- =========================
     -- 1. IDENTIFICACION
     -- =========================
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    call_uuid BINARY(16) NOT NULL,   -- se convertira a bynari
-    conductor_id INT,
+    vapi_id BINARY(16) PRIMARY KEY NOT NULL,   -- se convertira a bynari
+    --conductor_id INT,
+    --trt_id INT,
+    --ref VARCHAR(10),
+    ref_id int, --por si no tiene ref
+    --mensansaje en otra tabla
 
     -- =========================
     -- 2. CLASIFICACION GENERAL
     -- =========================
-    tipo_llamada_id TINYINT,        -- 0 indeterminada / 1 confirmacion / 2 espera / 3 planta
+    llamada_tipo_id TINYINT,        -- 0 indeterminada / 1 confirmacion / 2 espera / 3 planta
     es_entrante TINYINT(1),         -- 1 inbound / 0 outbound
     razon_finalizacion_id INT,
-    llamada_exitosa TINYINT,        -- 1 = exitosa / 0 = no exitosa / -1 = indeterminada
+    entro_llamada TINYINT(1),
+    exitosa_segun_ia TINYINT(1),
+    llamada_exitosa TINYINT(1),        -- 1 = exitosa / 0 = no exitosa / -1 = indeterminada
 
     -- =========================
     -- 3. METRICAS
     -- =========================
-    duracion_segundos INT,
-    tiempo_espera INT,
-    tiempo_en_planta INT,
+    audio_link VARCHAR(255) NOT NULL DEFAULT '',
+    audio_duracion INT DEFAULT 0, 
+    analisis_transcripcion VARCHAR(255) NOT NULL DEFAULT '',
+    analisis_audio VARCHAR(255) NOT NULL DEFAULT '',
 
     -- =========================
     -- 4. ETIQUETAS CONDUCTOR
     -- =========================
-    conductor_confirma TINYINT(1),
-    conductor_no_contesta TINYINT(1),
-    conductor_cuelga TINYINT(1),
-    conductor_mala_senal TINYINT(1),
-    conductor_no_escucha TINYINT(1),
-    conductor_da_motivos TINYINT(1),
-    conductor_comportamiento_inadecuado TINYINT(1),
+    conductor_confirma TINYINT(1) DEFAULT 0,
+    buzon_de_voz TINYINT(1) DEFAULT 0,
+    conductor_contesta_pero_no_habla TINYINT(1) DEFAULT 0,
+    conductor_no_escucha TINYINT(1) DEFAULT 0,
+    conductor_da_motivos TINYINT(1) DEFAULT 0,
+    conductor_mala_senal TINYINT(1) DEFAULT 0,
+    confusion_en_llamada TINYINT(1) DEFAULT 0,
+    contesta_otra_persona TINYINT(1) DEFAULT 0,
+    numero_equivocado TINYINT(1) DEFAULT 0,
+    conversacion_fluida TINYINT(1) DEFAULT 0,
+    llamada_interesante TINYINT(1) DEFAULT 0,
 
-    -- =========================
-    -- 5. ETIQUETAS IA
-    -- =========================
-    ia_comportamiento_incorrecto TINYINT(1),
-    ia_no_escucha TINYINT(1),
-    ia_se_confunde TINYINT(1),
-    ia_cambia_datos TINYINT(1),
+    ia_se_confunde TINYINT(1) DEFAULT 0,
+    ia_no_escucha TINYINT(1) DEFAULT 0,
+    ia_cambio_de_datos TINYINT(1) DEFAULT 0,
+    ia_error_interpretacion TINYINT(1) DEFAULT 0,
+    ia_dice_variable TINYINT(1) DEFAULT 0,
+    ia_mala_pronunciacion TINYINT(1) DEFAULT 0,
 
-    -- =========================
-    -- 6. CALIDAD CONVERSACION
-    -- =========================
-    conversacion_fluida TINYINT(1),
-    llamada_interesante TINYINT(1),
-    confusion_en_llamada TINYINT(1),
+    conductor_cuelga TINYINT(1) DEFAULT 0,
+    conductor_no_contesta TINYINT(1) DEFAULT 0,
+    conductor_conducta_inapropiada TINYINT(1) DEFAULT 0,
 
-    -- =========================
-    -- 7. ERRORES TECNICOS
-    -- =========================
-    error_conexion_telefonica TINYINT(1),
-    buzon_de_voz TINYINT(1),
-    numero_equivocado TINYINT(1),
+    error_tecnico_llamada TINYINT(1) DEFAULT 0,
+    error_audio TINYINT(1) DEFAULT 0,
 
+    error_origen TINYINT(1) DEFAULT 0,
     -- =========================
     -- 8. AUDITORIA
     -- =========================
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     -- =========================
     -- FOREIGN KEYS (OPCIONAL)
     -- =========================
-    FOREIGN KEY (razon_finalizacion_id) REFERENCES razones_finalizacion(id)
 
 );
+
+
+
+
+
 
 
 CREATE TABLE error_origenes (
@@ -298,6 +368,7 @@ CREATE TABLE tmp_lotes_det (
 
     mensajes_conten TEXT,
     audio VARCHAR(500),
+    audio_duracion VARCHAR(6),
 
     exitosa_segun_ia VARCHAR(10),
     entro_llamada VARCHAR(10),
@@ -367,13 +438,7 @@ CREATE TABLE tmp_lotes_ref (
     qr_llegada_destino VARCHAR(50) NULL,
     fin_de_carga VARCHAR(50) NULL,
     inicio_de_carga VARCHAR(50) NULL,
-    presenta_para_carga VARCHAR(50) NULL,
-
-
-    INDEX idx_lote_id (lote_id),
-    INDEX idx_ref (ref),
-    INDEX idx_placa (placa),
-    INDEX idx_tlf_conductor (tlf_conductor)
+    presenta_para_carga VARCHAR(50) NULL
 );
 
 
@@ -382,9 +447,10 @@ CREATE TABLE tmp_lotes_ref_compromiso (
     lote_id VARCHAR(100) NOT NULL,
 
     ref VARCHAR(10) NULL,
+    fecha_llamada VARCHAR(50) NULL,
     trt VARCHAR(100) NULL,
     tlf_conductor VARCHAR(50) NULL,
-    fecha_despachadora VARCHAR(50) NULL,
+    fecha_despachador VARCHAR(50) NULL,
     titulo_viaje VARCHAR(200) NULL,
     placa VARCHAR(20) NULL,
 
@@ -393,11 +459,5 @@ CREATE TABLE tmp_lotes_ref_compromiso (
     qr_llegada_destino VARCHAR(50) NULL,
     fin_de_carga VARCHAR(50) NULL,
     inicio_de_carga VARCHAR(50) NULL,
-    presenta_para_carga VARCHAR(50) NULL,
-
-    INDEX idx_lote_id (lote_id),
-    INDEX idx_ref (ref),
-    INDEX idx_placa (placa),
-    INDEX idx_tlf_conductor (tlf_conductor)
-
+    presenta_para_carga VARCHAR(50) NULL
 );

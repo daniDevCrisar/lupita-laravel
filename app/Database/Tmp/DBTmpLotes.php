@@ -46,9 +46,11 @@ class DBTmpLotes
             conductor,
             telefono,
             1 as 'activo',
-            CURRENT_TIMESTAMP as created_at
+            CURRENT_TIMESTAMP as created_at,
+            CURRENT_TIMESTAMP AS updated_at
         FROM tmp_lotes_det
-        WHERE lote_id=?";
+        WHERE lote_id=?
+        ORDER BY telefono";
 
         return DB::select($sql, [$lote_id]);
     }
@@ -84,8 +86,103 @@ class DBTmpLotes
             WHERE lote_id = ?
             LIMIT 1
         ";
-
         return DB::select($sql, [$lote_id]) ? true : false;
+    }
+
+    public static function compararNombres($tabla,$campo_1,$campo_2){
+        $cont=1;
+        //echo self::similitud( 'sinche roca victor', 'victor daniel sinche roca');
+        foreach ($tabla as $row){
+            $row_tabla=  $tabla[$cont]??false;
+            if ($row_tabla){
+                if($row_tabla->$campo_1 == $row->$campo_1){
+                    $comparar=self::similitud( $row_tabla->{$campo_2}, $row->$campo_2);
+                    if ($comparar >= 80) 
+                        //echo 'comp:' . $comparar . ' :' . $row_tabla->{$campo_2} . ' * '.  $row->{$campo_2}.  '<br>';
+                        if ( strlen($row_tabla->$campo_1) > strlen($row->$campo_1))
+                            unset($tabla[$cont-1]);
+                        else 
+                            unset($tabla[$cont]);
+                }
+            }
+            $cont++;
+        }
+        return array_merge($tabla);
+    }
+
+
+    public static function normalizar($t , $nombres=true) {
+        $t = strtoupper($t);
+        $t = iconv('UTF-8', 'ASCII//TRANSLIT', $t); // quita tildes
+        
+        // Eliminar palabras completas con límites de palabra (\b)
+        if ($nombres){
+        $t = preg_replace('/[^A-Z0-9 ]/', '', $t); // quita símbolos
+        $patron = '/\b(DE|LAS|LOS|LA|EL|Y|E|DEL|AL)\b/';
+        $t = preg_replace($patron, '', $t);
+        }
+        //--------------------------------
+
+        $t = preg_replace('/\s+/', ' ', $t);       // espacios dobles
+        return trim($t);
+    }
+
+    public static function similitud($a, $b , $nombres = true) {
+        
+        if ($a==$b)return 100; // si son iguales devolver directamente
+        $a = self::normalizar($a , $nombres);
+        $b = self::normalizar($b , $nombres);
+        if ($a==$b)return 100; // si son iguales devolver directamente
+        
+
+        
+        $palabrasA = explode(' ', $a);
+        $palabrasB = explode(' ', $b);
+
+        $count_palabrasA = count($palabrasA);
+        $count_palabrasB = count($palabrasB);
+
+        // Determinar cuál es el string más largo
+        $textoLargo = $count_palabrasA >= $count_palabrasB ? $a : $b;
+        $textoCorto = $count_palabrasA < $count_palabrasB ? $a : $b;
+        $palabrasCorto = explode(' ', $textoCorto);
+        
+        $puntaje = 0;
+        foreach ($palabrasCorto as $palabra) {
+            if (strpos(' '.$textoLargo.' ', ' '.$palabra.' ') !== false) { // para palabras totalmente exactas ejm adrian y adriana
+                $puntaje++;
+            }
+        }
+
+        //no ejecutar si la diferia del nombre corto con el nombre largo es mas del doble
+        
+        if ($nombres and $count_palabrasA != $count_palabrasB) {
+            if ($count_palabrasA + $count_palabrasB != 7 ){ //si l suma es 7 es el unico caso qq uede existir de diferencia entre nombres y apellidos sin penalizar
+                if ($count_palabrasA > $count_palabrasB){
+
+                    if ($palabrasA[$count_palabrasA-2]!= $palabrasB[$count_palabrasB-1]) {
+                        //echo 'penalizando por apellido: ' . $palabrasA[$count_palabrasA-2] . ' vs ' . $palabrasB[$count_palabrasB-1] . '<br>';
+                        $puntaje -= 0.65; // penalizar si el apellido no coincide
+                    }
+                }
+                else{
+                    if ($palabrasB[$count_palabrasB-2]!= $palabrasA[$count_palabrasA-1]) {
+                        //echo 'penalizando por apellido: ' . $palabrasB[$count_palabrasB-2] . ' vs ' . $palabrasA[$count_palabrasA-1] . '<br>';
+                        $puntaje -= 0.65; // penalizar si el apellido no coincide
+                    }
+                }
+            }
+            else{
+                if ($palabrasA[$count_palabrasA-2]!= $palabrasB[$count_palabrasB-2]) {
+                    //echo 'nuevo penalizando por apellido: ' . $palabrasA[$count_palabrasA-2] . ' vs ' . $palabrasB[$count_palabrasB-2] . '<br>';
+                    $puntaje -= 0.65; // penalizar si el apellido no coincide
+                }
+            }
+        }
+        
+        return count($palabrasCorto) > 0 
+            ? round(($puntaje / count($palabrasCorto)) * 100, 2)
+            : 100;
     }
 
 

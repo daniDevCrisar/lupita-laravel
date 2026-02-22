@@ -91,7 +91,7 @@
                                         <input 
                                             type="text"
                                             id="txt_ref_1"
-                                            name="txt_referencias_compromiso"
+                                            name="txt_ref_1"
                                             class="form-control"
                                             value="TRT_1"
                                             required
@@ -100,13 +100,13 @@
 
                                     <!-- REFERENCIAS -->
                                     <div class="col-12 col-md-6">
-                                        <label for="txt_referencias" class="form-label fw-semibold">
+                                        <label for="txt_ref" class="form-label fw-semibold">
                                             Referencias:
                                         </label>
                                         <input 
                                             type="text"
-                                            id="txt_referencias"
-                                            name="txt_referencias"
+                                            id="txt_ref"
+                                            name="txt_ref"
                                             class="form-control"
                                             value="TRT"
                                             required

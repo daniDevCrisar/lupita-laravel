@@ -2,7 +2,7 @@ function generar_excel_llamadas(json){
     var tabla='',analisis=[],archivo_excel=[];
     var vapi_ref,vapi_destino,vapi_origen,vapi_conductor,vapi_placa,vapi_mensajes,vapi_audio;
     var vapi_msj_conten,vapi_tlf,vapi_origen,vapi_fecha,vapi_v_prog=0,vapi_error_origen;
-    var vapi_entro_llamada,vapi_conductor_no_contesta,vapi_conductor_cuelga;
+    var vapi_entro_llamada,vapi_conductor_no_contesta,vapi_conductor_cuelga,vapi_audio_duracion;
     
     json.forEach((item, index) => {
 
@@ -94,6 +94,10 @@ function generar_excel_llamadas(json){
         if (item.endedReason=='twilio-failed-to-connect-call' || item.endedReason=='twilio-reported-customer-misdialed') vapi_error_origen=3;
         if (item.endedReason=='customer-did-not-answer') vapi_conductor_no_contesta=1;
         if (item.endedReason=='customer-ended-call') vapi_conductor_cuelga=1;
+
+
+        vapi_audio_duracion= Math.round(Number(item.costs?.[0]?.minutes??0)*60);
+
         
         //-------------------------------
         analisis = {
@@ -113,6 +117,7 @@ function generar_excel_llamadas(json){
 
         mensajes_conten: vapi_msj_conten,
         audio: vapi_audio,
+        audio_duracion: vapi_audio_duracion,
 
         'exitosa_segun_ia': item.analysis?.successEvaluation??'false',
         entro_llamada: vapi_entro_llamada,

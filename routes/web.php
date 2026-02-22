@@ -28,7 +28,7 @@ Route::prefix('importar')->group(function () {
     Route::get('/excel', [ImportController::class, 'cargar_excel']);
     Route::post('/excel/procesar', [ImportController::class, 'procesar_excel_llamadas']);
 
-    //Route::get('/excel/ia-prompt/{lote}', [ImportController::class, 'iaPrompt']);
+    Route::get('/excel/{lote_id}', [ImportController::class, 'mostrar_lote_importado'])->name('importar.excel.lote');;
 
     //Route::get('/excel/paso-1/{lote}', [ImportController::class, 'paso1']);
     //Route::get('/excel/paso-2/{lote}', [ImportController::class, 'paso2']);

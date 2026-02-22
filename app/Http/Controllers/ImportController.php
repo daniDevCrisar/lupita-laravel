@@ -10,6 +10,7 @@ use App\Database\DBCore;
 use App\Database\DBColumns;
 use App\Database\Tmp\DBTmpLotes;
 
+use App\Database\DBConductores;
 
 class ImportController extends Controller
 {
@@ -121,46 +122,103 @@ class ImportController extends Controller
         $data = ExcelTool::leer($file->getRealPath());
         $data = ExcelTool::limpiarExcelHojas($data);
 
+        $lote_id = ExcelTool::generarLoteId();
         //-------procesar la hoja de llamadas--------------
         $llamadas = $data[$request->txt_llamadas] ?? []; //seleccionar la hoja
-
+        if ( $llamadas[0][0]=='ID') $llamadas[0][0]='VAPI_ID'; //reemplazar id por vapi_id en la primera columna
         $columnas_tmpLotesDet = DBColumns::tmpLotesDet();
-        $columnas_excel_llamadas = $llamadas[0] ?? [];
-        $col_excel_ordenadas = [];
-        //--------buscar columnas requeridas en el excel----------------
-        foreach ($columnas_tmpLotesDet as $columna) {
-            $columna_n=ExcelTool::normalizarTexto($columna);
-            $buscar = array_search($columna_n, $columnas_excel_llamadas);
-            if ($buscar) {
-                $col_excel_ordenadas[$columna] = $buscar;
-                echo "Columna encontrada: " . $columna . " en posición " . $buscar . "<br>";
-            } else {
-                $col_excel_ordenadas[$columna] = '';
-                echo "Columna NO encontrada: " . $columna . "<br>" . $buscar;
-            }
-        }
-        $col_excel_ordenadas['vapi_id']=0;
-        //------ generar el array ordenado de llamadas con las columnas requeridas----------------
-        $lote_id = ExcelTool::generarLoteId();//generar id lote
-        array_shift($llamadas);//eliminar la fila de encabezados
-        $llamadas_excel_ord=[];
-        foreach ($llamadas as $fila) {
-            $fila_ordenada[0] = $lote_id; //agregar el id lote al inicio de cada fila
-            $count=0;
-            foreach ($col_excel_ordenadas as $columna) {
-                if ($count){
-                    //echo "Procesando columna: " . $columna . " con índice " . $count. "<br>";
-                    if (is_string($columna)) $fila_ordenada[$count] ='';
-                    else $fila_ordenada[$count] = $fila[$columna] ?? '';
-                }
-                $count++;
-            }
-            $llamadas_excel_ord[] = $fila_ordenada;// llamadas
-        }
+        $llamadas_excel_ord=ExcelTool::ordenarColumnasExcel($columnas_tmpLotesDet, $llamadas,$lote_id);
+        //procesar hoja trt
+        $referencias = $data[$request->txt_ref] ?? [];
+        $cols_tpm_lotes_ref = DBColumns::tmp_lotes_ref();
+        $referencias_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref, $referencias,$lote_id);
+        //-----------------------------------------------
+        //procesar hoja trt_COMPROMISO
+        $referencias_compromiso = $data[$request->txt_ref_1] ?? [];
+        $cols_tpm_lotes_ref_compromiso = DBColumns::tmp_lotes_ref_compromiso();
+        $referencias_c_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref_compromiso, $referencias_compromiso,$lote_id);
         //---------------------------------------------------
 
-        dd($llamadas_excel_ord,$col_excel_ordenadas);
+        //dd($referencias_c_excel_ord,$referencias_excel_ord,$llamadas_excel_ord);
+        //dd($llamadas_excel_ord);
+        DBCore::insertBatch('tmp_lotes_det',$columnas_tmpLotesDet, $llamadas_excel_ord);
+        DBCore::insertBatch('tmp_lotes_ref',$cols_tpm_lotes_ref, $referencias_excel_ord);
+        DBCore::insertBatch('tmp_lotes_ref_compromiso',$cols_tpm_lotes_ref_compromiso, $referencias_c_excel_ord);
+        //cabezera del lote
+        $nombre_archivo = $file->getClientOriginalName();
+        DBTmpLotes::crear(
+            $lote_id,
+            $nombre_archivo,''
+        );
+
+        return redirect()->route('importar.excel.lote', [
+            'lote_id' => $lote_id
+        ]);
+
+
     }
+
+    public function mostrar_lote_importado($lote_id)
+    {
+        $cabecera = DBTmpLotes::obtenerCabecera($lote_id);
+        //dd($cabecera);
+        $conductores = DBTmpLotes::obtenerConductoresDuplicados($lote_id);
+        $trts = DBTmpLotes::obtenerTransportistasDuplicados($lote_id);
+        $llamadas_detalle = DBTmpLotes::obtenerDetalle($lote_id);
+        $l_exitosas = 0;
+        $total = 0;
+        foreach ($llamadas_detalle as $row) {
+            $fila = (array) $row;
+            $ultimoValor = end($fila);
+            $l_exitosas += (int) $ultimoValor;
+            $total++;
+        }
+        
+        $llamadas = [
+            'total' => $total,
+            'exitosas' => $l_exitosas,
+            'fallidas' => $total - $l_exitosas,
+            'detalle'=> $llamadas_detalle
+        ];
+
+        //-----------GENERAR TABLAS---------------------------
+        $personas=DBTmpLotes::compararNombres($conductores,'telefono','conductor');//comparar datos parecidos
+
+        $count=0;
+
+        foreach ($personas as $item){
+            $accion= DBConductores::buscar_duplicados($item);
+
+            echo $accion['accion'] . ': ' . $item->conductor . ' '. $item->telefono.' - '. $accion['row']->conductor.' ('. $accion['comparar'] .'%)<br>';
+            if ($accion['accion']=='nuevo') $id_conductor = DBConductores::crear($item);
+            else {
+                $id_conductor = $accion['id'];
+                if( $accion['accion']== 'actualizar'){
+                    if( DBConductores::actualizar($accion['row'])) 
+                        echo $accion['id'] . ' actualizado correrctamente <br>';
+                    else echo $accion['id'] .' hubo un error al actualizar <br>';
+                }
+            }
+            $personas[$count]->id=$id_conductor;
+            
+            $count++;
+        }
+        
+        dd($personas);
+        //------------------------------------------------------
+
+        //dd($llamadas);
+
+        return view('import.procesar_lote', [
+            'conductores' => $conductores,
+            'lote_id' => $lote_id,
+            'cabecera' => $cabecera,
+            'trts' => $trts,
+            'llamadas' => $llamadas
+        ]);
+    }
+
+
 
 
 }
