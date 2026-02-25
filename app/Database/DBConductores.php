@@ -19,11 +19,11 @@ class DBConductores
     public static function crear_telefono($row){
         try {
             return DB::table('tlf_conductores')->insertGetId( [ 
-                'conductor_id' => $row->conductor_id,
-                'telefono'=> $row->telefono
+                'conductor_id' => $row['id'],
+                'telefono'=> $row['telefono']
             ]);
         } catch (\Exception $e) {
-            echo 'error al crear nuevo telefono para id:' . $row->conductor_id . '-' . $row->telefono;
+            echo 'error telefono duplicado:' . $row['id'] . '-' . $row['telefono'] . '<br>';
             return false;
         }
     }
@@ -39,7 +39,7 @@ class DBConductores
     }
 
 
-    public static function buscar_duplicados($row){
+    public static function buscar_duplicados($row){ //solo para import
         $nom=DBTmpLotes::normalizar( $row->conductor,false);
         $buscar = DB::select("SELECT *
         FROM conductores 

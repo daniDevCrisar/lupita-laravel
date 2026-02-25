@@ -22,7 +22,8 @@ CREATE TABLE trts (
     ruc VARCHAR(12) NULL,
 
     activo TINYINT(1) NOT NULL DEFAULT 1,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FULLTEXT(nombres) 
 );
 
 DELIMITER $$
@@ -92,11 +93,9 @@ CREATE TABLE tlf_conductores (
     INDEX idx_telefono (telefono)
 );
 
-
+-- +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 CREATE TABLE referencias (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    ref VARCHAR(10),
-    fecha_llamada TIMESTAMP DEFAULT NULL,
+    ref VARCHAR(10) PRIMARY KEY,
     trt_id INT,
     conductor_id INT NOT NULL,
     fecha_despachador TIMESTAMP DEFAULT NULL,
@@ -110,10 +109,81 @@ CREATE TABLE referencias (
     inicio_de_carga TIMESTAMP DEFAULT NULL,
     presenta_para_carga TIMESTAMP DEFAULT NULL
 );
+-- ++++++++++++++++++++++++++++++++++++++++++++
+DELIMITER $$
+
+CREATE PROCEDURE sp_insertar_o_nueva_referencia(
+    IN p_ref VARCHAR(10),
+    IN p_trt_id INT,
+    IN p_conductor_id INT,
+    IN p_fecha_despachador TIMESTAMP,
+    IN p_titulo_viaje VARCHAR(200),
+    IN p_placa VARCHAR(10),
+    IN p_fin_descargue TIMESTAMP,
+    IN p_inicio_descargue TIMESTAMP,
+    IN p_qr_llegada_destino TIMESTAMP,
+    IN p_fin_de_carga TIMESTAMP,
+    IN p_inicio_de_carga TIMESTAMP,
+    IN p_presenta_para_carga TIMESTAMP
+)
+BEGIN
+    DECLARE v_existe INT DEFAULT 0;
+    DECLARE v_id INT DEFAULT 0;
+    DECLARE v_es_nuevo BOOLEAN DEFAULT FALSE;
+    
+    -- Verificar si existe la referencia
+    SELECT COUNT(*) INTO v_existe 
+    FROM referencias 
+    WHERE ref = p_ref;
+    
+    IF v_existe > 0 THEN
+        -- UPDATE - ya existe
+        UPDATE referencias SET
+            trt_id = p_trt_id,
+            conductor_id = p_conductor_id,
+            fecha_despachador = p_fecha_despachador,
+            titulo_viaje = p_titulo_viaje,
+            placa = p_placa,
+            fin_descargue = p_fin_descargue,
+            inicio_descargue = p_inicio_descargue,
+            qr_llegada_destino = p_qr_llegada_destino,
+            fin_de_carga = p_fin_de_carga,
+            inicio_de_carga = p_inicio_de_carga,
+            presenta_para_carga = p_presenta_para_carga
+        WHERE ref = p_ref;
+        
+        -- Obtener ID (como no hay campo id, usamos ref como identificador)
+        SET v_id = 0; -- Podrías usar algo como: SELECT id FROM ... WHERE ref = p_ref;
+        SET v_es_nuevo = FALSE;
+    ELSE
+        -- INSERT - es nuevo
+        INSERT INTO referencias (
+            ref, trt_id, conductor_id, fecha_despachador, 
+            titulo_viaje, placa, fin_descargue, inicio_descargue,
+            qr_llegada_destino, fin_de_carga, inicio_de_carga, presenta_para_carga
+        ) VALUES (
+            p_ref, p_trt_id, p_conductor_id, p_fecha_despachador,
+            p_titulo_viaje, p_placa, p_fin_descargue, p_inicio_descargue,
+            p_qr_llegada_destino, p_fin_de_carga, p_inicio_de_carga, p_presenta_para_carga
+        );
+        
+        -- Para INSERT podemos usar LAST_INSERT_ID() si tuvieras id autoincremental
+        SET v_id = 0; -- Como no hay id, usamos 0 o podrías usar ROW_COUNT()
+        SET v_es_nuevo = TRUE;
+    END IF;
+    
+    -- Devolver resultado
+    SELECT p_ref AS ref, v_es_nuevo AS es_nuevo;
+    
+END$$
+
+DELIMITER ;
+
+-- +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 CREATE TABLE razones_finalizacion (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT PRIMARY KEY,
     codigo VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(80) NOT NULL UNIQUE,
     nombre VARCHAR(80) NOT NULL,
@@ -122,15 +192,18 @@ CREATE TABLE razones_finalizacion (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO razones_finalizacion (codigo, name, nombre, descripcion, origen) VALUES
-('IA_FINALIZA_LLAMADA', 'assistant-ended-call', 'IA corto', 'La llamada fue finalizada por la IA', 'SISTEMA'),
-('CONDUCTOR_FINALIZA_LLAMADA', 'customer-ended-call', 'Conductor corto', 'El conductor finalizo la llamada', 'CONDUCTOR'),
-('CONDUCTOR_NO_RESPONDE', 'customer-did-not-answer', 'No contesto', 'El conductor no respondio la llamada', 'CONDUCTOR'),
-('ERROR_CONEXION_TELEFONIA', 'twilio-failed-to-connect-call', 'Error de conexion', 'Fallo al conectar la llamada', 'TELEFONIA'),
-('CONDUCTOR_OCUPADO', 'customer-busy', 'Ocupado', 'La linea del conductor estaba ocupada', 'CONDUCTOR'),
-('TIEMPO_MAXIMO_EXCEDIDO', 'exceeded-max-duration', 'Tiempo maximo excedido', 'La llamada supero la duracion permitida', 'SISTEMA'),
-('IA_MARCO_NUMERO_INVALIDO', 'twilio-reported-customer-misdialed', 'Ia Marco numero erroneo', 'El numero fue marcado incorrectamente', 'SISTEMA'),
-('SILENCIO_PROLONGADO', 'silence-timed-out', 'Silencio prolongado', 'No hubo respuesta de voz por tiempo limite', 'SISTEMA');
+INSERT INTO razones_finalizacion (id, codigo, name, nombre, descripcion, origen) VALUES
+(0, 'DESCONOCIDO', 'UNKNOWN', 'Razon desconocida', 'No se pudo determinar la razón de finalización', 'SISTEMA'),
+(1, 'IA-FINALIZA-LLAMADA', 'ASSISTANT-ENDED-CALL', 'IA corto', 'La llamada fue finalizada por la IA', 'SISTEMA'),
+(2, 'CONDUCTOR-FINALIZA-LLAMADA', 'CUSTOMER-ENDED-CALL', 'Conductor corto', 'El conductor finalizo la llamada', 'CONDUCTOR'),
+(3, 'CONDUCTOR-NO-RESPONDE', 'CUSTOMER-DID-NOT-ANSWER', 'No contesto', 'El conductor no respondio la llamada', 'CONDUCTOR'),
+(4, 'ERROR-CONEXION-TELEFONIA', 'TWILIO-FAILED-TO-CONNECT-CALL', 'Error de conexion', 'Fallo al conectar la llamada', 'TELEFONIA'),
+(5, 'CONDUCTOR-OCUPADO', 'CUSTOMER-BUSY', 'Ocupado', 'La linea del conductor estaba ocupada', 'CONDUCTOR'),
+(6, 'TIEMPO-MAXIMO-EXCEDIDO', 'EXCEEDED-MAX-DURATION', 'Tiempo maximo excedido', 'La llamada supero la duracion permitida', 'SISTEMA'),
+(7, 'IA-MARCO-NUMERO-INVALIDO', 'TWILIO-REPORTED-CUSTOMER-MISDIALED', 'Ia Marco numero erroneo', 'El numero fue marcado incorrectamente', 'SISTEMA'),
+(8, 'SILENCIO-PROLONGADO', 'SILENCE-TIMED-OUT', 'Silencio prolongado', 'No hubo respuesta de voz por tiempo limite', 'SISTEMA'),
+(9, 'ERROR_VAPI_SIN_WORKERS', 'CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE', 'Error VAPI - Worker no disponible', 'La plataforma VAPI no tiene workers disponibles para procesar la llamada', 'SISTEMA');
+
 
 
 -- Campo: llamada_exitosa
@@ -256,16 +329,18 @@ INSERT INTO tipos_llamada (id, codigo, nombre, descripcion) VALUES
 DROP TABLE IF EXISTS llamadas;
 
 CREATE TABLE llamadas (
-
+    
     -- =========================
     -- 1. IDENTIFICACION
     -- =========================
     vapi_id BINARY(16) PRIMARY KEY NOT NULL,   -- se convertira a bynari
-    --conductor_id INT,
-    --trt_id INT,
-    --ref VARCHAR(10),
-    ref_id int, --por si no tiene ref
-    --mensansaje en otra tabla
+    lote_id VARCHAR(100) NOT NULL,
+
+    conductor_id INT not null,
+    trt_id INT,
+    telefono VARCHAR(20) NOT NULL,
+    ref int, -- por si no tiene ref
+    -- mensansaje en otra tabla
 
     -- =========================
     -- 2. CLASIFICACION GENERAL
@@ -318,8 +393,9 @@ CREATE TABLE llamadas (
     -- =========================
     -- 8. AUDITORIA
     -- =========================
+    procesado TINYINT(1) DEFAULT 0, -- si la llamad fue analizada por un hnumano
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 
     -- =========================
     -- FOREIGN KEYS (OPCIONAL)
@@ -327,10 +403,16 @@ CREATE TABLE llamadas (
 
 );
 
-
-
-
-
+CREATE TABLE mensajes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vapi_id BINARY(16) NOT NULL,  -- UUID en formato binario
+    orden INT NOT NULL,
+    tipo ENUM('BOT', 'USER') NOT NULL,  -- Solo BOT o USER
+    mensaje TEXT,
+    
+    INDEX idx_vapi_id (vapi_id),
+    INDEX idx_orden (orden)
+);
 
 
 CREATE TABLE error_origenes (
@@ -339,11 +421,11 @@ CREATE TABLE error_origenes (
     descripcion VARCHAR(100) NULL
 );
 INSERT INTO error_origenes (id, nombre, descripcion) VALUES
-(-1, 'desconocido', 'No se pudo determinar origen'),
-(0,  'humano', 'El chofer no proporciono datos correctos'),
-(1,  'ia', 'Falla de inteligencia artificial'),
-(2,  'red', 'Problema de conectividad'),
-(3,  'sistema', 'Error interno del sistema');
+(-1, 'Desconocido', 'No se pudo determinar origen'),
+(0,  'Humano', 'El chofer no proporciono datos correctos'),
+(1,  'IA', 'Falla de inteligencia artificial'),
+(2,  'Red', 'Problema de conectividad'),
+(3,  'Sistema', 'Error interno del sistema');
 
 
 

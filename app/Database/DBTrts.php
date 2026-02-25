@@ -17,13 +17,14 @@ class DBTrts
     }
 
     public static function sp_insertar_o_obtener_trts($row){
-        $resultado = DB::select('CALL sp_insertar_o_obtener_trts(?, ?, ?, ?)',
+        $accion= DB::select('CALL sp_insertar_o_obtener_trts(?, ?, ?, ?)',
         [
-            $sis_id,
-            $vapi_id,
-            $nombres,
-            $ruc
+            $row->sis_id,
+            $row->vapi_id,
+            $row->nombres??$row->transportista,
+            $row->ruc
         ]);
+        return $accion[0];
     }
 
 }

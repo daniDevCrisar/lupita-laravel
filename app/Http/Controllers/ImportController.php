@@ -6,11 +6,15 @@ use Illuminate\Http\Request;
 
 
 use App\Tools\ExcelTool;
+use App\Tools\BuscarEnArray;
 use App\Database\DBCore;
 use App\Database\DBColumns;
 use App\Database\Tmp\DBTmpLotes;
+use App\Database\Tmp\DBTmpLlamadas;
 
 use App\Database\DBConductores;
+use App\Database\DBTrts;
+use App\Database\DBReferencias;
 
 class ImportController extends Controller
 {
@@ -182,10 +186,9 @@ class ImportController extends Controller
         ];
 
         //-----------GENERAR TABLAS---------------------------
+        //----------------INSERTAR PRIMERO CONDUCTORES---------------------
         $personas=DBTmpLotes::compararNombres($conductores,'telefono','conductor');//comparar datos parecidos
-
         $count=0;
-
         foreach ($personas as $item){
             $accion= DBConductores::buscar_duplicados($item);
 
@@ -199,15 +202,48 @@ class ImportController extends Controller
                     else echo $accion['id'] .' hubo un error al actualizar <br>';
                 }
             }
+
             $personas[$count]->id=$id_conductor;
-            
             $count++;
         }
-        
-        dd($personas);
-        //------------------------------------------------------
+        //insertar TRTS--------------------------
+        $count=0;
+        foreach ($trts as $item){
+            $id_trt=null; //si el nombre esta en blanco
+            if ($item->transportista !='') {
+                $trt_accion= DBTrts::sp_insertar_o_obtener_trts($item);
 
-        //dd($llamadas);
+                $id_trt=$trt_accion->id;
+                echo $trt_accion->es_nuevo ? 'trt nuevo <br>': 'trt duplicado<br>';
+            }
+            else echo 'trt vacio<br>';
+
+            $trts[$count]->id=$id_trt;
+            $count++;
+        }
+
+        $refs=DBTmpLotes::obtenerRefsDuplicadas($lote_id); //obtener ref combinadas de compromiso y otras etapas
+        //-----------------------insertar llamadas------------------
+        $db_llamadas= new DBTmpLlamadas();
+        foreach ($llamadas_detalle as $item){
+            $id_trt = BuscarEnArray::en_trt($item->transportista, $trts);
+            $id_conductor= BuscarEnArray::en_conductor($item->conductor, $personas);
+            echo 'trt id:'.$id_trt.' **** conductor id:'.$id_conductor.'<br>';
+            DBConductores::crear_telefono([ 'id'=> $id_conductor, 'telefono'=>$item->telefono ]);
+            BuscarEnArray::ref_para_agregar_ids($item->ref,$id_trt, $id_conductor, $refs);
+            $db_llamadas::importar_llamadas_de_tmp_al_sistema($id_trt,$id_conductor,$lote_id,$item);
+        }
+        //insertar referencias
+        foreach ($refs as $item){
+            $ref_procesada=DBReferencias::sp_insertar_o_nueva_referencia($item);
+            echo $item->ref;
+            echo $ref_procesada->es_nuevo ? ' ref nueva <br>': ' ref duplicada<br>';
+        }
+
+
+        echo '<h2>llamadas:'.$db_llamadas::$log->total_llamadas.' ,duplicadas:'. $db_llamadas::$log->total_duplicados .'</h2><br>';
+        dd($refs);
+        //------------------------------------------------------
 
         return view('import.procesar_lote', [
             'conductores' => $conductores,

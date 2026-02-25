@@ -87,6 +87,7 @@ function generar_excel_llamadas(json){
         if (vapi_tlf) vapi_tlf= vapi_tlf.replaceAll('+', '');
         //--------------------------------
         const vapi_created_at=convertirSiEsFecha(formatearFechaISO(item.createdAt));
+        //console.log(timestampJSaExcel(vapi_created_at));
 
         vapi_error_origen='';
         vapi_conductor_no_contesta='';
@@ -104,7 +105,7 @@ function generar_excel_llamadas(json){
         id: item.id, //id en la plataforma de llamada
         type: item.type,
         created_at: vapi_created_at,
-        created_at_excel: timestampJSaExcel(vapi_created_at),
+        created_at_excel: timestampJSaExcel(vapi_created_at) - (5/24), //restarle 5 horas
         llamada_tipo:vapi_v_prog,
         ref: vapi_ref,
 
