@@ -3,6 +3,9 @@
 namespace App\Livewire;
 
 use Livewire\Component;
+use Livewire\Attributes\On;
+use Illuminate\Support\Facades\DB;
+
 
 class MensajesLlamada extends Component
 {
@@ -12,11 +15,12 @@ class MensajesLlamada extends Component
     public $showModal = false;
 
     // Sintaxis más simple para Livewire 3/4
-    public function abrirMensaje($data)
+    #[On('abrirMensaje')] // <--- 2. ESTO ES OBLIGATORIO
+    public function abrirMensaje($telefono, $nombre, $mensaje)
     {
-        $this->telefono = $data['telefono'];
-        $this->nombre = $data['nombre'];
-        $this->mensaje = $data['mensaje'];
+        $this->telefono = $telefono;
+        $this->nombre = $nombre;
+        $this->mensaje = $mensaje;
         $this->showModal = true;
     }
 

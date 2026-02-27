@@ -89,7 +89,12 @@
                         <button class="btn btn-outline-success" onclick="playAudio('{{ $row->audio_link }}','{{ $row->telefono }}','{{ $row->conductor }}' )">
                             <i class="bi bi-play-fill me-1"></i> Reproducir
                         </button> 
-                        <button class="btn btn-outline-info">
+                        <button class="btn btn-outline-info" 
+                        onclick="Livewire.dispatch('abrirMensaje',{ 
+                            telefono: '{{ $row->telefono }}', 
+                            nombre: '{{ $row->conductor }}',
+                            mensaje: 'Mensaje de prueba'
+                            })">
                             <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
                         </button>
                         <br>
