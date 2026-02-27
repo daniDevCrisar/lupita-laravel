@@ -185,6 +185,19 @@ class ImportController extends Controller
             'detalle'=> $llamadas_detalle
         ];
 
+        return view('import.procesar_lote', [
+            'conductores' => $conductores,
+            'lote_id' => $lote_id,
+            'cabecera' => $cabecera,
+            'trts' => $trts,
+            'llamadas' => $llamadas
+        ]);
+    }
+
+    public function procesar_importacion_de_lote($lote_id){
+        $conductores = DBTmpLotes::obtenerConductoresDuplicados($lote_id);
+        $trts = DBTmpLotes::obtenerTransportistasDuplicados($lote_id);
+        $llamadas_detalle = DBTmpLotes::obtenerDetalle($lote_id);
         //-----------GENERAR TABLAS---------------------------
         //----------------INSERTAR PRIMERO CONDUCTORES---------------------
         $personas=DBTmpLotes::compararNombres($conductores,'telefono','conductor');//comparar datos parecidos
@@ -245,13 +258,6 @@ class ImportController extends Controller
         dd($refs);
         //------------------------------------------------------
 
-        return view('import.procesar_lote', [
-            'conductores' => $conductores,
-            'lote_id' => $lote_id,
-            'cabecera' => $cabecera,
-            'trts' => $trts,
-            'llamadas' => $llamadas
-        ]);
     }
 
 

@@ -238,9 +238,9 @@ CREATE TABLE tipos_llamada (
 
 INSERT INTO tipos_llamada (id, codigo, nombre, descripcion) VALUES
 (0, 'INDETERMINADA', 'Indeterminada', 'La IA no pudo clasificar la llamada'),
-(1, 'CONFIRMACION_LLEGADA', 'Confirmacion de Llegada', 'El conductor confirma arribo'),
-(2, 'ESPERA_FUERA_PLANTA', 'Tiempo de Espera Fuera de Planta', 'Conductor esperando fuera de instalaciones'),
-(3, 'TIEMPO_EN_PLANTA', 'Tiempo en Planta', 'Conductor dentro de planta');
+(1, 'CONFIRMACION_LLEGADA', 'Confirmacion', 'El conductor confirma arribo de carga'),
+(2, 'ESPERA_FUERA_PLANTA', 'Fuera de planta', 'Conductor esperando fuera de instalaciones para cargar'),
+(3, 'TIEMPO_EN_PLANTA', 'Dentro de planta', 'Conductor dentro de planta cargando');
 
 
 -- Campo: es_entrante
@@ -333,7 +333,7 @@ CREATE TABLE llamadas (
     -- =========================
     -- 1. IDENTIFICACION
     -- =========================
-    vapi_id BINARY(16) PRIMARY KEY NOT NULL,   -- se convertira a bynari
+    vapi_id VARCHAR(36) PRIMARY KEY NOT NULL,   -- se convertira a bynari
     lote_id VARCHAR(100) NOT NULL,
 
     conductor_id INT not null,
@@ -394,18 +394,22 @@ CREATE TABLE llamadas (
     -- 8. AUDITORIA
     -- =========================
     procesado TINYINT(1) DEFAULT 0, -- si la llamad fue analizada por un hnumano
+    fecha_prometida TIMESTAMP DEFAULT NULL,
+    origen VARCHAR(100) NOT NULL DEFAULT '',
+    destino VARCHAR(100) NOT NULL DEFAULT '',
+    placa VARCHAR(20),
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 
     -- =========================
     -- FOREIGN KEYS (OPCIONAL)
     -- =========================
-
 );
 
 CREATE TABLE mensajes (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    vapi_id BINARY(16) NOT NULL,  -- UUID en formato binario
+    vapi_id VARCHAR(36) NOT NULL,   -- UUID en formato binario
     orden INT NOT NULL,
     tipo ENUM('BOT', 'USER') NOT NULL,  -- Solo BOT o USER
     mensaje TEXT,
@@ -415,12 +419,13 @@ CREATE TABLE mensajes (
 );
 
 
-CREATE TABLE error_origenes (
-    id TINYINT SIGNED PRIMARY KEY,
+CREATE TABLE error_origen (
+    id TINYINT PRIMARY KEY,
     nombre VARCHAR(20) NOT NULL,
     descripcion VARCHAR(100) NULL
 );
-INSERT INTO error_origenes (id, nombre, descripcion) VALUES
+
+INSERT INTO error_origen (id, nombre, descripcion) VALUES
 (-1, 'Desconocido', 'No se pudo determinar origen'),
 (0,  'Humano', 'El chofer no proporciono datos correctos'),
 (1,  'IA', 'Falla de inteligencia artificial'),

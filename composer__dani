@@ -2,6 +2,8 @@
 composer require phpoffice/phpspreadsheet
 
 composer require barryvdh/laravel-debugbar --dev
+composer require livewire/livewire
+php artisan livewire:publish --config
 
 
 
@@ -16,3 +18,6 @@ php artisan key:generate
 
 git config --global user.name "daniDevCrisar"
 git config --global user.email "llamadas.ia.crisar@gmail.com"
+
+php artisan make:livewire PruebaComponente --class
+php artisan make:livewire PruebaComponente

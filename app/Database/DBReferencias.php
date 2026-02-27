@@ -15,12 +15,12 @@ class DBReferencias {
     public static function sp_insertar_o_nueva_referencia($row){
         $id_trt=$row->id_trt;
         $id_trt= ($id_trt !== 'null' && $id_trt !== '') ? $id_trt : null;
-        $accion=  DB::select('CALL sp_insertar_o_nueva_referencia(?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?))',
+        $accion=  DB::select('CALL sp_insertar_o_nueva_referencia(?, ?, ?, FROM_UNIXTIME(?), ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?))',
             [
                 $row->ref,
                 $id_trt,
                 $row->id_conductor,
-                $row->fecha_despachador,
+                self::excel_time_a_timestamp($row->fecha_despachador),
                 $row->titulo_viaje,
                 $row->placa,
                 null,//$row->fin_descargue,

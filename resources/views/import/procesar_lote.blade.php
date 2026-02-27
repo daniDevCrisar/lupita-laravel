@@ -23,7 +23,7 @@ $total_trts = count($trts);
 
         <!-- DERECHA -->
         <div class="col text-end">
-            <a href="{{ url('/import/paso-2/'.$lote_id) }}" class="btn btn-success btn-sm">
+            <a href="{{ url('/importar/excel/'.$lote_id . '/procesar') }}" class="btn btn-success btn-sm">
                 Siguiente <i class="bi bi-arrow-right"></i>
             </a>
         </div>

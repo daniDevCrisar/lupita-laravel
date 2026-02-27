@@ -4,7 +4,8 @@ namespace App\Database\Tmp;
 
 use Illuminate\Support\Facades\DB;
 use App\Tools\BuscarEnArray;
-use stdClass;
+use App\Database\DBReferencias;
+use stdClass;use DateTime; 
 
 class DBTmpLlamadas {
     public static $razones_finalizacion = [];
@@ -21,7 +22,7 @@ class DBTmpLlamadas {
 
     public static function existe($id) {
         self::$log->total_llamadas++;
-        $result= DB::select('SELECT vapi_id FROM `llamadas` where vapi_id=UUID_TO_BIN(?)', [$id]);
+        $result= DB::select('SELECT vapi_id FROM `llamadas` where vapi_id=?', [$id]);
         if (count($result) == 1) {
             self::$log->duplicados[]= $id;
             self::$log->total_duplicados++;
@@ -39,7 +40,16 @@ class DBTmpLlamadas {
         $llamada->trt_id = ($id_trt !== 'null' && $id_trt !== '') ? $id_trt : null;
         $llamada->telefono= $item->telefono;
         $llamada->ref = $item->ref == '' ? null : $item->ref;
-        $llamada->llamada_tipo_id = $item->llamada_tipo;
+
+        //clasificar solo llamadas 0
+        $tipol=$item->llamada_tipo;
+        if ($tipol == 0) {
+            if ($item->fecha_prometida) $tipol = 1;
+            else if ($item->origen . $item->destino !='' ) $tipol = 3;
+            else  $tipol = 2;
+        }
+        $llamada->llamada_tipo_id = $tipol;
+
         $llamada->es_entrante = 0; //OUTBOUNDPHONECALL
         $llamada->razon_finalizacion_id =self::obtener_id_razon($item->razon_finalizacion);
         $llamada->entro_llamada = $item->entro_llamada;
@@ -78,11 +88,36 @@ class DBTmpLlamadas {
         $llamada->error_origen = self::validar_error_origen($item->error_origen);
         self::guardar_mensajes($item->vapi_id,$item->mensajes_conten);
         $timestamp = (int) $item->created_at;
-        $llamada->created_at = ($timestamp  - (5 * 60 * 60 * 1000) )  /1000; //dejarlo en horario peruano utc-5
+        $llamada->created_at = $timestamp /1000; //dejarlo en horario peruano utc-5
 
         $llamada->procesado= 1; //indica si la llamada fue etiquetada por un humano 
+        $llamada->fecha_prometida = self::fecha_string_o_numero($item->fecha_prometida);
+        $llamada->origen= $item->origen;
+        $llamada->destino = $item->destino;
+        $llamada->placa = $item->placa;
 
         self::guardar_llamada($llamada);
+    }
+
+    public static function fecha_string_o_numero($fecha) {
+        // Si es null o vacío
+        if ($fecha === null || $fecha === '' || $fecha === 'null') return null;
+        // Caso 1: Es número de Excel (timestamp de Excel)
+        if (is_numeric($fecha)) return DBReferencias::excel_time_a_timestamp($fecha);
+        // Intentar diferentes formatos
+        $formatos = [
+            'd/m/Y H:i',       // 18/02/2026 12:00
+            'd/m/Y H:i:s',     // 18/02/2026 12:00:00
+        ];
+        
+        foreach ($formatos as $formato) {
+            $date = DateTime::createFromFormat($formato, $fecha);
+            if ($date){
+                $date->modify('+5 hours');
+                return $date->getTimestamp();
+            } 
+        }
+        return null;
     }
 
     public static function obtener_id_razon($name){
@@ -129,7 +164,7 @@ class DBTmpLlamadas {
             // MySQL convierte el UUID directamente con UUID_TO_BIN()
             DB::insert(
                 "INSERT INTO mensajes (vapi_id, orden, tipo, mensaje) 
-                VALUES (UUID_TO_BIN(?), ?, ?, ?)",
+                VALUES (?, ?, ?, ?)",
                 [$vapi_id, $orden, trim($msg[0]), trim($msg[1])]
             );
             $orden++;
@@ -180,9 +215,14 @@ class DBTmpLlamadas {
             error_audio,
             error_origen,
             procesado,
+            origen,
+            destino,
+            placa,
+            fecha_prometida,
             created_at
         ) VALUES (
-            UUID_TO_BIN(?),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+            FROM_UNIXTIME(?),
             FROM_UNIXTIME(?)
         )";
         
@@ -227,6 +267,10 @@ class DBTmpLlamadas {
             $llamada->error_audio,
             $llamada->error_origen,
             $llamada->procesado,
+            $llamada->origen,
+            $llamada->destino,
+            $llamada->placa,
+            $llamada->fecha_prometida,
             $llamada->created_at
         ];
         
