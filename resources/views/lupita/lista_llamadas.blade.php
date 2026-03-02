@@ -17,6 +17,48 @@
 </div>
 
 <div class="row">
+    <div class="col-12">
+        <form method="GET" class="row g-3 mb-4">
+            <div class="col-12">
+                <button 
+                    formmethod="GET"
+                    formaction="{{ url('/lupita/reporte') }}"
+                    formtarget="_blank"
+                    class="btn btn-warning">
+                    Reporte Top Todo
+                </button>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Fecha inicio</label>
+                <input type="date" 
+                    name="fecha_inicio" 
+                    value="{{ request('fecha_inicio') }}"
+                    class="form-control">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Fecha fin</label>
+                <input type="date" 
+                    name="fecha_fin" 
+                    value="{{ request('fecha_fin') }}"
+                    class="form-control">
+            </div>
+
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+
+                <a href="{{ url()->current() }}" class="btn btn-secondary">
+                    Limpiar
+                </a>
+            </div>
+
+        </form>
+    </div>
+
+
     <div class="col-12">{{ $llamadas::$lista->links() }}</div>
     <div class="col-12">
         <div class="card mb-3">
@@ -54,11 +96,7 @@
                 @foreach($llamadas::$lista as $row)
                 <tr class="{{ $loop->odd ? 'table-secondary' : '' }}">
                     <td>
-        <button 
-            class="btn btn-outline-primary btn-sm"
-            onclick="Livewire.dispatch('abrirMensaje',{ telefono: '{{ $row->telefono }}', nombre: '{{ $row->conductor }}',mensaje: 'Mensaje de prueba'})">
-            Ver mensaje
-        </button>
+
                     <i class="bi bi-telephone-outbound {{ $row->entro_llamada ? 'text-success': '' }}"></i> <span class='small'>{{ $row->vapi_id }}</span>
                     @if ($row->exitosa_segun_ia)
                         <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
@@ -86,18 +124,20 @@
                         </button>
                     </td>
                     <td>
-                        <button class="btn btn-outline-success" onclick="playAudio('{{ $row->audio_link }}','{{ $row->telefono }}','{{ $row->conductor }}' )">
-                            <i class="bi bi-play-fill me-1"></i> Reproducir
-                        </button> 
-                        <button class="btn btn-outline-info" 
-                        onclick="Livewire.dispatch('abrirMensaje',{ 
-                            telefono: '{{ $row->telefono }}', 
-                            nombre: '{{ $row->conductor }}',
-                            mensaje: 'Mensaje de prueba'
-                            })">
-                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
-                        </button>
-                        <br>
+                        @if ($row->entro_llamada)
+                            <button class="btn btn-outline-success" onclick="playAudio('{{ $row->audio_link }}','{{ $row->telefono }}','{{ $row->conductor }}' )">
+                                <i class="bi bi-play-fill me-1"></i> Reproducir
+                            </button> 
+                            <button class="btn btn-outline-info" 
+                            onclick="Livewire.dispatch('abrirMensaje',{ 
+                                telefono: '{{ $row->telefono }}', 
+                                nombre: '{{ $row->conductor }}',
+                                vapi_id : '{{ $row->vapi_id }}'
+                                })">
+                                <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                            </button><br>
+                        @endif
+                        
                         <span class="text-danger">{{ $row->analisis_transcripcion }}</span> <br>
                         <span class="text-success">{{ $row->analisis_audio }}</span>
                     </td>
@@ -129,11 +169,6 @@
 
 @livewireScripts
 <script>
-    document.addEventListener('livewire:load', function () {
-        console.log('Livewire cargado ✔️');
-        alert('Livewire está funcionando');
-    });
-
     function playAudio(url,tlf,nombres) {
         const audio = document.getElementById('mainAudio');
         const audio_texto= document.getElementById('audio_texto');

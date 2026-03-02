@@ -39,7 +39,7 @@ class DBCore
 
         if (empty($insertData)) return 0;
 
-        DB::table($tabla)->insert($insertData);
+        DB::table($tabla)->insertOrIgnore($insertData);
 
         return count($insertData);
     }

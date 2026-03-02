@@ -132,22 +132,30 @@ class ImportController extends Controller
         if ( $llamadas[0][0]=='ID') $llamadas[0][0]='VAPI_ID'; //reemplazar id por vapi_id en la primera columna
         $columnas_tmpLotesDet = DBColumns::tmpLotesDet();
         $llamadas_excel_ord=ExcelTool::ordenarColumnasExcel($columnas_tmpLotesDet, $llamadas,$lote_id);
+
+        DBCore::insertBatch('tmp_lotes_det',$columnas_tmpLotesDet, $llamadas_excel_ord);
         //procesar hoja trt
         $referencias = $data[$request->txt_ref] ?? [];
-        $cols_tpm_lotes_ref = DBColumns::tmp_lotes_ref();
-        $referencias_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref, $referencias,$lote_id);
+        if ( $referencias){
+            $cols_tpm_lotes_ref = DBColumns::tmp_lotes_ref();
+            $referencias_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref, $referencias,$lote_id);
+            DBCore::insertBatch('tmp_lotes_ref',$cols_tpm_lotes_ref, $referencias_excel_ord);            
+        }
+
         //-----------------------------------------------
         //procesar hoja trt_COMPROMISO
         $referencias_compromiso = $data[$request->txt_ref_1] ?? [];
-        $cols_tpm_lotes_ref_compromiso = DBColumns::tmp_lotes_ref_compromiso();
-        $referencias_c_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref_compromiso, $referencias_compromiso,$lote_id);
+        if ( $referencias_compromiso){
+            $cols_tpm_lotes_ref_compromiso = DBColumns::tmp_lotes_ref_compromiso();
+            $referencias_c_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref_compromiso, $referencias_compromiso,$lote_id);            
+            DBCore::insertBatch('tmp_lotes_ref_compromiso',$cols_tpm_lotes_ref_compromiso, $referencias_c_excel_ord);
+        }
+
         //---------------------------------------------------
 
         //dd($referencias_c_excel_ord,$referencias_excel_ord,$llamadas_excel_ord);
         //dd($llamadas_excel_ord);
-        DBCore::insertBatch('tmp_lotes_det',$columnas_tmpLotesDet, $llamadas_excel_ord);
-        DBCore::insertBatch('tmp_lotes_ref',$cols_tpm_lotes_ref, $referencias_excel_ord);
-        DBCore::insertBatch('tmp_lotes_ref_compromiso',$cols_tpm_lotes_ref_compromiso, $referencias_c_excel_ord);
+        
         //cabezera del lote
         $nombre_archivo = $file->getClientOriginalName();
         DBTmpLotes::crear(
@@ -221,6 +229,7 @@ class ImportController extends Controller
         }
         //insertar TRTS--------------------------
         $count=0;
+   
         foreach ($trts as $item){
             $id_trt=null; //si el nombre esta en blanco
             if ($item->transportista !='') {
@@ -250,7 +259,9 @@ class ImportController extends Controller
         foreach ($refs as $item){
             $ref_procesada=DBReferencias::sp_insertar_o_nueva_referencia($item);
             echo $item->ref;
-            echo $ref_procesada->es_nuevo ? ' ref nueva <br>': ' ref duplicada<br>';
+            if ($ref_procesada)
+                echo $ref_procesada->es_nuevo ? ' ref nueva <br>': ' ref duplicada<br>';
+            else echo 'ref sin conductor<br>';
         }
 
 

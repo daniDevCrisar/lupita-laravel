@@ -52,11 +52,13 @@ class DBTmpLlamadas {
 
         $llamada->es_entrante = 0; //OUTBOUNDPHONECALL
         $llamada->razon_finalizacion_id =self::obtener_id_razon($item->razon_finalizacion);
-        $llamada->entro_llamada = $item->entro_llamada;
+
+        $llamada->entro_llamada = $item->entro_llamada ? $item->entro_llamada : 0;
+
         $llamada->exitosa_segun_ia = $item->exitosa_segun_ia=='TRUE' ? 1 : 0;
         $llamada->llamada_exitosa = self::etiqueta_valor($item->llamada_exitosa);
         $llamada->audio_link = $item->audio;
-        $llamada->audio_duracion = $item->audio_duracion;
+        $llamada->audio_duracion = $item->audio_duracion ? $item->audio_duracion : 0 ;
         $llamada->analisis_transcripcion = $item->analisis_transcripcion;
         $llamada->analisis_audio = $item->analisis_audio;
 

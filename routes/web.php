@@ -41,6 +41,7 @@ Route::prefix('importar')->group(function () {
 
 Route::prefix('lupita')->group(function () {
     Route::get('/llamadas', [LlamadasController::class, 'listar_llamadas']);
+    Route::get('/reporte', [LlamadasController::class, 'reporte_todo']);
 
 });
 

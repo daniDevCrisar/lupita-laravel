@@ -13,8 +13,15 @@ class DBReferencias {
     }
 
     public static function sp_insertar_o_nueva_referencia($row){
-        $id_trt=$row->id_trt;
-        $id_trt= ($id_trt !== 'null' && $id_trt !== '') ? $id_trt : null;
+        if (!property_exists($row,'id_conductor')) return false;
+
+        if (property_exists($row,'id_trt')){
+            $id_trt=$row->id_trt;
+            $id_trt= ($id_trt !== 'null' && $id_trt !== '') ? $id_trt : null;
+        }
+        else 
+            $id_trt= null;
+
         $accion=  DB::select('CALL sp_insertar_o_nueva_referencia(?, ?, ?, FROM_UNIXTIME(?), ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?))',
             [
                 $row->ref,

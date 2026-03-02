@@ -3,6 +3,7 @@
 namespace App\Database;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use stdClass;
 
 class DBLlamadas {
     public static $lista = [];
@@ -36,14 +37,27 @@ class DBLlamadas {
         'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada'],
         'error_audio' => ['bi bi-volume-mute-fill text-danger','Error de audio'],
     ];
+    public static $filtro;
 
     public function __construct() {
         self::$razones_finalizacion = DB::select('SELECT * FROM razones_finalizacion');
         self::$tipos_llamada = DB::select('SELECT * FROM tipos_llamada');
         self::$error_origen = DB::select('SELECT * FROM error_origen');
+        self::$filtro= new stdClass();
+        self::$filtro->fecha_inicio='';
+        self::$filtro->fecha_fin= '';
     }
 
-    public static function listar_principal($mostrar=10){
+    public static function set_filtro($request){
+        self::$filtro->fecha_inicio=$request->fecha_inicio;
+        self::$filtro->fecha_fin=$request->fecha_fin;
+    }
+
+
+    public static function listar_principal($mostrar){
+        $fecha_i =self::$filtro->fecha_inicio;
+        $fecha_f= self::$filtro->fecha_fin;
+
         $llamadas = DB::table('llamadas as a')
         ->join('conductores as b', 'b.id', '=', 'a.conductor_id')
         ->leftJoin('trts as c', 'c.id', '=', 'a.trt_id')
@@ -97,8 +111,17 @@ class DBLlamadas {
             'a.error_tecnico_llamada',
             'a.error_audio'
         )
+        
+        ->when($fecha_i && $fecha_f, function ($query) use ($fecha_i, $fecha_f) {
+            $query->whereBetween('a.created_at', [
+                Carbon::parse($fecha_i)->startOfDay(),
+                Carbon::parse($fecha_f)->endOfDay()
+            ]);
+        })
         ->orderBy('a.created_at', 'desc')
-        ->paginate($mostrar);
+        ->paginate($mostrar)
+        ->withQueryString();
+
         self::$lista = $llamadas;
         return $llamadas;
     }
@@ -145,6 +168,254 @@ class DBLlamadas {
 
     public static function format_fecha($fecha){
         return Carbon::parse($fecha)->format('d/m/Y H:i');
+    }
+
+    public static function etiqueta_totales(){
+        $sql="SELECT 
+            COUNT(*) AS llamadas,
+            COUNT(DISTINCT conductor_id) AS conductores,
+            COUNT(DISTINCT trt_id) AS trts,
+            SUM(razon_finalizacion_id = 3) AS razon_3_no_contesta,
+            SUM(razon_finalizacion_id = 4) AS razon_4_red,
+            SUM(razon_finalizacion_id = 7) AS razon_7_sis,
+            SUM(razon_finalizacion_id = 9) AS razon_9_sis,
+            SUM(error_origen = -1) AS error_desconocido,
+            SUM(error_origen = 0) AS error_humano,
+            SUM(error_origen = 1) AS error_ia,
+            SUM(error_origen = 2) AS error_red,
+            SUM(error_origen = 3) AS error_sistema,
+
+            SUM(exitosa_segun_ia) AS exitosa_segun_ia,
+            (SUM(entro_llamada) - SUM(buzon_de_voz)) AS contestadas,
+            SUM(llamada_exitosa) AS llamada_exitosa,
+            SUM(audio_duracion) as audio_duracion,
+
+            SUM(conductor_confirma) AS conductor_confirma,
+            SUM(buzon_de_voz) AS buzon_de_voz,
+            SUM(conductor_contesta_pero_no_habla) AS conductor_contesta_pero_no_habla,
+            SUM(conductor_no_escucha) AS conductor_no_escucha,
+            SUM(conductor_da_motivos) AS conductor_da_motivos,
+            SUM(conductor_mala_senal) AS conductor_mala_senal,
+            SUM(confusion_en_llamada) AS confusion_en_llamada,
+            SUM(contesta_otra_persona) AS contesta_otra_persona,
+            SUM(numero_equivocado) AS numero_equivocado,
+            SUM(conversacion_fluida) AS conversacion_fluida,
+            SUM(llamada_interesante) AS llamada_interesante,
+
+            SUM(ia_se_confunde) AS ia_se_confunde,
+            SUM(ia_no_escucha) AS ia_no_escucha,
+            SUM(ia_cambio_de_datos) AS ia_cambio_de_datos,
+            SUM(ia_error_interpretacion) AS ia_error_interpretacion,
+            SUM(ia_dice_variable) AS ia_dice_variable,
+            SUM(ia_mala_pronunciacion) AS ia_mala_pronunciacion,
+
+            SUM(conductor_cuelga) AS conductor_cuelga,
+            SUM(conductor_no_contesta) AS conductor_no_contesta,
+            SUM(conductor_conducta_inapropiada) AS conductor_conducta_inapropiada,
+
+            SUM(error_tecnico_llamada) AS error_tecnico_llamada,
+            SUM(error_audio) AS error_audio
+            FROM llamadas a
+            where 1=1
+            ";
+        $filtro= self::aplicar_filtro_sqltext();
+
+        return  DB::select($sql . $filtro[0], $filtro[1]);
+    }
+
+    public static function aplicar_filtro_sqltext(){
+        $fecha_i =self::$filtro->fecha_inicio;
+        $fecha_f= self::$filtro->fecha_fin;
+        $sql = "";
+        $params = [];
+        if ($fecha_i && $fecha_f) {
+            $fecha_i=Carbon::parse($fecha_i)->startOfDay();
+            $fecha_f=Carbon::parse($fecha_f)->addDay()->startOfDay();
+
+            $sql .= "and a.created_at >= ? AND a.created_at < ?";
+            
+            $params[] = $fecha_i;
+            $params[] = $fecha_f;
+        }
+        return [$sql, $params];
+    }
+
+    public static function top_peores_conductores($limit=5){
+        $sql= "SELECT 
+            conductor_id,
+            conductor,
+            trt_id,
+            trt,
+            total,
+            exitosas,
+            fallidas,
+            tasa_exito,
+            diferencia,
+            buzon_de_voz,conductor_contesta_pero_no_habla,conductor_no_escucha,conductor_mala_senal,
+            confusion_en_llamada,contesta_otra_persona,numero_equivocado,conductor_cuelga,conductor_no_contesta
+        FROM (
+            SELECT 
+                a.conductor_id,
+                b.nombres AS conductor,
+                a.trt_id,
+                COALESCE(c.nombres, 'SIN TRT') AS trt,
+                COUNT(*) AS total,
+                SUM(a.llamada_exitosa=1) AS exitosas,
+                SUM(a.llamada_exitosa=0) AS fallidas,
+                ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
+                SUM(a.llamada_exitosa=0) - SUM(a.llamada_exitosa=1) AS diferencia,
+
+                SUM(a.buzon_de_voz * (a.llamada_exitosa = 0))  AS buzon_de_voz,
+                
+                SUM(a.conductor_contesta_pero_no_habla * (a.llamada_exitosa = 0)) AS conductor_contesta_pero_no_habla,
+                SUM(a.conductor_no_escucha * (a.llamada_exitosa = 0)) AS conductor_no_escucha,
+                SUM(a.conductor_mala_senal * (a.llamada_exitosa = 0)) AS conductor_mala_senal,
+                SUM(a.confusion_en_llamada * (a.llamada_exitosa = 0)) AS confusion_en_llamada,
+                SUM(a.contesta_otra_persona * (a.llamada_exitosa = 0)) AS contesta_otra_persona,
+                SUM(a.numero_equivocado * (a.llamada_exitosa = 0)) AS numero_equivocado,
+                SUM(a.conductor_cuelga * (a.llamada_exitosa = 0)) AS conductor_cuelga,
+                SUM(a.conductor_no_contesta * (a.llamada_exitosa = 0)) AS conductor_no_contesta
+            FROM llamadas a
+            INNER JOIN conductores b ON b.id = a.conductor_id
+            LEFT JOIN trts c ON c.id = a.trt_id
+            WHERE a.error_origen = 0 
+            ";
+        $sql_2="
+        GROUP BY a.conductor_id, a.trt_id
+            ORDER BY fallidas DESC, tasa_exito DESC
+        ) AS ranking
+        ORDER BY diferencia DESC , exitosas asc
+        limit ?;";
+
+        $filtro= self::aplicar_filtro_sqltext();
+        $filtro[1][]=$limit;
+        return  DB::select($sql . $filtro[0] . $sql_2, $filtro[1]);
+    }
+
+    public static function top_mejores_conductores($limit= 5){
+        $sql= "SELECT 
+            conductor_id,
+            conductor,
+            trt_id,
+            trt,
+            total,
+            exitosas,
+            fallidas,
+            tasa_exito,
+            diferencia,
+            conductor_confirma,
+            conductor_da_motivos,
+            conversacion_fluida,
+            llamada_interesante
+        FROM (
+            SELECT 
+                a.conductor_id,
+                b.nombres AS conductor,
+                a.trt_id,
+                COALESCE(c.nombres, 'SIN TRT') AS trt,
+                COUNT(*) AS total,
+                SUM(a.llamada_exitosa=1) AS exitosas,
+                SUM(a.llamada_exitosa=0) AS fallidas,
+                ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
+                SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,
+
+                SUM(a.conductor_confirma * (a.llamada_exitosa = 1))  AS conductor_confirma,
+                SUM(a.conductor_da_motivos * (a.llamada_exitosa = 1)) AS conductor_da_motivos,
+                SUM(a.conversacion_fluida * (a.llamada_exitosa = 1)) AS conversacion_fluida,
+                SUM(a.llamada_interesante * (a.llamada_exitosa = 1)) AS llamada_interesante
+
+            FROM llamadas a
+            INNER JOIN conductores b ON b.id = a.conductor_id
+            LEFT JOIN trts c ON c.id = a.trt_id
+            WHERE a.error_origen = 0 
+        ";
+        $sql_2="
+        GROUP BY a.conductor_id, a.trt_id
+            ORDER BY exitosas DESC, tasa_exito asc
+        ) AS ranking
+        ORDER BY diferencia DESC , exitosas asc
+        limit ?;";
+        $filtro= self::aplicar_filtro_sqltext();
+        $filtro[1][]=$limit;
+        return  DB::select($sql . $filtro[0] . $sql_2, $filtro[1]);
+    }
+
+    public static function top_mejores_trts($limit= 5){
+        $sql= "SELECT 
+        conductores_con_exito,
+            conductores,
+            trt_id,
+            trt,
+            total,
+            exitosas,
+            fallidas,
+            tasa_exito,
+            diferencia,
+            conductor_confirma,
+            conductor_da_motivos,
+            conversacion_fluida,
+            llamada_interesante
+        FROM (
+            SELECT 
+                COUNT(DISTINCT conductor_id) AS conductores,
+                COUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL))  AS conductores_con_exito,
+                a.trt_id,
+                COALESCE(c.nombres, 'SIN TRT') AS trt,
+                COUNT(*) AS total,
+                SUM(a.llamada_exitosa=1) AS exitosas,
+                SUM(a.llamada_exitosa=0) AS fallidas,
+                ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
+                SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,
+
+                SUM(a.conductor_confirma * (a.llamada_exitosa = 1))  AS conductor_confirma,
+                SUM(a.conductor_da_motivos * (a.llamada_exitosa = 1)) AS conductor_da_motivos,
+                SUM(a.conversacion_fluida * (a.llamada_exitosa = 1)) AS conversacion_fluida,
+                SUM(a.llamada_interesante * (a.llamada_exitosa = 1)) AS llamada_interesante
+
+            FROM llamadas a
+            LEFT JOIN trts c ON c.id = a.trt_id
+            WHERE a.error_origen = 0 
+            ";
+            $sql_2="GROUP BY a.trt_id 
+            ) AS ranking
+            ORDER BY 
+            conductores_con_exito desc,
+            tasa_exito desc,
+            total DESC
+            limit ?;";
+    }
+
+    public static function top_peores_ordenar_etiquetas($item, $size=''){
+        $count= 0;
+        $eti=[];
+        //obtener etiquetas relevantes
+        foreach ($item as $key => $value) {
+            if ($count >= 9) $eti[$key] = $value;
+            $count++;
+        }
+        arsort($eti); //ordenar de mayor a menor
+        $eti= (object) array_slice($eti, 0, 2, true); //solo 3 etiquetas
+        //----------------------------------------
+        $iconos= self::$etiquetas_icon_bi; //iconos bootstrap
+        $lista_e=''; // listar las etiquetas con mayor aparicion
+        $sumar_e=0;
+        foreach ($iconos as $key => $value) {
+            if ($eti->$key??0){
+                $lista_e.= "<i class='". $value[0] ." ".$size."'></i> ".$value[1]."(".$eti->$key."),";
+                $sumar_e+=$eti->$key;
+            }
+        }
+        //sio las etiquetas no sumaron el total poner otros
+        if ($item->fallidas > $sumar_e) $lista_e .= "Otros(". ($item->total - $sumar_e) .")";
+        
+        return trim($lista_e,',');
+    }
+
+    public static function color_porcentaje($num){
+        if ($num >= 75) return 'success';
+        if ($num >= 50) return 'info';
+        if ($num >= 25) return 'warning';
+        return 'danger';
     }
 
     
