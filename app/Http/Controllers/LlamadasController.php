@@ -23,14 +23,21 @@ class LlamadasController extends Controller
     public static function reporte_todo(Request $request){
         $llamadas= new DBLlamadas();
         $llamadas::set_filtro($request);
-        $llamadas::listar_principal(30);
+        //$llamadas::listar_principal(30);
 
         $reporte = new stdClass();
-        $reporte->titulo = 'Reporte de llamadas VAPI';
+        $reporte->titulo = 'Reporte de llamadas totales VAPI';
         $reporte->total= $llamadas::etiqueta_totales();
+
+        if ($request->llamada_tipo_id == 1) $reporte->titulo = 'Reporte de Confirmaciones VAPI';
+        elseif ($request->llamada_tipo_id == 2) $reporte->titulo = 'Reporte de Espera fuera de planta VAPI';
+        elseif ($request->llamada_tipo_id == 3) $reporte->titulo = 'Reporte de Espera dentro de planta VAPI';
+
         $reporte->total= $reporte->total[0];
         $reporte->peores= $llamadas::top_peores_conductores();
         $reporte->mejores= $llamadas::top_mejores_conductores();
+        $reporte->mejores_trts= $llamadas::top_mejores_trts();
+        $reporte->peores_trts= $llamadas::top_peores_trts();
         return view('reporte.todo.todo1', [
             'llamadas' => $llamadas,
             'reporte' => $reporte

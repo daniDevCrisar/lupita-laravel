@@ -37,7 +37,7 @@
                 <p class="lead">Análisis de llamadas totales | Exitosas = <span class="badge bg-success">{{ $reporte->total->llamada_exitosa }}</span></p>
             </div>
             <div class="text-end">
-                <span class="badge bg-dark p-3 fs-6"><i class="far fa-calendar-alt me-2"></i>Llamadas analizadas: 13 de febrero de 2026</span>
+                <span class="badge bg-dark p-3 fs-6"><i class="far fa-calendar-alt me-2"></i>Llamadas analizadas: de {{ $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')}} hasta {{ $llamadas->format_fecha(request('fecha_fin'),'d/m/Y')}} </span>
             </div>
         </div>
 
@@ -51,7 +51,7 @@
                                 <h6 class="text-muted text-uppercase fw-normal">Total llamadas</h6>
                                 <h2 class="fw-bold">{{ $reporte->total->llamadas }}</h2>
                             </div>
-                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle"><i class="fas fa-chart-bar fa-2x text-primary"></i></div>
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle"><i class="fas fa-phone-volume fa-3x text-info opacity-75"></i></div>
                         </div>
                     </div>
                 </div>
@@ -66,7 +66,10 @@
                             </div>
                             <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i class="fas fa-check-circle fa-2x text-success"></i></div>
                         </div>
-                        <small class="text-muted">{{ round(($reporte->total->llamada_exitosa / $reporte->total->llamadas)*100,0) }}% del total</small>
+                        @php
+                            $exitosas_100=round(($reporte->total->llamada_exitosa / $reporte->total->llamadas)*100,0);
+                        @endphp
+                        <small class="text-muted">{{ $exitosas_100 }}% del total</small>
                     </div>
                 </div>
             </div>
@@ -76,12 +79,16 @@
                         <div class="d-flex justify-content-between">
                             <div>
                                 <h6 class="text-muted text-uppercase fw-normal">Fallidas</h6>
-                                <h2 class="fw-bold text-danger">{{$reporte->total->llamadas-$reporte->total->llamada_exitosa}}</h2>
+                                @php
+                                    $fallidas=$reporte->total->llamadas-$reporte->total->llamada_exitosa;
+                                    $fallidas_100=round((($fallidas)/ $reporte->total->llamadas)*100,0);
+                                @endphp
+                                <h2 class="fw-bold text-danger">{{$fallidas}}</h2>
                             </div>
                             <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i class="fas fa-times-circle fa-2x text-danger"></i></div>
                         </div>
                         <small class="text-muted">
-                        {{ round((($reporte->total->llamadas-$reporte->total->llamada_exitosa)/ $reporte->total->llamadas)*100,0) }}% del total</small>
+                        {{ $fallidas_100 }}% del total</small>
                     </div>
                 </div>
             </div>
@@ -166,107 +173,181 @@
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead class="tabla-conductores">
-                            <tr><th>Transportista</th><th>Conductores únicos</th><th>Conductores fallidos (0 exitosas)</th><th>% problemático</th><th>Casos críticos</th></tr>
+                            <tr><th>Transportista</th><th>Conductores únicos</th><th>Conductores fallidos (0 exitos) / con un fallo</th><th>% problemático</th><th>Nivel de riesgo</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td><strong>Grupo de Inversiones y Transportes Mendoza</strong></td><td>4</td><td>4</td><td><span class="badge bg-danger">100%</span></td><td>WILMER MERCADO (4 fallos), MARCOS CELESTINO (fallo)</td></tr>
-                            <tr><td><strong>TRANSPORT COMPANY ALCANTARA SAC</strong></td><td>2</td><td>2</td><td><span class="badge bg-danger">100%</span></td><td>JOSE PUMAJULCA (3 fallos) y otro</td></tr>
-                            <tr><td><strong>TRANSPORTES SAN PEDRO DE MARAÑON S.A.C.</strong></td><td>3</td><td>3</td><td><span class="badge bg-danger">100%</span></td><td>Roger Ramos (3 fallos), Jerson (??), Juver Sulca (buzón)</td></tr>
-                            <tr><td><strong>Empresa de Transporte Vigsan EIRL</strong></td><td>4</td><td>3</td><td><span class="badge bg-warning text-dark">75%</span></td><td>LUIS CHUGNA (2 fallos), otros sin éxito</td></tr>
-                            <tr><td><strong>TRANSPORTE FLASH & RAPIDASH S.A.C.</strong></td><td>3</td><td>2</td><td><span class="badge bg-warning text-dark">66%</span></td><td>BRANDON PARRA (buzón), WILDER ALVAREZ (?)</td></tr>
+                            @foreach ($reporte->peores_trts as $item)
+                                @php $problematicos= round((($item->conductores  - $item->conductores_con_exito)/$item->conductores)*100,1) @endphp
+                                <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" >
+                                    <tr><td><strong>{{ $item->trt }}</strong></td>
+                                    <td>{{ $item->conductores  }}</td>
+                                    <td><span class='text-danger fw-bold'>{{ $item->conductores  - $item->conductores_con_exito }} </span>/ {{ $item->conductores_con_fallo }}</td>
+                                    <td><span class="badge bg-{{ $llamadas::color_porcentaje(100-$problematicos) }}">{{  $problematicos }}%</span></td>
+                                    <td><span class="text-danger">{{ str_repeat('🔴', (100-$item->tasa_exito)/20  ) }} <br>Tasa de exito {{$item->tasa_exito}} %</span></td>
+                                </tr>
+                            @endforeach
                         </tbody>
                     </table>
-                </div>
-                <div class="alert alert-light border mt-3 mb-0">
-                    <i class="fas fa-lightbulb me-2 text-warning"></i> <strong>Otros transportistas con 100% problemáticos (17 en total):</strong> Inversiones y transportes Marisa EIRL, LOGISTICA INVERSIONES CAMPOS, GRUPO SANTO TORIBIO LOGISTICA, etc.
                 </div>
             </div>
         </div>
 
-        <!-- ANÁLISIS DE CORRELACIONES Y PROBLEMAS FRECUENTES -->
-        <div class="row g-4 mb-5">
-            <div class="col-lg-6">
-                <div class="card report-card h-100">
-                    <div class="card-header bg-white border-0 pt-4">
-                        <h4 class="h5 fw-bold"><i class="fas fa-chart-pie me-2"></i>Motivos de fallo más comunes</h4>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span><span class="badge bg-secondary me-2">1</span> Buzón de voz / No contesta</span>
-                                <span class="badge bg-danger rounded-pill">22 casos</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span><span class="badge bg-secondary me-2">2</span> La IA se confunde / no escucha</span>
-                                <span class="badge bg-warning rounded-pill">14 casos</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span><span class="badge bg-secondary me-2">3</span> Conductor cuelga abruptamente</span>
-                                <span class="badge bg-info rounded-pill">8 casos</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span><span class="badge bg-secondary me-2">4</span> Error técnico / conexión Twilio</span>
-                                <span class="badge bg-dark rounded-pill">7 casos</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span><span class="badge bg-secondary me-2">5</span> Mala señal / no escucha conductor</span>
-                                <span class="badge bg-secondary rounded-pill">3 casos</span>
-                            </li>
-                        </ul>
-                        <hr>
-                        <p class="mb-0"><i class="fas fa-phone-slash me-1 text-danger"></i> <strong>Casos repetidos de error de conexión:</strong> WILMER MERCADO (3), JOSE PUMAJULCA (1), Roger Ramos (1).</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6">
+
+    <div class="row  g-4 mb-5">
+        <!-- pcorrelacion de  exito -->
+            <div class="col-lg-12">
                 <div class="card report-card h-100">
                     <div class="card-header bg-white border-0 pt-4">
                         <h4 class="h5 fw-bold"><i class="fas fa-clipboard-list me-2"></i>Correlaciones con éxito</h4>
                     </div>
                     <div class="card-body">
+                        @php
+                            $da_motivos_100= round(($reporte->total->conductor_da_motivos /$reporte->total->llamada_exitosa)*100,0) ;
+                            $fluida_100= round(($reporte->total->conversacion_fluida /$reporte->total->llamada_exitosa)*100,0) 
+                        @endphp
                         <p><strong>Cuando la llamada es exitosa, es muy frecuente que:</strong></p>
                         <div class="progress mb-3" style="height: 25px;">
-                            <div class="progress-bar bg-success" style="width: 95%;" role="progressbar">conductor_confirma (95%)</div>
+                            <div class="progress-bar bg-success" style="width: 100%;" role="progressbar">conductor_confirma (100%)</div>
                         </div>
                         <div class="progress mb-3" style="height: 25px;">
-                            <div class="progress-bar bg-info" style="width: 68%;" role="progressbar">conductor_da_motivos (68%)</div>
+                            <div class="progress-bar bg-info" style="width: {{ $da_motivos_100 }}%;" role="progressbar">conductor_da_motivos ({{ $da_motivos_100 }}%)</div>
                         </div>
                         <div class="progress mb-3" style="height: 25px;">
-                            <div class="progress-bar bg-warning" style="width: 27%;" role="progressbar">conversación_fluida (27%)</div>
+                            <div class="progress-bar bg-warning" style="width: {{ $fluida_100 }}%;" role="progressbar">conversación_fluida ({{ $fluida_100 }}%)</div>
                         </div>
-                        <p class="mt-3"><strong>Casos donde éxito = 0 pero conductor contestó:</strong> 14 llamadas (conductor cuelga, IA se confunde, o no escucha).</p>
-                        <p class="mb-0 text-muted fst-italic">* El 73% de fallos se debe a problemas ajenos al conductor (buzón, técnico, IA).</p>
                     </div>
                 </div>
+            </div>
+    </div>
+        <!-- por q el porcentaje de fallo -->
+    <div class="mb-5">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="display-5"><i class="bi bi-question-octagon text-danger"></i></span>
+            <h1 class="display-6 fw-semibold" style="color: #12263a;">¿Por qué el {{ $fallidas_100 }}% de las llamadas son fallidas?</h1>
+        </div>
+        <p class="lead ps-5 text-secondary">Análisis que incorpora las etiquetas de llamada.</p>
+    </div>
+
+        <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
+    <div class="row g-4 mb-5">
+        <!-- Tarjeta 1: Buzón / no contesta (23) -->
+        <div class="col-lg-6">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="fs-2 text-warning"><i class="bi bi-mailbox2"></i></span>
+                    <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">{{ $reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta }} fallos</span></h3>
+                </div>
+                @php
+                    $total=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta;
+                    $fallo_contacto_100= round(($total/$fallidas)*100,1);
+                @endphp
+                <p><strong>{{  $fallo_contacto_100 }}% de los fallos</strong> – el conductor no responde o la llamada va a buzón.</p>
+                <div class="ms-3">
+                    <span class="etiqueta" style="background:#fff3cd; font-size:1rem;"><i class="bi bi-voicemail me-1"></i> buzón de voz: <strong>{{ $reporte->total->buzon_de_voz }}</strong></span> <br>
+                    <span class="etiqueta" style="background:#fff3cd; font-size:1rem;"><i class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ $reporte->total->razon_3_no_contesta }}</strong></span>
+                </div>
+                <hr>
+                <h6>📌 Causa principal:</h6>
+                <ul>
+                    <li>Números no atendidos en ese horario o contactos desactualizados.</li>
+                    <li>Conductores no contestan adrede.</li>
+                </ul>
             </div>
         </div>
 
-        <!-- RECOMENDACIONES ESPECÍFICAS -->
-        <div class="card report-card mb-4 bg-light">
-            <div class="card-body p-4">
-                <h3 class="h4 fw-bold mb-3"><i class="fas fa-list-check me-2 text-primary"></i>Recomendaciones inmediatas</h3>
-                <div class="row">
-                    <div class="col-md-6">
-                        <ul class="list-unstyled">
-                            <li class="mb-2"><i class="fas fa-circle-check text-success me-2"></i><strong>Conductores con 3+ fallos:</strong> Revisar números (Wilmer Mercado, José Pumajulca, Roger Ramos). Posible teléfono erróneo o spam.</li>
-                            <li class="mb-2"><i class="fas fa-circle-check text-success me-2"></i><strong>Transportistas 100% fallo:</strong> Reunión con 17 empresas (ej. Grupo Mendoza, Alcantara) para validar datos de contacto.</li>
-                            <li class="mb-2"><i class="fas fa-circle-check text-success me-2"></i><strong>Buzón de voz (22 casos):</strong> Implementar estrategia de reintento en diferente horario o SMS previo.</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <ul class="list-unstyled">
-                            <li class="mb-2"><i class="fas fa-circle-check text-success me-2"></i><strong>Errores técnicos (7 Twilio):</strong> Coordinar con proveedor VAPI / verificar saldo o configuración de carrier.</li>
-                            <li class="mb-2"><i class="fas fa-circle-check text-success me-2"></i><strong>Mejores conductores:</strong> Usar como referencia para incentivos (Santos, Jorge Sánchez) y mejorar guión.</li>
-                            <li class="mb-2"><i class="fas fa-circle-check text-success me-2"></i><strong>IA se confunde (14):</strong> Revisar entrenamiento fonético para nombres y ruido de fondo.</li>
-                        </ul>
-                    </div>
+        <!-- Tarjeta 2: Conductor no habla / cuelga (22) -->
+        <div class="col-lg-6">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                @php
+                    $total=$reporte->total->conductor_contesta_pero_no_habla+ $reporte->total->cuelga_analisis;
+                    $fallo_no_copera_100= round(($total/$fallidas)*100,1);
+                @endphp
+                    <span class="fs-2 text-danger"><i class="bi bi-person-fill-slash"></i></span>
+                    <h3 class="h4 mb-0">Conductor no coopera <span class="badge bg-danger bg-opacity-10 text-danger ms-3">{{ $total }} fallos</span></h3>
                 </div>
+                <p><strong>{{$fallo_no_copera_100}}% de los fallos</strong> – el conductor contesta pero no facilita el objetivo.</p>
+                <div class="ms-3">
+                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>{{ $reporte->total->conductor_contesta_pero_no_habla}}</strong></span> <br>
+                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i class="bi bi-telephone-x me-1"></i> colgo directamente: <strong>{{ $reporte->total->cuelga_analisis}}</strong></span>
+                </div>
+                <hr>
+                <h6>📌 Patrón crítico:</h6>
+                <ul>
+                    <li>Contesta pero no emite palabra.</li>
+                    <li>Cuelga sin intención de dialogar.</li>
+                </ul>
             </div>
         </div>
+
+            <!-- Fila especial: 3 CASOS DE IA (destacados) -->
+
+        <div class="col-lg-6">
+            <div class="card p-4 border-info border-2">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                @php
+                    $fallo_ia_100= round(($reporte->total->error_ia/$fallidas)*100,1);
+                @endphp
+                    <span class="fs-2 text-info"><i class="bi bi-robot"></i></span>
+                    <h3 class="h4 mb-0">Error de IA<span class="badge bg-info ms-3">{{ $reporte->total->error_ia }} fallos</span></h3>
+                </div>
+                <p><strong>{{ $fallo_ia_100 }}% de los fallos.</strong> <br>
+                Errores referentes a la ia en todas las llamadas no necesariamente con llevan a un fallo:</p>
+                <code>ia_se_confunde = {{ $reporte->total->ia_se_confunde }} <br>
+                ia_no_escucha = {{ $reporte->total->ia_no_escucha }} <br>
+                ia_error_interpretacion = {{ $reporte->total->ia_error_interpretacion }} <br>
+                ia_dice_variable = {{ $reporte->total->ia_dice_variable }} <br>
+                ia_mala_pronunciacion = {{ $reporte->total->ia_mala_pronunciacion }} <br>
+                </code>
+
+                <hr>
+                <p class="mt-2">Aunque representan un porcentaje pequeño, es importante documentarlos para mejorar el modelo de voz</p>
+            </div>
+        </div>
+
+        <!-- OTROSSSSSSSSS -->
+        <div class="col-lg-6">
+            <div class="card p-4 h-100">
+                @php
+                    $total_3=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->error_ia +$reporte->total->conductor_contesta_pero_no_habla+ $reporte->total->cuelga_analisis;
+                    $total=$fallidas-$total_3;
+                    $fallo_otros_100= round(($total/$fallidas)*100,1);
+                @endphp
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
+                    <h3 class="h4 mb-0">Otros <span class="badge bg-primary bg-opacity-15 text-white ms-3">{{ $total }} fallos</span></h3>
+                </div>
+
+                <p><strong>{{  $fallo_otros_100 }}% de los fallos</strong>:</p>
+                <div class="ms-3">
+                    <ul class="etiqueta" style="font-size:1rem;">
+                        <li>conductor_no_escucha: {{ $reporte->total->conductor_no_escucha }} </li>
+                        <li>conductor_mala_senal: {{ $reporte->total->conductor_mala_senal }} </li>
+                        <li>confusion_en_llamada: {{ $reporte->total->confusion_en_llamada }} </li>
+                        <li>contesta_otra_persona: {{ $reporte->total->contesta_otra_persona }} </li>
+                        <li>numero_equivocado: {{ $reporte->total->numero_equivocado }}</li>
+                        <li>TWILIO-FAILED-TO-CONNECT-CALL: {{ $reporte->total->razon_4_red }}</li>
+                        <li>TWILIO-REPORTED-CUSTOMER-MISDIALED: {{ $reporte->total->razon_7_sis }}</li>
+                        <li>CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE: {{ $reporte->total->razon_7_sis }}</li>
+                        <li>Confirmaciones Parciales ,etc </li>
+                        
+                    </ul>
+                </div>
+                <hr>
+                <h6>📌 Algunos errores se deben a factores desconocido no especificados en las etiquetas</h6>
+            </div>
+        </div>
+
+
+
+
+
+
+
 
         <!-- FOOTER / NOTAS ACLARATORIAS -->
         <div class="footer-note pt-3 d-flex justify-content-between">
-            <span><i class="far fa-file-excel me-1"></i> Datos: reporte.xlsx (hoja FILTRADO) | 82 registros procesados.</span>
+            <span><i class="far fa-file-excel me-1"></i> Datos: Reporte Generado con LUPITA</span>
             <span><i class="fas fa-database me-1"></i> Indicador único de éxito: <code>llamada_exitosa = 1</code> (se ignora "exitosa_segun_ia").</span>
         </div>
     </div>
