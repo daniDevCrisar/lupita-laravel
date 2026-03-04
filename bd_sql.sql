@@ -23,7 +23,7 @@ CREATE TABLE trts (
 
     activo TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FULLTEXT(nombres) 
+    FULLTEXT(nombres)
 );
 
 DELIMITER $$
@@ -63,7 +63,7 @@ BEGIN
     END IF;
 
     -- Devolver resultado
-    SELECT 
+    SELECT
         v_id AS id,
         v_es_nuevo AS es_nuevo;
 END $$
@@ -81,14 +81,14 @@ CREATE TABLE conductores (
     activo TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    FULLTEXT(nombres) 
+    FULLTEXT(nombres)
 );
 ALTER TABLE conductores ADD FULLTEXT(nombres);
 
 CREATE TABLE tlf_conductores (
     conductor_id INT NOT NULL,
     telefono VARCHAR(20) NOT NULL,
-    
+
     PRIMARY KEY (conductor_id, telefono),
     INDEX idx_telefono (telefono)
 );
@@ -130,12 +130,12 @@ BEGIN
     DECLARE v_existe INT DEFAULT 0;
     DECLARE v_id INT DEFAULT 0;
     DECLARE v_es_nuevo BOOLEAN DEFAULT FALSE;
-    
+
     -- Verificar si existe la referencia
-    SELECT COUNT(*) INTO v_existe 
-    FROM referencias 
+    SELECT COUNT(*) INTO v_existe
+    FROM referencias
     WHERE ref = p_ref;
-    
+
     IF v_existe > 0 THEN
         -- UPDATE - ya existe
         UPDATE referencias SET
@@ -151,14 +151,14 @@ BEGIN
             inicio_de_carga = p_inicio_de_carga,
             presenta_para_carga = p_presenta_para_carga
         WHERE ref = p_ref;
-        
+
         -- Obtener ID (como no hay campo id, usamos ref como identificador)
         SET v_id = 0; -- Podrías usar algo como: SELECT id FROM ... WHERE ref = p_ref;
         SET v_es_nuevo = FALSE;
     ELSE
         -- INSERT - es nuevo
         INSERT INTO referencias (
-            ref, trt_id, conductor_id, fecha_despachador, 
+            ref, trt_id, conductor_id, fecha_despachador,
             titulo_viaje, placa, fin_descargue, inicio_descargue,
             qr_llegada_destino, fin_de_carga, inicio_de_carga, presenta_para_carga
         ) VALUES (
@@ -166,15 +166,15 @@ BEGIN
             p_titulo_viaje, p_placa, p_fin_descargue, p_inicio_descargue,
             p_qr_llegada_destino, p_fin_de_carga, p_inicio_de_carga, p_presenta_para_carga
         );
-        
+
         -- Para INSERT podemos usar LAST_INSERT_ID() si tuvieras id autoincremental
         SET v_id = 0; -- Como no hay id, usamos 0 o podrías usar ROW_COUNT()
         SET v_es_nuevo = TRUE;
     END IF;
-    
+
     -- Devolver resultado
     SELECT p_ref AS ref, v_es_nuevo AS es_nuevo;
-    
+
 END$$
 
 DELIMITER ;
@@ -204,7 +204,7 @@ INSERT INTO razones_finalizacion (id, codigo, name, nombre, descripcion, origen)
 (8, 'SILENCIO-PROLONGADO', 'SILENCE-TIMED-OUT', 'Silencio prolongado', 'No hubo respuesta de voz por tiempo limite', 'SISTEMA'),
 (9, 'ERROR_VAPI_SIN_WORKERS', 'CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE', 'Error VAPI - Worker no disponible', 'La plataforma VAPI no tiene workers disponibles para procesar la llamada', 'SISTEMA');
 
-
+CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE
 
 -- Campo: llamada_exitosa
 -- Tipo sugerido: TINYINT
@@ -329,7 +329,7 @@ INSERT INTO tipos_llamada (id, codigo, nombre, descripcion) VALUES
 DROP TABLE IF EXISTS llamadas;
 
 CREATE TABLE llamadas (
-    
+
     -- =========================
     -- 1. IDENTIFICACION
     -- =========================
@@ -356,7 +356,7 @@ CREATE TABLE llamadas (
     -- 3. METRICAS
     -- =========================
     audio_link VARCHAR(255) NOT NULL DEFAULT '',
-    audio_duracion INT DEFAULT 0, 
+    audio_duracion INT DEFAULT 0,
     analisis_transcripcion VARCHAR(255) NOT NULL DEFAULT '',
     analisis_audio VARCHAR(255) NOT NULL DEFAULT '',
 
@@ -407,13 +407,18 @@ CREATE TABLE llamadas (
     -- =========================
 );
 
+update `llamadas` set `error_origen`= 2 where `razon_finalizacion_id`= 4;
+update `llamadas` set `error_origen`= 3 where `razon_finalizacion_id`= 7  or `razon_finalizacion_id`= 9;
+update `llamadas` set `error_origen`= -1 where `razon_finalizacion_id`= 0
+and `analisis_transcripcion`= '' and analisis_audio='';
+
 CREATE TABLE mensajes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     vapi_id VARCHAR(36) NOT NULL,   -- UUID en formato binario
     orden INT NOT NULL,
     tipo ENUM('BOT', 'USER') NOT NULL,  -- Solo BOT o USER
     mensaje TEXT,
-    
+
     INDEX idx_vapi_id (vapi_id),
     INDEX idx_orden (orden)
 );

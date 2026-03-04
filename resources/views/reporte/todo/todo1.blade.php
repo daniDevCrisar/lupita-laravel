@@ -203,7 +203,7 @@
                     <div class="card-body">
                         @php
                             $da_motivos_100= round(($reporte->total->conductor_da_motivos /$reporte->total->llamada_exitosa)*100,0) ;
-                            $fluida_100= round(($reporte->total->conversacion_fluida /$reporte->total->llamada_exitosa)*100,0) 
+                            $fluida_100= round(($reporte->total->conversacion_fluida /$reporte->total->llamada_exitosa)*100,0)
                         @endphp
                         <p><strong>Cuando la llamada es exitosa, es muy frecuente que:</strong></p>
                         <div class="progress mb-3" style="height: 25px;">
@@ -233,18 +233,21 @@
         <!-- Tarjeta 1: Buzón / no contesta (23) -->
         <div class="col-lg-6">
             <div class="card p-4 h-100">
-                <div class="d-flex align-items-center gap-3 mb-3">
-                    <span class="fs-2 text-warning"><i class="bi bi-mailbox2"></i></span>
-                    <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">{{ $reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta }} fallos</span></h3>
-                </div>
                 @php
-                    $total=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta;
+                    $total=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->razon_5_ocupado;
                     $fallo_contacto_100= round(($total/$fallidas)*100,1);
                 @endphp
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="fs-2 text-warning"><i class="bi bi-mailbox2"></i></span>
+                    <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">{{ $total }} fallos</span></h3>
+                </div>
                 <p><strong>{{  $fallo_contacto_100 }}% de los fallos</strong> – el conductor no responde o la llamada va a buzón.</p>
                 <div class="ms-3">
-                    <span class="etiqueta" style="background:#fff3cd; font-size:1rem;"><i class="bi bi-voicemail me-1"></i> buzón de voz: <strong>{{ $reporte->total->buzon_de_voz }}</strong></span> <br>
-                    <span class="etiqueta" style="background:#fff3cd; font-size:1rem;"><i class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ $reporte->total->razon_3_no_contesta }}</strong></span>
+                    <span class="etiqueta"><i class="bi bi-voicemail me-1"></i> buzón de voz: <strong>{{ $reporte->total->buzon_de_voz }}</strong></span> <br>
+                    <span class="etiqueta"><i class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ $reporte->total->razon_3_no_contesta }}</strong></span>
+                    <br>
+                    <span class="etiqueta">
+                        <i class="bi bi-hourglass me-1"></i> ocupado: <strong>{{ $reporte->total->razon_5_ocupado}}</strong></span>
                 </div>
                 <hr>
                 <h6>📌 Causa principal:</h6>
@@ -260,7 +263,9 @@
             <div class="card p-4 h-100">
                 <div class="d-flex align-items-center gap-3 mb-3">
                 @php
-                    $total=$reporte->total->conductor_contesta_pero_no_habla+ $reporte->total->cuelga_analisis;
+                    $solo_cuelga=$reporte->total->cuelga_analisis;
+                    if($reporte->total->solo_cuelga > $reporte->total->cuelga_analisis) $solo_cuelga=$reporte->total->solo_cuelga;
+                    $total=$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga;
                     $fallo_no_copera_100= round(($total/$fallidas)*100,1);
                 @endphp
                     <span class="fs-2 text-danger"><i class="bi bi-person-fill-slash"></i></span>
@@ -269,7 +274,8 @@
                 <p><strong>{{$fallo_no_copera_100}}% de los fallos</strong> – el conductor contesta pero no facilita el objetivo.</p>
                 <div class="ms-3">
                     <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>{{ $reporte->total->conductor_contesta_pero_no_habla}}</strong></span> <br>
-                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i class="bi bi-telephone-x me-1"></i> colgo directamente: <strong>{{ $reporte->total->cuelga_analisis}}</strong></span>
+                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;">
+                        <i class="bi bi-telephone-x me-1"></i> colgo directamente: <strong>{{ $solo_cuelga }}</strong></span>
                 </div>
                 <hr>
                 <h6>📌 Patrón crítico:</h6>
@@ -320,30 +326,34 @@
 
                 <p><strong>{{  $fallo_otros_100 }}% de los fallos</strong>:</p>
                 <div class="ms-3">
-                    <ul class="etiqueta" style="font-size:1rem;">
-                        <li>conductor_no_escucha: {{ $reporte->total->conductor_no_escucha }} </li>
-                        <li>conductor_mala_senal: {{ $reporte->total->conductor_mala_senal }} </li>
-                        <li>confusion_en_llamada: {{ $reporte->total->confusion_en_llamada }} </li>
-                        <li>contesta_otra_persona: {{ $reporte->total->contesta_otra_persona }} </li>
-                        <li>numero_equivocado: {{ $reporte->total->numero_equivocado }}</li>
-                        <li>TWILIO-FAILED-TO-CONNECT-CALL: {{ $reporte->total->razon_4_red }}</li>
-                        <li>TWILIO-REPORTED-CUSTOMER-MISDIALED: {{ $reporte->total->razon_7_sis }}</li>
-                        <li>CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE: {{ $reporte->total->razon_7_sis }}</li>
-                        <li>Confirmaciones Parciales ,etc </li>
-                        
+                    <ul class="etiqueta list-unstyled">
+                        <li><i class="bi bi-volume-mute me-2 text-danger"></i>
+                            Conductor no escucha: {{ $reporte->total->conductor_no_escucha }}</li>
+                        <li><i class="bi bi-reception-1 me-2 text-warning"></i>
+                            Conductor mala señal: {{ $reporte->total->conductor_mala_senal }}</li>
+                        <li><i class="bi bi-question-circle me-2 text-info"></i>
+                            Confusión en llamada: {{ $reporte->total->confusion_en_llamada }}</li>
+                        <li><i class="bi bi-person-x me-2 text-secondary"></i>
+                            Contesta otra persona: {{ $reporte->total->contesta_otra_persona }}</li>
+                        <li><i class="bi bi-check2-square me-2 text-primary"></i>
+                            Confirmacion Parcial: {{ $reporte->total->confirmacion_parcial }}</li>
+                        <li><i class="bi bi-telephone-minus me-2 text-dark"></i>
+                            Número equivocado: {{ $reporte->total->numero_equivocado }}</li>
+                        <li><i class="{{ $llamadas::icon_exito(-1,true) }}"></i>
+                            Error desconocido:{{ $reporte->total->error_desconocido }}</li>
+                        <li><i class="{{ $llamadas::icon_exito(2,true) }}"></i>
+                            Error de red:{{ $reporte->total->error_red }}</li>
+                        <li><i class="{{ $llamadas::icon_exito(3,true) }}"></i>
+                            Error de sistema:{{ $reporte->total->error_sistema }}</li>
+                        <li>otros motivos...</li>
+
                     </ul>
                 </div>
                 <hr>
                 <h6>📌 Algunos errores se deben a factores desconocido no especificados en las etiquetas</h6>
             </div>
         </div>
-
-
-
-
-
-
-
+    </div>
 
         <!-- FOOTER / NOTAS ACLARATORIAS -->
         <div class="footer-note pt-3 d-flex justify-content-between">

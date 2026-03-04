@@ -5,7 +5,7 @@ namespace App\Database\Tmp;
 use Illuminate\Support\Facades\DB;
 use App\Tools\BuscarEnArray;
 use App\Database\DBReferencias;
-use stdClass;use DateTime; 
+use stdClass;use DateTime;
 
 class DBTmpLlamadas {
     public static $razones_finalizacion = [];
@@ -53,6 +53,15 @@ class DBTmpLlamadas {
         $llamada->es_entrante = 0; //OUTBOUNDPHONECALL
         $llamada->razon_finalizacion_id =self::obtener_id_razon($item->razon_finalizacion);
 
+        if ($llamada->razon_finalizacion_id==4) $item->error_origen=2;
+        else if ($llamada->razon_finalizacion_id==7 || $llamada->razon_finalizacion_id==9)
+            $item->error_origen=3;
+
+        if ($item->analisis_transcripcion=='' && $item->analisis_audio=='' && self::etiqueta_valor($item->llamada_exitosa)==0 ) {
+            if ($llamada->razon_finalizacion_id==0) $item->error_origen=-1;
+        }
+
+
         $llamada->entro_llamada = $item->entro_llamada ? $item->entro_llamada : 0;
 
         $llamada->exitosa_segun_ia = $item->exitosa_segun_ia=='TRUE' ? 1 : 0;
@@ -92,7 +101,7 @@ class DBTmpLlamadas {
         $timestamp = (int) $item->created_at;
         $llamada->created_at = $timestamp /1000; //dejarlo en horario peruano utc-5
 
-        $llamada->procesado= 1; //indica si la llamada fue etiquetada por un humano 
+        $llamada->procesado= 1; //indica si la llamada fue etiquetada por un humano
         $llamada->fecha_prometida = self::fecha_string_o_numero($item->fecha_prometida);
         $llamada->origen= $item->origen;
         $llamada->destino = $item->destino;
@@ -111,13 +120,13 @@ class DBTmpLlamadas {
             'd/m/Y H:i',       // 18/02/2026 12:00
             'd/m/Y H:i:s',     // 18/02/2026 12:00:00
         ];
-        
+
         foreach ($formatos as $formato) {
             $date = DateTime::createFromFormat($formato, $fecha);
             if ($date){
                 $date->modify('+5 hours');
                 return $date->getTimestamp();
-            } 
+            }
         }
         return null;
     }
@@ -139,7 +148,7 @@ class DBTmpLlamadas {
         if ($valor === '') return 0;
         // Si no es numérico → desconocido
         if (!is_numeric($valor)) return -1;
-        
+
         $valor = (int)$valor;
         $permitidos = [-1, 0, 1, 2, 3];
         return in_array($valor, $permitidos, true) ? $valor : -1;
@@ -151,7 +160,7 @@ class DBTmpLlamadas {
         //$conversacion_completa = ltrim($conversacion_completa, '/');
         $mensajes = explode('//', $conversacion_completa);
         $orden = 1;
-        
+
         foreach ($mensajes as $mensaje) {
             $mensaje = trim($mensaje);
             if ($mensaje === '') continue;
@@ -165,7 +174,7 @@ class DBTmpLlamadas {
 
             // MySQL convierte el UUID directamente con UUID_TO_BIN()
             DB::insert(
-                "INSERT INTO mensajes (vapi_id, orden, tipo, mensaje) 
+                "INSERT INTO mensajes (vapi_id, orden, tipo, mensaje)
                 VALUES (?, ?, ?, ?)",
                 [$vapi_id, $orden, trim($msg[0]), trim($msg[1])]
             );
@@ -227,7 +236,7 @@ class DBTmpLlamadas {
             FROM_UNIXTIME(?),
             FROM_UNIXTIME(?)
         )";
-        
+
         $params = [
             $llamada->vapi_id,
             $llamada->lote_id,
@@ -275,7 +284,7 @@ class DBTmpLlamadas {
             $llamada->fecha_prometida,
             $llamada->created_at
         ];
-        
+
         return DB::insert($sql, $params);
     }
 

@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Database;
+
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use stdClass;
@@ -47,18 +49,28 @@ class DBLlamadas {
         self::$filtro->fecha_inicio='';
         self::$filtro->fecha_fin= '';
         self::$filtro->llamada_tipo_id= '';
+        self::$filtro->conductor= '';
+        self::$filtro->trt= '';
+        self::$filtro->exitosa='';
     }
 
     public static function set_filtro($request){
         self::$filtro->fecha_inicio=$request->fecha_inicio;
         self::$filtro->fecha_fin=$request->fecha_fin;
         self::$filtro->llamada_tipo_id=$request->llamada_tipo_id;
+        self::$filtro->conductor= $request->conductor;
+        self::$filtro->trt= $request->trt;
+        self::$filtro->exitosa= $request->exitosa;
     }
 
 
     public static function listar_principal($mostrar){
         $fecha_i =self::$filtro->fecha_inicio;
         $fecha_f= self::$filtro->fecha_fin;
+        $tipo_id= self::$filtro->llamada_tipo_id;
+        $conductor= strtoupper(self::$filtro->conductor);
+        $trt= strtoupper(self::$filtro->trt);
+        $exitosa=self::$filtro->exitosa;
 
         $llamadas = DB::table('llamadas as a')
         ->join('conductores as b', 'b.id', '=', 'a.conductor_id')
@@ -113,12 +125,27 @@ class DBLlamadas {
             'a.error_tecnico_llamada',
             'a.error_audio'
         )
-        
         ->when($fecha_i && $fecha_f, function ($query) use ($fecha_i, $fecha_f) {
             $query->whereBetween('a.created_at', [
                 Carbon::parse($fecha_i)->startOfDay(),
                 Carbon::parse($fecha_f)->endOfDay()
             ]);
+        })
+        ->when((string) $tipo_id !='', function ($query) use($tipo_id) {
+            $query->where('llamada_tipo_id', '=', $tipo_id);
+        })
+        ->when($conductor !='', function ($query) use($conductor) {
+            $query->where('b.nombres', 'like','%'. $conductor. '%');
+        })
+        ->when($trt !='', function ($query) use($trt) {
+            $query->where('c.nombres', 'like','%'. $trt . '%');
+        })
+        ->when($exitosa =='exito', function ($query){
+            $query->where('a.llamada_exitosa', '=', 1);
+        })
+        ->when(is_numeric($exitosa), function ($query) use($exitosa) {
+            $query->where('a.error_origen', '=', $exitosa);
+            $query->where('a.llamada_exitosa', '=', 0);
         })
         ->orderBy('a.created_at', 'desc')
         ->paginate($mostrar)
@@ -144,15 +171,16 @@ class DBLlamadas {
         return self::$tipos_llamada[$id]->$campo;
     }
 
-    public static function icon_exito($item){
+    public static function icon_exito($item , $solo_icon=false){
         $exito='bi bi-check-lg text-success';
         $iconos=[
             -1=> 'bi bi-question-circle text-danger',
             0=> 'bi bi-person-slash text-danger',
-            1=> 'bi bi-cpu text-danger',
+            1=> 'bi bi-robot text-danger',
             2=> 'bi bi-wifi text-danger',
             3=> 'bi bi-gear text-danger',
         ];
+        if ($solo_icon) return $iconos[$item];
         if ($item->llamada_exitosa) return $exito;
 
         return $iconos[$item->error_origen];
@@ -173,13 +201,14 @@ class DBLlamadas {
     }
 
     public static function etiqueta_totales(){
-        $sql="SELECT 
+        $sql="SELECT
             SUM(IF(analisis_audio LIKE '%CUELGA%', 1, 0)) AS cuelga_analisis,
             COUNT(*) AS llamadas,
             COUNT(DISTINCT conductor_id) AS conductores,
             COUNT(DISTINCT trt_id) AS trts,
             SUM(razon_finalizacion_id = 3) AS razon_3_no_contesta,
             SUM(razon_finalizacion_id = 4) AS razon_4_red,
+            SUM(razon_finalizacion_id = 5) AS razon_5_ocupado,
             SUM(razon_finalizacion_id = 7) AS razon_7_sis,
             SUM(razon_finalizacion_id = 9) AS razon_9_sis,
             SUM(error_origen = -1) AS error_desconocido,
@@ -187,6 +216,16 @@ class DBLlamadas {
             SUM(error_origen = 1) AS error_ia,
             SUM(error_origen = 2) AS error_red,
             SUM(error_origen = 3) AS error_sistema,
+            SUM(a.llamada_exitosa = 0 and conductor_confirma) as confirmacion_parcial,
+
+            SUM(
+            conductor_confirma + buzon_de_voz + conductor_contesta_pero_no_habla +
+            conductor_no_escucha + conductor_da_motivos +  conductor_mala_senal + confusion_en_llamada +
+            contesta_otra_persona + numero_equivocado + conversacion_fluida + llamada_interesante +
+            ia_se_confunde + ia_no_escucha + ia_cambio_de_datos +  ia_error_interpretacion + ia_dice_variable +
+            ia_mala_pronunciacion +  conductor_no_contesta + conductor_conducta_inapropiada +
+            error_tecnico_llamada + error_audio = 0 and conductor_cuelga= 1 and a.llamada_exitosa = 0
+            ) as solo_cuelga,
 
             SUM(exitosa_segun_ia) AS exitosa_segun_ia,
             (SUM(entro_llamada) - SUM(buzon_de_voz)) AS contestadas,
@@ -237,7 +276,7 @@ class DBLlamadas {
             $fecha_f=Carbon::parse($fecha_f)->addDay()->startOfDay();
 
             $sql .= " and a.created_at >= ? AND a.created_at < ? ";
-            
+
             $params[] = $fecha_i;
             $params[] = $fecha_f;
         }
@@ -247,7 +286,7 @@ class DBLlamadas {
     }
 
     public static function top_peores_conductores($limit=5){
-        $sql= "SELECT 
+        $sql= "SELECT
             conductor_id,
             conductor,
             trt_id,
@@ -260,7 +299,7 @@ class DBLlamadas {
             buzon_de_voz,conductor_contesta_pero_no_habla,conductor_no_escucha,conductor_mala_senal,
             confusion_en_llamada,contesta_otra_persona,numero_equivocado,conductor_cuelga,conductor_no_contesta
         FROM (
-            SELECT 
+            SELECT
                 a.conductor_id,
                 b.nombres AS conductor,
                 a.trt_id,
@@ -283,7 +322,7 @@ class DBLlamadas {
             FROM llamadas a
             INNER JOIN conductores b ON b.id = a.conductor_id
             LEFT JOIN trts c ON c.id = a.trt_id
-            WHERE a.error_origen = 0 
+            WHERE a.error_origen = 0
             ";
         $sql_2="
         GROUP BY a.conductor_id, a.trt_id
@@ -298,7 +337,7 @@ class DBLlamadas {
     }
 
     public static function top_mejores_conductores($limit= 5){
-        $sql= "SELECT 
+        $sql= "SELECT
             conductor_id,
             conductor,
             trt_id,
@@ -313,7 +352,7 @@ class DBLlamadas {
             conversacion_fluida,
             llamada_interesante
         FROM (
-            SELECT 
+            SELECT
                 a.conductor_id,
                 b.nombres AS conductor,
                 a.trt_id,
@@ -332,7 +371,7 @@ class DBLlamadas {
             FROM llamadas a
             INNER JOIN conductores b ON b.id = a.conductor_id
             LEFT JOIN trts c ON c.id = a.trt_id
-            WHERE a.error_origen = 0 
+            WHERE a.error_origen = 0
         ";
         $sql_2="
         GROUP BY a.conductor_id, a.trt_id
@@ -346,7 +385,7 @@ class DBLlamadas {
     }
 
     public static function top_mejores_trts($limit= 5){
-        $sql= "SELECT 
+        $sql= "SELECT
         conductores_con_exito,
             conductores,
             trt_id,
@@ -361,7 +400,7 @@ class DBLlamadas {
             conversacion_fluida,
             llamada_interesante
         FROM (
-            SELECT 
+            SELECT
                 COUNT(DISTINCT conductor_id) AS conductores,
                 COUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL))  AS conductores_con_exito,
                 a.trt_id,
@@ -379,12 +418,12 @@ class DBLlamadas {
 
             FROM llamadas a
             LEFT JOIN trts c ON c.id = a.trt_id
-            WHERE a.error_origen = 0 
+            WHERE a.error_origen = 0
             ";
             $sql_2="
-            GROUP BY a.trt_id 
+            GROUP BY a.trt_id
             ) AS ranking
-            ORDER BY 
+            ORDER BY
             conductores_con_exito desc,
             tasa_exito desc,
             total DESC
@@ -419,9 +458,9 @@ class DBLlamadas {
 
         FROM llamadas a
         LEFT JOIN trts c ON c.id = a.trt_id
-        WHERE a.error_origen = 0 
+        WHERE a.error_origen = 0
         ";
-        $sql_2=" 
+        $sql_2="
         GROUP BY a.trt_id
         ORDER BY
         conductores_con_fallo desc,
@@ -455,7 +494,7 @@ class DBLlamadas {
         }
         //sio las etiquetas no sumaron el total poner otros
         if ($item->fallidas > $sumar_e) $lista_e .= "Otros(". ($item->total - $sumar_e) .")";
-        
+
         return trim($lista_e,',');
     }
 
@@ -466,5 +505,5 @@ class DBLlamadas {
         return 'danger';
     }
 
-    
+
 }
