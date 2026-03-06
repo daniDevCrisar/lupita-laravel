@@ -125,11 +125,14 @@
                         </thead>
                         <tbody>
                             @foreach ($reporte->mejores as $item)
-                                <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" >
-                                    <td>{{ $item->conductor_id }}</td><td><strong>{{ $item->conductor }}</strong></td><td>{{ $item->trt }}</td><td>{{ $item->exitosas }}/{{ $item->total }}</td>
-                                    <td><span class="text-success">{{ str_repeat('⭐', ($item->tasa_exito)/20  ) }} <br> Tasa de exito {{$item->tasa_exito}} %</span></td>
-                                    <td>{!! $llamadas::top_peores_ordenar_etiquetas($item) !!}</td>
-                                </tr>
+                                @if($item->exitosas)
+                                    <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" >
+                                        <td>{{ $item->conductor_id }}</td><td><strong>{{ $item->conductor }}</strong></td><td>{{ $item->trt }}</td>
+                                        <td><span class='text-success fw-bold'>{{ $item->exitosas }}</span>/{{ $item->total }}</td>
+                                        <td><span class="text-success">{{ str_repeat('⭐', ($item->tasa_exito)/20  ) }} <br> Tasa de exito {{$item->tasa_exito}} %</span></td>
+                                        <td>{!! $llamadas::top_peores_ordenar_etiquetas($item) !!}</td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>
@@ -151,11 +154,14 @@
                         </thead>
                         <tbody>
                             @foreach ($reporte->peores as $item)
-                                <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" >
-                                    <td>{{ $item->conductor_id }}</td><td><strong>{{ $item->conductor }}</strong></td><td>{{ $item->trt }}</td><td>{{ $item->fallidas }}/{{ $item->total }}</td>
-                                    <td><span class="text-danger">{{ str_repeat('🔴', (100-$item->tasa_exito)/20  ) }} <br>Tasa de exito {{$item->tasa_exito}} %</span></td>
-                                    <td>{!! $llamadas::top_peores_ordenar_etiquetas($item) !!}</td>
-                                </tr>
+                                @if($item->fallidas)
+                                    <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" >
+                                        <td>{{ $item->conductor_id }}</td><td><strong>{{ $item->conductor }}</strong></td>
+                                        <td>{{ $item->trt }}</td><td><span class='text-danger fw-bold'>{{ $item->fallidas }}</span>/{{ $item->total }}</td>
+                                        <td><span class="text-danger">{{ str_repeat('🔴', (100-$item->tasa_exito)/20  ) }} <br>Tasa de exito {{$item->tasa_exito}} %</span></td>
+                                        <td>{!! $llamadas::top_peores_ordenar_etiquetas($item) !!}</td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>

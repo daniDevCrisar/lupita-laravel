@@ -409,8 +409,7 @@ CREATE TABLE llamadas (
 
 update `llamadas` set `error_origen`= 2 where `razon_finalizacion_id`= 4;
 update `llamadas` set `error_origen`= 3 where `razon_finalizacion_id`= 7  or `razon_finalizacion_id`= 9;
-update `llamadas` set `error_origen`= -1 where `razon_finalizacion_id`= 0
-and `analisis_transcripcion`= '' and analisis_audio='';
+
 
 CREATE TABLE mensajes (
     id INT AUTO_INCREMENT PRIMARY KEY,

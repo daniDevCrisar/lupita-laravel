@@ -13,31 +13,35 @@ class DBLlamadas {
     public static $tipos_llamada=[];
     public static $error_origen=[];
     public static $etiquetas_icon_bi=[
-        'conductor_confirma' => ['bi bi-check-circle-fill text-success', 'Confirma'],
-        'buzon_de_voz' => ['bi bi-voicemail text-warning','Buzon de voz'],
-        'conductor_contesta_pero_no_habla' => ['bi bi-mic-mute-fill text-danger','No habla'],
-        'conductor_no_escucha' => ['bi bi-ear-fill text-danger','No escucha'],
-        'conductor_da_motivos' => ['bi bi-chat-left-text-fill text-info','Da motivos'],
-        'conductor_mala_senal' => ['bi bi-wifi-off text-danger','Mala señal'],
-        'confusion_en_llamada' => ['bi bi-question-circle-fill text-warning','Confusion en llamada'],
-        'contesta_otra_persona' => ['bi bi-people-fill text-info','Contesta otra persona'],
-        'numero_equivocado' => ['bi bi-telephone-x-fill text-danger','Numero equivocado'],
-        'conversacion_fluida' => ['bi bi-chat-dots-fill text-success','Conversacion Fluida'],
-        'llamada_interesante' => ['bi bi-star-fill text-warning','Llamada Interesante'],
+        'conductor_confirma' => ['bi bi-check-circle-fill text-success', 'Confirma',1],
+        'buzon_de_voz' => ['bi bi-voicemail text-warning','Buzon de voz',0],
+        'conductor_contesta_pero_no_habla' => ['bi bi-mic-mute-fill text-danger','No habla',0],
+        'conductor_no_escucha' => ['bi bi-ear-fill text-danger','No escucha',0],
+        'conductor_da_motivos' => ['bi bi-chat-left-text-fill text-info','Da motivos',1],
+        'conductor_mala_senal' => ['bi bi-wifi-off text-danger','Mala señal',0],
+        'confusion_en_llamada' => ['bi bi-question-circle-fill text-warning','Confusion en llamada',0],
+        'contesta_otra_persona' => ['bi bi-people-fill text-info','Contesta otra persona',0],
+        'numero_equivocado' => ['bi bi-telephone-x-fill text-danger','Numero equivocado',0],
+        'conversacion_fluida' => ['bi bi-chat-dots-fill text-success','Conversacion Fluida',1],
+        'llamada_interesante' => ['bi bi-star-fill text-warning','Llamada Interesante',1],
 
-        'ia_se_confunde' => ['bi bi-cpu-fill text-warning','IA se confunde'],
-        'ia_no_escucha' => ['bi bi-mic-mute-fill text-danger','IA no escucha'],
-        'ia_cambio_de_datos' => ['bi bi-arrow-left-right text-info','IA actualiza datos'],
-        'ia_error_interpretacion' => ['bi bi-exclamation-triangle-fill text-danger','IA error de interpretacion'],
-        'ia_dice_variable' => ['bi bi-braces text-warning','IA dice variable'],
-        'ia_mala_pronunciacion' => ['bi bi-volume-down-fill text-warning','IA mala pronunciacion'],
+        'ia_se_confunde' => ['bi bi-cpu-fill text-warning','IA se confunde',0],
+        'ia_no_escucha' => ['bi bi-mic-mute-fill text-danger','IA no escucha',0],
+        'ia_cambio_de_datos' => ['bi bi-arrow-left-right text-info','IA actualiza datos',1],
+        'ia_error_interpretacion' => ['bi bi-exclamation-triangle-fill text-danger','IA error de interpretacion',0],
+        'ia_dice_variable' => ['bi bi-braces text-warning','IA dice variable',0],
+        'ia_mala_pronunciacion' => ['bi bi-volume-down-fill text-warning','IA mala pronunciacion',0],
 
-        'conductor_cuelga' => ['bi bi-telephone-minus-fill text-danger','Cuelga'],
-        'conductor_no_contesta' => ['bi bi-telephone-x-fill text-danger','No contesta'],
-        'conductor_conducta_inapropiada' => ['bi bi-person-x-fill text-danger','Conducta Inapropiada'],
+        'conductor_cuelga' => ['bi bi-telephone-minus-fill text-danger','Cuelga',0],
+        'conductor_no_contesta' => ['bi bi-telephone-x-fill text-danger','No contesta',0],
+        'conductor_conducta_inapropiada' => ['bi bi-person-x-fill text-danger','Conducta Inapropiada',0],
 
-        'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada'],
-        'error_audio' => ['bi bi-volume-mute-fill text-danger','Error de audio'],
+        'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada',0],
+        'error_audio' => ['bi bi-volume-mute-fill text-danger','Error de audio',0],
+        // no exito solo en llamadas fallidas exitosa=0 y confirmacion=0
+        'confirmacion_parcial' => ['bi bi-check2-square text-info','Confirmacion parcial',0],
+        'conductor_ocupado' => ['bi bi-hourglass text-warning','Conductor Ocupado',0],
+
     ];
     public static $filtro;
 
@@ -186,15 +190,28 @@ class DBLlamadas {
         return $iconos[$item->error_origen];
     }
 
-    public static function etiquetas_icon_bi($item , $size=''){
+    public static function etiquetas_icon_bi($item , $size='',$solo='todo',$mostrar_cantidad=false, $otros=false){
         $iconos= self::$etiquetas_icon_bi;
         $lista_e='';
-        foreach ($iconos as $key => $value) {
-            if ($item->$key)
-                $lista_e.= "<i class='". $value[0] ." ".$size."'></i> ".$value[1]."<br>";
+        $count=0;
+        foreach ($iconos as $key => $value) { //buscar por clave de icono
+            if ($item->$key??false){ //si existe y es uno etiquetar
+                if($solo==='todo' or $solo===$value[2]){ //value[2] es igual a 0 y 1 positivo y negativo
+                    $lista_e.= "<i class='". $value[0] ." ".$size."'></i> ".$value[1];
+
+                    if ($mostrar_cantidad) {
+                        $lista_e.= '('. $item->$key .')';
+                        if ($otros) $count+= $item->$key;
+                    }
+                    $lista_e.="<br>";
+                }
+            }
         }
+        if ($otros and $otros-$count>0 and $mostrar_cantidad) $lista_e.= "Otros (".($otros-$count).')<br>';
         return $lista_e;
     }
+
+
 
     public static function format_fecha($fecha ,$format='d/m/Y H:i'){
         return Carbon::parse($fecha)->format($format);
@@ -286,19 +303,7 @@ class DBLlamadas {
     }
 
     public static function top_peores_conductores($limit=5){
-        $sql= "SELECT
-            conductor_id,
-            conductor,
-            trt_id,
-            trt,
-            total,
-            exitosas,
-            fallidas,
-            tasa_exito,
-            diferencia,
-            buzon_de_voz,conductor_contesta_pero_no_habla,conductor_no_escucha,conductor_mala_senal,
-            confusion_en_llamada,contesta_otra_persona,numero_equivocado,conductor_cuelga,conductor_no_contesta
-        FROM (
+        $sql= "
             SELECT
                 a.conductor_id,
                 b.nombres AS conductor,
@@ -318,7 +323,9 @@ class DBLlamadas {
                 SUM(a.contesta_otra_persona * (a.llamada_exitosa = 0)) AS contesta_otra_persona,
                 SUM(a.numero_equivocado * (a.llamada_exitosa = 0)) AS numero_equivocado,
                 SUM(a.conductor_cuelga * (a.llamada_exitosa = 0)) AS conductor_cuelga,
-                SUM(a.conductor_no_contesta * (a.llamada_exitosa = 0)) AS conductor_no_contesta
+                SUM(a.conductor_no_contesta * (a.llamada_exitosa = 0)) AS conductor_no_contesta,
+                SUM(a.conductor_confirma * (a.llamada_exitosa = 0))  AS confirmacion_parcial,
+                SUM(a.conductor_conducta_inapropiada * (a.llamada_exitosa = 0))  AS conductor_conducta_inapropiada
             FROM llamadas a
             INNER JOIN conductores b ON b.id = a.conductor_id
             LEFT JOIN trts c ON c.id = a.trt_id
@@ -326,8 +333,6 @@ class DBLlamadas {
             ";
         $sql_2="
         GROUP BY a.conductor_id, a.trt_id
-            ORDER BY fallidas DESC, tasa_exito DESC
-        ) AS ranking
         ORDER BY diferencia DESC , exitosas asc
         limit ?;";
 
@@ -337,21 +342,7 @@ class DBLlamadas {
     }
 
     public static function top_mejores_conductores($limit= 5){
-        $sql= "SELECT
-            conductor_id,
-            conductor,
-            trt_id,
-            trt,
-            total,
-            exitosas,
-            fallidas,
-            tasa_exito,
-            diferencia,
-            conductor_confirma,
-            conductor_da_motivos,
-            conversacion_fluida,
-            llamada_interesante
-        FROM (
+        $sql= "
             SELECT
                 a.conductor_id,
                 b.nombres AS conductor,
@@ -375,8 +366,6 @@ class DBLlamadas {
         ";
         $sql_2="
         GROUP BY a.conductor_id, a.trt_id
-            ORDER BY exitosas DESC, tasa_exito asc
-        ) AS ranking
         ORDER BY diferencia DESC , exitosas asc
         limit ?;";
         $filtro= self::aplicar_filtro_sqltext();
@@ -385,21 +374,7 @@ class DBLlamadas {
     }
 
     public static function top_mejores_trts($limit= 5){
-        $sql= "SELECT
-        conductores_con_exito,
-            conductores,
-            trt_id,
-            trt,
-            total,
-            exitosas,
-            fallidas,
-            tasa_exito,
-            diferencia,
-            conductor_confirma,
-            conductor_da_motivos,
-            conversacion_fluida,
-            llamada_interesante
-        FROM (
+        $sql= "
             SELECT
                 COUNT(DISTINCT conductor_id) AS conductores,
                 COUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL))  AS conductores_con_exito,
@@ -422,7 +397,6 @@ class DBLlamadas {
             ";
             $sql_2="
             GROUP BY a.trt_id
-            ) AS ranking
             ORDER BY
             conductores_con_exito desc,
             tasa_exito desc,
@@ -481,7 +455,7 @@ class DBLlamadas {
             $count++;
         }
         arsort($eti); //ordenar de mayor a menor
-        $eti= (object) array_slice($eti, 0, 2, true); //solo 3 etiquetas
+        $eti= (object) array_slice($eti, 0, 3, true); //solo 3 etiquetas
         //----------------------------------------
         $iconos= self::$etiquetas_icon_bi; //iconos bootstrap
         $lista_e=''; // listar las etiquetas con mayor aparicion
@@ -493,7 +467,7 @@ class DBLlamadas {
             }
         }
         //sio las etiquetas no sumaron el total poner otros
-        if ($item->fallidas > $sumar_e) $lista_e .= "Otros(". ($item->total - $sumar_e) .")";
+        if ($item->fallidas > $sumar_e) $lista_e .= "Otros(". ($item->fallidas - $sumar_e) .")";
 
         return trim($lista_e,',');
     }
@@ -504,6 +478,8 @@ class DBLlamadas {
         if ($num >= 25) return 'warning';
         return 'danger';
     }
+
+
 
 
 }

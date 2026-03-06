@@ -1,0 +1,171 @@
+@extends('layouts.app')
+
+@section('title', 'Inicio')
+
+@section('heads')
+@endsection
+
+@section('content')
+
+    <div class="row">
+        <div class="col-12">
+            <h1>Lista de Conductores</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <form method="GET">
+            <fieldset class="border p-3 rounded mb-3">
+                <legend class="float-none w-auto px-2 fs-6">
+                    Filtros de búsqueda
+                </legend>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <button
+                            formmethod="GET"
+                            formaction="{{ url('/lupita/reporte') }}"
+                            formtarget="_blank"
+                            class="btn btn-warning">
+                            Reporte Top Todo
+                        </button>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label" for="llamada_tipo_id">Tipo de llamada</label>
+                        <select name="llamada_tipo_id" id="llamada_tipo_id"
+                                class="form-control">
+                            <option value="" @selected((string) request('llamada_tipo_id')==='') >Todos</option>
+                            @foreach($llamadas::$tipos_llamada as $item)
+                                <option value="{{$item->id}}"
+                                    @selected(request('llamada_tipo_id') === (string) $item->id)>{{$item->nombre}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label" for="fecha_inicio">Fecha inicio</label>
+                        <input type="date" id="fecha_inicio"
+                               name="fecha_inicio"
+                               value="{{ request('fecha_inicio') }}"
+                               class="form-control">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label" for="fecha_fin">Fecha fin</label>
+                        <input type="date" id="fecha_fin"
+                               name="fecha_fin"
+                               value="{{ request('fecha_fin') }}"
+                               class="form-control">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="conductor" class="form-label">
+                            Conductor
+                        </label>
+                        <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-person"></i>
+                        </span>
+                            <input type="text"
+                                   id="conductor"
+                                   name="conductor"
+                                   value="{{ request('conductor') }}"
+                                   class="form-control"
+                                   placeholder="Conductor...">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bi bi-search"></i> Filtrar
+                        </button>
+
+                        <a href="{{ url()->current() }}" class="btn btn-secondary">
+                            Limpiar
+                        </a>
+                    </div>
+
+                </div>
+            </fieldset>
+
+        </form>
+
+        <div class="col-12">{{ $conductores->links() }}</div>
+        <div class="col-12">
+            <div class="table-responsive" style="max-height: 800px; overflow-y: auto;">
+                <table class="table table-bordered table-hover table-sm table-dark">
+                    <thead class="table-primary" style="position: sticky;top: 0;z-index: 2;">
+                    <tr>
+                        <th>Id</th>
+                        <th>Nombres</th>
+                        <th>Llamadas sin errores</th>
+                        <th>Exitosas</th>
+                        <th>Fallidas</th>
+                        <th>Tasa de Exito</th>
+                        <th>Etiquetas Positivas</th>
+                        <th>Etiquetas Negativas</th>
+                        <th>Errores</th>
+                        <th>Puntaje</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+
+                    @foreach($conductores as $row)
+                        <tr class="table-{{ $loop->odd ? 'table-secondary' : '' }}}">
+                            <td class="bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{ $row->conductor_id  }}</td>
+                            <td >{{ $row->conductor }}</td>
+                            <td><span class="badge bg-primary">{{ $row->total }}</span></td>
+                            <td> <span class="badge bg-success">{{ $row->exitosas }}</span> </td>
+                            <td> <span class="badge bg-danger">{{ $row->fallidas }}</span> </td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}" role="progressbar" style="width: {{$row->tasa_exito }}%;" aria-valuenow="{{$row->tasa_exito }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+
+                                <small class="d-block text-center text-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{$row->tasa_exito }}%</small>
+                            </td>
+                            <td>{!! $llamadas::etiquetas_icon_bi($row,'',1,true) !!}</td>
+                            <td>{!! $llamadas::etiquetas_icon_bi($row,'',0,true,$row->fallidas) !!}</td>
+                            <td class="text-danger">
+                                @if($row->error_desconocido)
+                                    <i class="{{ $llamadas::icon_exito(-1,true) }}"></i>
+                                    Desconocido({{ $row->error_desconocido }}) <br>
+                                @endif
+
+                                @if($row->error_ia)
+                                    <i class="{{ $llamadas::icon_exito(1,true) }}"></i>
+                                    IA:({{ $row->error_ia }}) <br>
+                                @endif
+
+                                @if($row->error_red)
+                                    <i class="{{ $llamadas::icon_exito(2,true) }}"></i>
+                                    Red:({{ $row->error_red }}) <br>
+                                @endif
+                                @if($row->error_sistema)
+                                    <i class="{{ $llamadas::icon_exito(3,true) }}"></i>
+                                    Sistema:({{ $row->error_sistema }})
+                                @endif
+                            </td>
+
+                        </tr>
+                    @endforeach
+
+
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+        <div class="col-12">{{ $conductores->links() }}</div>
+
+
+    </div>
+@endsection
+@section('scripts')
+
+    <script>
+
+    </script>
+@endsection

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 use App\Database\DBLlamadas;
+use App\Database\DBConductores;
 use stdClass;
 
 class LlamadasController extends Controller
@@ -38,9 +39,21 @@ class LlamadasController extends Controller
         $reporte->mejores= $llamadas::top_mejores_conductores();
         $reporte->mejores_trts= $llamadas::top_mejores_trts();
         $reporte->peores_trts= $llamadas::top_peores_trts();
+
         return view('reporte.todo.todo1', [
             'llamadas' => $llamadas,
             'reporte' => $reporte
+        ]);
+    }
+
+    public static function listar_conductores(Request $request)
+    {
+        $llamadas= new DBLlamadas();
+        $llamadas::set_filtro($request);
+        $conductores = DBConductores::lista_principal();
+        return view('lupita.lista_conductores', [
+            'llamadas' => $llamadas,
+            'conductores' => $conductores
         ]);
     }
 }
