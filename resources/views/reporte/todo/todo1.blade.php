@@ -37,7 +37,15 @@
                 <p class="lead">Análisis de llamadas totales | Exitosas = <span class="badge bg-success">{{ $reporte->total->llamada_exitosa }}</span></p>
             </div>
             <div class="text-end">
-                <span class="badge bg-dark p-3 fs-6"><i class="far fa-calendar-alt me-2"></i>Llamadas analizadas: de {{ $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')}} hasta {{ $llamadas->format_fecha(request('fecha_fin'),'d/m/Y')}} </span>
+                <span class="badge bg-dark p-3 fs-6">
+                <i class="far fa-calendar-alt me-2"></i>Llamadas analizadas:
+                    @php
+                    if (request('fecha_inicio') and request('fecha_fin'))
+                        echo $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')  . ' hasta ' . $llamadas->format_fecha(request('fecha_fin'),'d/m/Y');
+                    else
+                        echo $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')
+
+                    @endphp  </span>
             </div>
         </div>
 

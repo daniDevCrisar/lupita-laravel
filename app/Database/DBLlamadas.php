@@ -13,34 +13,34 @@ class DBLlamadas {
     public static $tipos_llamada=[];
     public static $error_origen=[];
     public static $etiquetas_icon_bi=[
-        'conductor_confirma' => ['bi bi-check-circle-fill text-success', 'Confirma',1],
-        'buzon_de_voz' => ['bi bi-voicemail text-warning','Buzon de voz',0],
-        'conductor_contesta_pero_no_habla' => ['bi bi-mic-mute-fill text-danger','No habla',0],
-        'conductor_no_escucha' => ['bi bi-ear-fill text-danger','No escucha',0],
-        'conductor_da_motivos' => ['bi bi-chat-left-text-fill text-info','Da motivos',1],
-        'conductor_mala_senal' => ['bi bi-wifi-off text-danger','Mala señal',0],
-        'confusion_en_llamada' => ['bi bi-question-circle-fill text-warning','Confusion en llamada',0],
-        'contesta_otra_persona' => ['bi bi-people-fill text-info','Contesta otra persona',0],
-        'numero_equivocado' => ['bi bi-telephone-x-fill text-danger','Numero equivocado',0],
-        'conversacion_fluida' => ['bi bi-chat-dots-fill text-success','Conversacion Fluida',1],
-        'llamada_interesante' => ['bi bi-star-fill text-warning','Llamada Interesante',1],
+        'conductor_confirma' => ['bi bi-check-circle-fill text-success', 'Confirma',1,10],
+        'buzon_de_voz' => ['bi bi-voicemail text-warning','Buzon de voz',0,-10],
+        'conductor_contesta_pero_no_habla' => ['bi bi-mic-mute-fill text-danger','No habla',0,-10],
+        'conductor_no_escucha' => ['bi bi-ear-fill text-danger','No escucha',0,0],
+        'conductor_da_motivos' => ['bi bi-chat-left-text-fill text-info','Da motivos',1,20],
+        'conductor_mala_senal' => ['bi bi-wifi-off text-danger','Mala señal',0,-5],
+        'confusion_en_llamada' => ['bi bi-question-circle-fill text-warning','Confusion en llamada',0,-5],
+        'contesta_otra_persona' => ['bi bi-people-fill text-info','Contesta otra persona',0,-5],
+        'numero_equivocado' => ['bi bi-telephone-x-fill text-danger','Numero equivocado',0,-20],
+        'conversacion_fluida' => ['bi bi-chat-dots-fill text-success','Conversacion Fluida',1,25],
+        'llamada_interesante' => ['bi bi-star-fill text-warning','Llamada Interesante',1,30],
 
-        'ia_se_confunde' => ['bi bi-cpu-fill text-warning','IA se confunde',0],
-        'ia_no_escucha' => ['bi bi-mic-mute-fill text-danger','IA no escucha',0],
-        'ia_cambio_de_datos' => ['bi bi-arrow-left-right text-info','IA actualiza datos',1],
-        'ia_error_interpretacion' => ['bi bi-exclamation-triangle-fill text-danger','IA error de interpretacion',0],
-        'ia_dice_variable' => ['bi bi-braces text-warning','IA dice variable',0],
-        'ia_mala_pronunciacion' => ['bi bi-volume-down-fill text-warning','IA mala pronunciacion',0],
+        'ia_se_confunde' => ['bi bi-cpu-fill text-warning','IA se confunde',0,0],
+        'ia_no_escucha' => ['bi bi-mic-mute-fill text-danger','IA no escucha',0,0],
+        'ia_cambio_de_datos' => ['bi bi-arrow-left-right text-info','IA actualiza datos',1,0],
+        'ia_error_interpretacion' => ['bi bi-exclamation-triangle-fill text-danger','IA error de interpretacion',0,0],
+        'ia_dice_variable' => ['bi bi-braces text-warning','IA dice variable',0,0],
+        'ia_mala_pronunciacion' => ['bi bi-volume-down-fill text-warning','IA mala pronunciacion',0,0],
 
-        'conductor_cuelga' => ['bi bi-telephone-minus-fill text-danger','Cuelga',0],
-        'conductor_no_contesta' => ['bi bi-telephone-x-fill text-danger','No contesta',0],
-        'conductor_conducta_inapropiada' => ['bi bi-person-x-fill text-danger','Conducta Inapropiada',0],
+        'conductor_cuelga' => ['bi bi-telephone-minus-fill text-danger','Cuelga',0,-5],
+        'conductor_no_contesta' => ['bi bi-telephone-x-fill text-danger','No contesta',0,-10],
+        'conductor_conducta_inapropiada' => ['bi bi-person-x-fill text-danger','Conducta Inapropiada',0,-30],
 
-        'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada',0],
-        'error_audio' => ['bi bi-volume-mute-fill text-danger','Error de audio',0],
+        'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada',0,0],
+        'error_audio' => ['bi bi-volume-mute-fill text-danger','Error de audio',0,0],
         // no exito solo en llamadas fallidas exitosa=0 y confirmacion=0
-        'confirmacion_parcial' => ['bi bi-check2-square text-info','Confirmacion parcial',0],
-        'conductor_ocupado' => ['bi bi-hourglass text-warning','Conductor Ocupado',0],
+        'confirmacion_parcial' => ['bi bi-check2-square text-info','Confirmacion parcial',0,5],
+        'conductor_ocupado' => ['bi bi-hourglass text-warning','Conductor Ocupado',0,-5],
 
     ];
     public static $filtro;
@@ -49,16 +49,11 @@ class DBLlamadas {
         self::$razones_finalizacion = DB::select('SELECT * FROM razones_finalizacion');
         self::$tipos_llamada = DB::select('SELECT * FROM tipos_llamada');
         self::$error_origen = DB::select('SELECT * FROM error_origen');
-        self::$filtro= new stdClass();
-        self::$filtro->fecha_inicio='';
-        self::$filtro->fecha_fin= '';
-        self::$filtro->llamada_tipo_id= '';
-        self::$filtro->conductor= '';
-        self::$filtro->trt= '';
-        self::$filtro->exitosa='';
     }
 
-    public static function set_filtro($request){
+    public static function set_filtro($request): void
+    {
+        self::$filtro= new stdClass();
         self::$filtro->fecha_inicio=$request->fecha_inicio;
         self::$filtro->fecha_fin=$request->fecha_fin;
         self::$filtro->llamada_tipo_id=$request->llamada_tipo_id;
@@ -69,12 +64,12 @@ class DBLlamadas {
 
 
     public static function listar_principal($mostrar){
-        $fecha_i =self::$filtro->fecha_inicio;
-        $fecha_f= self::$filtro->fecha_fin;
-        $tipo_id= self::$filtro->llamada_tipo_id;
-        $conductor= strtoupper(self::$filtro->conductor);
-        $trt= strtoupper(self::$filtro->trt);
-        $exitosa=self::$filtro->exitosa;
+        $fecha_i =self::$filtro->fecha_inicio??'';
+        $fecha_f= self::$filtro->fecha_fin??'';
+        $tipo_id= self::$filtro->llamada_tipo_id??'';
+        $conductor= strtoupper(self::$filtro->conductor??'');
+        $trt= strtoupper(self::$filtro->trt)??'';
+        $exitosa=self::$filtro->exitosa??'';
 
         $llamadas = DB::table('llamadas as a')
         ->join('conductores as b', 'b.id', '=', 'a.conductor_id')
@@ -129,20 +124,32 @@ class DBLlamadas {
             'a.error_tecnico_llamada',
             'a.error_audio'
         )
-        ->when($fecha_i && $fecha_f, function ($query) use ($fecha_i, $fecha_f) {
-            $query->whereBetween('a.created_at', [
-                Carbon::parse($fecha_i)->startOfDay(),
-                Carbon::parse($fecha_f)->endOfDay()
-            ]);
+        ->when($fecha_i or $fecha_f, function ($query) use ($fecha_i, $fecha_f) {
+            if ($fecha_i and !$fecha_f)
+                $query->whereBetween('a.created_at', [
+                    Carbon::parse($fecha_i)->startOfDay(),
+                    Carbon::parse($fecha_i)->endOfDay()
+                ]);
+            elseif ($fecha_i and $fecha_f)
+                $query->whereBetween('a.created_at', [
+                    Carbon::parse($fecha_i)->startOfDay(),
+                    Carbon::parse($fecha_f)->endOfDay()
+                ]);
         })
         ->when((string) $tipo_id !='', function ($query) use($tipo_id) {
             $query->where('llamada_tipo_id', '=', $tipo_id);
         })
         ->when($conductor !='', function ($query) use($conductor) {
-            $query->where('b.nombres', 'like','%'. $conductor. '%');
+            if ( is_numeric($conductor) )
+                $query->where('b.id', '=',$conductor);
+            else
+                $query->where('b.nombres', 'like','%'. $conductor. '%');
         })
         ->when($trt !='', function ($query) use($trt) {
-            $query->where('c.nombres', 'like','%'. $trt . '%');
+            if ( is_numeric($trt) )
+                $query->where('c.id', '=', $trt);
+            else
+                $query->where('c.nombres', 'like','%'. $trt . '%');
         })
         ->when($exitosa =='exito', function ($query){
             $query->where('a.llamada_exitosa', '=', 1);
@@ -288,9 +295,17 @@ class DBLlamadas {
         $tipo=self::$filtro->llamada_tipo_id;
         $sql = "";
         $params = [];
-        if ($fecha_i && $fecha_f) {
-            $fecha_i=Carbon::parse($fecha_i)->startOfDay();
-            $fecha_f=Carbon::parse($fecha_f)->addDay()->startOfDay();
+        if ($fecha_i or $fecha_f) {
+            if ($fecha_i and !$fecha_f) {
+                $fecha_f=$fecha_i;
+                $fecha_i=Carbon::parse($fecha_i)->startOfDay();
+                $fecha_f=Carbon::parse($fecha_f)->addDay()->startOfDay();
+            }
+            elseif ($fecha_i and $fecha_f) {
+                $fecha_i=Carbon::parse($fecha_i)->startOfDay();
+                $fecha_f=Carbon::parse($fecha_f)->addDay()->startOfDay();
+            }
+
 
             $sql .= " and a.created_at >= ? AND a.created_at < ? ";
 
@@ -477,6 +492,31 @@ class DBLlamadas {
         if ($num >= 50) return 'info';
         if ($num >= 25) return 'warning';
         return 'danger';
+    }
+
+    public static function puntaje_conductor($item)
+    {
+        $iconos= self::$etiquetas_icon_bi;
+        $count=0;
+        $fallidas= $item->fallidas-$item->total_error??0;
+        foreach ($iconos as $key => $value) { //buscar por clave de icono
+            if ($item->$key??false) $count+= ($value[3] * $item->$key);
+        }
+        $count+=($item->exitosas*15) - ($fallidas*10);
+        return $count;
+    }
+
+    public static function audio_duracion_format($segundos){
+        $horas = floor($segundos / 3600);
+        $minutos = floor(($segundos % 3600) / 60);
+        $seg = $segundos % 60;
+
+        $tiempo = '';
+        if ($horas > 0) $tiempo .= $horas . ' Horas, ';
+        if ($minutos > 0) $tiempo .= $minutos . ' Minutos y ';
+        if ($seg > 0) $tiempo .= $seg . ' Segundos';
+
+        return trim($tiempo);
     }
 
 

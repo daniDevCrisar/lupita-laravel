@@ -75,7 +75,7 @@
                                name="conductor"
                                value="{{ request('conductor') }}"
                                class="form-control"
-                               placeholder="Conductor...">
+                               placeholder="Conductor, id...">
                     </div>
                 </div>
 
@@ -93,7 +93,7 @@
                                name="trt"
                                value="{{ request('trt') }}"
                                class="form-control"
-                               placeholder="Transportista...">
+                               placeholder="Transportista, id...">
                     </div>
                 </div>
 
@@ -200,12 +200,14 @@
                     </td>
                     <td>
                         <i class="bi bi-telephone"></i> {{ $row->telefono }} <br>
+
                         <button class="btn btn-outline-light mb-1">
-                            <i class="bi bi-person"></i> {{ $row->conductor }}
+                            <i class="bi bi-person"></i> {{$row->conductor }} (#{{ $row->conductor_id }})
                         </button> <br>
                         @if( $row->trt)
+
                             <button class="btn btn-outline-light">
-                                <i class="bi bi-shop"></i> {{ $row->trt }}
+                                <i class="bi bi-shop"></i> {{ $row->trt }} (#{{ $row->trt_id }})
                             </button>
                         @endif
                     </td>

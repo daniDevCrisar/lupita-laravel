@@ -72,7 +72,7 @@
                                    name="conductor"
                                    value="{{ request('conductor') }}"
                                    class="form-control"
-                                   placeholder="Conductor...">
+                                   placeholder="Conductor, id...">
                         </div>
                     </div>
 
@@ -107,18 +107,19 @@
                         <th>Etiquetas Negativas</th>
                         <th>Errores</th>
                         <th>Puntaje</th>
+                        <th>Tiempo en llamada</th>
                     </tr>
                     </thead>
                     <tbody>
 
 
                     @foreach($conductores as $row)
-                        <tr class="table-{{ $loop->odd ? 'table-secondary' : '' }}}">
+                        <tr class="{{ $loop->odd ? 'table-secondary' : '' }} ">
                             <td class="bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{ $row->conductor_id  }}</td>
                             <td >{{ $row->conductor }}</td>
-                            <td><span class="badge bg-primary">{{ $row->total }}</span></td>
+                            <td><span class="badge bg-primary">{{ $row->total-$row->total_error }}</span></td>
                             <td> <span class="badge bg-success">{{ $row->exitosas }}</span> </td>
-                            <td> <span class="badge bg-danger">{{ $row->fallidas }}</span> </td>
+                            <td> <span class="badge bg-danger">{{ $row->fallidas-$row->total_error }}</span> </td>
                             <td>
                                 <div class="progress">
                                     <div class="progress-bar bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}" role="progressbar" style="width: {{$row->tasa_exito }}%;" aria-valuenow="{{$row->tasa_exito }}" aria-valuemin="0" aria-valuemax="100"></div>
@@ -127,7 +128,7 @@
                                 <small class="d-block text-center text-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{$row->tasa_exito }}%</small>
                             </td>
                             <td>{!! $llamadas::etiquetas_icon_bi($row,'',1,true) !!}</td>
-                            <td>{!! $llamadas::etiquetas_icon_bi($row,'',0,true,$row->fallidas) !!}</td>
+                            <td>{!! $llamadas::etiquetas_icon_bi($row,'',0,true,$row->fallidas-$row->total_error) !!}</td>
                             <td class="text-danger">
                                 @if($row->error_desconocido)
                                     <i class="{{ $llamadas::icon_exito(-1,true) }}"></i>
@@ -148,7 +149,11 @@
                                     Sistema:({{ $row->error_sistema }})
                                 @endif
                             </td>
-
+                            @php $puntaje=$llamadas::puntaje_conductor($row); @endphp
+                            <td class="text-{{ $puntaje > 0 ? 'success' : 'danger' }} fw-bold">
+                                {{ $puntaje }}
+                            </td>
+                            <td class="small">{{$llamadas::audio_duracion_format($row->audio_duracion)}}</td>
                         </tr>
                     @endforeach
 

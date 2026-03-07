@@ -6,7 +6,8 @@ composer require livewire/livewire
 php artisan livewire:publish --config
 
 
-
+git pull origin master
+//cargar cambios de proyecto en otra pc
 
 
 php artisan cache:clear

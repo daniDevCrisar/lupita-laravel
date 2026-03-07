@@ -12,6 +12,15 @@ use stdClass;
 class LlamadasController extends Controller
 {
     public static function listar_llamadas(Request $request){
+        $request->validate([
+            'fecha_inicio'     => 'nullable|date',
+            'fecha_fin'        => 'nullable|date',
+            'llamada_tipo_id'  => 'nullable|numeric',
+            'conductor'        => 'nullable|string',
+            'trt'              => 'nullable|string',
+            'exitosa'          => 'nullable|string',
+        ]);
+
         $llamadas= new DBLlamadas();
         $llamadas::set_filtro($request);
         $llamadas::listar_principal(30);
@@ -22,6 +31,15 @@ class LlamadasController extends Controller
     }
 
     public static function reporte_todo(Request $request){
+        $request->validate([
+            'fecha_inicio'     => 'nullable|date',
+            'fecha_fin'        => 'nullable|date',
+            'llamada_tipo_id'  => 'nullable|numeric',
+            'conductor'        => 'nullable|string',
+            'trt'              => 'nullable|string',
+            'exitosa'          => 'nullable|string',
+        ]);
+
         $llamadas= new DBLlamadas();
         $llamadas::set_filtro($request);
         //$llamadas::listar_principal(30);
@@ -48,9 +66,19 @@ class LlamadasController extends Controller
 
     public static function listar_conductores(Request $request)
     {
+        $request->validate([
+            'fecha_inicio'     => 'nullable|date',
+            'fecha_fin'        => 'nullable|date',
+            'llamada_tipo_id'  => 'nullable|numeric',
+            'conductor'        => 'nullable|string',
+        ]);
+
         $llamadas= new DBLlamadas();
         $llamadas::set_filtro($request);
-        $conductores = DBConductores::lista_principal();
+
+        $conductores = new DBConductores();
+        $conductores::set_filtro($request);
+        $conductores = $conductores::lista_principal();
         return view('lupita.lista_conductores', [
             'llamadas' => $llamadas,
             'conductores' => $conductores
