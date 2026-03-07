@@ -1,9 +1,16 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    @php
+        if (request('fecha_inicio') and request('fecha_fin'))
+            $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')  . ' hasta ' . $llamadas->format_fecha(request('fecha_fin'),'d/m/Y');
+        else
+            $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y');
+    @endphp
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $reporte->titulo }}</title>
+    <title>{{ $reporte->titulo . ' - ' . $fecha_rango }}</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome para iconos -->
@@ -38,14 +45,7 @@
             </div>
             <div class="text-end">
                 <span class="badge bg-dark p-3 fs-6">
-                <i class="far fa-calendar-alt me-2"></i>Llamadas analizadas:
-                    @php
-                    if (request('fecha_inicio') and request('fecha_fin'))
-                        echo $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')  . ' hasta ' . $llamadas->format_fecha(request('fecha_fin'),'d/m/Y');
-                    else
-                        echo $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')
-
-                    @endphp  </span>
+                <i class="far fa-calendar-alt me-2"></i>Llamadas analizadas: {{ $fecha_rango }}</span>
             </div>
         </div>
 
