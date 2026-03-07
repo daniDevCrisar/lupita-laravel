@@ -19,9 +19,10 @@ class DBReferencias {
             $id_trt=$row->id_trt;
             $id_trt= ($id_trt !== 'null' && $id_trt !== '') ? $id_trt : null;
         }
-        else 
+        else
             $id_trt= null;
 
+        $placa=self::verificar_placa($row->placa);
         $accion=  DB::select('CALL sp_insertar_o_nueva_referencia(?, ?, ?, FROM_UNIXTIME(?), ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?))',
             [
                 $row->ref,
@@ -29,7 +30,7 @@ class DBReferencias {
                 $row->id_conductor,
                 self::excel_time_a_timestamp($row->fecha_despachador),
                 $row->titulo_viaje,
-                $row->placa,
+                $placa,
                 null,//$row->fin_descargue,
                 null,//$row->inicio_descargue,
                 null,//$row->qr_llegada_destino,
@@ -49,6 +50,17 @@ class DBReferencias {
         }
         $unix_timestamp = ($excel_date - 25569) * 86400;
         return (int) floor($unix_timestamp);
+    }
+
+    public static function verificar_placa($placa) {
+        $placa_2= $placa;
+        if (strlen($placa) >10) {
+            $placa_2= explode('/', $placa);
+
+            $placa_2=$placa_2[0];
+
+        }
+        return $placa_2;
     }
 
 }

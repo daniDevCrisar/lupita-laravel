@@ -105,7 +105,8 @@ class DBTmpLlamadas {
         $llamada->fecha_prometida = self::fecha_string_o_numero($item->fecha_prometida);
         $llamada->origen= $item->origen;
         $llamada->destino = $item->destino;
-        $llamada->placa = $item->placa;
+
+        $llamada->placa = DBReferencias::verificar_placa($item->placa);
 
         self::guardar_llamada($llamada);
     }
