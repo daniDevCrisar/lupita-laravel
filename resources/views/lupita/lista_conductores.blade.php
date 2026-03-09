@@ -27,7 +27,7 @@
                             formaction="{{ url('/lupita/reporte') }}"
                             formtarget="_blank"
                             class="btn btn-warning">
-                            Reporte Top Todo
+                            Reporte Top
                         </button>
                     </div>
 
@@ -73,6 +73,42 @@
                                    value="{{ request('conductor') }}"
                                    class="form-control"
                                    placeholder="Conductor, id...">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="ordenar_por" class="form-label">
+                            <i class="bi bi-arrow-down-up"></i> Ordenar por
+                        </label>
+                        <div class="row">
+                            <div class="col">
+
+                                <div class="input-group">
+                                    <select name="ordenar_por" id="ordenar_por"
+                                            class="form-control">
+                                        <option value="" @selected((string) request('ordenar_por')==='') >
+                                            Mejores</option>
+                                        <option value="llamadas" @selected((string) request('ordenar_por')==='llamadas') >
+                                            Llamadas</option>
+                                        <option value="exitosas" @selected((string) request('ordenar_por')==='exitosas') >
+                                            Exitosas</option>
+                                        <option value="fallidas" @selected((string) request('ordenar_por')==='fallidas') >
+                                            Fallidas</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="orden" id="rd_ord_1" value="1"
+                                        @checked((string)request('orden') === '1')>
+                                    <label class="btn btn-outline-primary" for="rd_ord_1">Asc</label>
+
+                                    <input type="radio" class="btn-check" name="orden" id="rd_ord_2" value=""
+                                        @checked(request('orden') == '')>
+                                    <label class="btn btn-outline-primary" for="rd_ord_2">Desc</label>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 

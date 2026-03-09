@@ -71,10 +71,11 @@ class LlamadasController extends Controller
             'fecha_fin'        => 'nullable|date',
             'llamada_tipo_id'  => 'nullable|numeric',
             'conductor'        => 'nullable|string',
+            'ordenar_por'        => 'nullable|string',
+            'orden'        => 'nullable|numeric',
         ]);
 
         $llamadas= new DBLlamadas();
-        $llamadas::set_filtro($request);
 
         $conductores = new DBConductores();
         $conductores::set_filtro($request);

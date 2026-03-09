@@ -21,6 +21,8 @@ class DBConductores
         self::$filtro->fecha_fin=$request->fecha_fin??'';
         self::$filtro->llamada_tipo_id=$request->llamada_tipo_id??'';
         self::$filtro->conductor= $request->conductor??'';
+        self::$filtro->ordenar_por= $request->ordenar_por??'';
+        self::$filtro->orden= $request->orden??'';
     }
 
     public static function crear($row)
@@ -107,46 +109,12 @@ class DBConductores
         $fecha_f= self::$filtro->fecha_fin;
         $tipo_id= self::$filtro->llamada_tipo_id;
         $conductor= strtoupper(self::$filtro->conductor);
-
-        $query_error = DB::table('llamadas as c')
-        ->selectRaw('
-        conductor_id,
-        SUM(error_origen = -1) as error_desconocido,
-        SUM(error_origen = 1) as error_ia,
-        SUM(error_origen = 2) as error_red,
-        SUM(error_origen = 3) as error_sistema
-        ')
-        ->join('conductores as d','d.id','=','c.conductor_id')
-        ->where('c.error_origen','!=',0)
-        ->when($fecha_i or $fecha_f, function ($query) use ($fecha_i, $fecha_f) {
-            if ($fecha_i and !$fecha_f)
-                $query->whereBetween('c.created_at', [
-                    Carbon::parse($fecha_i)->startOfDay(),
-                    Carbon::parse($fecha_i)->endOfDay()
-                ]);
-            elseif ($fecha_i and $fecha_f)
-                $query->whereBetween('c.created_at', [
-                    Carbon::parse($fecha_i)->startOfDay(),
-                    Carbon::parse($fecha_f)->endOfDay()
-                ]);
-        })
-        ->when((string) $tipo_id !='', function ($query) use($tipo_id) {
-            $query->where('c.llamada_tipo_id', '=', $tipo_id);
-        })
-        ->when($conductor !='', function ($query) use($conductor) {
-            if ( is_numeric($conductor) )
-                $query->where('d.id', '=',$conductor);
-            else
-                $query->where('d.nombres', 'like','%'. $conductor. '%');
-        })
-        ->groupBy('c.conductor_id');
-
+        $ordenar_por= self::$filtro->ordenar_por;
+        $orden= self::$filtro->orden;
+        $orden_txt= $orden ? 'asc':'desc';
 
         $query_lista = DB::table('llamadas as a')
         ->join('conductores as b','b.id','=','a.conductor_id')
-        ->leftJoinSub($query_error,'c',function($join){
-                $join->on('c.conductor_id','=','a.conductor_id');
-        })
         ->selectRaw('
         a.conductor_id,
         b.nombres AS conductor,
@@ -156,11 +124,11 @@ class DBConductores
         ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
         SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,
 
-        error_desconocido,
-        error_ia,
-        error_red,
-        error_sistema,
-        (error_desconocido+error_ia+error_red+error_sistema) AS total_error,
+        SUM(a.error_origen = -1) as error_desconocido,
+        SUM(a.error_origen = 1) as error_ia,
+        SUM(a.error_origen = 2) as error_red,
+        SUM(a.error_origen = 3) as error_sistema,
+        SUM(a.error_origen!= 0) AS total_error,
 
         SUM(a.buzon_de_voz * (a.llamada_exitosa = 0 and error_origen=0)) AS buzon_de_voz,
         SUM(a.conductor_contesta_pero_no_habla * (a.llamada_exitosa = 0  and error_origen=0)) AS conductor_contesta_pero_no_habla,
@@ -210,8 +178,14 @@ class DBConductores
                 $query->where('b.nombres', 'like','%'. $conductor. '%');
         })
         ->groupBy('a.conductor_id')
-        ->orderByDesc('diferencia')
-        ->orderBy('exitosas')
+        ->when($ordenar_por, function ($query) use($ordenar_por,$orden_txt) {
+            if ($ordenar_por  == 'llamadas') $query->orderBy('total' , $orden_txt);
+            elseif ($ordenar_por == 'exitosas') $query->orderBy('exitosas', $orden_txt);
+            elseif ($ordenar_por == 'fallidas') $query->orderBy('fallidas', $orden_txt);
+        })
+        ->when($ordenar_por=='', function ($query) use($ordenar_por ,$orden_txt) {
+            $query->orderBy('diferencia', $orden_txt)->orderBy('exitosas',$orden_txt);
+        })
         ->orderBy('b.id', 'desc')
         ->paginate($limit)
         ->withQueryString();

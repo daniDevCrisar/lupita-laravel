@@ -85,8 +85,6 @@ class DBLlamadas {
             'a.conductor_id',
             'b.nombres as conductor',
             'a.telefono',
-            'a.trt_id',
-            'c.nombres as trt',
             'a.audio_link',
             'a.audio_duracion',
             'a.analisis_transcripcion',
@@ -124,6 +122,8 @@ class DBLlamadas {
             'a.error_tecnico_llamada',
             'a.error_audio'
         )
+        ->selectRaw("COALESCE(a.trt_id, 0) AS trt_id,
+        COALESCE(c.nombres, 'SIN TRT') AS trt")
         ->when($fecha_i or $fecha_f, function ($query) use ($fecha_i, $fecha_f) {
             if ($fecha_i and !$fecha_f)
                 $query->whereBetween('a.created_at', [
@@ -147,9 +147,9 @@ class DBLlamadas {
         })
         ->when($trt !='', function ($query) use($trt) {
             if ( is_numeric($trt) )
-                $query->where('c.id', '=', $trt);
+                $query->whereRaw('COALESCE(a.trt_id, 0)= ?', [$trt]);
             else
-                $query->where('c.nombres', 'like','%'. $trt . '%');
+                $query->whereRaw("COALESCE(c.nombres, 'SIN TRT') like ?", ['%'. $trt . '%']);
         })
         ->when($exitosa =='exito', function ($query){
             $query->where('a.llamada_exitosa', '=', 1);
