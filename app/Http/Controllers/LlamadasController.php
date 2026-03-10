@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Database\DBTrts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -47,6 +48,7 @@ class LlamadasController extends Controller
         $reporte = new stdClass();
         $reporte->titulo = 'Reporte de llamadas totales VAPI';
         $reporte->total= $llamadas::etiqueta_totales();
+        if ($reporte->total[0]->llamadas==0) return '<h1 style="color: red">No hay llamadas</h1>';
 
         if ($request->llamada_tipo_id == 1) $reporte->titulo = 'Reporte de Confirmaciones VAPI';
         elseif ($request->llamada_tipo_id == 2) $reporte->titulo = 'Reporte de Espera fuera de planta VAPI';
@@ -71,6 +73,7 @@ class LlamadasController extends Controller
             'fecha_fin'        => 'nullable|date',
             'llamada_tipo_id'  => 'nullable|numeric',
             'conductor'        => 'nullable|string',
+            'trt'              => 'nullable|numeric',
             'ordenar_por'        => 'nullable|string',
             'orden'        => 'nullable|numeric',
         ]);
@@ -83,6 +86,28 @@ class LlamadasController extends Controller
         return view('lupita.lista_conductores', [
             'llamadas' => $llamadas,
             'conductores' => $conductores
+        ]);
+    }
+
+    public static function listar_trts(Request $request)
+    {
+        $request->validate([
+            'fecha_inicio'     => 'nullable|date',
+            'fecha_fin'        => 'nullable|date',
+            'llamada_tipo_id'  => 'nullable|numeric',
+            'trt'        => 'nullable|string',
+            'ordenar_por'        => 'nullable|string',
+            'orden'        => 'nullable|numeric',
+        ]);
+
+        $llamadas= new DBLlamadas();
+
+        $trts = new DBTrts();
+        $trts::set_filtro($request);
+        $trts = $trts::lista_principal();
+        return view('lupita.lista_trts', [
+            'llamadas' => $llamadas,
+            'trts' => $trts
         ]);
     }
 }

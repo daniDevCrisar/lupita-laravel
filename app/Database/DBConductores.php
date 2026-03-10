@@ -23,6 +23,7 @@ class DBConductores
         self::$filtro->conductor= $request->conductor??'';
         self::$filtro->ordenar_por= $request->ordenar_por??'';
         self::$filtro->orden= $request->orden??'';
+        self::$filtro->trt = $request->trt??'';
     }
 
     public static function crear($row)
@@ -110,11 +111,13 @@ class DBConductores
         $tipo_id= self::$filtro->llamada_tipo_id;
         $conductor= strtoupper(self::$filtro->conductor);
         $ordenar_por= self::$filtro->ordenar_por;
+        $trt= self::$filtro->trt??'';
         $orden= self::$filtro->orden;
         $orden_txt= $orden ? 'asc':'desc';
 
         $query_lista = DB::table('llamadas as a')
         ->join('conductores as b','b.id','=','a.conductor_id')
+        ->leftJoin('trts as c','c.id','=','a.trt_id')
         ->selectRaw('
         a.conductor_id,
         b.nombres AS conductor,
@@ -176,6 +179,9 @@ class DBConductores
                 $query->where('b.id', '=',$conductor);
             else
                 $query->where('b.nombres', 'like','%'. $conductor. '%');
+        })
+        ->when($trt !='', function ($query) use($trt) {
+            $query->whereRaw("COALESCE(a.trt_id, 0) = ?",[$trt]);
         })
         ->groupBy('a.conductor_id')
         ->when($ordenar_por, function ($query) use($ordenar_por,$orden_txt) {

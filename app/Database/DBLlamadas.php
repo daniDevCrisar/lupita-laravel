@@ -512,9 +512,9 @@ class DBLlamadas {
         $seg = $segundos % 60;
 
         $tiempo = '';
-        if ($horas > 0) $tiempo .= $horas . ' Horas, ';
-        if ($minutos > 0) $tiempo .= $minutos . ' Minutos y ';
-        if ($seg > 0) $tiempo .= $seg . ' Segundos';
+        if ($horas > 0) $tiempo .= $horas . ' H, ';
+        if ($minutos > 0) $tiempo .= $minutos . ' Min y ';
+        if ($seg > 0) $tiempo .= $seg . ' Seg';
 
         return trim($tiempo);
     }

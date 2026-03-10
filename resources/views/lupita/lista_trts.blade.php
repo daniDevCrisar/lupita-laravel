@@ -9,7 +9,7 @@
 
     <div class="row">
         <div class="col-12">
-            <h1>Lista de Conductores</h1>
+            <h1>Lista de Transportistas</h1>
         </div>
     </div>
 
@@ -51,25 +51,8 @@
                     </div>
 
                     <div class="col-md-4">
-                        <label for="conductor" class="form-label">
-                            Conductor
-                        </label>
-                        <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="bi bi-person"></i>
-                        </span>
-                            <input type="text"
-                                   id="conductor"
-                                   name="conductor"
-                                   value="{{ request('conductor') }}"
-                                   class="form-control"
-                                   placeholder="Conductor, id...">
-                        </div>
-                    </div>
-
-                    <div class="col-md-4">
                         <label for="trt" class="form-label">
-                            Transportista Id
+                            Transportista
                         </label>
 
                         <div class="input-group">
@@ -81,7 +64,7 @@
                                    name="trt"
                                    value="{{ request('trt') }}"
                                    class="form-control"
-                                   placeholder="id...">
+                                   placeholder="Transportista, id...">
                         </div>
                     </div>
 
@@ -136,15 +119,18 @@
 
         </form>
 
-        <div class="col-12">{{ $conductores->links() }}</div>
+        <div class="col-12">{{ $trts->links() }}</div>
         <div class="col-12">
             <div class="table-responsive" style="max-height: 800px; overflow-y: auto;">
                 <table class="table table-bordered table-hover table-sm table-dark">
                     <thead class="table-primary" style="position: sticky;top: 0;z-index: 2;">
                     <tr>
                         <th>Id</th>
-                        <th>Nombres</th>
-                        <th>Llamadas sin errores</th>
+                        <th>Transportista</th>
+                        <th data-bs-toggle="tooltip" title="Conductores con al menos 1 llamada sin errores"><i class="bi bi-people"></i></th>
+                        <th data-bs-toggle="tooltip" title="Conductores con 0 llamadas exitosas / Con una 1 o mas fallas">Fallidos</th>
+                        <th>% Problematico</th>
+                        <th>Llamadas<br>sin errores</th>
                         <th>Exitosas</th>
                         <th>Fallidas</th>
                         <th>Tasa de Exito</th>
@@ -152,16 +138,32 @@
                         <th>Etiquetas Negativas</th>
                         <th>Errores</th>
                         <th>Puntaje</th>
-                        <th>Tiempo en llamada</th>
+                        <th>Tiempo en <br>llamada</th>
                     </tr>
                     </thead>
                     <tbody>
 
 
-                    @foreach($conductores as $row)
+                    @foreach($trts as $row)
                         <tr class="{{ $loop->odd ? 'table-secondary' : '' }} ">
-                            <td class="bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{ $row->conductor_id  }}</td>
-                            <td >{{ $row->conductor }}</td>
+                            <td class="bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{ $row->trt_id  }}</td>
+                            <td ><a href="{{ route('lupita.conductores', [
+                                'fecha_inicio'     => request('fecha_inicio'),
+                                'fecha_fin'        => request('fecha_fin'),
+                                'llamada_tipo_id'  => request('llamada_tipo_id'),
+                                'conductor'        => '',
+                                'trt'              => $row->trt_id,
+                            ]) }}" target="_blank">{{ $row->trt }}</a></td>
+
+                            @php
+                            $problematicos= round((($row->conductores  - $row->conductores_con_exito)/$row->conductores)*100,1)
+                            @endphp
+
+                            <td class="fw-bold">{{ $row->conductores  }}</td>
+                            <td><span class='text-danger fw-bold'>
+                                    {{ $row->conductores  - $row->conductores_con_exito }} </span>/ {{ $row->conductores_con_fallo }}</td>
+                            <td><span class="badge bg-{{ $llamadas::color_porcentaje(100-$problematicos) }}">{{  $problematicos }}%</span></td>
+
                             <td><span class="badge bg-primary">{{ $row->total-$row->total_error }}</span></td>
                             <td> <span class="badge bg-success">{{ $row->exitosas }}</span> </td>
                             <td> <span class="badge bg-danger">{{ $row->fallidas-$row->total_error }}</span> </td>
@@ -208,7 +210,7 @@
 
             </div>
         </div>
-        <div class="col-12">{{ $conductores->links() }}</div>
+        <div class="col-12">{{ $trts->links() }}</div>
 
 
     </div>
@@ -216,6 +218,8 @@
 @section('scripts')
 
     <script>
-
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+            new bootstrap.Tooltip(el)
+        })
     </script>
 @endsection
