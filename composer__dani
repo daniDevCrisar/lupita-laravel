@@ -22,3 +22,6 @@ git config --global user.email "llamadas.ia.crisar@gmail.com"
 
 php artisan make:livewire PruebaComponente --class
 php artisan make:livewire PruebaComponente
+
+php artisan make:livewire EtiquetarLlamada
+

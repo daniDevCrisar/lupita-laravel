@@ -88,10 +88,14 @@ ALTER TABLE conductores ADD FULLTEXT(nombres);
 CREATE TABLE tlf_conductores (
     conductor_id INT NOT NULL,
     telefono VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
     PRIMARY KEY (conductor_id, telefono),
     INDEX idx_telefono (telefono)
 );
+
+ALTER TABLE tlf_conductores
+ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 -- +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 CREATE TABLE referencias (

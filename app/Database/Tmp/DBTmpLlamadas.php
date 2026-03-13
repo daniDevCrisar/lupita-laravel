@@ -97,7 +97,7 @@ class DBTmpLlamadas {
         $llamada->error_tecnico_llamada = self::etiqueta_valor($item->error_tecnico_llamada);
         $llamada->error_audio = self::etiqueta_valor($item->error_audio);
         $llamada->error_origen = self::validar_error_origen($item->error_origen);
-        self::guardar_mensajes($item->vapi_id,$item->mensajes_conten);
+
         $timestamp = (int) $item->created_at;
         $llamada->created_at = $timestamp /1000; //dejarlo en horario peruano utc-5
 
@@ -107,8 +107,10 @@ class DBTmpLlamadas {
         $llamada->destino = $item->destino;
 
         $llamada->placa = DBReferencias::verificar_placa($item->placa);
-
-        self::guardar_llamada($llamada);
+        $se_inserto=self::guardar_llamada($llamada);
+        if ($se_inserto)
+            self::guardar_mensajes($item->vapi_id,$item->mensajes_conten);
+        return $se_inserto;
     }
 
     public static function fecha_string_o_numero($fecha) {

@@ -134,9 +134,9 @@
                         <th>Exitosas</th>
                         <th>Fallidas</th>
                         <th>Tasa de Exito</th>
-                        <th>Etiquetas Positivas</th>
-                        <th>Etiquetas Negativas</th>
-                        <th>Errores</th>
+                        <th @if(request('reporte'))  style="display:none;" @endif>Etiquetas Positivas</th>
+                        <th  @if(request('reporte'))  style="display:none;" @endif">Etiquetas Negativas</th>
+                        <th @if(request('reporte'))  style="display:none;" @endif>Errores</th>
                         <th>Puntaje</th>
                         <th>Tiempo en <br>llamada</th>
                     </tr>
@@ -174,9 +174,9 @@
 
                                 <small class="d-block text-center text-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{$row->tasa_exito }}%</small>
                             </td>
-                            <td>{!! $llamadas::etiquetas_icon_bi($row,'',1,true) !!}</td>
-                            <td>{!! $llamadas::etiquetas_icon_bi($row,'',0,true,$row->fallidas-$row->total_error) !!}</td>
-                            <td class="text-danger">
+                            <td @if(request('reporte'))  style="display:none;" @endif>{!! $llamadas::etiquetas_icon_bi($row,'',1,true) !!}</td>
+                            <td @if(request('reporte'))  style="display:none;" @endif>{!! $llamadas::etiquetas_icon_bi($row,'',0,true,$row->fallidas-$row->total_error) !!}</td>
+                            <td class="text-danger" @if(request('reporte'))  style="display:none;" @endif>
                                 @if($row->error_desconocido)
                                     <i class="{{ $llamadas::icon_exito(-1,true) }}"></i>
                                     Desconocido({{ $row->error_desconocido }}) <br>

@@ -110,4 +110,23 @@ class LlamadasController extends Controller
             'trts' => $trts
         ]);
     }
+
+    public static function procesar_audio(Request $request){
+        $request->validate([
+            'fecha_inicio'     => 'nullable|date',
+            'fecha_fin'        => 'nullable|date',
+            'llamada_tipo_id'  => 'nullable|numeric',
+            'conductor'        => 'nullable|string',
+            'trt'              => 'nullable|string',
+            'exitosa'          => 'nullable|string',
+        ]);
+
+        $llamadas= new DBLlamadas();
+        $llamadas::set_filtro($request);
+        $llamadas::listar_principal(30);
+
+        return view('lupita.procesar_audio', [
+            'llamadas' => $llamadas
+        ]);
+    }
 }

@@ -37,6 +37,7 @@ Route::prefix('lupita')->group(function () {
     Route::get('/llamadas', [LlamadasController::class, 'listar_llamadas'])->name('lupita.llamadas');
     Route::get('/conductores', [LlamadasController::class, 'listar_conductores'])->name('lupita.conductores');
     Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas');
+    Route::get('/audio', [LlamadasController::class, 'procesar_audio'])->name('lupita.audio');
     Route::get('/reporte', [LlamadasController::class, 'reporte_todo']);
 });
 
