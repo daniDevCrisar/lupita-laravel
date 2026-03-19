@@ -209,16 +209,14 @@
 
 
     <div class="row  g-4 mb-5">
-        @php
-            if ($reporte->total->llamada_exitosa){
-                $da_motivos_100= round(($reporte->total->conductor_da_motivos /$reporte->total->llamada_exitosa)*100,0) ;
-                $fluida_100= round(($reporte->total->conversacion_fluida /$reporte->total->llamada_exitosa)*100,0);
-            }
-        @endphp
+
 
         <!-- correlacion de  exito -->
         @if($reporte->total->llamada_exitosa)
-
+            @php
+                $da_motivos_100= round(($reporte->total->conductor_da_motivos /$reporte->total->llamada_exitosa)*100,0) ;
+                $fluida_100= round(($reporte->total->conversacion_fluida /$reporte->total->llamada_exitosa)*100,0);
+            @endphp
             <div class="col-lg-12">
                 <div class="card report-card h-100">
                     <div class="card-header bg-white border-0 pt-4">
