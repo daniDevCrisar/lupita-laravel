@@ -116,22 +116,22 @@
             </div>
         </div>
 
-
-        <!-- TOP 5 MEJORES CONDUCTORES -->
-        <div class="card report-card mb-5">
-            <div class="card-header bg-white border-0 pt-4 pb-0">
-                <h3 class="h4 fw-bold"><i class="fas fa-crown text-warning me-2"></i>Top 5 mejores conductores</h3>
-                <p class="text-muted">Basado en éxito.</p>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="tabla-conductores">
+    @if($reporte->total->llamada_exitosa)
+            <!-- TOP 5 MEJORES CONDUCTORES -->
+            <div class="card report-card mb-5">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h3 class="h4 fw-bold"><i class="fas fa-crown text-warning me-2"></i>Top 5 mejores conductores</h3>
+                    <p class="text-muted">Basado en éxito.</p>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="tabla-conductores">
                             <tr>
                                 <th>#</th><th>Conductor</th><th>Transportista</th><th>Llamadas exitosas</th><th>Estrellas</th><th>Comportamiento</th>
                             </tr>
-                        </thead>
-                        <tbody>
+                            </thead>
+                            <tbody>
                             @foreach ($reporte->mejores as $item)
                                 @if($item->exitosas)
                                     <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" >
@@ -142,11 +142,12 @@
                                     </tr>
                                 @endif
                             @endforeach
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+    @endif
 
         <!-- PEORES CONDUCTORES (múltiples fallos) -->
         <div class="card report-card mb-5">
@@ -208,17 +209,22 @@
 
 
     <div class="row  g-4 mb-5">
-        <!-- pcorrelacion de  exito -->
+        @php
+            if ($reporte->total->llamada_exitosa){
+                $da_motivos_100= round(($reporte->total->conductor_da_motivos /$reporte->total->llamada_exitosa)*100,0) ;
+                $fluida_100= round(($reporte->total->conversacion_fluida /$reporte->total->llamada_exitosa)*100,0);
+            }
+        @endphp
+
+        <!-- correlacion de  exito -->
+        @if($reporte->total->llamada_exitosa)
+
             <div class="col-lg-12">
                 <div class="card report-card h-100">
                     <div class="card-header bg-white border-0 pt-4">
                         <h4 class="h5 fw-bold"><i class="fas fa-clipboard-list me-2"></i>Correlaciones con éxito</h4>
                     </div>
                     <div class="card-body">
-                        @php
-                            $da_motivos_100= round(($reporte->total->conductor_da_motivos /$reporte->total->llamada_exitosa)*100,0) ;
-                            $fluida_100= round(($reporte->total->conversacion_fluida /$reporte->total->llamada_exitosa)*100,0)
-                        @endphp
                         <p><strong>Cuando la llamada es exitosa, es muy frecuente que:</strong></p>
                         <div class="progress mb-3" style="height: 25px;">
                             <div class="progress-bar bg-success" style="width: 100%;" role="progressbar">conductor_confirma (100%)</div>
@@ -232,6 +238,7 @@
                     </div>
                 </div>
             </div>
+        @endif
     </div>
         <!-- por q el porcentaje de fallo -->
     <div class="mb-5">
@@ -244,7 +251,7 @@
 
         <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
     <div class="row g-4 mb-5">
-        <!-- Tarjeta 1: Buzón / no contesta (23) -->
+        <!-- FALLO DE CONTACTO -->
         <div class="col-lg-6">
             <div class="card p-4 h-100">
                 @php
@@ -272,7 +279,7 @@
             </div>
         </div>
 
-        <!-- Tarjeta 2: Conductor no habla / cuelga (22) -->
+        <!-- NO COOPERA -->
         <div class="col-lg-6">
             <div class="card p-4 h-100">
                 <div class="d-flex align-items-center gap-3 mb-3">
@@ -300,8 +307,7 @@
             </div>
         </div>
 
-            <!-- Fila especial: 3 CASOS DE IA (destacados) -->
-
+        <!-- IA -->
         <div class="col-lg-6">
             <div class="card p-4 border-info border-2">
                 <div class="d-flex align-items-center gap-3 mb-3">
@@ -325,7 +331,7 @@
             </div>
         </div>
 
-        <!-- OTROSSSSSSSSS -->
+        <!-- OTROS -->
         <div class="col-lg-6">
             <div class="card p-4 h-100">
                 @php
@@ -376,7 +382,7 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS (opcional para tooltips, pero solo para funcionalidad completa) -->
+    <!-- Bootstrap JS ----------------------------------- -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

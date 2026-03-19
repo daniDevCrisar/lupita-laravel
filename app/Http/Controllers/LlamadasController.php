@@ -51,8 +51,11 @@ class LlamadasController extends Controller
         if ($reporte->total[0]->llamadas==0) return '<h1 style="color: red">No hay llamadas</h1>';
 
         if ($request->llamada_tipo_id == 1) $reporte->titulo = 'Reporte de Confirmaciones VAPI';
-        elseif ($request->llamada_tipo_id == 2) $reporte->titulo = 'Reporte de Espera fuera de planta VAPI';
-        elseif ($request->llamada_tipo_id == 3) $reporte->titulo = 'Reporte de Espera dentro de planta VAPI';
+        elseif ($request->llamada_tipo_id == 2) $reporte->titulo = 'Reporte de Espera fuera de planta para carga VAPI';
+        elseif ($request->llamada_tipo_id == 3) $reporte->titulo = 'Reporte de Espera dentro de planta para carga VAPI';
+        elseif ($request->llamada_tipo_id == 5) $reporte->titulo = 'Reporte de Espera fuera de planta para descarga VAPI';
+        elseif ($request->llamada_tipo_id == 6) $reporte->titulo = 'Reporte de Espera dentro de planta para descarga VAPI';
+
 
         $reporte->total= $reporte->total[0];
         $reporte->peores= $llamadas::top_peores_conductores();

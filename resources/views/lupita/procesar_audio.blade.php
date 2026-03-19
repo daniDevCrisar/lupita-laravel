@@ -144,7 +144,7 @@
 
         <div class="col-12">{{ $llamadas::$lista->links() }}</div>
 
-        <div class="col-7">
+        <div class="col-6">
             <div class="table-responsive" style="max-height: 800px; overflow-y: auto;">
                 <table class="table table-bordered table-hover table-sm table-dark">
                     <thead class="table-primary" style="position: sticky;top: 0;z-index: 2;">
@@ -162,17 +162,46 @@
 
 
                     @foreach($llamadas::$lista as $row)
+                        <input type="hidden" name="lista_{{$loop->index}}_id" value="{{ $row->vapi_id }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_conductor" value="{{ $row->conductor }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_telefono" value="{{ $row->telefono }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_ref" value="{{ $row->ref }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_placa" value="{{ $row->placa }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_viaje" value="{{ $row->origen . ' - '. $row->destino }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_audio" value="{{ $row->audio_link }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_audio_duracion" value="{{ $row->audio_duracion }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_analisis_transcripcion" value="{{ $row->analisis_transcripcion }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_analisis_audio" value="{{ $row->analisis_audio }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_razon_f"
+                               value="{{ $llamadas::$razones_finalizacion[$row->razon_finalizacion_id]->codigo }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_razon_id"
+                               value="{{ $row->razon_finalizacion_id }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_error_origen" value="{{ $row->error_origen }}">
+                        <input type="hidden" name="lista_{{$loop->index}}_llamada_exitosa" value="{{ $row->llamada_exitosa }}">
+                        @php $orden=$loop->index @endphp
+                        @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
+                            @if($item[4])
+                                <input type="hidden" name="lista_{{$orden. '_' . $key }}" value="{{ $row->$key }}">
+                            @endif
+                        @endforeach
+
                         <tr class="{{ $loop->odd ? 'table-secondary' : '' }} small">
                             <td>
-
-                                <i class="bi bi-telephone-outbound {{ $row->entro_llamada ? 'text-success': '' }}"></i> <span style="font-size: 0.8em;">{{ $row->vapi_id }}</span>
+                                <span style="font-size: 0.8em;" id="lista_{{$loop->index}}_id_html">
+                                <i class="bi bi-telephone-outbound {{ $row->entro_llamada ? 'text-success': '' }}"></i>
+                                    {{ $row->vapi_id }}
                                 @if ($row->exitosa_segun_ia)
                                     <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
                                 @endif
+                                </span>
 
                             </td>
-                            <td>{{ $llamadas::format_fecha($row->created_at) }}</td>
-                            <td><i class="{{ $llamadas::tipos_l($row->llamada_tipo_id,'icon') }}"></i>
+                            <td>{{ $llamadas::format_fecha($row->created_at) }}
+                                <button class="btn btn-outline-success" onclick="etiquetar({{$loop->index}})">
+                                    <i class="bi bi-play-fill me-1"></i> etit
+                                </button>
+                            </td>
+                            <td id="lista_{{$loop->index}}_tipol_html"><i class="{{ $llamadas::tipos_l($row->llamada_tipo_id,'icon') }}"></i>
                                 {{ $llamadas::tipos_l($row->llamada_tipo_id) }}</td>
                             <td>
                                 @if($row->ref)
@@ -194,6 +223,7 @@
                             </td>
                             <td>
                                 @if ($row->entro_llamada)
+                                    Duracion: {{$row->audio_duracion}} seg
                                     <button class="btn btn-outline-success" onclick="playAudio('{{ $row->audio_link }}','{{ $row->telefono }}','{{ $row->conductor }}' )">
                                         <i class="bi bi-play-fill me-1"></i> Reproducir
                                     </button>
@@ -222,77 +252,133 @@
 
             </div>
         </div>
-        <div class="col-5">
+
+
+        <div class="col-6">
             <div class="card mb-3 border-secondary col-12">
                 <div class="card-header bg-primary">
-                    <h4>
+                    <h5>
                         <i class="bi bi-play-circle me-2"></i>Llamada
-                    </h4>
+                    </h5>
 
-                    <span style="font-size: 0.8em;">
+                    <span style="font-size: 0.8em;" id="card_id_html">
                     <i class="bi bi-telephone-outbound text-success"></i> 019CE03C-DFA1-7BBD-90DB-39A91224DDF3
                     <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
                     </span>
 
                 </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item small"><i class="bi bi-telephone"></i> 51936924257 <i class="bi bi-person"></i> JESUS NARRO</li>
+                    <li class="list-group-item small">Ref: 967103
+                        <i class="bi bi-airplane"></i> HUARAL-CHINCHA
+                        <i class="bi bi-card-text"></i> T3P946
+                    </li>
+                    <li class="list-group-item small"><i class="bi-building"></i>Dentro de planta</li>
+                </ul>
                 <div class="card-body">
-
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item"><i class="bi bi-telephone"></i> 51936924257 <i class="bi bi-person"></i> JESUS NARRO</li>
-                        <li class="list-group-item small">Ref: 967103 <br>
-                            <i class="bi bi-airplane"></i> HUARAL-CHINCHA <br>
-                            <i class="bi bi-card-text"></i> T3P946 <br>
-                        </li>
-                        <li class="list-group-item small"><i class="bi-building"></i>Dentro de planta</li>
-                        <li class="list-group-item text-info">IA-FINALIZA-LLAMADA</li>
-
-                    </ul>
                     <audio id="mainAudio" controls class="w-100">
                         <source id="audioSource" src="" type="audio/mpeg">
                         Tu navegador no soporta audio.
                     </audio>
+                    <div class="d-flex justify-content-center align-items-center gap-3" style="height:40px;">
+                        <button class="btn btn-outline-info btn-circular">
+                            <i class="bi bi-skip-backward-fill"></i>
+                        </button>
 
-                        <span class="input-group-text small">
-                            Analisis Transcripcion
-                        </span>
-                        <input type="text" class="text-danger"
-                               id="trt"
-                               name="trt"
-                               value="BUZON"
-                               class="form-control"
-                               placeholder="Transportista, id...">
+                        <button class="btn btn-outline-success btn-circular">
+                            <i class="bi bi-chat-fill"></i>
+                        </button>
 
+                        <button class="btn btn-outline-info btn-circular">
+                            <i class="bi bi-skip-forward-fill"></i>
+                        </button>
 
+                        <button class="btn btn-outline-light btn-circular">
+                            <i class="bi bi-floppy-fill"></i>
+                        </button>
+
+                        <button class="btn btn-outline-info btn-circular">
+                            <i class="bi bi-gear-fill"></i>
+                        </button>
+
+                    </div>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item text-info small">IA-FINALIZA-LLAMADA</li>
+                    <li class="list-group-item small">
+                        Analisis de transcripcion: <span class="text-danger">BUZON</span>
+                    </li>
+                </ul>
+
+                <div class="card-body">
+                    <div class="row">
+                        <div class="input-group col-12">
+                            <input class="form-control bg-secondary text-success" type="text" placeholder="Analisis de audio" value=""
+                                   name="txt_audio" id="txt_audio" list="audio_list">
+                            <datalist id="audio_list">
+                                <option value="Manzana">
+                                <option value="Banana">
+                                <option value="Naranja">
+                                <option value="Fresa">
+                                <option value="Mango">
+                            </datalist>
+                            <button class="btn btn-primary" type="button" id="button-addon2"><i class="bi bi-floppy"></i></button>
+                        </div>
+                        <div class="btn-group col-12 pb-2" role="group">
+                            <input type="radio" class="btn-check" name="exitosa" id="rd_ex_2" value="exito"
+                                @checked(request('exitosa') === 'exito')>
+                            <label class="btn btn-outline-primary" for="rd_ex_2">
+                                <i class="bi bi-check-lg text-success"></i></label>
+                            @foreach($llamadas::$error_origen as $item)
+                                <input type="radio"
+                                       class="btn-check"
+                                       name="exitosa"
+                                       id="rd_ex_{{ $loop->index + 3 }}"
+                                       value="{{ $item->id }}"
+                                    @checked(request('exitosa') === (string) $item->id)>
+                                <label class="btn btn-outline-primary"
+                                       for="rd_ex_{{ $loop->index +3}}">
+                                    <i class="{{ $llamadas::icon_exito($item->id, true) }}"></i>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <button id="btn3" type="button" class="btn btn-outline-success btn-sm">
+                            dddd
+                        </button>
+                        <div class="btn-group-vertical col-4">
+                            @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
+                                @if($item[4]==1)
+                                    <button type="button" class="btn btn-outline-light btn-sm ">
+                                        <i class="{{$item[0]}}"></i> {{$item[1]}}
+                                    </button>
+                                @endif
+                            @endforeach
+                        </div>
+                        <div class="btn-group-vertical col-4">
+                            @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
+                                @if($item[4]==2)
+                                    <button type="button" class="btn btn-outline-light btn-sm ">
+                                        <i class="{{$item[0]}}"></i> {{$item[1]}}
+                                    </button>
+                                @endif
+                            @endforeach
+                        </div>
+
+                        <div class="btn-group-vertical col-4">
+                            @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
+                                @if($item[4]==3)
+                                    <button type="button" class="btn btn-outline-light btn-sm ">
+                                        <i class="{{$item[0]}}"></i> {{$item[1]}}
+                                    </button>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
 
                     <p id='audio_texto'>
                     </p>
                 </div>
-            </div>
-
-            <style>
-                .btn-circular{
-                    width:60px;
-                    height:60px;
-                    border-radius:50%;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    font-size:24px;
-                }
-            </style>
-
-            <div class="col-12 d-flex justify-content-center align-items-center gap-3" style="height:80px;">
-                <button class="btn btn-outline-info btn-circular">
-                    <i class="bi bi-skip-backward-fill"></i>
-                </button>
-
-                <button class="btn btn-outline-success btn-circular">
-                    <i class="bi bi-play-fill"></i>
-                </button>
-
-                <button class="btn btn-outline-info btn-circular">
-                    <i class="bi bi-skip-forward-fill"></i>
-                </button>
             </div>
         </div>
 
@@ -300,11 +386,40 @@
 
 
     </div>
+
+    <style>
+        .bg-activo {
+            color: white !important;
+        }
+        .btn-circular{
+            width:40px;
+            height:40px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:22px;
+        }
+    </style>
 @endsection
 @section('scripts')
 
     @livewireScripts
     <script>
+        const btn = document.getElementById("btn3");
+
+        btn.addEventListener("click", () => {
+
+            btn.classList.toggle("bg-activo");
+            btn.classList.toggle("bg-primary");
+        });
+
+
+        function etiquetar(orden){
+            document.getElementById('card_id_html').innerHTML=document.getElementById('lista_' + orden+'_id_html').innerHTML;
+        }
+
+
         function playAudio(url,tlf,nombres) {
             const audio = document.getElementById('mainAudio');
             const audio_texto= document.getElementById('audio_texto');

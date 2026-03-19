@@ -73,6 +73,8 @@ function generar_excel_llamadas(json){
             if (item.assistantId =="56f104ad-3e24-47dd-9cf8-1bd34bd95c81") vapi_v_prog= 1;
             else if (item.assistantId =="f6f40ed6-4cd0-4203-8631-b492f3b9e8d0") vapi_v_prog= 2;
             else if (item.assistantId =="3aa808fc-98b9-48fa-aa22-0f6465c47da2") vapi_v_prog= 3;
+            else if (item.assistantId =="a6f9f813-a277-4b24-a84b-bc0bf016b625") vapi_v_prog= 5;
+            else if (item.assistantId =="10ee0ccf-d688-4a61-b1f4-46ef7463325e") vapi_v_prog= 6;
         }
 
 

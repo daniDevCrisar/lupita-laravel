@@ -2,6 +2,7 @@
 
 namespace App\Database;
 
+use App\Tools\BuscarEnArray;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -12,36 +13,42 @@ class DBLlamadas {
     public static $razones_finalizacion = [];
     public static $tipos_llamada=[];
     public static $error_origen=[];
+
+    //---------$etiquetas_icon_bi-----------------------
+    // 0 = icono
+    // 1 = texto
+    // 2 = etiqueta: 1 positivo , 0 negativo
+    // 3 = puntaje
+    // 4 = grupo
     public static $etiquetas_icon_bi=[
-        'conductor_confirma' => ['bi bi-check-circle-fill text-success', 'Confirma',1,10],
-        'buzon_de_voz' => ['bi bi-voicemail text-warning','Buzon de voz',0,-10],
-        'conductor_contesta_pero_no_habla' => ['bi bi-mic-mute-fill text-danger','No habla',0,-10],
-        'conductor_no_escucha' => ['bi bi-ear-fill text-danger','No escucha',0,0],
-        'conductor_da_motivos' => ['bi bi-chat-left-text-fill text-info','Da motivos',1,20],
-        'conductor_mala_senal' => ['bi bi-wifi-off text-danger','Mala señal',0,-5],
-        'confusion_en_llamada' => ['bi bi-question-circle-fill text-warning','Confusion en llamada',0,-5],
-        'contesta_otra_persona' => ['bi bi-people-fill text-info','Contesta otra persona',0,-5],
-        'numero_equivocado' => ['bi bi-telephone-x-fill text-danger','Numero equivocado',0,-20],
-        'conversacion_fluida' => ['bi bi-chat-dots-fill text-success','Conversacion Fluida',1,25],
-        'llamada_interesante' => ['bi bi-star-fill text-warning','Llamada Interesante',1,30],
+        'conductor_confirma' => ['bi bi-check-circle-fill text-success', 'Confirma',1,10,1],
+        'buzon_de_voz' => ['bi bi-voicemail text-warning','Buzon de voz',0,-10,2],
+        'conductor_contesta_pero_no_habla' => ['bi bi-mic-mute-fill text-danger','No habla',0,-10,2],
+        'conductor_no_escucha' => ['bi bi-ear-fill text-danger','No escucha',0,0,2],
+        'conductor_da_motivos' => ['bi bi-chat-left-text-fill text-info','Da motivos',1,20,1],
+        'conductor_mala_senal' => ['bi bi-wifi-off text-danger','Mala señal',0,-5,2],
+        'confusion_en_llamada' => ['bi bi-question-circle-fill text-warning','Confusion en llamada',0,-5,2],
+        'contesta_otra_persona' => ['bi bi-people-fill text-info','Contesta otra persona',0,-5,2],
+        'numero_equivocado' => ['bi bi-telephone-x-fill text-danger','Numero equivocado',0,-20,2],
+        'conversacion_fluida' => ['bi bi-chat-dots-fill text-success','Conversacion Fluida',1,25,1],
+        'llamada_interesante' => ['bi bi-star-fill text-warning','Llamada Interesante',1,30,1],
 
-        'ia_se_confunde' => ['bi bi-cpu-fill text-warning','IA se confunde',0,0],
-        'ia_no_escucha' => ['bi bi-mic-mute-fill text-danger','IA no escucha',0,0],
-        'ia_cambio_de_datos' => ['bi bi-arrow-left-right text-info','IA actualiza datos',1,0],
-        'ia_error_interpretacion' => ['bi bi-exclamation-triangle-fill text-danger','IA error de interpretacion',0,0],
-        'ia_dice_variable' => ['bi bi-braces text-warning','IA dice variable',0,0],
-        'ia_mala_pronunciacion' => ['bi bi-volume-down-fill text-warning','IA mala pronunciacion',0,0],
+        'ia_se_confunde' => ['bi bi-cpu-fill text-warning','IA se confunde',0,0,3],
+        'ia_no_escucha' => ['bi bi-mic-mute-fill text-danger','IA no escucha',0,0,3],
+        'ia_cambio_de_datos' => ['bi bi-arrow-left-right text-info','IA actualiza datos',1,0,0],
+        'ia_error_interpretacion' => ['bi bi-exclamation-triangle-fill text-danger','IA error de interpretacion',0,0,3],
+        'ia_dice_variable' => ['bi bi-braces text-warning','IA dice variable',0,0,3],
+        'ia_mala_pronunciacion' => ['bi bi-volume-down-fill text-warning','IA mala pronunciacion',0,0,3],
 
-        'conductor_cuelga' => ['bi bi-telephone-minus-fill text-danger','Cuelga',0,-5],
-        'conductor_no_contesta' => ['bi bi-telephone-x-fill text-danger','No contesta',0,-10],
-        'conductor_conducta_inapropiada' => ['bi bi-person-x-fill text-danger','Conducta Inapropiada',0,-30],
+        'conductor_cuelga' => ['bi bi-telephone-minus-fill text-danger','Cuelga',0,-5,0],
+        'conductor_no_contesta' => ['bi bi-telephone-x-fill text-danger','No contesta',0,-10,0],
+        'conductor_conducta_inapropiada' => ['bi bi-person-x-fill text-danger','Conducta Inapropiada',0,-30,2],
 
-        'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada',0,0],
-        'error_audio' => ['bi bi-volume-mute-fill text-danger','Error de audio',0,0],
+        'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada',0,0,0],
+        'error_audio' => ['bi bi-volume-mute-fill text-danger','Error de audio',0,0,3],
         // no exito solo en llamadas fallidas exitosa=0 y confirmacion=0
-        'confirmacion_parcial' => ['bi bi-check2-square text-info','Confirmacion parcial',0,5],
-        'conductor_ocupado' => ['bi bi-hourglass text-warning','Conductor Ocupado',0,-5],
-
+        'confirmacion_parcial' => ['bi bi-check2-square text-info','Confirmacion parcial',0,5,0],
+        'conductor_ocupado' => ['bi bi-hourglass text-warning','Conductor Ocupado',0,-5,0],
     ];
     public static $filtro;
 
@@ -174,12 +181,18 @@ class DBLlamadas {
         $iconos=[
             0 => 'bi bi-question-circle',
             1=> 'bi bi-check-circle',
-            2=> 'bi bi-truck',
-            3=> 'bi-building',
+            2=> 'bi bi-truck-flatbed',
+            3=> 'bi bi-building',
+            5=> 'bi bi-truck',
+            6=> 'fa-solid fa-truck-ramp-box'
         ];
 
         if ($campo == 'icon') return $iconos[$id];
-        return self::$tipos_llamada[$id]->$campo;
+
+        //------------provisional para no usar collect--------------
+        if ($id > 3)return self::$tipos_llamada[$id-1]->$campo;
+        else
+            return self::$tipos_llamada[$id]->$campo;
     }
 
     public static function icon_exito($item , $solo_icon=false){
@@ -517,6 +530,13 @@ class DBLlamadas {
         if ($seg > 0) $tiempo .= $seg . ' Seg';
 
         return trim($tiempo);
+    }
+
+    public static function buscar_razon_finalizacion($id)
+    {
+        $item=BuscarEnArray::cualquiera_std($id,'id',self::$razones_finalizacion);
+        if ($item== false) return 0; //sin conflictos para mysql
+        return $item;
     }
 
 

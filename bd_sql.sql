@@ -236,15 +236,18 @@ CREATE TABLE tipos_llamada (
     id TINYINT PRIMARY KEY,
     codigo VARCHAR(40) NOT NULL UNIQUE,
     nombre VARCHAR(80) NOT NULL,
-    descripcion VARCHAR(150),
+    descripcion VARCHAR(150) NOT NULL,
+    reporte_titulo VARCHAR(80) NOT NULL,
     activo BOOLEAN DEFAULT TRUE
 );
 
-INSERT INTO tipos_llamada (id, codigo, nombre, descripcion) VALUES
-(0, 'INDETERMINADA', 'Indeterminada', 'La IA no pudo clasificar la llamada'),
-(1, 'CONFIRMACION_LLEGADA', 'Confirmacion', 'El conductor confirma arribo de carga'),
-(2, 'ESPERA_FUERA_PLANTA', 'Fuera de planta', 'Conductor esperando fuera de instalaciones para cargar'),
-(3, 'TIEMPO_EN_PLANTA', 'Dentro de planta', 'Conductor dentro de planta cargando');
+INSERT INTO tipos_llamada (id, codigo, nombre, descripcion,reporte_titulo) VALUES
+(0, 'INDETERMINADA', 'Indeterminada', 'La IA no pudo clasificar la llamada','Reporte de llamadas indeterminadas'),
+(1, 'CONFIRMACION_LLEGADA', 'Confirmacion', 'El conductor confirma arribo de carga','Reporte de Confirmaciones VAPI'),
+(2, 'ESPERA_FUERA_PLANTA_CARGA', 'Fuera de planta para carga', 'Conductor esperando fuera de instalaciones para cargar','Reporte de Espera fuera de planta para carga VAPI'),
+(3, 'TIEMPO_EN_PLANTA_CARGA', 'Dentro de planta para carga', 'Conductor dentro de planta cargando','Reporte de Espera dentro de planta para carga VAPI'),
+(5, 'ESPERA_FUERA_PLANTA_DESCARGA', 'Fuera de planta para descarga', 'Conductor esperando fuera de instalaciones para descargar','Reporte de Espera fuera de planta para descarga VAPI'),
+(6, 'TIEMPO_EN_PLANTA_DESCARGA', 'Dentro de planta para descarga', 'Conductor dentro de planta descargando','Reporte de Espera dentro de planta para descarga VAPI');
 
 
 -- Campo: es_entrante
