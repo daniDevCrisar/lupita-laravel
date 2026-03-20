@@ -267,7 +267,9 @@ class DBLlamadas {
             SUM(exitosa_segun_ia) AS exitosa_segun_ia,
             (SUM(entro_llamada) - SUM(buzon_de_voz)) AS contestadas,
             SUM(llamada_exitosa) AS llamada_exitosa,
-            SUM(audio_duracion) as audio_duracion,
+            SUM(audio_duracion) as audio_duracion_total,
+            SUM(audio_duracion * llamada_exitosa) as audio_duracion_exitosas,
+            SUM(audio_duracion * (llamada_exitosa=0)) as audio_duracion_fallidas,
 
             SUM(conductor_confirma) AS conductor_confirma,
             SUM(buzon_de_voz) AS buzon_de_voz,
@@ -318,10 +320,7 @@ class DBLlamadas {
                 $fecha_i=Carbon::parse($fecha_i)->startOfDay();
                 $fecha_f=Carbon::parse($fecha_f)->addDay()->startOfDay();
             }
-
-
             $sql .= " and a.created_at >= ? AND a.created_at < ? ";
-
             $params[] = $fecha_i;
             $params[] = $fecha_f;
         }
@@ -343,6 +342,7 @@ class DBLlamadas {
                 ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
                 SUM(a.llamada_exitosa=0) - SUM(a.llamada_exitosa=1) AS diferencia,
 
+                SUM(a.conductor_cuelga * (a.llamada_exitosa = 0))  AS conductor_cuelga,
                 SUM(a.buzon_de_voz * (a.llamada_exitosa = 0))  AS buzon_de_voz,
                 SUM(a.conductor_contesta_pero_no_habla * (a.llamada_exitosa = 0)) AS conductor_contesta_pero_no_habla,
                 SUM(a.conductor_no_escucha * (a.llamada_exitosa = 0)) AS conductor_no_escucha,
@@ -382,10 +382,34 @@ class DBLlamadas {
                 ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
                 SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,
 
-                SUM(a.conductor_confirma * (a.llamada_exitosa = 1))  AS conductor_confirma,
-                SUM(a.conductor_da_motivos * (a.llamada_exitosa = 1)) AS conductor_da_motivos,
-                SUM(a.conversacion_fluida * (a.llamada_exitosa = 1)) AS conversacion_fluida,
-                SUM(a.llamada_interesante * (a.llamada_exitosa = 1)) AS llamada_interesante
+                SUM(a.conductor_confirma * a.llamada_exitosa)  AS conductor_confirma,
+                SUM(a.conductor_da_motivos * a.llamada_exitosa ) AS conductor_da_motivos,
+                SUM(a.conversacion_fluida * a.llamada_exitosa) AS conversacion_fluida,
+                SUM(a.llamada_interesante * a.llamada_exitosa ) AS llamada_interesante,
+                SUM(a.conductor_da_motivos * a.llamada_exitosa ) + SUM(a.conversacion_fluida * a.llamada_exitosa)+
+                SUM(a.llamada_interesante * a.llamada_exitosa) as etiqueta_positiva,
+
+
+
+                MAX(CASE
+                    WHEN a.llamada_exitosa = 1
+                         AND a.conversacion_fluida = 1
+                         AND a.conductor_da_motivos = 1
+                    THEN a.audio_link
+
+                    WHEN a.llamada_exitosa = 1
+                        AND a.conductor_da_motivos = 1
+                    THEN a.audio_link
+
+                    WHEN a.llamada_exitosa = 1
+                         AND a.conversacion_fluida = 1
+                    THEN a.audio_link
+
+                    WHEN a.llamada_exitosa = 1
+                    THEN a.audio_link
+
+                    ELSE NULL
+                END) AS mejor_audio
 
             FROM llamadas a
             INNER JOIN conductores b ON b.id = a.conductor_id
@@ -394,7 +418,7 @@ class DBLlamadas {
         ";
         $sql_2="
         GROUP BY a.conductor_id, a.trt_id
-        ORDER BY diferencia DESC , exitosas asc
+        ORDER BY diferencia DESC , exitosas desc , etiqueta_positiva desc
         limit ?;";
         $filtro= self::aplicar_filtro_sqltext();
         $filtro[1][]=$limit;
@@ -479,15 +503,16 @@ class DBLlamadas {
         $eti=[];
         //obtener etiquetas relevantes
         foreach ($item as $key => $value) {
-            if ($count >= 9) $eti[$key] = $value;
+            if ($count >= 9 and is_numeric($value) and $key !='etiqueta_positiva') $eti[$key] = $value;
             $count++;
         }
         arsort($eti); //ordenar de mayor a menor
-        $eti= (object) array_slice($eti, 0, 3, true); //solo 3 etiquetas
+        $eti= (object) array_slice($eti, 0, 4, true); //solo 3 etiquetas
         //----------------------------------------
         $iconos= self::$etiquetas_icon_bi; //iconos bootstrap
         $lista_e=''; // listar las etiquetas con mayor aparicion
         $sumar_e=0;
+        //if ($item->conductor_id==32) dd($item);
         foreach ($iconos as $key => $value) {
             if ($eti->$key??0){
                 $lista_e.= "<i class='". $value[0] ." ".$size."'></i> ".$value[1]."(".$eti->$key."),";
@@ -537,6 +562,38 @@ class DBLlamadas {
         $item=BuscarEnArray::cualquiera_std($id,'id',self::$razones_finalizacion);
         if ($item== false) return 0; //sin conflictos para mysql
         return $item;
+    }
+
+    public static function grafico_semana_query()
+    {
+        $tipo=self::$filtro->llamada_tipo_id;
+
+        $sql="
+         SELECT
+             total,
+             exitosas,
+             fallidas,
+             total_errores,
+             DATE_FORMAT(t.fecha, '%W %d/%m/%y') as fecha_text
+         FROM (
+                  SELECT
+                      COUNT(*) AS total,
+                      COALESCE(SUM(a.llamada_exitosa=1),0) AS exitosas,
+                      COALESCE(SUM(a.llamada_exitosa=0),0) AS fallidas,
+                      COALESCE(SUM((a.llamada_exitosa=0) AND (a.error_origen!=0)),0) as total_errores,
+                      DATE(a.created_at) as fecha
+                  FROM llamadas a
+                  WHERE a.created_at >= DATE(?) - INTERVAL 7 DAY
+                    AND a.created_at < DATE(?) + INTERVAL 1 DAY ";
+        $sql_where=" AND a.llamada_tipo_id=? ";
+        $sql_2=" GROUP BY DATE(a.created_at)
+              ) t;
+        ";
+
+        if((string) $tipo !== '')
+            return DB::select($sql . $sql_where . $sql_2 ,[self::$filtro->fecha_inicio,self::$filtro->fecha_inicio,$tipo]);
+
+        return DB::select($sql . $sql_2 ,[self::$filtro->fecha_inicio,self::$filtro->fecha_inicio]);
     }
 
 

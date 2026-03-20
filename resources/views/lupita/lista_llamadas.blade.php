@@ -147,9 +147,7 @@
         <div class="card mb-3">
             <div class="card-body">
                 <p id='audio_texto'>
-
                 </p>
-
                 <audio id="mainAudio" controls class="w-100">
                     <source id="audioSource" src="" type="audio/mpeg">
                     Tu navegador no soporta audio.

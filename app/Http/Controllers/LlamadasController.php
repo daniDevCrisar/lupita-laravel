@@ -62,6 +62,8 @@ class LlamadasController extends Controller
         $reporte->mejores= $llamadas::top_mejores_conductores();
         $reporte->mejores_trts= $llamadas::top_mejores_trts();
         $reporte->peores_trts= $llamadas::top_peores_trts();
+        $reporte->grafico_semana= $llamadas::grafico_semana_query();
+
 
         return view('reporte.todo.todo1', [
             'llamadas' => $llamadas,

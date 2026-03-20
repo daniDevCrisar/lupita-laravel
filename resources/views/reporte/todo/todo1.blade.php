@@ -116,7 +116,38 @@
             </div>
         </div>
 
+    {{--    duracion de llamadas exitosas y fallidas    --}}
+    @if($reporte->total->audio_duracion_total)
+
+        @php
+            $duracion_exitosas= round(($reporte->total->audio_duracion_exitosas /$reporte->total->audio_duracion_total)*100,0);
+            $duracion_fallidas= round(($reporte->total->audio_duracion_fallidas /$reporte->total->audio_duracion_total)*100,0);
+
+        @endphp
+        <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: {{$duracion_exitosas}}%;" aria-valuenow="{{$duracion_exitosas}}">
+                {{$llamadas::audio_duracion_format($reporte->total->audio_duracion_exitosas)}}
+            </div>
+            <div class="progress-bar bg-danger" role="progressbar" style="width: {{$duracion_fallidas}}%;" aria-valuenow="{{$duracion_fallidas}}">
+                {{$llamadas::audio_duracion_format($reporte->total->audio_duracion_fallidas)}}
+            </div>
+        </div>
+    @endif
+
     @if($reporte->total->llamada_exitosa)
+            <div class="col-12">
+                <div class="card mb-3 ">
+                    <div class="card-body">
+                        <p id='audio_texto'>
+                        </p>
+                        <audio id="mainAudio" controls class="w-100">
+                            <source id="audioSource" src="" type="audio/mpeg">
+                            Tu navegador no soporta audio.
+                        </audio>
+                    </div>
+                </div>
+            </div>
+
             <!-- TOP 5 MEJORES CONDUCTORES -->
             <div class="card report-card mb-5">
                 <div class="card-header bg-white border-0 pt-4 pb-0">
@@ -134,8 +165,10 @@
                             <tbody>
                             @foreach ($reporte->mejores as $item)
                                 @if($item->exitosas)
-                                    <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" >
-                                        <td>{{ $item->conductor_id }}</td><td><strong>{{ $item->conductor }}</strong></td><td>{{ $item->trt }}</td>
+                                    <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" onclick="playAudio('{{ $item->mejor_audio }}','{{ $item->trt }}','{{ $item->conductor }}' )">
+                                        <td>{{ $item->conductor_id }}</td><td>
+                                            <i class="fa-solid fa-volume-high"></i>
+                                            <strong>{{ $item->conductor }}</strong></td><td>{{ $item->trt }}</td>
                                         <td><span class='text-success fw-bold'>{{ $item->exitosas }}</span>/{{ $item->total }}</td>
                                         <td><span class="text-success">{{ str_repeat('⭐', ($item->tasa_exito)/20  ) }} <br> Tasa de exito {{$item->tasa_exito}} %</span></td>
                                         <td>{!! $llamadas::top_peores_ordenar_etiquetas($item) !!}</td>
@@ -238,6 +271,17 @@
             </div>
         @endif
     </div>
+
+{{--    canas de grafico   --}}
+    <div class="col-12 card p-4 report-card border-2 mb-4">
+        <div class="card-header bg-white border-0">
+            <h4 class="h5 fw-bold"><i class="fa-solid fa-chart-line"></i> Progreso de exito en llamadas</h4>
+        </div>
+        <div style="height: 400px">
+            <canvas id="canvas_semana"></canvas>
+        </div>
+    </div>
+
         <!-- por q el porcentaje de fallo -->
     <div class="mb-5">
         <div class="d-flex align-items-center gap-3 mb-3">
@@ -382,5 +426,74 @@
 
     <!-- Bootstrap JS ----------------------------------- -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+
+<script>
+    const data = @json($reporte->grafico_semana);
+    const labels = data.map(x => x.fecha_text);
+    const exitosas = data.map(x => x.exitosas);
+    const fallidas = data.map(x => x.fallidas);
+    const errores = data.map(x => x.total_errores);
+
+    const ctx = document.getElementById('canvas_semana');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Exitosas',
+                    data: exitosas,
+                    borderWidth: 2,
+                    tension: 0.3
+                },
+                {
+                    label: 'Fallidas',
+                    data: fallidas,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    hidden: true
+                },
+                {
+                    label: 'Errores',
+                    data: errores,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    hidden: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        },
+    });
+
+
+
+    function playAudio(url,trt,nombres) {
+        const audio = document.getElementById('mainAudio');
+        const audio_texto= document.getElementById('audio_texto');
+        if (!audio.paused) {
+            audio.pause();
+        }
+        audio.src = url.toLowerCase();
+        audio.play().catch(() => {});
+        audio_texto.innerHTML = `
+        <i class="bi bi-person"></i> ${nombres} <i class="bi bi-building"></i> ${trt}
+        `;
+    }
+</script>
+
 </body>
 </html>

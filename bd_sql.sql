@@ -1,3 +1,5 @@
+SET GLOBAL lc_time_names = 'es_ES';
+
 CREATE TABLE users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     nickname VARCHAR(30) NOT NULL UNIQUE,
