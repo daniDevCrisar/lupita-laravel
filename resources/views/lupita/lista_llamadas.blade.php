@@ -179,7 +179,6 @@
                 @foreach($llamadas::$lista as $row)
                 <tr class="{{ $loop->odd ? 'table-secondary' : '' }}">
                     <td>
-
                     <i class="bi bi-telephone-outbound {{ $row->entro_llamada ? 'text-success': '' }}"></i> <span class='small'>{{ $row->vapi_id }}</span>
                     @if ($row->exitosa_segun_ia)
                         <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>

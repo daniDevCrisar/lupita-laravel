@@ -162,22 +162,22 @@
 
 
                     @foreach($llamadas::$lista as $row)
-                        <input type="hidden" name="lista_{{$loop->index}}_id" value="{{ $row->vapi_id }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_conductor" value="{{ $row->conductor }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_telefono" value="{{ $row->telefono }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_ref" value="{{ $row->ref }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_placa" value="{{ $row->placa }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_viaje" value="{{ $row->origen . ' - '. $row->destino }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_audio" value="{{ $row->audio_link }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_audio_duracion" value="{{ $row->audio_duracion }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_analisis_transcripcion" value="{{ $row->analisis_transcripcion }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_analisis_audio" value="{{ $row->analisis_audio }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_razon_f"
+                        <input type="hidden" id="lista_{{$loop->index}}_id" value="{{ $row->vapi_id }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_conductor" value="{{ $row->conductor }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_telefono" value="{{ $row->telefono }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_ref" value="{{ $row->ref }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_placa" value="{{ $row->placa }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_viaje" value="{{ $row->origen . ' - '. $row->destino }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_audio" value="{{ $row->audio_link }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_audio_duracion" value="{{ $llamadas::audio_duracion_format($row->audio_duracion) }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_analisis_transcripcion" value="{{ $row->analisis_transcripcion }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_analisis_audio" value="{{ $row->analisis_audio }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_razon_f"
                                value="{{ $llamadas::$razones_finalizacion[$row->razon_finalizacion_id]->codigo }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_razon_id"
+                        <input type="hidden" id="lista_{{$loop->index}}_razon_id"
                                value="{{ $row->razon_finalizacion_id }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_error_origen" value="{{ $row->error_origen }}">
-                        <input type="hidden" name="lista_{{$loop->index}}_llamada_exitosa" value="{{ $row->llamada_exitosa }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_error_origen" value="{{ $row->error_origen }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_llamada_exitosa" value="{{ $row->llamada_exitosa }}">
                         @php $orden=$loop->index @endphp
                         @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
                             @if($item[4])
@@ -197,13 +197,13 @@
 
                             </td>
                             <td>{{ $llamadas::format_fecha($row->created_at) }}
-                                <button class="btn btn-outline-success" onclick="etiquetar({{$loop->index}})">
+                                <button class="btn btn-outline-success" onclick="selLlamada({{$loop->index}})">
                                     <i class="bi bi-play-fill me-1"></i> etit
                                 </button>
                             </td>
                             <td id="lista_{{$loop->index}}_tipol_html"><i class="{{ $llamadas::tipos_l($row->llamada_tipo_id,'icon') }}"></i>
                                 {{ $llamadas::tipos_l($row->llamada_tipo_id) }}</td>
-                            <td>
+                            <td id="lista_{{$loop->index}}_ref_html">
                                 @if($row->ref)
                                     {{ $row->ref }}<br>
                                 @endif
@@ -213,9 +213,13 @@
                                 <i class="bi bi-card-text"></i> {{ $row->placa }} <br>
                             </td>
                             <td>
-                                <i class="bi bi-telephone"></i> {{ $row->telefono }} <br>
+                                <span id="lista_{{$loop->index}}_telefono_html">
+                                    <i class="bi bi-telephone"></i> {{ $row->telefono }}
+                                </span><br>
+                                <span id="lista_{{$loop->index}}_conductor_html">
                                 <i class="bi bi-person"></i> {{$row->conductor }} (#{{ $row->conductor_id }})
-                                <br>
+                                </span><br>
+
                                 @if( $row->trt)
                                     <i class="bi-building"></i> {{ $row->trt }} (#{{ $row->trt_id }})
 
@@ -268,12 +272,13 @@
 
                 </div>
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item small"><i class="bi bi-telephone"></i> 51936924257 <i class="bi bi-person"></i> JESUS NARRO</li>
-                    <li class="list-group-item small">Ref: 967103
+                    <li class="list-group-item small" id="card_conductor_html"><i class="bi bi-telephone"></i> 51936924257 <i class="bi bi-person"></i> JESUS NARRO</li>
+                    <li class="list-group-item small"
+                    id="card_ref_html">Ref: 967103
                         <i class="bi bi-airplane"></i> HUARAL-CHINCHA
                         <i class="bi bi-card-text"></i> T3P946
                     </li>
-                    <li class="list-group-item small"><i class="bi-building"></i>Dentro de planta</li>
+                    <li class="list-group-item small" id="card_tipol_html"><i class="bi-building"></i>Dentro de planta</li>
                 </ul>
                 <div class="card-body">
                     <audio id="mainAudio" controls class="w-100">
@@ -304,6 +309,7 @@
                     </div>
                 </div>
                 <ul class="list-group list-group-flush">
+                    <li class="list-group-item small">Duracion: <span class="fw-bold text-info" id="card_audio_duracion">audio_duracion_format</span></li>
                     <li class="list-group-item text-info small">IA-FINALIZA-LLAMADA</li>
                     <li class="list-group-item small">
                         Analisis de transcripcion: <span class="text-danger">BUZON</span>
@@ -415,8 +421,25 @@
         });
 
 
-        function etiquetar(orden){
-            document.getElementById('card_id_html').innerHTML=document.getElementById('lista_' + orden+'_id_html').innerHTML;
+        function selLlamada(orden){
+            const card_id_html=document.getElementById('card_id_html');
+            const card_conductor_html=document.getElementById('card_conductor_html');
+            const card_ref_html=document.getElementById('card_ref_html');
+            const card_tipol_html=document.getElementById('card_tipol_html');
+            const card_audio_duracion=document.getElementById('card_audio_duracion');
+
+            let conten='';
+
+            card_id_html.innerHTML=document.getElementById('lista_' + orden+'_id_html').innerHTML;
+            card_conductor_html.innerHTML=
+                document.getElementById('lista_' + orden+'_telefono_html').innerHTML + document.getElementById('lista_' + orden+'_conductor_html').innerHTML;
+
+            conten=document.getElementById('lista_' + orden+'_ref_html').innerHTML;
+            conten=conten.replaceAll('<br>',' ');
+            card_ref_html.innerHTML= 'Ref:'+ conten;
+            card_tipol_html.innerHTML= document.getElementById('lista_' + orden+'_tipol_html').innerHTML;
+            card_audio_duracion.innerHTML= document.getElementById('lista_' + orden+'_audio_duracion').value;
+
         }
 
 

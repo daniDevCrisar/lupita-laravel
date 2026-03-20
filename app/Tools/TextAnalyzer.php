@@ -54,7 +54,7 @@ class TextAnalyzer
             'TIGO',
             'PERSONAL',
             'BITEL',
-            'WOM',
+            'WIM',
             'DIGITEL'
         ];
 
