@@ -1,11 +1,1687 @@
-<!doctype html>
-<html lang="en">
+
+<!DOCTYPE html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
+    <title>Inicio</title>
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Document</title>
+
+    <!-- Bootstrap CSS -->
+    <!--
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    -->
+
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/darkly/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- CSS propio opcional -->
+
+    <!-- Livewire Styles --><style >[wire\:loading][wire\:loading], [wire\:loading\.delay][wire\:loading\.delay], [wire\:loading\.list-item][wire\:loading\.list-item], [wire\:loading\.inline-block][wire\:loading\.inline-block], [wire\:loading\.inline][wire\:loading\.inline], [wire\:loading\.block][wire\:loading\.block], [wire\:loading\.flex][wire\:loading\.flex], [wire\:loading\.table][wire\:loading\.table], [wire\:loading\.grid][wire\:loading\.grid], [wire\:loading\.inline-flex][wire\:loading\.inline-flex] {display: none;}[wire\:loading\.delay\.none][wire\:loading\.delay\.none], [wire\:loading\.delay\.shortest][wire\:loading\.delay\.shortest], [wire\:loading\.delay\.shorter][wire\:loading\.delay\.shorter], [wire\:loading\.delay\.short][wire\:loading\.delay\.short], [wire\:loading\.delay\.default][wire\:loading\.delay\.default], [wire\:loading\.delay\.long][wire\:loading\.delay\.long], [wire\:loading\.delay\.longer][wire\:loading\.delay\.longer], [wire\:loading\.delay\.longest][wire\:loading\.delay\.longest] {display: none;}[wire\:offline][wire\:offline] {display: none;}[wire\:dirty]:not(textarea):not(input):not(select) {display: none;}:root {--livewire-progress-bar-color: #2299dd;}[x-cloak] {display: none !important;}[wire\:cloak] {display: none !important;}dialog#livewire-error::backdrop {background-color: rgba(0, 0, 0, .6);}</style>
 </head>
+
 <body>
-HOLA MUNDO
+
+
+<div class="container-fluid">
+
+    <div wire:key="lw-644383645-0" wire:snapshot="{&quot;data&quot;:{&quot;telefono&quot;:null,&quot;nombre&quot;:null,&quot;vapi_id&quot;:null,&quot;mensajes&quot;:null,&quot;showModal&quot;:false},&quot;memo&quot;:{&quot;id&quot;:&quot;fVRvXUkJ6wqYY9ys3aM8&quot;,&quot;name&quot;:&quot;mensajes-llamada&quot;,&quot;path&quot;:&quot;lupita\/llamadas&quot;,&quot;method&quot;:&quot;GET&quot;,&quot;release&quot;:&quot;a-a-a&quot;,&quot;children&quot;:[],&quot;scripts&quot;:[],&quot;assets&quot;:[],&quot;errors&quot;:[],&quot;locale&quot;:&quot;en&quot;,&quot;islands&quot;:[]},&quot;checksum&quot;:&quot;b8bfbdb16d1b311efee6f600faf0ecf1b53be22a28681a6022340e8ed44d687f&quot;}" wire:effects="{&quot;listeners&quot;:[&quot;abrirMensaje&quot;]}" wire:id="fVRvXUkJ6wqYY9ys3aM8" wire:name="mensajes-llamada">
+        <!--[if BLOCK]><![endif]--><!--[if ENDBLOCK]><![endif]--></div>
+    <div class="row">
+        <div class="col-12">
+            <h1>Lista de Llamadas</h1>
+        </div>
+    </div>
+
+
+    <div class="col-12">
+        <div class="card mb-3">
+            <div class="card-body">
+                <p id='audio_texto'>
+
+                </p>
+
+                <audio id="mainAudio" controls class="w-100">
+                    <source id="audioSource" src="" type="audio/mpeg">
+                    Tu navegador no soporta audio.
+                </audio>
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="table-responsive" style="max-height: 800px; overflow-y: auto;">
+            <table class="table table-bordered table-hover table-sm table-dark">
+                <thead class="table-primary" style="position: sticky;top: 0;z-index: 2;">
+                <tr>
+                    <th>Id</th>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Ref</th>
+                    <th>Datos</th>
+                    <th>Llamada</th>
+                    <th>Etiquetas</th>
+                    <th>Finalizacion</th>
+                    <th>Exitosa</th>
+                </tr>
+                </thead>
+                <tbody>
+
+
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0918-C477-7DD7-B38E-E3CF5A27135C</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 21:35</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">976517</button><br>
+                        <i class="bi bi-card-text"></i> D9T814 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51976966712 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> ROGER AMERICO SABINO MACEDO (#75)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> LEVENT EXPRESS I.R L (#18)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0918-C477-7DD7-B38E-E3CF5A27135C-1773974166256-79EB223E-08E8-4BFA-ADC4-4697816CE234-STEREO.MP3','51976966712','ROGER AMERICO SABINO MACEDO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51976966712',
+                                nombre: 'ROGER AMERICO SABINO MACEDO',
+                                vapi_id : '019D0918-C477-7DD7-B38E-E3CF5A27135C'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - PARCIAL</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D090B-25C5-700C-BFCB-6687E0591A76</span>
+
+                    </td>
+                    <td>19/03/2026 21:20</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">975206</button><br>
+                        <i class="bi bi-card-text"></i> BKK741 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51903169695 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> CESAR PANDO (#3)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> CORPORACION LOGISTICA HAV SAC (#31)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D090B-25C5-700C-BFCB-6687E0591A76-1773973283910-39E49BCE-2DF7-4B14-B470-38F3031913B7-STEREO.MP3','51903169695','CESAR PANDO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51903169695',
+                                nombre: 'CESAR PANDO',
+                                vapi_id : '019D090B-25C5-700C-BFCB-6687E0591A76'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - PARCIAL</span> <br>
+                        <span class="text-success">YA DESCARGO</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D090B-2337-7EEB-B8F4-21860AE44A75</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 21:20</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974972</button><br>
+                        <i class="bi bi-card-text"></i> T3P873 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51949412793 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> HENRY SABINO (#419)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> LEVENT EXPRESS I.R L (#18)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D090B-2337-7EEB-B8F4-21860AE44A75-1773973270417-F983CD7F-3EED-487F-B931-E46CDFCE34DC-STEREO.MP3','51949412793','HENRY SABINO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51949412793',
+                                nombre: 'HENRY SABINO',
+                                vapi_id : '019D090B-2337-7EEB-B8F4-21860AE44A75'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - PARCIAL</span> <br>
+                        <span class="text-success">YA DESCARGO</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D08EB-064C-777E-BE28-81A4771BDCE6</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 20:45</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974357</button><br>
+                        <i class="bi bi-card-text"></i> CEV703 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51947043541 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> CESAR CHAPONAN MONTALVAN (#2)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> TRANSPORTE AGUERO EIRL (#4)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D08EB-064C-777E-BE28-81A4771BDCE6-1773971175975-53763CCC-9F9F-43DC-96EF-E77E88992359-STEREO.MP3','51947043541','CESAR CHAPONAN MONTALVAN' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51947043541',
+                                nombre: 'CESAR CHAPONAN MONTALVAN',
+                                vapi_id : '019D08EB-064C-777E-BE28-81A4771BDCE6'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - PARCIAL</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D088B-51B0-7DD7-B275-15D3C768C391</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 19:00</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974094</button><br>
+                        <i class="bi bi-card-text"></i> AZD757 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51925767658 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> ALBERTO HUAYRA (#628)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> TRANSPORTES SERVICIOS OSPINA E.I.R.L (#25)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D088B-51B0-7DD7-B275-15D3C768C391-1773964958656-D51776C3-0668-4A1E-925B-EDA1E97EFE7C-STEREO.MP3','51925767658','ALBERTO HUAYRA' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51925767658',
+                                nombre: 'ALBERTO HUAYRA',
+                                vapi_id : '019D088B-51B0-7DD7-B275-15D3C768C391'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">DA MOTIVOS</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D085D-3233-788D-A712-B606B1F1FB66</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 18:10</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">976801</button><br>
+                        <i class="bi bi-card-text"></i> B9Z847 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51994364031 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> ALEX CASIMIRO MINAYA (#35)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> IDONES INVERSIONES S.A. (#1)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D085D-3233-788D-A712-B606B1F1FB66-1773961872105-7AEBB3EF-D5D4-4796-BD63-9DB65802BD61-STEREO.MP3','51994364031','ALEX CASIMIRO MINAYA' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51994364031',
+                                nombre: 'ALEX CASIMIRO MINAYA',
+                                vapi_id : '019D085D-3233-788D-A712-B606B1F1FB66'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - PARCIAL</span> <br>
+                        <span class="text-success">YA DESCARGO</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D07B8-733F-7000-945E-347D68574960</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 15:10</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">975855</button><br>
+                        <i class="bi bi-card-text"></i> CEX814 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51964731555 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> MILLER VILLENA (#97)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> CORPORACION TRANS FANY S.R.L. (#44)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D07B8-733F-7000-945E-347D68574960-1773951146422-9D1BE31E-F924-467B-991A-0559EBADFCAE-STEREO.MP3','51964731555','MILLER VILLENA' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51964731555',
+                                nombre: 'MILLER VILLENA',
+                                vapi_id : '019D07B8-733F-7000-945E-347D68574960'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">ESPERANDO</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0761-66AE-7FF0-A58D-E44AD508D803</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 13:35</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974478</button><br>
+                        <i class="bi bi-card-text"></i> B7T873 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51913985212 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> MATIAS LEDESMA (#188)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> LEDESMA QUISPE MATIAS (#83)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0761-66AE-7FF0-A58D-E44AD508D803-1773945420528-E7CE8B7A-9EAC-4E8E-B70B-1FABDB49B9F2-STEREO.MP3','51913985212','MATIAS LEDESMA' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51913985212',
+                                nombre: 'MATIAS LEDESMA',
+                                vapi_id : '019D0761-66AE-7FF0-A58D-E44AD508D803'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">DA MOTIVOS</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0761-6377-7000-83F6-D77D8FF82B5D</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 13:35</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">975710</button><br>
+                        <i class="bi bi-card-text"></i> CEU922 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51940638522 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> ABDON JESUS NAJARRO CASTRO (#122)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> TRANSPORTE AGUERO EIRL (#4)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0761-6377-7000-83F6-D77D8FF82B5D-1773945475669-40511B9A-BB0C-4FAE-AF41-F989EA7EFA9F-STEREO.MP3','51940638522','ABDON JESUS NAJARRO CASTRO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51940638522',
+                                nombre: 'ABDON JESUS NAJARRO CASTRO',
+                                vapi_id : '019D0761-6377-7000-83F6-D77D8FF82B5D'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-dots-fill text-success '></i> Conversacion Fluida<br><i class='bi bi-telephone-minus-fill text-danger '></i> Cuelga<br>
+
+                    </td>
+                    <td>
+                        CONDUCTOR-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D075C-DB3E-7000-8848-806ECF715015</span>
+
+                    </td>
+                    <td>19/03/2026 13:30</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">975733</button><br>
+                        <i class="bi bi-card-text"></i> BWG878 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51941675113 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> JESUS PUMACAYO CHIPAYO (#145)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> CORPORATION LOGISTIC MALVINA SA (#45)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D075C-DB3E-7000-8848-806ECF715015-1773945104120-90EB54CD-C225-432D-93E5-C9DD11321901-STEREO.MP3','51941675113','JESUS PUMACAYO CHIPAYO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51941675113',
+                                nombre: 'JESUS PUMACAYO CHIPAYO',
+                                vapi_id : '019D075C-DB3E-7000-8848-806ECF715015'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">IA NO ESCUCHA - NO</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0733-C779-7000-94F7-DFA8B9ABC7AD</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 12:45</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">976552</button><br>
+                        <i class="bi bi-card-text"></i> B4R936 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51991158954 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> RAMON CAPCHA GAMARRA (#86)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> E&amp;D CARDENAS CONTRATISTAS SAC (#33)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0733-C779-7000-94F7-DFA8B9ABC7AD-1773942459400-5E12756D-55F4-4491-9BDA-4062B658EAAA-STEREO.MP3','51991158954','RAMON CAPCHA GAMARRA' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51991158954',
+                                nombre: 'RAMON CAPCHA GAMARRA',
+                                vapi_id : '019D0733-C779-7000-94F7-DFA8B9ABC7AD'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">DA MOTIVOS</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0718-60D3-7FF0-A654-221009BA6F1E</span>
+
+                    </td>
+                    <td>19/03/2026 12:15</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974789</button><br>
+                        <i class="bi bi-card-text"></i> D5P880 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51943080085 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> LUIS CASTILLO (#117)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> INVERSIONES Y TRANSPORTES MARISA EIRL (#63)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0718-60D3-7FF0-A654-221009BA6F1E-1773940614264-43732D59-9901-4F15-99A9-FA53D4EE5CB2-STEREO.MP3','51943080085','LUIS CASTILLO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51943080085',
+                                nombre: 'LUIS CASTILLO',
+                                vapi_id : '019D0718-60D3-7FF0-A654-221009BA6F1E'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CONFIRMA CONDUCTOR - PARCIAL</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-telephone-minus-fill text-danger '></i> Cuelga<br>
+
+                    </td>
+                    <td>
+                        CONDUCTOR-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D06E5-F5B0-7FF0-9EED-D4C57C051876</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 11:20</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">968067</button><br>
+                        <i class="bi bi-card-text"></i> T8D888 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51941527087 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> JORGE INGA (#637)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> TRUCKS AND MOTORS DEL PERU SAC (#74)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D06E5-F5B0-7FF0-9EED-D4C57C051876-1773937385107-01212DE3-4A63-447B-A27E-D7383E4975DE-STEREO.MP3','51941527087','JORGE INGA' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51941527087',
+                                nombre: 'JORGE INGA',
+                                vapi_id : '019D06E5-F5B0-7FF0-9EED-D4C57C051876'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D06E1-5750-7DD7-A0C3-5122EA244A0C</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 11:15</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">975039</button><br>
+                        <i class="bi bi-card-text"></i> T1J800 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51947023119 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> JORGE RICHE (#231)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> INVERSIONES Y TRANSPORTES MARISA EIRL (#63)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D06E1-5750-7DD7-A0C3-5122EA244A0C-1773936982968-3E45C6A7-E17D-413E-B95A-891BE38DBE14-STEREO.MP3','51947023119','JORGE RICHE' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51947023119',
+                                nombre: 'JORGE RICHE',
+                                vapi_id : '019D06E1-5750-7DD7-A0C3-5122EA244A0C'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - PARCIAL</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-telephone-minus-fill text-danger '></i> Cuelga<br>
+
+                    </td>
+                    <td>
+                        CONDUCTOR-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D05F7-F93B-7000-83EF-9C752F7BC8A8</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 07:00</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974044</button><br>
+                        <i class="bi bi-card-text"></i> BDF860 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51939678850 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> DANIEL FLORES (#715)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> CORPORACION LIDER H &amp; M S.A.C. (#102)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D05F7-F93B-7000-83EF-9C752F7BC8A8-1773921755640-7C8BF2AD-D196-4EEF-BC92-12349691C42D-STEREO.MP3','51939678850','DANIEL FLORES' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51939678850',
+                                nombre: 'DANIEL FLORES',
+                                vapi_id : '019D05F7-F93B-7000-83EF-9C752F7BC8A8'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">ESPERANDO Q HABRA LA PLANTA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D05D7-B022-7882-873B-877E558FE3D5</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 06:25</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">970858</button><br>
+                        <i class="bi bi-card-text"></i> F3J839 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51954065641 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> RAFAEL ROMAN (#255)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> GRUPO LOGISTICO JUSMAR S.R.L. (#87)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D05D7-B022-7882-873B-877E558FE3D5-1773919646504-44279268-45C4-486B-A7CC-238A7075867A-STEREO.MP3','51954065641','RAFAEL ROMAN' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51954065641',
+                                nombre: 'RAFAEL ROMAN',
+                                vapi_id : '019D05D7-B022-7882-873B-877E558FE3D5'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">DA MOTIVOS</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0580-B604-7FF0-8C73-ED887A168117</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 04:50</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974975</button><br>
+                        <i class="bi bi-card-text"></i> BKK741 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51903169695 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> CESAR PANDO (#3)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> CORPORACION LOGISTICA HAV SAC (#31)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0580-B604-7FF0-8C73-ED887A168117-1773913944588-FB854A19-719E-4273-814F-CA4F66151ABB-STEREO.MP3','51903169695','CESAR PANDO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51903169695',
+                                nombre: 'CESAR PANDO',
+                                vapi_id : '019D0580-B604-7FF0-8C73-ED887A168117'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">NO LE CONTESTA EL ENCARGADO</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br><i class='bi bi-chat-dots-fill text-success '></i> Conversacion Fluida<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0577-9A28-7882-842E-8B744D2D2704</span>
+
+                    </td>
+                    <td>19/03/2026 04:40</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">975856</button><br>
+                        <i class="bi bi-card-text"></i> AKI843 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51981593325 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> RAUL BRICENO (#801)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> DISTRIBUIDORA LOGISTICA Y TRANSPORTES JOHAN SAC (#69)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0577-9A28-7882-842E-8B744D2D2704-1773913309253-50B013C9-3F6A-49AE-B714-C1B2750C64C8-STEREO.MP3','51981593325','RAUL BRICENO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51981593325',
+                                nombre: 'RAUL BRICENO',
+                                vapi_id : '019D0577-9A28-7882-842E-8B744D2D2704'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CONFIRMA CONDUCTOR - PARCIAL</span> <br>
+                        <span class="text-success">CON SUENO</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-telephone-minus-fill text-danger '></i> Cuelga<br>
+
+                    </td>
+                    <td>
+                        CONDUCTOR-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D056E-7150-7CCF-AEBF-DC9F4DB64E7D</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 04:30</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">973663</button><br>
+                        <i class="bi bi-card-text"></i> AAZ776 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51929376891 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> EDUARDO ROJAS (#647)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> IDONES INVERSIONES S.A. (#1)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D056E-7150-7CCF-AEBF-DC9F4DB64E7D-1773912739855-7E953D19-D4CF-4A07-9D7C-B2A68B537D1C-STEREO.MP3','51929376891','EDUARDO ROJAS' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51929376891',
+                                nombre: 'EDUARDO ROJAS',
+                                vapi_id : '019D056E-7150-7CCF-AEBF-DC9F4DB64E7D'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0560-A32D-777B-AF20-F8592B92B3A9</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 04:15</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">975705</button><br>
+                        <i class="bi bi-card-text"></i> F1U817 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51953234877 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> FRANK SAMAME (#482)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> TRANSPORTES ZAGU S.A.C. (#99)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0560-A32D-777B-AF20-F8592B92B3A9-1773911827998-24F171CC-D574-4C7E-92C8-42DD63B4024E-STEREO.MP3','51953234877','FRANK SAMAME' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51953234877',
+                                nombre: 'FRANK SAMAME',
+                                vapi_id : '019D0560-A32D-777B-AF20-F8592B92B3A9'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0560-A0C7-722E-BEF0-9EC009D28D75</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>19/03/2026 04:15</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974600</button><br>
+                        <i class="bi bi-card-text"></i> A3H880 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51975325271 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> ARMANDO PEREZ (#804)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> FESELL DISTRIBUIDORA S.A.C. (#16)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0560-A0C7-722E-BEF0-9EC009D28D75-1773911885998-9B34C49D-519E-4C2A-851E-E954F9D156C7-STEREO.MP3','51975325271','ARMANDO PEREZ' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51975325271',
+                                nombre: 'ARMANDO PEREZ',
+                                vapi_id : '019D0560-A0C7-722E-BEF0-9EC009D28D75'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - SI</span> <br>
+                        <span class="text-success">AUN NO LLEGA A PLANTA POR Q ATIENDEN A LAS 7</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0465-0454-7000-8783-BB320971143B</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>18/03/2026 23:40</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974007</button><br>
+                        <i class="bi bi-card-text"></i> C3W833 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51945013369 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> YONY CABANILLAS (#415)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> TRANSCONSERGAR EIRL (#46)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0465-0454-7000-8783-BB320971143B-1773895283211-7C9B0235-4E7E-47C2-A490-0E3DF5BE2C80-STEREO.MP3','51945013369','YONY CABANILLAS' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51945013369',
+                                nombre: 'YONY CABANILLAS',
+                                vapi_id : '019D0465-0454-7000-8783-BB320971143B'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CONFIRMA CONDUCTOR - PARCIAL</span> <br>
+                        <span class="text-success">DESCARGARA MANANA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0440-5BD1-7CCD-837E-418BC135A26A</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>18/03/2026 23:00</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974430</button><br>
+                        <i class="bi bi-card-text"></i> CBW862 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51947163791 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> JORGE RIOS (#574)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> IDONES INVERSIONES S.A. (#1)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0440-5BD1-7CCD-837E-418BC135A26A-1773892965228-D7D35D16-91D3-4006-8729-213617D27DF6-STEREO.MP3','51947163791','JORGE RIOS' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51947163791',
+                                nombre: 'JORGE RIOS',
+                                vapi_id : '019D0440-5BD1-7CCD-837E-418BC135A26A'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">LLAMADA EXITOSA - SI</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0417-1364-7118-B731-C23E4DD09D32</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>18/03/2026 22:15</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">972615</button><br>
+                        <i class="bi bi-card-text"></i> T9Y906 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51993394083 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> FERNANDO TAPIA (#590)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> EMPRESA DE TRANSPORTE VIGSAN EIRL (#47)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0417-1364-7118-B731-C23E4DD09D32-1773890286979-B41BD670-2388-4AD9-A2BB-66FD234CE31C-STEREO.MP3','51993394083','FERNANDO TAPIA' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51993394083',
+                                nombre: 'FERNANDO TAPIA',
+                                vapi_id : '019D0417-1364-7118-B731-C23E4DD09D32'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">LLAMADA EXITOSA - SI</span> <br>
+                        <span class="text-success">DA MOTIVOS</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0384-9173-7CCD-81E8-EE6D070DC36D</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>18/03/2026 19:35</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">975704</button><br>
+                        <i class="bi bi-card-text"></i> BUD930 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51962257811 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> JORGE ASCA (#112)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> NEGOCIACIONES YANCE SAC (#62)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0384-9173-7CCD-81E8-EE6D070DC36D-1773880649126-BE614A15-78E1-442F-AC64-D27D9917EE53-STEREO.MP3','51962257811','JORGE ASCA' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51962257811',
+                                nombre: 'JORGE ASCA',
+                                vapi_id : '019D0384-9173-7CCD-81E8-EE6D070DC36D'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">IA SE CONFUNDE - NO</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D035B-70C5-7000-AFA4-6F2C4F790B32</span>
+
+                    </td>
+                    <td>18/03/2026 18:50</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974586</button><br>
+                        <i class="bi bi-card-text"></i> AXZ910 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51949590324 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> HOLGER PARIMANGO (#180)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> INVERSIONES Y TRANSPORTES MARISA EIRL (#63)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D035B-70C5-7000-AFA4-6F2C4F790B32-1773877937458-3001F26A-1FD8-40E4-BD4A-BB27970BE879-STEREO.MP3','51949590324','HOLGER PARIMANGO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51949590324',
+                                nombre: 'HOLGER PARIMANGO',
+                                vapi_id : '019D035B-70C5-7000-AFA4-6F2C4F790B32'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">IA SE CONFUNDE - NO</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-telephone-minus-fill text-danger '></i> Cuelga<br>
+
+                    </td>
+                    <td>
+                        CONDUCTOR-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0352-537E-799C-A601-0737AD8DA7E6</span>
+
+                    </td>
+                    <td>18/03/2026 18:40</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">974428</button><br>
+                        <i class="bi bi-card-text"></i> AAW929 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51942176230 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> CARLOS MORANTE (#602)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> CORPORACION &amp; TRANSPORTES RUTTA SAC (#90)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0352-537E-799C-A601-0737AD8DA7E6-1773877267735-2208719B-6DA0-4461-8F63-BE200B752D41-STEREO.MP3','51942176230','CARLOS MORANTE' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51942176230',
+                                nombre: 'CARLOS MORANTE',
+                                vapi_id : '019D0352-537E-799C-A601-0737AD8DA7E6'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CONFIRMA CONDUCTOR - PARCIAL</span> <br>
+                        <span class="text-success">YA DESCARGO</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-telephone-minus-fill text-danger '></i> Cuelga<br>
+
+                    </td>
+                    <td>
+                        CONDUCTOR-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0352-50B2-7000-A140-341369B0B9F4</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>18/03/2026 18:40</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">973692</button><br>
+                        <i class="bi bi-card-text"></i> B7F782 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51950275709 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> JULIAN ROMERO RODRIGUEZ (#84)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> IDONES INVERSIONES S.A. (#1)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0352-50B2-7000-A140-341369B0B9F4-1773877293885-D10E08F0-78E8-40D8-9C45-D69516279DD6-STEREO.MP3','51950275709','JULIAN ROMERO RODRIGUEZ' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51950275709',
+                                nombre: 'JULIAN ROMERO RODRIGUEZ',
+                                vapi_id : '019D0352-50B2-7000-A140-341369B0B9F4'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">LLAMADA EXITOSA - SI</span> <br>
+                        <span class="text-success">CONFIRMA</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="table-secondary">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0312-5E44-7000-97EC-569A12ED285F</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>18/03/2026 17:30</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">973733</button><br>
+                        <i class="bi bi-card-text"></i> C1H885 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51917036530 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> JONEL CHERO (#6)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> CHERO SOLORZANO JONEL IVAN (#3)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0312-5E44-7000-97EC-569A12ED285F-1773873119878-259D25CF-B458-40A9-9EB7-F7403BE5B105-STEREO.MP3','51917036530','JONEL CHERO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51917036530',
+                                nombre: 'JONEL CHERO',
+                                vapi_id : '019D0312-5E44-7000-97EC-569A12ED285F'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - PARCIAL</span> <br>
+                        <span class="text-success">YA DESCARGO</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-telephone-minus-fill text-danger '></i> Cuelga<br>
+
+                    </td>
+                    <td>
+                        CONDUCTOR-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+                <tr class="">
+                    <td>
+                        <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D02C0-1FB0-7559-BC73-1ABD33C5CBD1</span>
+                        <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                    </td>
+                    <td>18/03/2026 16:00</td>
+                    <td><i class="bi bi-truck"></i>
+                        Fuera de planta para descarga</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info">973564</button><br>
+                        <i class="bi bi-card-text"></i> V5L873 <br>
+                    </td>
+                    <td>
+                        <i class="bi bi-telephone"></i> 51959663949 <br>
+
+                        <button class="btn btn-outline-light mb-1">
+                            <i class="bi bi-person"></i> MILWAR HERNANI CRESPO (#446)
+                        </button> <br>
+
+                        <button class="btn btn-outline-light">
+                            <i class="bi bi-shop"></i> HERNANI SRLTDA (#68)
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D02C0-1FB0-7559-BC73-1ABD33C5CBD1-1773867764118-6E332DDB-97CD-42ED-8C4D-B079D689CA37-STEREO.MP3','51959663949','MILWAR HERNANI CRESPO' )">
+                            <i class="bi bi-play-fill me-1"></i> Reproducir
+                        </button>
+                        <button class="btn btn-outline-info"
+                                onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51959663949',
+                                nombre: 'MILWAR HERNANI CRESPO',
+                                vapi_id : '019D02C0-1FB0-7559-BC73-1ABD33C5CBD1'
+                                })">
+                            <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                        </button><br>
+
+                        <span class="text-danger">CAMBIO DE DATOS - PARCIAL</span> <br>
+                        <span class="text-success">DA MOTIVOS</span>
+                    </td>
+                    <td>
+                        <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br>
+
+                    </td>
+                    <td>
+                        IA-FINALIZA-LLAMADA
+                    </td>
+                    <td>
+                        <i class="bi bi-check-lg text-success fs-3"></i>
+                    </td>
+                </tr>
+
+
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+    <div class="col-12"><nav class="d-flex justify-items-center justify-content-between">
+        <div class="d-flex justify-content-between flex-fill d-sm-none">
+            <ul class="pagination">
+
+                <li class="page-item disabled" aria-disabled="true">
+                    <span class="page-link">&laquo; Previous</span>
+                </li>
+
+
+                <li class="page-item">
+                    <a class="page-link" href="http://lupita-laravel.test/lupita/llamadas?llamada_tipo_id=5&amp;exitosa=exito&amp;page=2" rel="next">Next &raquo;</a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="d-none flex-sm-fill d-sm-flex align-items-sm-center justify-content-sm-between">
+            <div>
+                <p class="small text-muted">
+                    Showing
+                    <span class="fw-semibold">1</span>
+                    to
+                    <span class="fw-semibold">30</span>
+                    of
+                    <span class="fw-semibold">52</span>
+                    results
+                </p>
+            </div>
+
+            <div>
+                <ul class="pagination">
+
+                    <li class="page-item disabled" aria-disabled="true" aria-label="&laquo; Previous">
+                        <span class="page-link" aria-hidden="true">&lsaquo;</span>
+                    </li>
+
+
+
+
+
+                    <li class="page-item active" aria-current="page"><span class="page-link">1</span></li>
+                    <li class="page-item"><a class="page-link" href="http://lupita-laravel.test/lupita/llamadas?llamada_tipo_id=5&amp;exitosa=exito&amp;page=2">2</a></li>
+
+
+                    <li class="page-item">
+                        <a class="page-link" href="http://lupita-laravel.test/lupita/llamadas?llamada_tipo_id=5&amp;exitosa=exito&amp;page=2" rel="next" aria-label="Next &raquo;">&rsaquo;</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    </div>
+
+
+</div>
+</div>
+
+
+<!-- Asegúrate de tener Bootstrap Icons para los iconos sociales -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="http://lupita-laravel.test/js/app.js"></script>
+
+
+
+<!-- Livewire Scripts -->
+<script src="http://lupita-laravel.test/livewire-b0bc84a1/livewire.js?id=cfc5c1ae"   data-csrf="xZCRUnCb7NY8TIYhUEuO2082gAnVuKj8ePmwhwqL" data-module-url="http://lupita-laravel.test/livewire-b0bc84a1" data-update-uri="http://lupita-laravel.test/livewire-b0bc84a1/update" data-navigate-once="true"></script>
+<script>
+    function playAudio(url,tlf,nombres) {
+        const audio = document.getElementById('mainAudio');
+        const audio_texto= document.getElementById('audio_texto');
+        if (!audio.paused) {
+            audio.pause();
+        }
+        audio.src = url.toLowerCase();
+        audio.play().catch(() => {});
+        audio_texto.innerHTML = `
+        <i class="bi bi-telephone"></i> ${tlf} <i class="bi bi-person"></i> ${nombres}
+        `;
+    }
+</script>
+
 </body>
-</html>
