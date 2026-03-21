@@ -389,27 +389,17 @@ class DBLlamadas {
                 SUM(a.conductor_da_motivos * a.llamada_exitosa ) + SUM(a.conversacion_fluida * a.llamada_exitosa)+
                 SUM(a.llamada_interesante * a.llamada_exitosa) as etiqueta_positiva,
 
-
-
-                MAX(CASE
-                    WHEN a.llamada_exitosa = 1
-                         AND a.conversacion_fluida = 1
-                         AND a.conductor_da_motivos = 1
-                    THEN a.audio_link
-
-                    WHEN a.llamada_exitosa = 1
-                        AND a.conductor_da_motivos = 1
-                    THEN a.audio_link
-
-                    WHEN a.llamada_exitosa = 1
-                         AND a.conversacion_fluida = 1
-                    THEN a.audio_link
-
-                    WHEN a.llamada_exitosa = 1
-                    THEN a.audio_link
-
-                    ELSE NULL
-                END) AS mejor_audio
+                 SUBSTRING_INDEX(
+                     MAX(CASE
+                             WHEN a.llamada_exitosa = 1
+                             THEN CONCAT(
+                                 LPAD(
+                                     a.conductor_da_motivos +
+                                     a.conversacion_fluida +
+                                     a.llamada_interesante , 2, '0'
+                                 ),'|',a.audio_link)
+                         END
+                     ),'|',-1) AS mejor_audio
 
             FROM llamadas a
             INNER JOIN conductores b ON b.id = a.conductor_id
