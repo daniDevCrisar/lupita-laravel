@@ -30,7 +30,7 @@ class DBTmpLotes
     public static function obtenerCabecera($lote_id)
     {
         $sql = "
-        SELECT u.nombres as 'user_nombres' ,a.* FROM `tmp_lotes` a 
+        SELECT u.nombres as 'user_nombres' ,a.* FROM `tmp_lotes` a
         inner join users u
         on u.id = a.usuario_id
         WHERE lote_id=?;
@@ -40,7 +40,7 @@ class DBTmpLotes
     }
 
     public static function obtenerConductoresDuplicados($lote_id){
-        $sql="SELECT DISTINCT 
+        $sql="SELECT DISTINCT
             NULL as 'sis_id',
             NULL as 'vapi_id',
             conductor,
@@ -56,7 +56,7 @@ class DBTmpLotes
     }
 
     public static function obtenerTransportistasDuplicados($lote_id){
-        $sql="SELECT DISTINCT 
+        $sql="SELECT DISTINCT
             NULL as 'sis_id',
             NULL as 'vapi_id',
             '' as ruc,
@@ -71,7 +71,7 @@ class DBTmpLotes
 
     public static function obtenerRefsDuplicadas($lote_id){
         $sql= "
-        SELECT 
+        SELECT
             ref,
             ANY_VALUE(lote_id) AS lote_id,
             ANY_VALUE(trt) AS trt,
@@ -84,20 +84,20 @@ class DBTmpLotes
             ANY_VALUE(fin_de_carga) AS fin_de_carga,
             ANY_VALUE(inicio_de_carga) AS inicio_de_carga,
             ANY_VALUE(presenta_para_carga) AS presenta_para_carga,
-            MAX(fecha_despachador) AS fecha_despachador 
+            MAX(fecha_despachador) AS fecha_despachador
         FROM (
             -- Primer SELECT: tmp_lotes_ref (con NULLs al final)
-            SELECT 
+            SELECT
                 lote_id, ref, trt, tlf_conductor, titulo_viaje, placa,
                 fin_descargue, inicio_descargue, qr_llegada_destino,
                 fin_de_carga, inicio_de_carga, presenta_para_carga,
                 NULL AS fecha_despachador
             FROM tmp_lotes_ref
-            
+
             UNION ALL
-            
+
             -- Segundo SELECT: tmp_lotes_ref_compromiso (MISMO orden que el primero)
-            SELECT 
+            SELECT
                 lote_id, ref, trt, tlf_conductor, titulo_viaje, placa,
                 fin_descargue, inicio_descargue, qr_llegada_destino,
                 fin_de_carga, inicio_de_carga, presenta_para_carga,
@@ -139,11 +139,11 @@ class DBTmpLotes
             if ($row_tabla){
                 if($row_tabla->$campo_1 == $row->$campo_1){
                     $comparar=self::similitud( $row_tabla->{$campo_2}, $row->$campo_2);
-                    if ($comparar >= 80) 
+                    if ($comparar >= 80)
                         //echo 'comp:' . $comparar . ' :' . $row_tabla->{$campo_2} . ' * '.  $row->{$campo_2}.  '<br>';
                         if ( strlen($row_tabla->$campo_1) > strlen($row->$campo_1))
                             unset($tabla[$cont-1]);
-                        else 
+                        else
                             unset($tabla[$cont]);
                 }
             }
@@ -156,7 +156,7 @@ class DBTmpLotes
     public static function normalizar($t , $nombres=true) {
         $t = strtoupper($t);
         $t = iconv('UTF-8', 'ASCII//TRANSLIT', $t); // quita tildes
-        
+
         // Eliminar palabras completas con límites de palabra (\b)
         if ($nombres){
         $t = preg_replace('/[^A-Z0-9 ]/', '', $t); // quita símbolos
@@ -170,14 +170,12 @@ class DBTmpLotes
     }
 
     public static function similitud($a, $b , $nombres = true) {
-        
+
         if ($a==$b)return 100; // si son iguales devolver directamente
         $a = self::normalizar($a , $nombres);
         $b = self::normalizar($b , $nombres);
         if ($a==$b)return 100; // si son iguales devolver directamente
-        
 
-        
         $palabrasA = explode(' ', $a);
         $palabrasB = explode(' ', $b);
 
@@ -188,7 +186,7 @@ class DBTmpLotes
         $textoLargo = $count_palabrasA >= $count_palabrasB ? $a : $b;
         $textoCorto = $count_palabrasA < $count_palabrasB ? $a : $b;
         $palabrasCorto = explode(' ', $textoCorto);
-        
+
         $puntaje = 0;
         foreach ($palabrasCorto as $palabra) {
             if (strpos(' '.$textoLargo.' ', ' '.$palabra.' ') !== false) { // para palabras totalmente exactas ejm adrian y adriana
@@ -197,7 +195,7 @@ class DBTmpLotes
         }
 
         //no ejecutar si la diferia del nombre corto con el nombre largo es mas del doble
-        
+
         if ($nombres and $count_palabrasA != $count_palabrasB) {
             if ($count_palabrasA + $count_palabrasB != 7 ){ //si l suma es 7 es el unico caso qq uede existir de diferencia entre nombres y apellidos sin penalizar
                 if ($count_palabrasA > $count_palabrasB){
@@ -221,8 +219,8 @@ class DBTmpLotes
                 }
             }
         }
-        
-        return count($palabrasCorto) > 0 
+
+        return count($palabrasCorto) > 0
             ? round(($puntaje / count($palabrasCorto)) * 100, 2)
             : 100;
     }
