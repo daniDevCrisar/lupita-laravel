@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 use App\Database\DBLlamadas;
+use App\Database\DBLlamadaEtiquetar;
 use App\Database\DBConductores;
 use stdClass;
 
@@ -134,4 +135,10 @@ class LlamadasController extends Controller
             'llamadas' => $llamadas
         ]);
     }
+
+    public static function guardar_etiquetas(Request $request){
+        $etiquetar= new DBLlamadaEtiquetar(DBLlamadas::$etiquetas_icon_bi,$request);
+        $etiquetar::etiquetar();
+    }
+
 }

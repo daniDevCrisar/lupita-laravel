@@ -327,7 +327,9 @@
                 <div class="d-flex align-items-center gap-3 mb-3">
                 @php
                     $solo_cuelga=$reporte->total->cuelga_analisis;
-                    if($reporte->total->solo_cuelga > $reporte->total->cuelga_analisis) $solo_cuelga=$reporte->total->solo_cuelga;
+                    //if($reporte->total->solo_cuelga > $reporte->total->cuelga_analisis) $solo_cuelga=$reporte->total->solo_cuelga;
+
+                    $solo_cuelga=$reporte->total->solo_cuelga; //probando-----------------
                     $total=$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga;
                     $fallo_no_copera_100= round(($total/$fallidas)*100,1);
                 @endphp
@@ -377,7 +379,7 @@
         <div class="col-lg-6">
             <div class="card p-4 h-100">
                 @php
-                    $total_3=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->error_ia +$reporte->total->conductor_contesta_pero_no_habla+ $reporte->total->cuelga_analisis;
+                    $total_3=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->error_ia +$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga;
                     $total=$fallidas-$total_3;
                     $fallo_otros_100= round(($total/$fallidas)*100,1);
                 @endphp

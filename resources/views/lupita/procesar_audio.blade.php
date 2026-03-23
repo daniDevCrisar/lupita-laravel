@@ -170,18 +170,17 @@
                         <input type="hidden" id="lista_{{$loop->index}}_viaje" value="{{ $row->origen . ' - '. $row->destino }}">
                         <input type="hidden" id="lista_{{$loop->index}}_audio" value="{{ $row->audio_link }}">
                         <input type="hidden" id="lista_{{$loop->index}}_audio_duracion" value="{{ $llamadas::audio_duracion_format($row->audio_duracion) }}">
-                        <input type="hidden" id="lista_{{$loop->index}}_analisis_transcripcion" value="{{ $row->analisis_transcripcion }}">
-                        <input type="hidden" id="lista_{{$loop->index}}_analisis_audio" value="{{ $row->analisis_audio }}">
                         <input type="hidden" id="lista_{{$loop->index}}_razon_f"
                                value="{{ $llamadas::$razones_finalizacion[$row->razon_finalizacion_id]->codigo }}">
                         <input type="hidden" id="lista_{{$loop->index}}_razon_id"
                                value="{{ $row->razon_finalizacion_id }}">
                         <input type="hidden" id="lista_{{$loop->index}}_error_origen" value="{{ $row->error_origen }}">
                         <input type="hidden" id="lista_{{$loop->index}}_llamada_exitosa" value="{{ $row->llamada_exitosa }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_error_origen" value="{{ $row->error_origen }}">
                         @php $orden=$loop->index @endphp
                         @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
                             @if($item[4])
-                                <input type="hidden" name="lista_{{$orden. '_' . $key }}" value="{{ $row->$key }}">
+                                <input type="hidden" id="lista_{{$orden. '_e_' . $key }}" value="{{ $row->$key }}">
                             @endif
                         @endforeach
 
@@ -241,8 +240,8 @@
                                     </button><br>
                                 @endif
 
-                                <span class="text-danger">{{ $row->analisis_transcripcion }}</span> <br>
-                                <span class="text-success">{{ $row->analisis_audio }}</span>
+                                <span class="text-danger" id="lista_{{$loop->index}}_analisis_t">{{ $row->analisis_transcripcion }}</span> <br>
+                                <span class="text-success" id="lista_{{$loop->index}}_analisis_a">{{ $row->analisis_audio }}</span>
                             </td>
                             <td>
                                 <i class="{{ $llamadas::icon_exito($row) }} fs-3"></i>
@@ -257,9 +256,12 @@
             </div>
         </div>
 
-
+{{----------------------------ETIQUETADO--------------------------}}
+{{----------------------------ETIQUETADO--------------------------}}
         <div class="col-6">
             <div class="card mb-3 border-secondary col-12">
+                @csrf
+
                 <div class="card-header bg-primary">
                     <h5>
                         <i class="bi bi-play-circle me-2"></i>Llamada
@@ -298,7 +300,7 @@
                             <i class="bi bi-skip-forward-fill"></i>
                         </button>
 
-                        <button class="btn btn-outline-light btn-circular">
+                        <button class="btn btn-outline-light btn-circular" id="btn_guardar" onclick="guardar_etiqueta()">
                             <i class="bi bi-floppy-fill"></i>
                         </button>
 
@@ -310,9 +312,9 @@
                 </div>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item small">Duracion: <span class="fw-bold text-info" id="card_audio_duracion">audio_duracion_format</span></li>
-                    <li class="list-group-item text-info small">IA-FINALIZA-LLAMADA</li>
+                    <li class="list-group-item text-info small" id="card_razon_f">IA-FINALIZA-LLAMADA</li>
                     <li class="list-group-item small">
-                        Analisis de transcripcion: <span class="text-danger">BUZON</span>
+                        Analisis de transcripcion: <span class="text-danger" id="card_analisis_t">BUZON</span>
                     </li>
                 </ul>
 
@@ -331,31 +333,27 @@
                             <button class="btn btn-primary" type="button" id="button-addon2"><i class="bi bi-floppy"></i></button>
                         </div>
                         <div class="btn-group col-12 pb-2" role="group">
-                            <input type="radio" class="btn-check" name="exitosa" id="rd_ex_2" value="exito"
-                                @checked(request('exitosa') === 'exito')>
-                            <label class="btn btn-outline-primary" for="rd_ex_2">
+                            <input type="radio" class="btn-check" name="e_exitosa" id="e_rd_ex_0" value="exito">
+                            <label class="btn btn-outline-primary" for="e_rd_ex_0">
                                 <i class="bi bi-check-lg text-success"></i></label>
                             @foreach($llamadas::$error_origen as $item)
                                 <input type="radio"
                                        class="btn-check"
-                                       name="exitosa"
-                                       id="rd_ex_{{ $loop->index + 3 }}"
-                                       value="{{ $item->id }}"
-                                    @checked(request('exitosa') === (string) $item->id)>
+                                       name="e_exitosa"
+                                       id="e_rd_ex_{{ $loop->index + 1 }}"
+                                       value="{{ $item->id }}">
                                 <label class="btn btn-outline-primary"
-                                       for="rd_ex_{{ $loop->index +3}}">
+                                       for="e_rd_ex_{{ $loop->index +1}}">
                                     <i class="{{ $llamadas::icon_exito($item->id, true) }}"></i>
                                 </label>
                             @endforeach
                         </div>
 
-                        <button id="btn3" type="button" class="btn btn-outline-success btn-sm">
-                            dddd
-                        </button>
                         <div class="btn-group-vertical col-4">
                             @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
                                 @if($item[4]==1)
-                                    <button type="button" class="btn btn-outline-light btn-sm ">
+                                    <button type="button" class="btn btn-outline-light btn-sm "
+                                    id="e_{{$key}}" onclick="etiquetaClick('e_{{ $key }}')">
                                         <i class="{{$item[0]}}"></i> {{$item[1]}}
                                     </button>
                                 @endif
@@ -364,7 +362,8 @@
                         <div class="btn-group-vertical col-4">
                             @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
                                 @if($item[4]==2)
-                                    <button type="button" class="btn btn-outline-light btn-sm ">
+                                    <button type="button" class="btn btn-outline-light btn-sm "
+                                    id="e_{{$key}}" onclick="etiquetaClick('e_{{ $key }}')">
                                         <i class="{{$item[0]}}"></i> {{$item[1]}}
                                     </button>
                                 @endif
@@ -374,7 +373,8 @@
                         <div class="btn-group-vertical col-4">
                             @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
                                 @if($item[4]==3)
-                                    <button type="button" class="btn btn-outline-light btn-sm ">
+                                    <button type="button" class="btn btn-outline-light btn-sm "
+                                    id="e_{{$key}}" onclick="etiquetaClick('e_{{ $key }}')">
                                         <i class="{{$item[0]}}"></i> {{$item[1]}}
                                     </button>
                                 @endif
@@ -391,6 +391,15 @@
         <div class="col-12">{{ $llamadas::$lista->links() }}</div>
 
 
+    </div>
+
+    <div id="overlayGuardando" class="position-fixed top-0 start-0 w-100 h-100 d-none"
+         style="background: rgba(0,0,0,0.5); z-index:9999;">
+
+        <div class="d-flex justify-content-center align-items-center h-100 flex-column">
+            <div class="spinner-border text-light"></div>
+            <div class="text-white mt-2">Guardando...</div>
+        </div>
     </div>
 
     <style>
@@ -412,14 +421,71 @@
 
     @livewireScripts
     <script>
-        const btn = document.getElementById("btn3");
+        let orden_lista,vapi_id;
 
-        btn.addEventListener("click", () => {
-
+        function etiquetaClick(id){
+            const btn = document.getElementById(id);
             btn.classList.toggle("bg-activo");
             btn.classList.toggle("bg-primary");
-        });
+        }
 
+        function checkedRadio_exito(exito,error_origen){
+            const radio =document.querySelectorAll('input[name="e_exitosa"]');
+            radio.forEach(r => {
+                r.checked = false;
+            });
+            if (exito==='1') document.querySelector(`input[name="e_exitosa"][value="exito"]`).checked=true;
+            else {
+                radio.forEach(r => {
+                    r.checked = r.value === error_origen;
+                });
+            }
+        }
+
+        function disabledRadio_exito(exito,error_origen){
+            const radio =document.querySelectorAll('input[name="e_exitosa"]');
+            const r_exito = document.querySelector(`input[name="e_exitosa"][value="exito"]`);
+            const r_ia = document.querySelector(`input[name="e_exitosa"][value="1"]`);
+            const r_conductor = document.querySelector(`input[name="e_exitosa"][value="0"]`);
+
+            radio.forEach(r => {
+                r.disabled = true;
+                r.checked = false;
+            });
+            if (error_origen !== '0' && error_origen !== '1'){
+                console.log(error_origen);
+                radio.forEach(r => {
+                    r.disabled = !(r.value === error_origen);
+                    r.checked = r.value === error_origen;
+                });
+            } else {
+                console.log('dadad')
+                r_exito.disabled=false;
+                r_ia.disabled=false;
+                r_conductor.disabled=false;
+                if (exito==='1'){
+                    r_exito.checked = true;
+                }else {
+                    if (error_origen==='0')
+                        r_conductor.checked=true
+                    else
+                        r_ia.checked=true
+                }
+            }
+        }
+
+        function colorearBoton(id,valor){
+            const btn = document.getElementById(id);
+            const sel = document.getElementById(valor);
+            if (sel.value==='1'){
+                btn.classList.add("bg-activo");
+                btn.classList.add("bg-primary");
+            }
+            else {
+                btn.classList.remove("bg-activo");
+                btn.classList.remove("bg-primary");
+            }
+        }
 
         function selLlamada(orden){
             const card_id_html=document.getElementById('card_id_html');
@@ -427,19 +493,56 @@
             const card_ref_html=document.getElementById('card_ref_html');
             const card_tipol_html=document.getElementById('card_tipol_html');
             const card_audio_duracion=document.getElementById('card_audio_duracion');
+            const card_razon_f=document.getElementById('card_razon_f');
+            const card_analisis_t=document.getElementById('card_analisis_t');
+            const txt_audio=document.getElementById('txt_audio');
+
+            const error_origen = document.getElementById('lista_' + orden+'_error_origen').value;
+            const llamada_exitosa = document.getElementById('lista_' + orden+'_llamada_exitosa').value;
 
             let conten='';
-
             card_id_html.innerHTML=document.getElementById('lista_' + orden+'_id_html').innerHTML;
-            card_conductor_html.innerHTML=
-                document.getElementById('lista_' + orden+'_telefono_html').innerHTML + document.getElementById('lista_' + orden+'_conductor_html').innerHTML;
+            card_conductor_html.innerHTML= document.getElementById('lista_' + orden+'_telefono_html').innerHTML + document.getElementById('lista_' + orden+'_conductor_html').innerHTML;
 
             conten=document.getElementById('lista_' + orden+'_ref_html').innerHTML;
             conten=conten.replaceAll('<br>',' ');
             card_ref_html.innerHTML= 'Ref:'+ conten;
             card_tipol_html.innerHTML= document.getElementById('lista_' + orden+'_tipol_html').innerHTML;
             card_audio_duracion.innerHTML= document.getElementById('lista_' + orden+'_audio_duracion').value;
+            card_razon_f.innerHTML= document.getElementById('lista_' + orden+'_razon_f').value;
+            card_analisis_t.innerHTML= document.getElementById('lista_' + orden+'_analisis_t').innerHTML;
+            txt_audio.value= document.getElementById('lista_' + orden+'_analisis_a').innerHTML;
 
+            //colorear las etiquetas(button)
+            document.querySelectorAll('button[id^="e_"]').forEach(el => {
+                colorearBoton(el.id,'lista_' + orden+'_' + el.id);
+            });
+            //disabledRadio_exito(llamada_exitosa,error_origen);
+            checkedRadio_exito(llamada_exitosa,error_origen);
+
+            orden_lista=orden;
+            vapi_id= document.getElementById('lista_' + orden+'_id').value;
+        }
+
+        function guardar_etiqueta(){
+            const formData = new FormData();
+
+            formData.append('exito',
+                document.querySelector('input[name="e_exitosa"]:checked')?.value);
+            document.querySelectorAll('button[id^="e_"]').forEach(el => {
+                let valor=0;
+                if (el.classList.contains("bg-activo")) valor=1
+                // eliminar el e_ en el id del botoon psaa dejar el nombre de etiqueta
+                formData.append(el.id.substring(2),valor)
+            });
+
+            fetch('{{ route('lupita.audio.guardar') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                },
+                body: formData
+            });
         }
 
 
@@ -452,8 +555,8 @@
             audio.src = url.toLowerCase();
             audio.play().catch(() => {});
             audio_texto.innerHTML = `
-        <i class="bi bi-telephone"></i> ${tlf} <i class="bi bi-person"></i> ${nombres}
-        `;
+            <i class="bi bi-telephone"></i> ${tlf} <i class="bi bi-person"></i> ${nombres}
+            `;
         }
     </script>
 @endsection

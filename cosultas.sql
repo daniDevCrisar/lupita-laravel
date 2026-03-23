@@ -74,3 +74,6 @@
  ORDER BY diferencia DESC, exitosas DESC, etiqueta_positiva DESC
 
  LIMIT 5;
+
+
+select * from error_origen
