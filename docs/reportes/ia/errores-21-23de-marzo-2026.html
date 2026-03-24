@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <!--
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    -->
+
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/darkly/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- CSS propio opcional -->
+</head>
+<body>
+
+<div class="col-12"></div>
+<div class="col-12">
+    <div class="card mb-3">
+        <div class="card-body">
+            <p id='audio_texto'>
+            </p>
+            <audio id="mainAudio" controls class="w-100">
+                <source id="audioSource" src="" type="audio/mpeg">
+                Tu navegador no soporta audio.
+            </audio>
+        </div>
+    </div>
+</div>
+<div class="col-12">
+    <div class="table-responsive" style="max-height: 800px; overflow-y: auto;">
+        <table class="table table-bordered table-hover table-sm table-dark">
+            <thead class="table-primary" style="position: sticky;top: 0;z-index: 2;">
+            <tr>
+                <th>Id</th>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Ref</th>
+                <th>Datos</th>
+                <th>Llamada</th>
+                <th>Etiquetas</th>
+                <th>Finalizacion</th>
+                <th>Exitosa</th>
+            </tr>
+            </thead>
+            <tbody>
+
+            <tr class="table-secondary">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D1285-3EC5-7889-8DD9-26DAD02994BA</span>
+
+                </td>
+                <td>21/03/2026 17:30</td>
+                <td><i class="bi bi-building"></i>
+                    Dentro de planta para carga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">974089</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-LIMA <br>
+                    <i class="bi bi-card-text"></i> TDV810 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51943567332 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> SANTOS JUAREZ (#334)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> EMPRESA DE TRANSPORTE VIGSAN EIRL (#47)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D1285-3EC5-7889-8DD9-26DAD02994BA-1774132259121-F0F2CB39-297F-404C-B160-842277CBB939-STEREO.MP3','51943567332','SANTOS JUAREZ' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info"
+                            onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51943567332',
+                                nombre: 'SANTOS JUAREZ',
+                                vapi_id : '019D1285-3EC5-7889-8DD9-26DAD02994BA'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION COMPLETA</span> <br>
+                    <span class="text-success">IA FINALIZA ANTES Q TERMINE SUS MOTIVOS</span>
+                </td>
+                <td>
+                    <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-chat-left-text-fill text-info '></i> Da motivos<br><i class='bi bi-cpu-fill text-warning '></i> IA se confunde<br><i class='bi bi-gear-fill text-danger '></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D1212-D0B7-7000-94ED-CA1CD706DBEB</span>
+
+                </td>
+                <td>21/03/2026 15:25</td>
+                <td><i class="bi bi-building"></i>
+                    Dentro de planta para carga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">976910</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-SAN ROMAN <br>
+                    <i class="bi bi-card-text"></i> BYM861 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51951001010 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> WILY CHATA QUISPE (#850)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> EMPRESA DE TRANSPORTES PATY SCRL (#66)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D1212-D0B7-7000-94ED-CA1CD706DBEB-1774124753162-24ED2DAA-9DB3-4F37-8330-BAB5EDBE10D2-STEREO.MP3','51951001010','WILY CHATA QUISPE' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info"
+                            onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51951001010',
+                                nombre: 'WILY CHATA QUISPE',
+                                vapi_id : '019D1212-D0B7-7000-94ED-CA1CD706DBEB'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION BREVE</span> <br>
+                    <span class="text-success">IA CUELGA</span>
+                </td>
+                <td>
+                    <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-cpu-fill text-warning '></i> IA se confunde<br><i class='bi bi-gear-fill text-danger '></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="table-secondary">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D11EE-28B6-7001-861C-0B6AE1AEEF60</span>
+
+                </td>
+                <td>21/03/2026 14:45</td>
+                <td><i class="bi bi-building"></i>
+                    Dentro de planta para carga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">978903</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-HUANCAYO <br>
+                    <i class="bi bi-card-text"></i> B8W803 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51900653608 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> JHON VELASQUEZ (#614)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> TRANSPORTES ROYER (#135)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D11EE-28B6-7001-861C-0B6AE1AEEF60-1774122363644-B9DCAC9E-991D-4924-ACCB-CFE0669D8F77-STEREO.MP3','51900653608','JHON VELASQUEZ' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info"
+                            onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51900653608',
+                                nombre: 'JHON VELASQUEZ',
+                                vapi_id : '019D11EE-28B6-7001-861C-0B6AE1AEEF60'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION COMPLETA</span> <br>
+                    <span class="text-success">IA CUELGA</span>
+                </td>
+                <td>
+                    <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-cpu-fill text-warning '></i> IA se confunde<br><i class='bi bi-gear-fill text-danger '></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+
+            <tr class="">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D111B-A0E1-7000-B020-FFFD8246CD36</span>
+                    <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+
+                </td>
+                <td>21/03/2026 10:55</td>
+                <td><i class="bi bi-truck"></i>
+                    Fuera de planta para descarga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">975512</button><br>
+                    <i class="bi bi-card-text"></i> A0E928 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51910335196 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> CARLOS FERNANDO CAJAHUANCA URETA (#39)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> CAJAHUANCA URETA CARLOS FERNANDO (#50)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D111B-A0E1-7000-B020-FFFD8246CD36-1774108560489-F603D920-87E5-4394-88D1-5D861B255FCB-STEREO.MP3','51910335196','CARLOS FERNANDO CAJAHUANCA URETA' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info"
+                            onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51910335196',
+                                nombre: 'CARLOS FERNANDO CAJAHUANCA URETA',
+                                vapi_id : '019D111B-A0E1-7000-B020-FFFD8246CD36'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION COMPLETA</span> <br>
+                    <span class="text-success">IA CUELGA</span>
+                </td>
+                <td>
+                    <i class='bi bi-cpu-fill text-warning '></i> IA se confunde<br><i class='bi bi-gear-fill text-danger '></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="table-secondary">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D1104-D333-7000-94C6-FFF5940316FA</span>
+
+                </td>
+                <td>21/03/2026 10:30</td>
+                <td><i class="bi bi-building"></i>
+                    Dentro de planta para carga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">968128</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-SAN ROMAN <br>
+                    <i class="bi bi-card-text"></i> BUN866 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51999550047 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> JORGE CONDORI (#838)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> CONDORI MAMANI JAIME TOMAS (#199)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D1104-D333-7000-94C6-FFF5940316FA-1774107068903-4ADA0017-4B40-4D66-8613-D14AB81BD56B-STEREO.MP3','51999550047','JORGE CONDORI' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info"
+                            onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51999550047',
+                                nombre: 'JORGE CONDORI',
+                                vapi_id : '019D1104-D333-7000-94C6-FFF5940316FA'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION COMPLETA</span> <br>
+                    <span class="text-success">TOLDEANDO IA CUELGA</span>
+                </td>
+                <td>
+                    <i class='bi bi-cpu-fill text-warning '></i> IA se confunde<br><i class='bi bi-gear-fill text-danger '></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0F5A-F7D4-7336-A52E-1840F40867C7</span>
+
+                </td>
+                <td>21/03/2026 02:45</td>
+                <td><i class="bi bi-building"></i>
+                    Dentro de planta para carga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">978512</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-LIMA <br>
+                    <i class="bi bi-card-text"></i> BNM780 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51974158913 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> JOSE GOMEZ INFANTES (#54)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> CORPORATION LOGISTIC MALVINA SA (#45)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0F5A-F7D4-7336-A52E-1840F40867C7-1774079189431-6AAB9380-4AA4-458B-AAF0-8CE8EF3BB030-STEREO.MP3','51974158913','JOSE GOMEZ INFANTES' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info"
+                            onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51974158913',
+                                nombre: 'JOSE GOMEZ INFANTES',
+                                vapi_id : '019D0F5A-F7D4-7336-A52E-1840F40867C7'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION COMPLETA</span> <br>
+                    <span class="text-success">NO HAY SISTEMA , IA CUELGA</span>
+                </td>
+                <td>
+                    <i class='bi bi-cpu-fill text-warning '></i> IA se confunde<br><i class='bi bi-gear-fill text-danger '></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="table-secondary">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0F11-B590-7000-94B1-5CC7EE9B2307</span>
+
+                </td>
+                <td>21/03/2026 01:25</td>
+                <td><i class="bi bi-building"></i>
+                    Dentro de planta para carga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">975857</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-CUSCO <br>
+                    <i class="bi bi-card-text"></i> CEV884 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51924737245 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> PABLO PIHUI (#119)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> CORPORACION YU &amp; LI E.I.R.L. (#42)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0F11-B590-7000-94B1-5CC7EE9B2307-1774074356850-FE717D00-83C8-46A0-8F36-693A827ECE5E-STEREO.MP3','51924737245','PABLO PIHUI' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info"
+                            onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51924737245',
+                                nombre: 'PABLO PIHUI',
+                                vapi_id : '019D0F11-B590-7000-94B1-5CC7EE9B2307'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION COMPLETA</span> <br>
+                    <span class="text-success">CARGANDO IA CUELGA</span>
+                </td>
+                <td>
+                    <i class='bi bi-check-circle-fill text-success '></i> Confirma<br><i class='bi bi-cpu-fill text-warning '></i> IA se confunde<br><i class='bi bi-gear-fill text-danger '></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class='small'>019D0EFF-6AA4-7000-8796-340213639A12</span>
+
+                </td>
+                <td>21/03/2026 01:05</td>
+                <td><i class="bi bi-truck"></i>
+                    Fuera de planta para descarga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">974343</button><br>
+                    <i class="bi bi-card-text"></i> B8Y708 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51966405783 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> RAUL ORELLANA (#257)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> ASOCIADOS LOGISTICOS ORELLANA S.A.C. (#49)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D0EFF-6AA4-7000-8796-340213639A12-1774073148430-FA322A40-F934-485A-B1D0-6510E7EB1F5F-STEREO.MP3','51966405783','RAUL ORELLANA' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info"
+                            onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51966405783',
+                                nombre: 'RAUL ORELLANA',
+                                vapi_id : '019D0EFF-6AA4-7000-8796-340213639A12'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION BREVE</span> <br>
+                    <span class="text-success">IA CUELGA</span>
+                </td>
+                <td>
+                    <i class='bi bi-cpu-fill text-warning '></i> IA se confunde<br><i class='bi bi-gear-fill text-danger '></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+
+            <tr class="table-secondary">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class="small">019D17C7-5836-7CC8-B057-21159F2DA861</span>
+
+                </td>
+                <td>22/03/2026 18:00</td>
+                <td><i class="bi bi-truck"></i>
+                    Fuera de planta para descarga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">978976</button><br>
+                    <i class="bi bi-card-text"></i> BAR885 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51944526649 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> LUIS CHAUPIS (#844)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> CORPORACION LOGISTICA SAN MIGUEL S.A.C (#203)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D17C7-5836-7CC8-B057-21159F2DA861-1774220499847-53600BC5-D3E5-4594-9803-B09FE57B097E-STEREO.MP3','51944526649','LUIS CHAUPIS' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info" onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51944526649',
+                                nombre: 'LUIS CHAUPIS',
+                                vapi_id : '019D17C7-5836-7CC8-B057-21159F2DA861'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger">CONVERSACION COMPLETA</span> <br>
+                    <span class="text-success">PLANTA NO ABRE DOMINGO , IA CUELGA</span>
+                </td>
+                <td>
+                    <i class="bi bi-check-circle-fill text-success "></i> Confirma<br><i class="bi bi-chat-left-text-fill text-info "></i> Da motivos<br><i class="bi bi-cpu-fill text-warning "></i> IA se confunde<br><i class="bi bi-gear-fill text-danger "></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+
+            <tr class="">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class="small">019D1DA0-03A2-788D-BC67-9B1B3FF3DB0E</span>
+
+                </td>
+                <td>23/03/2026 21:15</td>
+                <td><i class="fa-solid fa-truck-ramp-box"></i>
+                    Dentro de planta para descarga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">979692</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-PROV. CONST. DEL CALLAO <br>
+                    <i class="bi bi-card-text"></i> CEU922 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51940638522 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> ABDON JESUS NAJARRO CASTRO (#122)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> TRANSPORTE AGUERO EIRL (#4)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D1DA0-03A2-788D-BC67-9B1B3FF3DB0E-1774318605664-2364BE0A-E7A8-4D16-A6ED-8784409BE75B-STEREO.MP3','51940638522','ABDON JESUS NAJARRO CASTRO' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info" onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51940638522',
+                                nombre: 'ABDON JESUS NAJARRO CASTRO',
+                                vapi_id : '019D1DA0-03A2-788D-BC67-9B1B3FF3DB0E'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger"></span> <br>
+                    <span class="text-success">YA DESCARGO IA CUELGA</span>
+                </td>
+                <td>
+                    <i class="bi bi-check-circle-fill text-success "></i> Confirma<br><i class="bi bi-cpu-fill text-warning "></i> IA se confunde<br><i class="bi bi-gear-fill text-danger "></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+
+            <tr class="">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class="small">019D1B91-AF44-7DDB-BFB8-EE6AD3D60636</span>
+
+                </td>
+                <td>23/03/2026 11:40</td>
+                <td><i class="fa-solid fa-truck-ramp-box"></i>
+                    Dentro de planta para descarga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">974089</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-LIMA <br>
+                    <i class="bi bi-card-text"></i> TDV810 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51943567332 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> SANTOS JUAREZ (#334)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> EMPRESA DE TRANSPORTE VIGSAN EIRL (#47)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D1B91-AF44-7DDB-BFB8-EE6AD3D60636-1774284076538-E0AA7557-96E8-4C8D-B5EC-7CACB6E60057-STEREO.MP3','51943567332','SANTOS JUAREZ' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info" onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51943567332',
+                                nombre: 'SANTOS JUAREZ',
+                                vapi_id : '019D1B91-AF44-7DDB-BFB8-EE6AD3D60636'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger"></span> <br>
+                    <span class="text-success">DESCARGO , IA CUELGA</span>
+                </td>
+                <td>
+                    <i class="bi bi-check-circle-fill text-success "></i> Confirma<br><i class="bi bi-cpu-fill text-warning "></i> IA se confunde<br><i class="bi bi-gear-fill text-danger "></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="table-secondary">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class="small">019D1B43-BA2A-7220-A5FB-534BABC3CA6D</span>
+
+                </td>
+                <td>23/03/2026 10:15</td>
+                <td><i class="fa-solid fa-truck-ramp-box"></i>
+                    Dentro de planta para descarga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">979806</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-LIMA <br>
+                    <i class="bi bi-card-text"></i> BEH781 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51907489136 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> GENARO MARINO RAMOS QUESQUEN (#327)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> CORPORATION LOGISTIC MALVINA SA (#45)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D1B43-BA2A-7220-A5FB-534BABC3CA6D-1774278993464-892FEDF7-6D49-42B5-A8EA-7C5F48DF62F7-STEREO.MP3','51907489136','GENARO MARINO RAMOS QUESQUEN' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info" onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51907489136',
+                                nombre: 'GENARO MARINO RAMOS QUESQUEN',
+                                vapi_id : '019D1B43-BA2A-7220-A5FB-534BABC3CA6D'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger"></span> <br>
+                    <span class="text-success">DESCARGO IA CUELGA</span>
+                </td>
+                <td>
+                    <i class="bi bi-check-circle-fill text-success "></i> Confirma<br><i class="bi bi-cpu-fill text-warning "></i> IA se confunde<br><i class="bi bi-gear-fill text-danger "></i> Error tecnico en llamada<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class="small">019D1B08-4586-7AAD-9769-2165BF252977</span>
+
+                </td>
+                <td>23/03/2026 09:10</td>
+                <td><i class="bi bi-truck"></i>
+                    Fuera de planta para descarga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">978641</button><br>
+                    <i class="bi bi-card-text"></i> T3P873 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51949412793 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> HENRY SABINO (#419)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> LEVENT EXPRESS I.R L (#18)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D1B08-4586-7AAD-9769-2165BF252977-1774275047806-07D3732B-7706-45AA-8EB6-FCF38E2E554D-STEREO.MP3','51949412793','HENRY SABINO' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info" onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51949412793',
+                                nombre: 'HENRY SABINO',
+                                vapi_id : '019D1B08-4586-7AAD-9769-2165BF252977'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger"></span> <br>
+                    <span class="text-success">IA NO ESCUCHA</span>
+                </td>
+                <td>
+                    <i class="bi bi-mic-mute-fill text-danger "></i> IA no escucha<br>
+
+                </td>
+                <td>
+                    SILENCIO-PROLONGADO
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+            <tr class="table-secondary">
+                <td>
+                    <i class="bi bi-telephone-outbound text-success"></i> <span class="small">019D1AF1-58B5-7558-B6D9-0FD6B3FE05B8</span>
+
+                </td>
+                <td>23/03/2026 08:45</td>
+                <td><i class="fa-solid fa-truck-ramp-box"></i>
+                    Dentro de planta para descarga</td>
+                <td>
+                    <button type="button" class="btn btn-outline-info">979764</button><br>
+                    <i class="bi bi-airplane"></i> HUARAL-LIMA <br>
+                    <i class="bi bi-card-text"></i> F9T858 <br>
+                </td>
+                <td>
+                    <i class="bi bi-telephone"></i> 51906614896 <br>
+
+                    <button class="btn btn-outline-light mb-1">
+                        <i class="bi bi-person"></i> JOSE ANDRES CORONADO LLAUCE (#83)
+                    </button> <br>
+
+                    <button class="btn btn-outline-light">
+                        <i class="bi bi-shop"></i> TRANSPORTE AGUERO EIRL (#4)
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019D1AF1-58B5-7558-B6D9-0FD6B3FE05B8-1774273606439-627C631A-42DF-484D-90FB-5C91F2C231EC-STEREO.MP3','51906614896','JOSE ANDRES CORONADO LLAUCE' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <button class="btn btn-outline-info" onclick="Livewire.dispatch('abrirMensaje',{
+                                telefono: '51906614896',
+                                nombre: 'JOSE ANDRES CORONADO LLAUCE',
+                                vapi_id : '019D1AF1-58B5-7558-B6D9-0FD6B3FE05B8'
+                                })">
+                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
+                    </button><br>
+
+                    <span class="text-danger"></span> <br>
+                    <span class="text-success">YA DESCARGO IA NO ENTIENDE</span>
+                </td>
+                <td>
+                    <i class="bi bi-check-circle-fill text-success "></i> Confirma<br><i class="bi bi-exclamation-triangle-fill text-danger "></i> IA error de interpretacion<br>
+
+                </td>
+                <td>
+                    IA-FINALIZA-LLAMADA
+                </td>
+                <td>
+                    <i class="bi bi-robot text-danger fs-3"></i>
+                </td>
+            </tr>
+
+            </tbody>
+        </table>
+
+    </div>
+</div>
+<div class="col-12"></div>
+
+
+</div>
+</div>
+
+
+
+<!-- Asegúrate de tener Bootstrap Icons para los iconos sociales -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="http://lupita-laravel.test/js/app.js"></script>
+
+
+
+<!-- Livewire Scripts -->
+<script src="http://lupita-laravel.test/livewire-b0bc84a1/livewire.js?id=cfc5c1ae"   data-csrf="Mmiu5HmJzkdmN2TAKAZaD1C5gP8PfOAjMUUqHaMv" data-module-url="http://lupita-laravel.test/livewire-b0bc84a1" data-update-uri="http://lupita-laravel.test/livewire-b0bc84a1/update" data-navigate-once="true"></script>
+<script>
+    function playAudio(url,tlf,nombres) {
+        const audio = document.getElementById('mainAudio');
+        const audio_texto= document.getElementById('audio_texto');
+        if (!audio.paused) {
+            audio.pause();
+        }
+        audio.src = url.toLowerCase();
+        audio.play().catch(() => {});
+        audio_texto.innerHTML = `
+        <i class="bi bi-telephone"></i> ${tlf} <i class="bi bi-person"></i> ${nombres}
+        `;
+    }
+</script>
+
+
+
+</body>
+</html>
