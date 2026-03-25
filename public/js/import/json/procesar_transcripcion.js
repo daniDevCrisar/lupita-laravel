@@ -14,7 +14,7 @@ class procesarTranscripcion{
     procesar(texto,duracion,razonf){
         if (!this.obtener_conversacion(texto)) return false
 
-        if (this.conversacion.user.total <=1) {
+        if (this.conversacion.user.total <=0) {
             if (razonf==='assistant-ended-call'){
                 this.conductor_contesta_pero_no_habla=1;
                 this.analisis_transcripcion='NO HABLA';
@@ -93,7 +93,7 @@ class procesarTranscripcion{
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
             .replace(/\s+/g, " ")
-            .replace(/[^\w\s]/g, "")// eliminar signos
+            .replace(/[?,¿]/g, "")//ERROR?----------------------
     }
 
     es_buzon(texto) {
@@ -272,7 +272,8 @@ class procesarTranscripcion{
             'AHORA ENTRO',
             'AHORITA ENTRO',
             'DE ENTRAR',
-            'INGRESADO'
+            'INGRESADO',
+            'YA INGRESE',
         ];
         const salir_medias= [
             'ESTOY SALIENDO',
@@ -287,6 +288,7 @@ class procesarTranscripcion{
         ]
 
         const refuerzo =[
+            'TOLDANDO',
             'TOLDEANDO',
             'TOLDEAR',
             'TOLDERA',
@@ -297,9 +299,12 @@ class procesarTranscripcion{
             'BALANSA',
             'BALANZA',
             'AMARRARON',
+            'MONTACARGA',
 
+            'DOCUMENTO',
             'GUIA',
             'MANTEO',
+            'ESTIBA',
             'DESPACHARON',
             'PRODUCTO',
 
