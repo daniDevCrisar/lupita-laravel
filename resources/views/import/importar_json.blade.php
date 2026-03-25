@@ -101,7 +101,10 @@
 
 @section('scripts')
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-<script src="{{ asset('js/import/json/procesar_json.js') }}"></script>
 <script src="{{ asset('js/import/json/app.js') }}"></script>
+<script src="{{ asset('js/import/json/procesar_transcripcion.js') }}"></script>
+<script src="{{ asset('js/import/json/procesar_json.js') }}"></script>
+
+
 
 @endsection

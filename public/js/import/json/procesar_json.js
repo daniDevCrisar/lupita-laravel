@@ -4,6 +4,7 @@ function generar_excel_llamadas(json){
     var vapi_msj_conten,vapi_tlf,vapi_origen,vapi_fecha,vapi_v_prog=0,vapi_error_origen;
     var vapi_entro_llamada,vapi_conductor_no_contesta,vapi_conductor_cuelga,vapi_audio_duracion;
 
+    const conversacion = new procesarTranscripcion();
     json.forEach((item, index) => {
 
         vapi_entro_llamada=item.analysis?.successEvaluation??''
@@ -69,6 +70,7 @@ function generar_excel_llamadas(json){
             });
         }
 
+
         if (vapi_v_prog == 0){
             if (item.assistantId =="56f104ad-3e24-47dd-9cf8-1bd34bd95c81") vapi_v_prog= 1;
             else if (item.assistantId =="f6f40ed6-4cd0-4203-8631-b492f3b9e8d0") vapi_v_prog= 2;
@@ -98,6 +100,9 @@ function generar_excel_llamadas(json){
 
         vapi_audio_duracion= Math.round(Number(item.costs?.[0]?.minutes??0)*60);
 
+        //analisar transcripcion----------
+        conversacion.reiniciar()
+        conversacion.procesar(vapi_msj_conten,vapi_audio_duracion,item.endedReason);
 
         //-------------------------------
         analisis = {
@@ -124,12 +129,12 @@ function generar_excel_llamadas(json){
         razon_finalizacion: item.endedReason,
         razon_finalizacion_español: inglesAEspanol(item.endedReason),
         'transportista':'',
-        'analisis_transcripcion': '',
+        'analisis_transcripcion': conversacion.analisis_transcripcion,
         'analisis_audio' : '',
 
         'conductor_confirma' : '',
-        'buzon_de_voz': '',
-        'conductor_contesta_pero_no_habla': '',
+        'buzon_de_voz': conversacion.buzon_de_voz,
+        'conductor_contesta_pero_no_habla': conversacion.conductor_contesta_pero_no_habla,
         'conductor_no_escucha': '',
         'conductor_da_motivos' : '',
         'conductor_mala_señal': '',
