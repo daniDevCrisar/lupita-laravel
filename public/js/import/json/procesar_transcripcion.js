@@ -129,7 +129,9 @@ class procesarTranscripcion{
             'NO PUEDE RESPONDER',
             'INTENTE MAS TARDE',
             'NO SE PUEDE COMPLETAR SU LLAMADA',
-            'EL NUMERO AL QUE LLAMA'
+            'EL NUMERO AL QUE LLAMA',
+            'NUMERO DE TELEFONO',
+            'NO ESTA DISPONIBLE',
         ];
 
         // Operadores
@@ -206,7 +208,7 @@ class procesarTranscripcion{
             'VAN A LLAMAR',
             'NO LLAMA',
             'QUE ME LLAME',
-            'ESPERANDO LA LLAMADA',
+            'LA LLAMADA',
         ];
 
         const espera_medias =[
@@ -218,6 +220,7 @@ class procesarTranscripcion{
             'EN LA ESPERA',
             'ACABO DE LLEGAR',
             'ESPERANDO PARA',
+            'MI TURNO',
         ];
 
         const descarga_medias =[
@@ -316,7 +319,7 @@ class procesarTranscripcion{
         ];
 
         const parcial=[
-            ' SI ','CORRECT','AFIRMA','CONFIRMA'
+            ' SI ','CORRECT','AFIRMA','CONFIRMA', 'ASI ES'
         ]
 
 

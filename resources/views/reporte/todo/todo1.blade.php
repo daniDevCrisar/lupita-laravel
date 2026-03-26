@@ -385,10 +385,15 @@
                 @endphp
                 <div class="d-flex align-items-center gap-3 mb-3">
                     <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
-                    <h3 class="h4 mb-0">Otros <span class="badge bg-primary bg-opacity-15 text-white ms-3">{{ $total }} fallos</span></h3>
+                    <h3 class="h4 mb-0">Otros
+                    @if($total>=0)
+                        <span class="badge bg-primary bg-opacity-15 text-white ms-3">{{ $total }} fallos</span></h3>
+                    @endif
                 </div>
 
-                <p><strong>{{  $fallo_otros_100 }}% de los fallos</strong>:</p>
+                @if($total>=0)
+                    <p><strong>{{  $fallo_otros_100 }}% de los fallos</strong>:</p>
+                @endif
                 <div class="ms-3">
                     <ul class="etiqueta list-unstyled">
                         <li><i class="bi bi-volume-mute me-2 text-danger"></i>
@@ -412,6 +417,7 @@
                         <li>otros motivos...</li>
 
                     </ul>
+                    <span class="small">* Una llamada puede tener 1 o multiples etiquetas.</span>
                 </div>
                 <hr>
                 <h6>📌 Algunos errores se deben a factores desconocido no especificados en las etiquetas</h6>
