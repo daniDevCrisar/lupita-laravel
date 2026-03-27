@@ -287,7 +287,8 @@ class procesarTranscripcion{
             'YA SALI',
             'AHORA SALGO',
             'AHORITA SALGO',
-            'DE SALIR'
+            'DE SALIR',
+            'EN RUTA'
         ]
 
         const refuerzo =[
@@ -310,6 +311,7 @@ class procesarTranscripcion{
             'ESTIBA',
             'DESPACHARON',
             'PRODUCTO',
+            'SISTEMA',
 
             'REGISTRE',
             'DEMORA',

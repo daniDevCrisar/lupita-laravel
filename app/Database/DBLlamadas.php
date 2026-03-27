@@ -44,7 +44,7 @@ class DBLlamadas {
         'conductor_no_contesta' => ['bi bi-telephone-x-fill text-danger','No contesta',0,-10,0],
         'conductor_conducta_inapropiada' => ['bi bi-person-x-fill text-danger','Conducta Inapropiada',0,-30,2],
 
-        'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada',0,0,0],
+        'error_tecnico_llamada' => ['bi bi-gear-fill text-danger','Error tecnico en llamada',0,0,3],
         'error_audio' => ['bi bi-volume-mute-fill text-danger','Error de audio',0,0,3],
         // no exito solo en llamadas fallidas exitosa=0 y confirmacion=0
         'confirmacion_parcial' => ['bi bi-check2-square text-info','Confirmacion parcial',0,5,0],

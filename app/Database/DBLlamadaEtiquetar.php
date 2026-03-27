@@ -1,6 +1,7 @@
 <?php
 namespace App\Database;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 class DBLlamadaEtiquetar
 {
     public static $etiquetas_icon_bi=[];
@@ -16,15 +17,28 @@ class DBLlamadaEtiquetar
         $sql="update llamadas set ";
         foreach (self::$etiquetas_icon_bi as $key => $item) {
             if($item[4]){
-                $campo_rq= "e_" . $key;
                 $sql.= $key . "= ? , ";
-                $data[] = self::$rq->$campo_rq;
+                $data[] = self::$rq->$key;
             }
         }
-        $sql=trim($sql,",");
-        $sql.=" where vapi_id=? ";
-        $data[]=self::$rq->vapi_id;
-        dd($sql);
+        if (self::$rq->exito === 'exito') $sql.= "error_origen=0, llamada_exitosa= 1 ";
+        else {
+            $sql.= "error_origen=? , llamada_exitosa= 0 ";
+            $data[] = self::$rq->exito;
+        }
+
+        $sql.=" where vapi_id=?";
+        $data[]=trim(self::$rq->vapi_id);
+        //dd($data,$sql);
+        $json = new stdClass();
+        $json->titulo='etiquetar';
+        $json->accion='guardar';
+        //$json->query=$sql;
+        $json->result=DB::update($sql,$data);
+
+        return $json;
+
+
     }
 
 }

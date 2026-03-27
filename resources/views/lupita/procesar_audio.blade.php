@@ -163,6 +163,7 @@
 
                     @foreach($llamadas::$lista as $row)
                         <input type="hidden" id="lista_{{$loop->index}}_id" value="{{ $row->vapi_id }}">
+                        <input type="hidden" id="lista_{{$loop->index}}_contesta" value="{{ $row->entro_llamada }}">
                         <input type="hidden" id="lista_{{$loop->index}}_conductor" value="{{ $row->conductor }}">
                         <input type="hidden" id="lista_{{$loop->index}}_telefono" value="{{ $row->telefono }}">
                         <input type="hidden" id="lista_{{$loop->index}}_ref" value="{{ $row->ref }}">
@@ -196,9 +197,6 @@
 
                             </td>
                             <td>{{ $llamadas::format_fecha($row->created_at) }}
-                                <button class="btn btn-outline-success" onclick="selLlamada({{$loop->index}})">
-                                    <i class="bi bi-play-fill me-1"></i> etit
-                                </button>
                             </td>
                             <td id="lista_{{$loop->index}}_tipol_html"><i class="{{ $llamadas::tipos_l($row->llamada_tipo_id,'icon') }}"></i>
                                 {{ $llamadas::tipos_l($row->llamada_tipo_id) }}</td>
@@ -227,17 +225,10 @@
                             <td>
                                 @if ($row->entro_llamada)
                                     Duracion: {{$row->audio_duracion}} seg
-                                    <button class="btn btn-outline-success" onclick="playAudio('{{ $row->audio_link }}','{{ $row->telefono }}','{{ $row->conductor }}' )">
-                                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                                    <button class="btn btn-outline-success"
+                                    onclick="selLlamada({{$loop->index}})">
+                                        <i class="bi bi-play-fill me-1"></i> Etiquetar
                                     </button>
-                                    <button class="btn btn-outline-info"
-                                            onclick="Livewire.dispatch('abrirMensaje',{
-                                telefono: '{{ $row->telefono }}',
-                                nombre: '{{ $row->conductor }}',
-                                vapi_id : '{{ $row->vapi_id }}'
-                                })">
-                                        <i class="bi bi-chat-dots-fill me-1"></i> Mensajes
-                                    </button><br>
                                 @endif
 
                                 <span class="text-danger" id="lista_{{$loop->index}}_analisis_t">{{ $row->analisis_transcripcion }}</span> <br>
@@ -256,9 +247,22 @@
             </div>
         </div>
 
-{{----------------------------ETIQUETADO--------------------------}}
-{{----------------------------ETIQUETADO--------------------------}}
+{{-- --------------------------ETIQUETADO------------------------ --}}
+
         <div class="col-6">
+            {{--    ALERTAS    --}}
+            <div class="col-12" id="div_alertas">
+                <div class="alert alert-secondary border border-success text-white d-none" id='alerta_exito'>
+                    <p id="alerta_exito_txt"></p>
+                    <i class="bi bi-check-circle"></i>
+                    Guardado con exito!
+                </div>
+                <div class="alert alert-danger text-white d-none" id='alerta_error'>
+                    <i class="bi bi-x-circle"></i>
+                    Error al procesar el archivo JSON.
+                </div>
+            </div>
+            {{-- --------------------------ETIQUETADO------------------------ --}}
             <div class="card mb-3 border-secondary col-12">
                 @csrf
 
@@ -292,7 +296,8 @@
                             <i class="bi bi-skip-backward-fill"></i>
                         </button>
 
-                        <button class="btn btn-outline-success btn-circular">
+                        <button class="btn btn-outline-success btn-circular"
+                        onclick="abrirMensajes()">
                             <i class="bi bi-chat-fill"></i>
                         </button>
 
@@ -300,6 +305,7 @@
                             <i class="bi bi-skip-forward-fill"></i>
                         </button>
 
+                        {{--   GUARDAR    --}}
                         <button class="btn btn-outline-light btn-circular" id="btn_guardar" onclick="guardar_etiqueta()">
                             <i class="bi bi-floppy-fill"></i>
                         </button>
@@ -382,8 +388,6 @@
                         </div>
                     </div>
 
-                    <p id='audio_texto'>
-                    </p>
                 </div>
             </div>
         </div>
@@ -422,6 +426,9 @@
     @livewireScripts
     <script>
         let orden_lista,vapi_id;
+
+        const card_id_html=document.getElementById('card_id_html');
+        const card_conductor_html=document.getElementById('card_conductor_html');
 
         function etiquetaClick(id){
             const btn = document.getElementById(id);
@@ -488,8 +495,6 @@
         }
 
         function selLlamada(orden){
-            const card_id_html=document.getElementById('card_id_html');
-            const card_conductor_html=document.getElementById('card_conductor_html');
             const card_ref_html=document.getElementById('card_ref_html');
             const card_tipol_html=document.getElementById('card_tipol_html');
             const card_audio_duracion=document.getElementById('card_audio_duracion');
@@ -521,11 +526,16 @@
             checkedRadio_exito(llamada_exitosa,error_origen);
 
             orden_lista=orden;
-            vapi_id= document.getElementById('lista_' + orden+'_id').value;
+            vapi_id= document.getElementById('lista_' + orden+'_id').value.trim();
+            playAudio()
         }
 
         function guardar_etiqueta(){
             const formData = new FormData();
+            const guardando = document.getElementById('overlayGuardando');
+            let json_result;
+            let alerta_exito = document.getElementById('alerta_exito');
+            let alerta_error = document.getElementById('alerta_error');
 
             formData.append('exito',
                 document.querySelector('input[name="e_exitosa"]:checked')?.value);
@@ -535,28 +545,62 @@
                 // eliminar el e_ en el id del botoon psaa dejar el nombre de etiqueta
                 formData.append(el.id.substring(2),valor)
             });
+            formData.append('vapi_id',vapi_id);
+            formData.append('analisis_audio',document.getElementById('txt_audio').value);
 
+            guardando.classList.remove('d-none');
             fetch('{{ route('lupita.audio.guardar') }}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    //'Accept': 'application/json'
                 },
                 body: formData
+            }).then(res => res.json()) // 🔥 conviertes a JSON
+            .then(data => {
+                    json_result = data; // ✅ ahora sí es el JSON real
+            }).catch(err => {
+                guardando.classList.add('d-none');
+                alerta_exito.classList.add('d-none');
+                alerta_error.classList.remove('d-none');
+                setTimeout(() => {
+                    alerta_error.classList.add('d-none');
+                }, 10000);
+            }).finally(() => {
+                guardando.classList.add('d-none');
+                alerta_exito.classList.remove('d-none');
+                alerta_error.classList.add('d-none');
+                document.getElementById('alerta_exito_txt').innerHTML=
+                    card_id_html.innerHTML + '<br>' +
+                    card_conductor_html.innerHTML;
+
+                setTimeout(() => {
+                    alerta_exito.classList.add('d-none');
+                }, 10000);
+                console.log(json_result)
             });
         }
 
+        function abrirMensajes(){
+            let parametros={
+                telefono: document.getElementById('lista_' + orden_lista+'_telefono').value,
+                nombre: document.getElementById('lista_' + orden_lista +'_conductor').value,
+                'vapi_id' : vapi_id
+            }
 
-        function playAudio(url,tlf,nombres) {
+            Livewire.dispatch('abrirMensaje',parametros);
+        }
+
+
+        function playAudio() {
+            let url=document.getElementById('lista_' + orden_lista+'_audio').value;
+            if (!url) return false;
             const audio = document.getElementById('mainAudio');
-            const audio_texto= document.getElementById('audio_texto');
             if (!audio.paused) {
                 audio.pause();
             }
             audio.src = url.toLowerCase();
             audio.play().catch(() => {});
-            audio_texto.innerHTML = `
-            <i class="bi bi-telephone"></i> ${tlf} <i class="bi bi-person"></i> ${nombres}
-            `;
         }
     </script>
 @endsection

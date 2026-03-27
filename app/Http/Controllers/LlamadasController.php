@@ -138,7 +138,8 @@ class LlamadasController extends Controller
 
     public static function guardar_etiquetas(Request $request){
         $etiquetar= new DBLlamadaEtiquetar(DBLlamadas::$etiquetas_icon_bi,$request);
-        $etiquetar::etiquetar();
+        $response=$etiquetar::etiquetar();
+        return response()->json($response);
     }
 
 }
