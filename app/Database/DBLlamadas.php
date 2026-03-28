@@ -50,6 +50,18 @@ class DBLlamadas {
         'confirmacion_parcial' => ['bi bi-check2-square text-info','Confirmacion parcial',0,5,0],
         'conductor_ocupado' => ['bi bi-hourglass text-warning','Conductor Ocupado',0,-5,0],
     ];
+
+    public static $iconos_exito=[
+        'exito'=>'bi bi-check-lg text-success',
+        -1=> 'bi bi-question-circle text-danger',
+        0=> 'bi bi-person-slash text-danger',
+        1=> 'bi bi-robot text-danger',
+        2=> 'bi bi-wifi text-danger',
+        3=> 'bi bi-gear text-danger',
+    ];
+
+
+
     public static $filtro;
 
     public function __construct() {
@@ -196,16 +208,9 @@ class DBLlamadas {
     }
 
     public static function icon_exito($item , $solo_icon=false){
-        $exito='bi bi-check-lg text-success';
-        $iconos=[
-            -1=> 'bi bi-question-circle text-danger',
-            0=> 'bi bi-person-slash text-danger',
-            1=> 'bi bi-robot text-danger',
-            2=> 'bi bi-wifi text-danger',
-            3=> 'bi bi-gear text-danger',
-        ];
+        $iconos=self::$iconos_exito;
         if ($solo_icon) return $iconos[$item];
-        if ($item->llamada_exitosa) return $exito;
+        if ($item->llamada_exitosa) return $iconos['exito'];
 
         return $iconos[$item->error_origen];
     }

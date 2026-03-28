@@ -304,6 +304,7 @@ class procesarTranscripcion{
             'BALANZA',
             'AMARRARON',
             'MONTACARGA',
+            'PATO',
 
             'DOCUMENTO',
             'GUIA',
@@ -315,6 +316,7 @@ class procesarTranscripcion{
 
             'REGISTRE',
             'DEMORA',
+            'MUY LENTO',
 
             'ESTOY ADENTRO',
             'NO SALGO'

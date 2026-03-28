@@ -235,7 +235,15 @@
                                 <span class="text-success" id="lista_{{$loop->index}}_analisis_a">{{ $row->analisis_audio }}</span>
                             </td>
                             <td>
+                                <span id="icon_exitosa_html">
                                 <i class="{{ $llamadas::icon_exito($row) }} fs-3"></i>
+                                </span>
+                                @foreach($llamadas::$iconos_exito as $key => $item)
+                                    <span id="icon_exitosa_{{ $key }}" class="d-none">
+                                        <i class="{{ $item }} fs-3"></i></span>
+                                @endforeach
+
+
                             </td>
                         </tr>
                     @endforeach
@@ -259,7 +267,7 @@
                 </div>
                 <div class="alert alert-danger text-white d-none" id='alerta_error'>
                     <i class="bi bi-x-circle"></i>
-                    Error al procesar el archivo JSON.
+                    Error al guardar.
                 </div>
             </div>
             {{-- --------------------------ETIQUETADO------------------------ --}}
@@ -272,19 +280,16 @@
                     </h5>
 
                     <span style="font-size: 0.8em;" id="card_id_html">
-                    <i class="bi bi-telephone-outbound text-success"></i> 019CE03C-DFA1-7BBD-90DB-39A91224DDF3
-                    <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
+                    Selecciona...
                     </span>
 
                 </div>
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item small" id="card_conductor_html"><i class="bi bi-telephone"></i> 51936924257 <i class="bi bi-person"></i> JESUS NARRO</li>
-                    <li class="list-group-item small"
-                    id="card_ref_html">Ref: 967103
-                        <i class="bi bi-airplane"></i> HUARAL-CHINCHA
-                        <i class="bi bi-card-text"></i> T3P946
+                    <li class="list-group-item small" id="card_conductor_html">
                     </li>
-                    <li class="list-group-item small" id="card_tipol_html"><i class="bi-building"></i>Dentro de planta</li>
+                    <li class="list-group-item small" id="card_ref_html">
+                    </li>
+                    <li class="list-group-item small" id="card_tipol_html"></li>
                 </ul>
                 <div class="card-body">
                     <audio id="mainAudio" controls class="w-100">
@@ -317,10 +322,10 @@
                     </div>
                 </div>
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item small">Duracion: <span class="fw-bold text-info" id="card_audio_duracion">audio_duracion_format</span></li>
-                    <li class="list-group-item text-info small" id="card_razon_f">IA-FINALIZA-LLAMADA</li>
+                    <li class="list-group-item small">Duracion: <span class="fw-bold text-info" id="card_audio_duracion"></span></li>
+                    <li class="list-group-item text-info small" id="card_razon_f"></li>
                     <li class="list-group-item small">
-                        Analisis de transcripcion: <span class="text-danger" id="card_analisis_t">BUZON</span>
+                        Analisis de transcripcion: <span class="text-danger" id="card_analisis_t"></span>
                     </li>
                 </ul>
 
@@ -328,7 +333,7 @@
                     <div class="row">
                         <div class="input-group col-12">
                             <input class="form-control bg-secondary text-success" type="text" placeholder="Analisis de audio" value=""
-                                   name="txt_audio" id="txt_audio" list="audio_list">
+                                   name="txt_audio" id="txt_audio" list="audio_list" onchange="modifico=true">
                             <datalist id="audio_list">
                                 <option value="Manzana">
                                 <option value="Banana">
@@ -339,7 +344,8 @@
                             <button class="btn btn-primary" type="button" id="button-addon2"><i class="bi bi-floppy"></i></button>
                         </div>
                         <div class="btn-group col-12 pb-2" role="group">
-                            <input type="radio" class="btn-check" name="e_exitosa" id="e_rd_ex_0" value="exito">
+                            <input type="radio" class="btn-check" name="e_exitosa" id="e_rd_ex_0" value="exito"
+                            onchange="modifico=true">
                             <label class="btn btn-outline-primary" for="e_rd_ex_0">
                                 <i class="bi bi-check-lg text-success"></i></label>
                             @foreach($llamadas::$error_origen as $item)
@@ -347,7 +353,7 @@
                                        class="btn-check"
                                        name="e_exitosa"
                                        id="e_rd_ex_{{ $loop->index + 1 }}"
-                                       value="{{ $item->id }}">
+                                       value="{{ $item->id }}" onchange="modifico=true">
                                 <label class="btn btn-outline-primary"
                                        for="e_rd_ex_{{ $loop->index +1}}">
                                     <i class="{{ $llamadas::icon_exito($item->id, true) }}"></i>
@@ -425,7 +431,7 @@
 
     @livewireScripts
     <script>
-        let orden_lista,vapi_id;
+        let orden_lista,vapi_id='',modifico=false;
 
         const card_id_html=document.getElementById('card_id_html');
         const card_conductor_html=document.getElementById('card_conductor_html');
@@ -434,6 +440,7 @@
             const btn = document.getElementById(id);
             btn.classList.toggle("bg-activo");
             btn.classList.toggle("bg-primary");
+            modifico=true;
         }
 
         function checkedRadio_exito(exito,error_origen){
@@ -505,6 +512,7 @@
             const error_origen = document.getElementById('lista_' + orden+'_error_origen').value;
             const llamada_exitosa = document.getElementById('lista_' + orden+'_llamada_exitosa').value;
 
+            //lenar los datos
             let conten='';
             card_id_html.innerHTML=document.getElementById('lista_' + orden+'_id_html').innerHTML;
             card_conductor_html.innerHTML= document.getElementById('lista_' + orden+'_telefono_html').innerHTML + document.getElementById('lista_' + orden+'_conductor_html').innerHTML;
@@ -528,14 +536,18 @@
             orden_lista=orden;
             vapi_id= document.getElementById('lista_' + orden+'_id').value.trim();
             playAudio()
+            modifico=false;
         }
 
         function guardar_etiqueta(){
+            if(vapi_id==='' || !modifico) return false;
+            let guardo=false;
+
             const formData = new FormData();
             const guardando = document.getElementById('overlayGuardando');
             let json_result;
-            let alerta_exito = document.getElementById('alerta_exito');
-            let alerta_error = document.getElementById('alerta_error');
+            const alerta_exito = document.getElementById('alerta_exito');
+            const alerta_error = document.getElementById('alerta_error');
 
             formData.append('exito',
                 document.querySelector('input[name="e_exitosa"]:checked')?.value);
@@ -560,26 +572,32 @@
             .then(data => {
                     json_result = data; // ✅ ahora sí es el JSON real
             }).catch(err => {
-                guardando.classList.add('d-none');
-                alerta_exito.classList.add('d-none');
-                alerta_error.classList.remove('d-none');
-                setTimeout(() => {
-                    alerta_error.classList.add('d-none');
-                }, 10000);
+                mostrarAlertas(alerta_error,alerta_exito,guardando);
+                return false;
             }).finally(() => {
-                guardando.classList.add('d-none');
-                alerta_exito.classList.remove('d-none');
-                alerta_error.classList.add('d-none');
-                document.getElementById('alerta_exito_txt').innerHTML=
-                    card_id_html.innerHTML + '<br>' +
-                    card_conductor_html.innerHTML;
-
-                setTimeout(() => {
-                    alerta_exito.classList.add('d-none');
-                }, 10000);
-                console.log(json_result)
+                mostrarAlertas(alerta_exito,alerta_error,guardando);
+                if (json_result.accion==='guardar'){
+                    document.getElementById('alerta_exito_txt').innerHTML=
+                        card_id_html.innerHTML + '<br>' +
+                        card_conductor_html.innerHTML;
+                    guardo=true;
+                    console.log(json_result);
+                    modifico=false;
+                }
+                else mostrarAlertas(alerta_error,alerta_exito,guardando);
+                return guardo;
             });
         }
+
+        function mostrarAlertas(mostrar,ocultar,guardando){
+            guardando.classList.add('d-none');
+            ocultar.classList.add('d-none');
+            mostrar.classList.remove('d-none');
+            setTimeout(() => {
+                mostrar.classList.add('d-none');
+            }, 10000);
+        }
+
 
         function abrirMensajes(){
             let parametros={
