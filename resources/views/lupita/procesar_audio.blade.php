@@ -144,11 +144,12 @@
 
         <div class="col-12">{{ $llamadas::$lista->links() }}</div>
 
-        <div class="col-6">
+        <div class="col-12  col-lg-6">
             <div class="table-responsive" style="max-height: 800px; overflow-y: auto;">
                 <table class="table table-bordered table-hover table-sm table-dark">
                     <thead class="table-primary" style="position: sticky;top: 0;z-index: 2;">
                     <tr>
+                        <th>#</th>
                         <th>Id</th>
                         <th>Fecha</th>
                         <th>Tipo</th>
@@ -162,6 +163,11 @@
 
 
                     @foreach($llamadas::$lista as $row)
+                        @php
+                            //listar llamadas para ayudar al etiquetado
+                            $fila_inicial= ($llamadas::$lista->perPage() * ($llamadas::$lista->currentPage()-1) ) ;
+                        @endphp
+
                         <input type="hidden" id="lista_{{$loop->index}}_id" value="{{ $row->vapi_id }}">
                         <input type="hidden" id="lista_{{$loop->index}}_contesta" value="{{ $row->entro_llamada }}">
                         <input type="hidden" id="lista_{{$loop->index}}_conductor" value="{{ $row->conductor }}">
@@ -185,9 +191,10 @@
                             @endif
                         @endforeach
 
-                        <tr class="{{ $loop->odd ? 'table-secondary' : '' }} small">
+                        <tr class="{{ $loop->odd ? 'table-secondary' : '' }} small" id="lista_{{$loop->index}}_tr">
+                            <td id="lista_{{$loop->index}}_orden">{{ $fila_inicial+$loop->index+1 }}</td>
                             <td>
-                                <span style="font-size: 0.8em;" id="lista_{{$loop->index}}_id_html">
+                                <span id="lista_{{$loop->index}}_id_html">
                                 <i class="bi bi-telephone-outbound {{ $row->entro_llamada ? 'text-success': '' }}"></i>
                                     {{ $row->vapi_id }}
                                 @if ($row->exitosa_segun_ia)
@@ -235,15 +242,9 @@
                                 <span class="text-success" id="lista_{{$loop->index}}_analisis_a">{{ $row->analisis_audio }}</span>
                             </td>
                             <td>
-                                <span id="icon_exitosa_html">
+                                <span id="lista_{{ $loop->index }}_icon_exitosa_html">
                                 <i class="{{ $llamadas::icon_exito($row) }} fs-3"></i>
                                 </span>
-                                @foreach($llamadas::$iconos_exito as $key => $item)
-                                    <span id="icon_exitosa_{{ $key }}" class="d-none">
-                                        <i class="{{ $item }} fs-3"></i></span>
-                                @endforeach
-
-
                             </td>
                         </tr>
                     @endforeach
@@ -257,7 +258,7 @@
 
 {{-- --------------------------ETIQUETADO------------------------ --}}
 
-        <div class="col-6">
+        <div class="col-12 col-lg-6">
             {{--    ALERTAS    --}}
             <div class="col-12" id="div_alertas">
                 <div class="alert alert-secondary border border-success text-white d-none" id='alerta_exito'>
@@ -270,19 +271,25 @@
                     Error al guardar.
                 </div>
             </div>
+            {{--  icon_exito  --}}
+            @foreach($llamadas::$iconos_exito as $key => $item)
+                <span id="icon_exitosa_{{ $key }}" class="d-none"><i class="{{ $item }} fs-3"></i></span>
+            @endforeach
             {{-- --------------------------ETIQUETADO------------------------ --}}
             <div class="card mb-3 border-secondary col-12">
                 @csrf
 
-                <div class="card-header bg-primary">
-                    <h5>
-                        <i class="bi bi-play-circle me-2"></i>Llamada
-                    </h5>
-
-                    <span style="font-size: 0.8em;" id="card_id_html">
-                    Selecciona...
-                    </span>
-
+                <div class="card-header bg-primary d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5>
+                            <i class="bi bi-play-circle me-2"></i>Llamada
+                        </h5>
+                        <span style="font-size: 0.8em;" id="card_id_html">Selecciona...
+                        </span>
+                    </div>
+                    <div>
+                        <h5 id="card_numero"></h5>
+                    </div>
                 </div>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item small" id="card_conductor_html">
@@ -297,7 +304,8 @@
                         Tu navegador no soporta audio.
                     </audio>
                     <div class="d-flex justify-content-center align-items-center gap-3" style="height:40px;">
-                        <button class="btn btn-outline-info btn-circular">
+                        <button class="btn btn-outline-info btn-circular"
+                        onclick="cambiarFila(-1)">
                             <i class="bi bi-skip-backward-fill"></i>
                         </button>
 
@@ -306,7 +314,8 @@
                             <i class="bi bi-chat-fill"></i>
                         </button>
 
-                        <button class="btn btn-outline-info btn-circular">
+                        <button class="btn btn-outline-info btn-circular"
+                        onclick="cambiarFila(1)">
                             <i class="bi bi-skip-forward-fill"></i>
                         </button>
 
@@ -425,18 +434,34 @@
             justify-content:center;
             font-size:22px;
         }
+
+        .tr-primary {
+            background-color: var(--bs-primary) !important;
+        }
+        .tr-primary > td {
+            background-color: var(--bs-primary) !important;
+        }
     </style>
 @endsection
 @section('scripts')
 
     @livewireScripts
     <script>
-        let orden_lista,vapi_id='',modifico=false;
+        let orden_lista,vapi_id='',modifico=false ;
+
+        let total_filas={{$llamadas::$lista->count()}}; //filas en esta pagina
+        let total={{$llamadas::$lista->total()}}; //filas en el query
+        let total_por_pagina={{$llamadas::$lista->perPage()}};
+        let pagina_actual={{$llamadas::$lista->currentPage()}};
+        let paginas_total={{$llamadas::$lista->lastPage()}}; //total de paginas
+
 
         const card_id_html=document.getElementById('card_id_html');
         const card_conductor_html=document.getElementById('card_conductor_html');
+        const txt_audio=document.getElementById('txt_audio');
 
         function etiquetaClick(id){
+            if (!vapi_id) return false;
             const btn = document.getElementById(id);
             btn.classList.toggle("bg-activo");
             btn.classList.toggle("bg-primary");
@@ -501,20 +526,22 @@
             }
         }
 
+        let anterior_fila=-1;
         function selLlamada(orden){
+            const error_origen = document.getElementById('lista_' + orden+'_error_origen').value;
+            const llamada_exitosa = document.getElementById('lista_' + orden+'_llamada_exitosa').value;
+
             const card_ref_html=document.getElementById('card_ref_html');
             const card_tipol_html=document.getElementById('card_tipol_html');
             const card_audio_duracion=document.getElementById('card_audio_duracion');
             const card_razon_f=document.getElementById('card_razon_f');
             const card_analisis_t=document.getElementById('card_analisis_t');
-            const txt_audio=document.getElementById('txt_audio');
-
-            const error_origen = document.getElementById('lista_' + orden+'_error_origen').value;
-            const llamada_exitosa = document.getElementById('lista_' + orden+'_llamada_exitosa').value;
+            const card_numero=document.getElementById('card_numero');
 
             //lenar los datos
             let conten='';
             card_id_html.innerHTML=document.getElementById('lista_' + orden+'_id_html').innerHTML;
+            card_numero.innerHTML='#'+document.getElementById('lista_' + orden+'_orden').innerHTML;
             card_conductor_html.innerHTML= document.getElementById('lista_' + orden+'_telefono_html').innerHTML + document.getElementById('lista_' + orden+'_conductor_html').innerHTML;
 
             conten=document.getElementById('lista_' + orden+'_ref_html').innerHTML;
@@ -537,6 +564,12 @@
             vapi_id= document.getElementById('lista_' + orden+'_id').value.trim();
             playAudio()
             modifico=false;
+
+            document.getElementById('lista_' + orden + '_tr').classList.add('tr-primary');
+            if (anterior_fila>=0){
+                document.getElementById('lista_' + anterior_fila + '_tr').classList.remove('tr-primary')
+            }
+            anterior_fila=orden;
         }
 
         function guardar_etiqueta(){
@@ -568,9 +601,9 @@
                     //'Accept': 'application/json'
                 },
                 body: formData
-            }).then(res => res.json()) // 🔥 conviertes a JSON
+            }).then(res => res.json()) // paso 1 JSON
             .then(data => {
-                    json_result = data; // ✅ ahora sí es el JSON real
+                    json_result = data; //  paso 2 JSON
             }).catch(err => {
                 mostrarAlertas(alerta_error,alerta_exito,guardando);
                 return false;
@@ -583,10 +616,78 @@
                     guardo=true;
                     console.log(json_result);
                     modifico=false;
+                    actualizarFila()
+                    if (esperar_guardado){
+                        esperar_guardado=false;
+                        cambiarFila(ultima_direccion);
+                    }
                 }
                 else mostrarAlertas(alerta_error,alerta_exito,guardando);
                 return guardo;
             });
+        }
+
+        let ultima_direccion= 0;//guardar ultima direccion para llamarla en el fetch
+        let esperar_guardado=false;
+        function cambiarFila(direccion){
+            if (vapi_id==='' || esperar_guardado) return false;
+            //guardar si hay error no cambiar
+            if (modifico){
+                guardar_etiqueta()
+                esperar_guardado=true
+                ultima_direccion=direccion;
+                return false;
+            }
+            //------------------
+            let suma= orden_lista+direccion;
+            if (suma <0 || suma > (total_filas-1) ) return false;
+
+            suma=0;
+            let count=0,ultimo=false;
+            let e_buzon, e_contesta,prenombre;
+            do{
+                count+=direccion;
+                suma= orden_lista+count;
+
+                if(suma<0 || suma > (total_filas-1) ) {
+                    ultimo=true
+                    suma-=direccion;
+                    break;
+                }
+
+                prenombre='lista_'+suma+'_';
+                e_buzon= document.getElementById(prenombre+ 'e_buzon_de_voz').value;
+                e_contesta = document.getElementById(prenombre+'contesta').value;
+
+            } while ( Number (e_buzon) || !Number(e_contesta)  );
+
+
+            if (ultimo) alert('Sin mas llamadas ir a la siguiente pagina')
+            else
+                selLlamada(suma);
+            ultima_direccion=0;
+        }
+
+        function actualizarFila(){
+            document.querySelectorAll('button[id^="e_"]').forEach(el => {
+                let valor=0;
+                if (el.classList.contains("bg-activo")) valor=1
+                //pasar nuevos valores de etiqueta a la fila
+                document.getElementById('lista_'+orden_lista+'_'+ el.id).value= valor
+            });
+            document.getElementById('lista_' + orden_lista+'_analisis_a').innerHTML=txt_audio.value;
+
+            const error_origen =document.querySelector('input[name="e_exitosa"]:checked').value;
+
+            if (error_origen==='exito')
+                document.getElementById('lista_' + orden_lista+'_llamada_exitosa').value=1;
+            else{
+                document.getElementById('lista_' + orden_lista +'_llamada_exitosa').value=0;
+                document.getElementById('lista_' + orden_lista +'_error_origen').value=error_origen;
+            }
+
+            document.getElementById('lista_' + orden_lista +'_icon_exitosa_html').innerHTML=
+                document.getElementById('icon_exitosa_'+ error_origen).innerHTML
         }
 
         function mostrarAlertas(mostrar,ocultar,guardando){
@@ -600,12 +701,12 @@
 
 
         function abrirMensajes(){
+            if(vapi_id==='') return false;
             let parametros={
                 telefono: document.getElementById('lista_' + orden_lista+'_telefono').value,
                 nombre: document.getElementById('lista_' + orden_lista +'_conductor').value,
                 'vapi_id' : vapi_id
             }
-
             Livewire.dispatch('abrirMensaje',parametros);
         }
 
