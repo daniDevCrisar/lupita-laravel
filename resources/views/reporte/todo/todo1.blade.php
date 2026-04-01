@@ -2,8 +2,11 @@
 <html lang="es">
 <head>
     @php
-        if (request('fecha_inicio') and request('fecha_fin'))
+        if (request('fecha_inicio') and request('fecha_fin')){
             $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')  . ' hasta ' . $llamadas->format_fecha(request('fecha_fin'),'d/m/Y');
+            $dias_total= count($reporte->mapa_calor);
+        }
+
         else
             $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y');
     @endphp
@@ -151,112 +154,7 @@
 
     @if($reporte->total->llamada_exitosa)
 
-        @if($reporte->mapa_calor??false)
-                <script>
-                    let pos_mapa=0;
-                    function alternar_mapa(){
-                        pos_mapa++;
-                        mapa_num=pos_mapa%3;
 
-                        document.querySelectorAll("[data-m='"+ mapa_num  + "']").forEach(td=>{
-                            td.classList.remove('d-none')
-                        });
-                        document.querySelectorAll("[data-m='"+ ((pos_mapa-1) %3 )  + "']").forEach(td=>{
-                            td.classList.add('d-none')
-                        });
-                    }
-                </script>
-
-                <div class="mb-1">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="display-5"><i class="bi bi-fire text-danger"></i></span>
-                        <h1 class="display-6 fw-semibold" style="color: #12263a;">Mapa de calor</h1>
-                    </div>
-                    <p class="lead ps-5 text-secondary">Análisis de llamadas totales , exitosas y fallidas</p>
-
-                </div>
-                <div class="col-12">
-                    <div class="alert alert-info mt-4">
-                        <i class="fas fa-lightbulb"></i>
-                        <strong>Resumen:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>🔥 <strong>Horario de mayor actividad:</strong> Martes y Jueves entre 10:00 - 12:00 (pico de 85 llamadas)</li>
-                            <li>📉 <strong>Baja actividad:</strong> Domingos por la mañana y después de las 18:00 hrs</li>
-                            <li>📊 <strong>Tasa de éxito más alta:</strong> Miércoles 10:00-11:00 (78% de éxito)</li>
-                            <li>🎯 <strong>Recomendación:</strong> Enfocar llamadas en horarios de alta actividad para maximizar conversiones</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="col-12">
-                    <div class="table-responsive">
-                        <table class="table table-bordered text-center" style="min-width: 800px;">
-
-                            <thead>
-
-                            <tr class="small">
-                                <th><button class="btn btn-success" onclick="alternar_mapa()">
-                                        <i class="bi bi-arrow-repeat me-1"></i>
-                                    </button></th>
-                                <th class="table-secondary">R <br>E</th>
-                                @foreach($reporte->mapa_calor as $item)
-                                    <th>{{ $item->fecha_text }}</th>
-                                @endforeach
-
-                            </tr></thead>
-                            <tbody id="mapa_calor">
-
-                            @for($i = 0; $i< 24;$i++)
-                                <tr class="small"><td ><strong>{{$i}}</strong></td>
-
-                                    @php
-                                        $item= $reporte->mapa_calor_resumen->rows[$i];
-                                        $total_h=$item['total'];
-                                        $total_e=$item['exito'];
-                                        $total_f=$item['fallo'];
-                                        $clase= $llamadas::mapa_calor_color_bootstrap($total_h,$reporte->mapa_calor_resumen->max_total,true);
-                                        $clase_e= $llamadas::mapa_calor_color_bootstrap($total_e,$reporte->mapa_calor_resumen->max_exito,true);
-                                        $clase_f= $llamadas::mapa_calor_color_bootstrap($total_f,$reporte->mapa_calor_resumen->max_fallo,true);
-                                    @endphp
-                                    <td class="heatmap-cell bg-primary {{$clase}}" data-m="0">
-                                        {{$total_h}}</td>
-                                    <td class="heatmap-cell bg-success {{$clase_e}} d-none" data-m="1">
-                                        {{$total_e}}</td>
-                                    <td class="heatmap-cell bg-danger {{$clase_f}} d-none" data-m="2">
-                                        {{$total_f}}</td>
-
-                                    @for($j=0; $j<count($reporte->mapa_calor); $j++)
-                                        @php
-                                            $key_exito= 'hora_'. $i . '_exito';
-                                            $key_fallo= 'hora_'. $i . '_fallo';
-                                            $key_total= 'hora_'. $i;
-                                            $total_h=$reporte->mapa_calor[$j]->$key_total;
-                                            $total_e=$reporte->mapa_calor[$j]->$key_exito;
-                                            $total_f=$reporte->mapa_calor[$j]->$key_fallo;
-
-                                            $clase= $llamadas::mapa_calor_color_bootstrap($total_h,$reporte->mapa_calor_max['total'],true);
-                                            $clase_e= $llamadas::mapa_calor_color_bootstrap($total_e,$reporte->mapa_calor_max['exito'],true);
-                                            $clase_f= $llamadas::mapa_calor_color_bootstrap($total_f,$reporte->mapa_calor_max['fallo'],true);
-
-                                        @endphp
-                                        <td class="heatmap-cell bg-primary {{$clase}}" data-m="0">
-                                            {{$total_h}}
-                                        </td>
-                                        <td class="heatmap-cell bg-success {{$clase_e}} d-none" data-m="1">
-                                            {{$total_e}}
-                                        </td>
-                                        <td class="heatmap-cell bg-danger {{$clase_f}} d-none" data-m="2">
-                                            {{$total_f}}
-                                        </td>
-                                    @endfor
-                                </tr>
-                            @endfor
-
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            @endif
 
 
             <div class="col-12">
@@ -396,7 +294,7 @@
         @endif
     </div>
 
-{{--    canas de grafico   --}}
+{{--    canvas de grafico   --}}
     <div class="col-12 card p-4 report-card border-2 mb-4">
         <div class="card-header bg-white border-0">
             <h4 class="h5 fw-bold"><i class="fa-solid fa-chart-line"></i> Progreso de exito en llamadas</h4>
@@ -405,6 +303,141 @@
             <canvas id="canvas_semana"></canvas>
         </div>
     </div>
+
+        @if($reporte->mapa_calor??false)
+            <script>
+                let pos_mapa=0;
+                function alternar_mapa(){
+                    pos_mapa++;
+                    mapa_num=pos_mapa%3;
+
+                    document.querySelectorAll("[data-m='"+ mapa_num  + "']").forEach(td=>{
+                        td.classList.remove('d-none')
+                    });
+                    document.querySelectorAll("[data-m='"+ ((pos_mapa-1) %3 )  + "']").forEach(td=>{
+                        td.classList.add('d-none')
+                    });
+                }
+            </script>
+
+            <div class="mb-1">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="display-5"><i class="bi bi-fire text-danger"></i></span>
+                    <h1 class="display-6 fw-semibold" style="color: #12263a;">Mapa de calor</h1>
+                </div>
+                <p class="lead ps-5 text-secondary">Análisis de llamadas totales , exitosas y fallidas</p>
+            </div>
+
+            @php
+                //resumenes
+                $horario=$llamadas::analizar_horarios($reporte->mapa_calor_resumen->rows,'total');
+                $horario_tasa=$llamadas::analizar_horarios($reporte->mapa_calor_resumen->rows,'porcentaje');
+                $horario_exito=$llamadas::analizar_horarios($reporte->mapa_calor_resumen->rows,'exito');
+
+                $horario_mejor= $horario['mejor'];
+                $horario_peor= $horario['peor'];
+
+                $horario_exito_mejor= $horario_exito['mejor'];
+                $horario_exito_peor= $horario_exito['peor'];
+
+                $horario_tasa_peor=$horario_tasa['peor'];
+                $horario_tasa_mejor=$horario_tasa['mejor'];
+
+            @endphp
+
+            <div class="col-12">
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-lightbulb"></i>
+                    <strong>Resumen:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>🔥 <strong>Mayor actividad:</strong> entre
+                            {{ $horario_mejor['rango'] }} hrs ({{ round($horario_mejor['total'] / $dias_total) }} llamadas promedio)
+                        </li>
+                        <li>📉 <strong>Baja actividad:</strong>
+                            entre
+                            {{ $horario_peor['rango'] }} hrs ({{ round($horario_peor['total'] / $dias_total) }} llamadas promedio)
+                        </li>
+                        <li>📈 <strong>Mayor exito por cantidad:</strong>
+                            {{ $horario_exito_mejor['rango'] }} hrs (<b class="text-success">{{ round($horario_exito_mejor['total'] / $dias_total) }}</b> llamadas exitosas promedio)
+                        </li>
+
+                        <li>📊 <strong>Tasa de éxito:</strong>
+                            mas alta {{ $horario_tasa_mejor['rango'] }} hrs (<b class="text-success">{{ round($horario_tasa_mejor['total'] / 4) }}%</b>) y
+                            mas baja {{ $horario_tasa_peor['rango'] }} hrs (<b class="text-danger">{{ round($horario_tasa_peor['total'] / 4) }}%</b>)
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="table-responsive">
+                    <table class="table table-bordered text-center" style="min-width: 800px;">
+
+                        <thead>
+
+                        <tr class="small">
+                            <th><button class="btn btn-secondary" onclick="alternar_mapa()">
+                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                </button></th>
+                            <th class="table-secondary">R <br>E</th>
+                            @foreach($reporte->mapa_calor as $item)
+                                <th>{{ $item->fecha_text }}</th>
+                            @endforeach
+
+                        </tr></thead>
+                        <tbody id="mapa_calor">
+
+                        @for($i = 0; $i< 24;$i++)
+                            <tr class="small"><td ><strong>{{$i}}</strong></td>
+
+                                @php
+                                    $item= $reporte->mapa_calor_resumen->rows[$i];
+                                    $total_h=$item['total'];
+                                    $total_e=$item['exito'];
+                                    $total_f=$item['fallo'];
+                                    $clase= $llamadas::mapa_calor_color_bootstrap($total_h,$reporte->mapa_calor_resumen->max_total,true);
+                                    $clase_e= $llamadas::mapa_calor_color_bootstrap($total_e,$reporte->mapa_calor_resumen->max_exito,true);
+                                    $clase_f= $llamadas::mapa_calor_color_bootstrap($total_f,$reporte->mapa_calor_resumen->max_fallo,true);
+                                @endphp
+                                <td class="heatmap-cell bg-primary {{$clase}}" data-m="0">
+                                    {{$total_h}}</td>
+                                <td class="heatmap-cell bg-success {{$clase_e}} d-none" data-m="1">
+                                    {{$total_e}}</td>
+                                <td class="heatmap-cell bg-danger {{$clase_f}} d-none" data-m="2">
+                                    {{$total_f}}</td>
+
+                                @for($j=0; $j<count($reporte->mapa_calor); $j++)
+                                    @php
+                                        $key_exito= 'hora_'. $i . '_exito';
+                                        $key_fallo= 'hora_'. $i . '_fallo';
+                                        $key_total= 'hora_'. $i;
+                                        $total_h=$reporte->mapa_calor[$j]->$key_total;
+                                        $total_e=$reporte->mapa_calor[$j]->$key_exito;
+                                        $total_f=$reporte->mapa_calor[$j]->$key_fallo;
+
+                                        $clase= $llamadas::mapa_calor_color_bootstrap($total_h,$reporte->mapa_calor_max['total'],true);
+                                        $clase_e= $llamadas::mapa_calor_color_bootstrap($total_e,$reporte->mapa_calor_max['exito'],true);
+                                        $clase_f= $llamadas::mapa_calor_color_bootstrap($total_f,$reporte->mapa_calor_max['fallo'],true);
+
+                                    @endphp
+                                    <td class="heatmap-cell bg-primary {{$clase}}" data-m="0">
+                                        {{$total_h}}
+                                    </td>
+                                    <td class="heatmap-cell bg-success {{$clase_e}} d-none" data-m="1">
+                                        {{$total_e}}
+                                    </td>
+                                    <td class="heatmap-cell bg-danger {{$clase_f}} d-none" data-m="2">
+                                        {{$total_f}}
+                                    </td>
+                                @endfor
+                            </tr>
+                        @endfor
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
 
         <!-- por q el porcentaje de fallo -->
     <div class="mb-5">
@@ -590,20 +623,20 @@
                     label: 'Exitosas',
                     data: exitosas,
                     borderWidth: 2,
-                    tension: 0.3
+                    tension: 0.5
                 },
                 {
                     label: 'Fallidas',
                     data: fallidas,
                     borderWidth: 2,
-                    tension: 0.3,
+                    tension: 0.5,
                     hidden: true
                 },
                 {
                     label: 'Errores',
                     data: errores,
                     borderWidth: 2,
-                    tension: 0.3,
+                    tension: 0.5,
                     hidden: true
                 }
             ]

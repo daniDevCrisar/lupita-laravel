@@ -726,20 +726,75 @@ class DBLlamadas {
         }
     }
 
-    public static function mapa_calor_texto_bootstrap($valor, $maximo) {
-        $porcentaje = ($valor / $maximo) * 100;
+    public static function analizar_horarios($datos, $key, $horasConsecutivas = 4, $circular = true)
+    {
+        $mejorTotal = 0;
+        $mejorInicio = 0;
+        $peorTotal = PHP_INT_MAX;
+        $peorInicio = 0;
+        $totalHoras = 24;
 
-        if ($porcentaje < 20) {
-            return 'text-white'; // Muy bajo
-        } elseif ($porcentaje < 40) {
-            return 'text-muted'; // Bajo
-        } elseif ($porcentaje < 60) {
-            return 'text-warning'; // Medio
-        } elseif ($porcentaje < 80) {
-            return ''; // Alto
-        } else {
-            return 'text-success'; // Máximo
+        // Si es circular, evaluamos hasta 24 + horasConsecutivas
+        $limite = $circular ? $totalHoras + $horasConsecutivas - 1 : $totalHoras - $horasConsecutivas;
+
+        for ($i = 0; $i <= $limite; $i++) {
+            $total = 0;
+            for ($j = 0; $j < $horasConsecutivas; $j++) {
+                $hora = ($i + $j) % 24;
+                $total += $datos[$hora][$key] ?? 0;
+            }
+
+            // Evaluar mejor (máximo)
+            if ($total > $mejorTotal) {
+                $mejorTotal = $total;
+                $mejorInicio = $i;
+            }
+
+            // Evaluar peor (mínimo)
+            if ($total < $peorTotal) {
+                $peorTotal = $total;
+                $peorInicio = $i;
+            }
         }
+
+        // Formatear mejor horario
+        $mejorInicioReal = $mejorInicio % 24;
+        $mejorFinReal = ($mejorInicio + $horasConsecutivas - 1) % 24;
+
+        if ($mejorInicio + $horasConsecutivas <= 24) {
+            $mejorRango = sprintf('%02d:00 - %02d:00', $mejorInicioReal, $mejorFinReal + 1);
+        } else {
+            $mejorRango = sprintf('%02d:00 - %02d:00 (medianoche)', $mejorInicioReal, $mejorFinReal + 1);
+        }
+
+        // Formatear peor horario
+        $peorInicioReal = $peorInicio % 24;
+        $peorFinReal = ($peorInicio + $horasConsecutivas - 1) % 24;
+
+        if ($peorInicio + $horasConsecutivas <= 24) {
+            $peorRango = sprintf('%02d:00 - %02d:00', $peorInicioReal, $peorFinReal + 1);
+        } else {
+            $peorRango = sprintf('%02d:00 - %02d:00 (medianoche)', $peorInicioReal, $peorFinReal + 1);
+        }
+
+        return [
+            'mejor' => [
+                'inicio' => $mejorInicioReal,
+                'fin' => $mejorFinReal,
+                'rango' => $mejorRango,
+                'total' => $mejorTotal,
+                'promedio' => round($mejorTotal / $horasConsecutivas, 2),
+                'cruza_medianoche' => ($mejorInicio + $horasConsecutivas) > 24
+            ],
+            'peor' => [
+                'inicio' => $peorInicioReal,
+                'fin' => $peorFinReal,
+                'rango' => $peorRango,
+                'total' => $peorTotal,
+                'promedio' => round($peorTotal / $horasConsecutivas, 2),
+                'cruza_medianoche' => ($peorInicio + $horasConsecutivas) > 24
+            ]
+        ];
     }
 
 

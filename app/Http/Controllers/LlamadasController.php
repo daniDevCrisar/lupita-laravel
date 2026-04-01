@@ -67,7 +67,6 @@ class LlamadasController extends Controller
 
         //-----------PRUEBA--------------
         if ($request->fecha_inicio and $request->fecha_fin) {
-
             $reporte->mapa_calor= $llamadas::mapa_calor_rango();
             $max_t=0;$max_f=0;$max_e=0; //obtener los maximos para el mapa de calor
             $t_max_t=0;$t_max_f=0;$t_max_e=0; //resumen
@@ -98,7 +97,8 @@ class LlamadasController extends Controller
                 $resumen_mapa->rows[]=[
                     'total'=>$t_total,
                     'fallo'=>$t_fallo,
-                    'exito'=>$t_exito
+                    'exito'=>$t_exito,
+                    'porcentaje'=>round(($t_exito/$t_total)*100)
                 ];
                 if($t_total > $t_max_t) {
                     $t_max_t = $t_total;$hora_max_t = $i;
