@@ -591,6 +591,158 @@ class DBLlamadas {
         return DB::select($sql . $sql_2 ,[self::$filtro->fecha_inicio,self::$filtro->fecha_inicio]);
     }
 
+    public static function mapa_calor_rango()
+    {
+        $sql="
+        SELECT t.*,
+        CONCAT(SUBSTRING(UPPER(DAYNAME(t.fecha)), 1, 1),  -- Primera letra
+            ' ',DAYOFMONTH(t.fecha) ) as fecha_text
+        FROM
+        (SELECT
+            DATE(a.created_at) AS fecha,
+            -- Hora 0
+            SUM(IF(HOUR(a.created_at) = 0 AND a.llamada_exitosa, 1, 0)) AS hora_0_exito,
+            SUM(IF(HOUR(a.created_at) = 0 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_0_fallo,
+            SUM(IF(HOUR(a.created_at) = 0 AND a.error_origen = 0, 1, 0)) AS hora_0,
+            -- Hora 1
+            SUM(IF(HOUR(a.created_at) = 1 AND a.llamada_exitosa, 1, 0)) AS hora_1_exito,
+            SUM(IF(HOUR(a.created_at) = 1 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_1_fallo,
+            SUM(IF(HOUR(a.created_at) = 1 AND a.error_origen = 0, 1, 0)) AS hora_1,
+            -- Hora 2
+            SUM(IF(HOUR(a.created_at) = 2 AND a.llamada_exitosa, 1, 0)) AS hora_2_exito,
+            SUM(IF(HOUR(a.created_at) = 2 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_2_fallo,
+            SUM(IF(HOUR(a.created_at) = 2 AND a.error_origen = 0, 1, 0)) AS hora_2,
+            -- Hora 3
+            SUM(IF(HOUR(a.created_at) = 3 AND a.llamada_exitosa, 1, 0)) AS hora_3_exito,
+            SUM(IF(HOUR(a.created_at) = 3 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_3_fallo,
+            SUM(IF(HOUR(a.created_at) = 3 AND a.error_origen = 0, 1, 0)) AS hora_3,
+            -- Hora 4
+            SUM(IF(HOUR(a.created_at) = 4 AND a.llamada_exitosa, 1, 0)) AS hora_4_exito,
+            SUM(IF(HOUR(a.created_at) = 4 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_4_fallo,
+            SUM(IF(HOUR(a.created_at) = 4 AND a.error_origen = 0, 1, 0)) AS hora_4,
+            -- Hora 5
+            SUM(IF(HOUR(a.created_at) = 5 AND a.llamada_exitosa, 1, 0)) AS hora_5_exito,
+            SUM(IF(HOUR(a.created_at) = 5 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_5_fallo,
+            SUM(IF(HOUR(a.created_at) = 5 AND a.error_origen = 0, 1, 0)) AS hora_5,
+            -- Hora 6
+            SUM(IF(HOUR(a.created_at) = 6 AND a.llamada_exitosa, 1, 0)) AS hora_6_exito,
+            SUM(IF(HOUR(a.created_at) = 6 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_6_fallo,
+            SUM(IF(HOUR(a.created_at) = 6 AND a.error_origen = 0, 1, 0)) AS hora_6,
+            -- Hora 7
+            SUM(IF(HOUR(a.created_at) = 7 AND a.llamada_exitosa, 1, 0)) AS hora_7_exito,
+            SUM(IF(HOUR(a.created_at) = 7 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_7_fallo,
+            SUM(IF(HOUR(a.created_at) = 7 AND a.error_origen = 0, 1, 0)) AS hora_7,
+            -- Hora 8
+            SUM(IF(HOUR(a.created_at) = 8 AND a.llamada_exitosa, 1, 0)) AS hora_8_exito,
+            SUM(IF(HOUR(a.created_at) = 8 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_8_fallo,
+            SUM(IF(HOUR(a.created_at) = 8 AND a.error_origen = 0, 1, 0)) AS hora_8,
+            -- Hora 9
+            SUM(IF(HOUR(a.created_at) = 9 AND a.llamada_exitosa, 1, 0)) AS hora_9_exito,
+            SUM(IF(HOUR(a.created_at) = 9 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_9_fallo,
+            SUM(IF(HOUR(a.created_at) = 9 AND a.error_origen = 0, 1, 0)) AS hora_9,
+            -- Hora 10
+            SUM(IF(HOUR(a.created_at) = 10 AND a.llamada_exitosa, 1, 0)) AS hora_10_exito,
+            SUM(IF(HOUR(a.created_at) = 10 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_10_fallo,
+            SUM(IF(HOUR(a.created_at) = 10 AND a.error_origen = 0, 1, 0)) AS hora_10,
+            -- Hora 11
+            SUM(IF(HOUR(a.created_at) = 11 AND a.llamada_exitosa, 1, 0)) AS hora_11_exito,
+            SUM(IF(HOUR(a.created_at) = 11 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_11_fallo,
+            SUM(IF(HOUR(a.created_at) = 11 AND a.error_origen = 0, 1, 0)) AS hora_11,
+            -- Hora 12
+            SUM(IF(HOUR(a.created_at) = 12 AND a.llamada_exitosa, 1, 0)) AS hora_12_exito,
+            SUM(IF(HOUR(a.created_at) = 12 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_12_fallo,
+            SUM(IF(HOUR(a.created_at) = 12 AND a.error_origen = 0, 1, 0)) AS hora_12,
+            -- Hora 13
+            SUM(IF(HOUR(a.created_at) = 13 AND a.llamada_exitosa, 1, 0)) AS hora_13_exito,
+            SUM(IF(HOUR(a.created_at) = 13 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_13_fallo,
+            SUM(IF(HOUR(a.created_at) = 13 AND a.error_origen = 0, 1, 0)) AS hora_13,
+            -- Hora 14
+            SUM(IF(HOUR(a.created_at) = 14 AND a.llamada_exitosa, 1, 0)) AS hora_14_exito,
+            SUM(IF(HOUR(a.created_at) = 14 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_14_fallo,
+            SUM(IF(HOUR(a.created_at) = 14 AND a.error_origen = 0, 1, 0)) AS hora_14,
+            -- Hora 15
+            SUM(IF(HOUR(a.created_at) = 15 AND a.llamada_exitosa, 1, 0)) AS hora_15_exito,
+            SUM(IF(HOUR(a.created_at) = 15 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_15_fallo,
+            SUM(IF(HOUR(a.created_at) = 15 AND a.error_origen = 0, 1, 0)) AS hora_15,
+            -- Hora 16
+            SUM(IF(HOUR(a.created_at) = 16 AND a.llamada_exitosa, 1, 0)) AS hora_16_exito,
+            SUM(IF(HOUR(a.created_at) = 16 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_16_fallo,
+            SUM(IF(HOUR(a.created_at) = 16 AND a.error_origen = 0, 1, 0)) AS hora_16,
+            -- Hora 17
+            SUM(IF(HOUR(a.created_at) = 17 AND a.llamada_exitosa, 1, 0)) AS hora_17_exito,
+            SUM(IF(HOUR(a.created_at) = 17 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_17_fallo,
+            SUM(IF(HOUR(a.created_at) = 17 AND a.error_origen = 0, 1, 0)) AS hora_17,
+            -- Hora 18
+            SUM(IF(HOUR(a.created_at) = 18 AND a.llamada_exitosa, 1, 0)) AS hora_18_exito,
+            SUM(IF(HOUR(a.created_at) = 18 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_18_fallo,
+            SUM(IF(HOUR(a.created_at) = 18 AND a.error_origen = 0, 1, 0)) AS hora_18,
+            -- Hora 19
+            SUM(IF(HOUR(a.created_at) = 19 AND a.llamada_exitosa, 1, 0)) AS hora_19_exito,
+            SUM(IF(HOUR(a.created_at) = 19 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_19_fallo,
+            SUM(IF(HOUR(a.created_at) = 19 AND a.error_origen = 0, 1, 0)) AS hora_19,
+            -- Hora 20
+            SUM(IF(HOUR(a.created_at) = 20 AND a.llamada_exitosa, 1, 0)) AS hora_20_exito,
+            SUM(IF(HOUR(a.created_at) = 20 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_20_fallo,
+            SUM(IF(HOUR(a.created_at) = 20 AND a.error_origen = 0, 1, 0)) AS hora_20,
+            -- Hora 21
+            SUM(IF(HOUR(a.created_at) = 21 AND a.llamada_exitosa, 1, 0)) AS hora_21_exito,
+            SUM(IF(HOUR(a.created_at) = 21 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_21_fallo,
+            SUM(IF(HOUR(a.created_at) = 21 AND a.error_origen = 0, 1, 0)) AS hora_21,
+            -- Hora 22
+            SUM(IF(HOUR(a.created_at) = 22 AND a.llamada_exitosa, 1, 0)) AS hora_22_exito,
+            SUM(IF(HOUR(a.created_at) = 22 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_22_fallo,
+            SUM(IF(HOUR(a.created_at) = 22 AND a.error_origen = 0, 1, 0)) AS hora_22,
+            -- Hora 23
+            SUM(IF(HOUR(a.created_at) = 23 AND a.llamada_exitosa, 1, 0)) AS hora_23_exito,
+            SUM(IF(HOUR(a.created_at) = 23 AND NOT a.llamada_exitosa AND a.error_origen = 0, 1, 0)) AS hora_23_fallo,
+            SUM(IF(HOUR(a.created_at) = 23 AND a.error_origen = 0, 1, 0)) AS hora_23,
+
+            SUM( IF(a.llamada_exitosa,1,0) ) as total_exito,
+            SUM( IF(NOT a.llamada_exitosa AND a.error_origen = 0 ,1,0)) as total_fallo,
+            SUM( IF(NOT a.llamada_exitosa AND a.error_origen != 0 ,1,0)) as total_error
+        FROM llamadas a
+        WHERE a.created_at >= DATE(?)
+          AND a.created_at < DATE(?) + INTERVAL 1 DAY
+        GROUP BY DATE(a.created_at)) t;
+        ";
+
+        return DB::select($sql  ,[self::$filtro->fecha_inicio,self::$filtro->fecha_fin]);
+    }
+
+    public static function mapa_calor_color_bootstrap($valor, $maximo, $texto=false) {
+        $porcentaje = ($valor / $maximo) * 100;
+        $color_text='';
+        if ($texto) $color_text='text-white';
+        if ($porcentaje < 15) {
+            return 'bg-opacity-10 '.$color_text; // Muy bajo
+        } elseif ($porcentaje < 30) {
+            return 'bg-opacity-25'; // Bajo
+        } elseif ($porcentaje < 50) {
+            return 'bg-opacity-50'; // Medio
+        } elseif ($porcentaje < 75) {
+            return 'bg-opacity-75 '.$color_text; // Alto
+        } else {
+            return $color_text; // Máximo
+        }
+    }
+
+    public static function mapa_calor_texto_bootstrap($valor, $maximo) {
+        $porcentaje = ($valor / $maximo) * 100;
+
+        if ($porcentaje < 20) {
+            return 'text-white'; // Muy bajo
+        } elseif ($porcentaje < 40) {
+            return 'text-muted'; // Bajo
+        } elseif ($porcentaje < 60) {
+            return 'text-warning'; // Medio
+        } elseif ($porcentaje < 80) {
+            return ''; // Alto
+        } else {
+            return 'text-success'; // Máximo
+        }
+    }
+
+
 
 
 

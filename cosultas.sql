@@ -3,6 +3,7 @@
  -- ------------------------------------------------------------
  SELECT
      total,exitosas,fallidas,total_errores,
+
      DATE_FORMAT(t.fecha, '%W %d de %M de %Y') as fecha_text
  FROM (
           SELECT
@@ -10,6 +11,9 @@
               COALESCE(SUM(a.llamada_exitosa=1),0) AS exitosas,
               COALESCE(SUM(a.llamada_exitosa=0),0) AS fallidas,
               COALESCE(SUM((a.llamada_exitosa=0) AND (a.error_origen!=0)),0) as total_errores,
+              COUNT(DISTINCT a.conductor_id) AS conductores_distintos,
+              COUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, 0)) as confirmados,
+
               DATE(a.created_at) as fecha
           FROM llamadas a
           WHERE a.created_at >= DATE('2026-03-19 00:00:00') - INTERVAL 8 DAY
