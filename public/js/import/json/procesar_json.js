@@ -10,7 +10,12 @@ function generar_excel_llamadas(json){
         vapi_entro_llamada=item.analysis?.successEvaluation??''
 
         if (vapi_entro_llamada) vapi_entro_llamada= '1'
-        else  vapi_entro_llamada= '0'
+        else  {
+            if (item.endedReason==='customer-ended-call' || item.endedReason==='assistant-ended-call')
+                vapi_entro_llamada='1'
+            else
+                vapi_entro_llamada= '0'
+        }
 
         //--------------obtener refencias-------------
         vapi_ref=

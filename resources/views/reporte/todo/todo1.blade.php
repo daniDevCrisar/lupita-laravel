@@ -6,7 +6,6 @@
             $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')  . ' hasta ' . $llamadas->format_fecha(request('fecha_fin'),'d/m/Y');
             $dias_total= count($reporte->mapa_calor);
         }
-
         else
             $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y');
     @endphp
@@ -77,7 +76,7 @@
                                 <h6 class="text-muted text-uppercase fw-normal">Total llamadas</h6>
                                 <h2 class="fw-bold">{{ $reporte->total->llamadas }}</h2>
                             </div>
-                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle"><i class="fas fa-phone-volume fa-3x text-info opacity-75"></i></div>
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle"><i class="fas fa-phone-volume fa-2x text-info opacity-75"></i></div>
                         </div>
                     </div>
                 </div>
@@ -93,7 +92,7 @@
                             <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i class="fas fa-check-circle fa-2x text-success"></i></div>
                         </div>
                         @php
-                            $exitosas_100=round(($reporte->total->llamada_exitosa / $reporte->total->llamadas)*100,0);
+                            $exitosas_100=round(($reporte->total->llamada_exitosa / $reporte->total->llamadas)*100);
                         @endphp
                         <small class="text-muted">{{ $exitosas_100 }}% del total</small>
                     </div>
@@ -132,15 +131,85 @@
                     </div>
                 </div>
             </div>
+
+            <div class="col-md-3">
+                <div class="card report-card h-100 border-0 bg-exito">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted text-uppercase fw-normal">LLAMADAS CONTESTADAS</h6>
+                                <h2 class="fw-bold text-success">{{$reporte->total->contestadas}}</h2>
+                            </div>
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i class="bi bi-telephone-outbound-fill text-success fs-3"></i></div>
+                        </div>
+                        <small class="text-muted">{{$reporte->total->buzon_de_voz}} buzon de voz</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card report-card h-100 border-0 bg-exito">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted text-uppercase fw-normal">CONDUCTORES CONFIRMADOS</h6>
+                                <h2 class="fw-bold text-success">{{$reporte->total->conductores_exitosos}}</h2>
+                            </div>
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i class="fas fa-check-circle fa-2x text-success"></i></div>
+                        </div>
+                        @php
+                            $duracion_exitosas=$reporte->total->audio_duracion_exitosas;
+                            $promedio_exitosas=0;
+                            if($duracion_exitosas)
+                                $promedio_exitosas=round($reporte->total->audio_duracion_exitosas/$reporte->total->llamada_exitosa );
+                        @endphp
+                        <small class="text-muted">{{$promedio_exitosas}}s promedio de llamada</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card report-card h-100 border-0 bg-fallo">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted text-uppercase fw-normal">LLAMADAS NO CONTESTADAS</h6>
+                                <h2 class="fw-bold text-danger">{{$reporte->total->razon_5_ocupado + $reporte->total->razon_3_no_contesta}}</h2>
+                            </div>
+                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i class="bi bi-telephone-x-fill fs-3 text-danger"></i></div>
+                        </div>
+                        <small class="text-muted">
+                            </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card report-card h-100 border-0 bg-fallo">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted text-uppercase fw-normal small">LLAMADAS CONTESTADAS SIN CONFIRMACION</h6>
+                                <h2 class="fw-bold text-danger">{{ $reporte->total->contestadas_fallidas }}</h2>
+                            </div>
+                            <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i class="fas fa-times-circle fa-2x text-danger"></i></div>
+                        </div>
+                        <small class="text-muted">
+                            {{round($reporte->total->audio_duracion_fallidas_sin_buzon/$reporte->total->contestadas_fallidas )}}s promedio de llamada</small>
+                    </div>
+                </div>
+            </div>
+
         </div>
+
+
 
     {{--    duracion de llamadas exitosas y fallidas    --}}
     @if($reporte->total->audio_duracion_total)
-
         @php
-            $duracion_exitosas= round(($reporte->total->audio_duracion_exitosas /$reporte->total->audio_duracion_total)*100,0);
+            if($duracion_exitosas)
+                $duracion_exitosas= round(($reporte->total->audio_duracion_exitosas /$reporte->total->audio_duracion_total)*100,0);
             $duracion_fallidas= round(($reporte->total->audio_duracion_fallidas /$reporte->total->audio_duracion_total)*100,0);
-
         @endphp
         <div class="progress">
             <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: {{$duracion_exitosas}}%;" aria-valuenow="{{$duracion_exitosas}}">
@@ -153,9 +222,6 @@
     @endif
 
     @if($reporte->total->llamada_exitosa)
-
-
-
 
             <div class="col-12">
                 <div class="card mb-3 ">
@@ -262,37 +328,117 @@
             </div>
         </div>
 
-
-    <div class="row  g-4 mb-5">
-
-
-        <!-- correlacion de  exito -->
-        @if($reporte->total->llamada_exitosa)
+    <div class="col-12 card p-4 report-card border-2 mb-4">
+        <div class="card-header bg-white border-0 pt-3 pb-0">
+            <h5 class="fw-bold"><i class="bi bi-funnel-fill"></i> Embudo de Conversión</h5>
+            <small class="text-muted">Análisis por etapa</small>
+        </div>
+        <div class="card-body pt-2 pb-3">
             @php
-                $da_motivos_100= round(($reporte->total->conductor_da_motivos /$reporte->total->llamada_exitosa)*100,0) ;
-                $fluida_100= round(($reporte->total->conversacion_fluida /$reporte->total->llamada_exitosa)*100,0);
+                $total=$reporte->total->llamadas;
+                $p_contestadas=round($reporte->total->contestadas/$total*100);
+                $embudo_conversacion=$reporte->total->contestadas-$reporte->total->conductor_contesta_pero_no_habla-$reporte->total->solo_cuelga;
+                $p_conversacion= round($embudo_conversacion/$total*100);
+
+                $da_motivos_100= round(($reporte->total->conductor_da_motivos /$total)*100,1) ;
+                $fluida_100= round(($reporte->total->conversacion_fluida /$total)*100,1);
+
             @endphp
-            <div class="col-lg-12">
-                <div class="card report-card h-100">
-                    <div class="card-header bg-white border-0 pt-4">
-                        <h4 class="h5 fw-bold"><i class="fas fa-clipboard-list me-2"></i>Correlaciones con éxito</h4>
-                    </div>
-                    <div class="card-body">
-                        <p><strong>Cuando la llamada es exitosa, es muy frecuente que:</strong></p>
-                        <div class="progress mb-3" style="height: 25px;">
-                            <div class="progress-bar bg-success" style="width: 100%;" role="progressbar">conductor_confirma (100%)</div>
-                        </div>
-                        <div class="progress mb-3" style="height: 25px;">
-                            <div class="progress-bar bg-info" style="width: {{ $da_motivos_100 }}%;" role="progressbar">conductor_da_motivos ({{ $da_motivos_100 }}%)</div>
-                        </div>
-                        <div class="progress mb-3" style="height: 25px;">
-                            <div class="progress-bar bg-warning" style="width: {{ $fluida_100 }}%;" role="progressbar">conversación_fluida ({{ $fluida_100 }}%)</div>
-                        </div>
-                    </div>
+                <!-- Totales -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success rounded-pill">📞</span>
+                    <span class="small fw-semibold">Totales</span>
+                </div>
+                <div>
+                    <span class="badge bg-success">{{$total}}</span>
+                    <span class="badge bg-secondary ms-1">100%</span>
                 </div>
             </div>
-        @endif
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-success" style="width: 100%">100%</div>
+            </div>
+
+            <!-- Contestadas -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary rounded-pill">✅</span>
+                    <span class="small fw-semibold">Contestadas</span>
+                </div>
+                <div>
+                    <span class="badge bg-primary">{{$reporte->total->contestadas}}</span>
+                    <span class="badge bg-secondary ms-1">{{$p_contestadas}}%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-primary" style="width: {{$p_contestadas}}%">{{$p_contestadas}}%</div>
+            </div>
+
+            <!-- Conversación -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info rounded-pill">💬</span>
+                    <span class="small fw-semibold">Conversación</span>
+                </div>
+                <div>
+                    <span class="badge bg-info">{{$embudo_conversacion}}</span>
+                    <span class="badge bg-secondary ms-1">{{$p_conversacion}}%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-info" style="width: {{$p_conversacion}}%">{{$p_conversacion}}%</div>
+            </div>
+
+            <!-- Exitosas -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning rounded-pill">🎯</span>
+                    <span class="small fw-semibold">Exitosas</span>
+                </div>
+                <div>
+                    <span class="badge bg-warning text-dark">{{$reporte->total->llamada_exitosa}}</span>
+                    <span class="badge bg-secondary ms-1">{{$exitosas_100}}%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-warning" style="width: {{$exitosas_100}}%">{{$exitosas_100}}%</div>
+            </div>
+
+            <!-- da motivos -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger rounded-pill">🧠</span>
+                    <span class="small fw-semibold">Da motivos</span>
+                </div>
+                <div>
+                    <span class="badge bg-danger">{{$reporte->total->conductor_da_motivos}}</span>
+                    <span class="badge bg-secondary ms-1">{{$da_motivos_100}}%</span>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-danger" style="width: {{$da_motivos_100}}%">{{$da_motivos_100}}%</div>
+            </div>
+            <!-- FLUIDA -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light rounded-pill">🗣️</span>
+                    <span class="small fw-semibold">Conversacion fluida</span>
+                </div>
+                <div>
+                    <span class="badge bg-light text-dark">{{$reporte->total->conversacion_fluida}}</span>
+                    <span class="badge bg-secondary ms-1">{{$fluida_100}}%</span>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-light text-dark" style="width: {{$fluida_100}}%">{{$fluida_100}}%</div>
+            </div>
+
+        </div>
+
     </div>
+
+
+
 
 {{--    canvas de grafico   --}}
     <div class="col-12 card p-4 report-card border-2 mb-4">
@@ -483,7 +629,7 @@
             <div class="card p-4 h-100">
                 <div class="d-flex align-items-center gap-3 mb-3">
                 @php
-                    $solo_cuelga=$reporte->total->cuelga_analisis;
+                    //$solo_cuelga=$reporte->total->cuelga_analisis;
                     //if($reporte->total->solo_cuelga > $reporte->total->cuelga_analisis) $solo_cuelga=$reporte->total->solo_cuelga;
 
                     $solo_cuelga=$reporte->total->solo_cuelga; //probando-----------------

@@ -244,21 +244,23 @@ class DBLlamadas {
 
     public static function etiqueta_totales(){
         $sql="SELECT
-            SUM(IF(analisis_audio LIKE '%CUELGA%', 1, 0)) AS cuelga_analisis,
+
             COUNT(*) AS llamadas,
             COUNT(DISTINCT conductor_id) AS conductores,
+            COUNT(DISTINCT if(llamada_exitosa,conductor_id,null)) AS conductores_exitosos,
             COUNT(DISTINCT trt_id) AS trts,
+
             SUM(razon_finalizacion_id = 3) AS razon_3_no_contesta,
-            SUM(razon_finalizacion_id = 4) AS razon_4_red,
             SUM(razon_finalizacion_id = 5) AS razon_5_ocupado,
-            SUM(razon_finalizacion_id = 7) AS razon_7_sis,
-            SUM(razon_finalizacion_id = 9) AS razon_9_sis,
+
+            SUM(IF (entro_llamada and !llamada_exitosa and !buzon_de_voz, audio_duracion,0)) as audio_duracion_fallidas_sin_buzon,
+
             SUM(error_origen = -1) AS error_desconocido,
             SUM(error_origen = 0) AS error_humano,
             SUM(error_origen = 1) AS error_ia,
             SUM(error_origen = 2) AS error_red,
             SUM(error_origen = 3) AS error_sistema,
-            SUM(a.llamada_exitosa = 0 and conductor_confirma) as confirmacion_parcial,
+            SUM(!a.llamada_exitosa and conductor_confirma and error_origen=0) as confirmacion_parcial,
 
             SUM(
             conductor_confirma + buzon_de_voz + conductor_contesta_pero_no_habla +
@@ -266,25 +268,26 @@ class DBLlamadas {
             contesta_otra_persona + numero_equivocado + conversacion_fluida + llamada_interesante +
             ia_se_confunde + ia_no_escucha + ia_cambio_de_datos +  ia_error_interpretacion + ia_dice_variable +
             ia_mala_pronunciacion +  conductor_no_contesta + conductor_conducta_inapropiada +
-            error_tecnico_llamada + error_audio = 0 and conductor_cuelga= 1 and a.llamada_exitosa = 0
+            error_tecnico_llamada + error_audio = 0 and conductor_cuelga= 1 and !a.llamada_exitosa and error_origen=0
             ) as solo_cuelga,
 
             SUM(exitosa_segun_ia) AS exitosa_segun_ia,
             (SUM(entro_llamada) - SUM(buzon_de_voz)) AS contestadas,
+            SUM(if (entro_llamada and !llamada_exitosa and !buzon_de_voz,1,0)) as contestadas_fallidas,
             SUM(llamada_exitosa) AS llamada_exitosa,
             SUM(audio_duracion) as audio_duracion_total,
             SUM(audio_duracion * llamada_exitosa) as audio_duracion_exitosas,
-            SUM(audio_duracion * (llamada_exitosa=0)) as audio_duracion_fallidas,
+            SUM(audio_duracion * !llamada_exitosa) as audio_duracion_fallidas,
 
             SUM(conductor_confirma) AS conductor_confirma,
             SUM(buzon_de_voz) AS buzon_de_voz,
-            SUM(conductor_contesta_pero_no_habla) AS conductor_contesta_pero_no_habla,
-            SUM(conductor_no_escucha) AS conductor_no_escucha,
+            SUM(conductor_contesta_pero_no_habla and !llamada_exitosa) AS conductor_contesta_pero_no_habla,
+            SUM(conductor_no_escucha and !llamada_exitosa) AS conductor_no_escucha,
             SUM(conductor_da_motivos) AS conductor_da_motivos,
-            SUM(conductor_mala_senal) AS conductor_mala_senal,
-            SUM(confusion_en_llamada) AS confusion_en_llamada,
-            SUM(contesta_otra_persona) AS contesta_otra_persona,
-            SUM(numero_equivocado) AS numero_equivocado,
+            SUM(conductor_mala_senal and !llamada_exitosa) AS conductor_mala_senal,
+            SUM(confusion_en_llamada and !llamada_exitosa) AS confusion_en_llamada,
+            SUM(contesta_otra_persona and !llamada_exitosa) AS contesta_otra_persona,
+            SUM(numero_equivocado and !llamada_exitosa) AS numero_equivocado,
             SUM(conversacion_fluida) AS conversacion_fluida,
             SUM(llamada_interesante) AS llamada_interesante,
 
