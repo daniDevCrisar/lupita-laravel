@@ -202,9 +202,9 @@ class DBLlamadas {
         if ($campo == 'icon') return $iconos[$id];
 
         //------------provisional para no usar collect--------------
-        if ($id > 3)return self::$tipos_llamada[$id-1]->$campo;
-        else
-            return self::$tipos_llamada[$id]->$campo;
+        //if ($id > 3)return self::$tipos_llamada[$id-1]->$campo;
+        //else
+        return self::$tipos_llamada[$id]->$campo;
     }
 
     public static function icon_exito($item , $solo_icon=false){
@@ -596,6 +596,7 @@ class DBLlamadas {
 
     public static function mapa_calor_rango()
     {
+        $tipo_id= self::$filtro->llamada_tipo_id??'';
         $sql="
         SELECT t.*,
         CONCAT(SUBSTRING(UPPER(DAYNAME(t.fecha)), 1, 1),  -- Primera letra
@@ -705,11 +706,130 @@ class DBLlamadas {
             SUM( IF(NOT a.llamada_exitosa AND a.error_origen != 0 ,1,0)) as total_error
         FROM llamadas a
         WHERE a.created_at >= DATE(?)
-          AND a.created_at < DATE(?) + INTERVAL 1 DAY
-        GROUP BY DATE(a.created_at)) t;
-        ";
+          AND a.created_at < DATE(?) + INTERVAL 1 DAY ";
+        $sql_where=" AND a.llamada_tipo_id=? ";
+        $sql_2="
+            GROUP BY DATE(a.created_at)) t;
+            ";
+        if ($tipo_id)
+            $mapa_calor= DB::select($sql .$sql_where. $sql_2  ,[self::$filtro->fecha_inicio,self::$filtro->fecha_fin,$tipo_id]);
 
-        return DB::select($sql  ,[self::$filtro->fecha_inicio,self::$filtro->fecha_fin]);
+        $mapa_calor= DB::select($sql . $sql_2  ,[self::$filtro->fecha_inicio,self::$filtro->fecha_fin]);
+
+        $max_t=0;$max_f=0;$max_e=0; //obtener los maximos para el mapa de calor
+        $t_max_t=0;$t_max_f=0;$t_max_e=0; //resumen
+        $t_min_t=0;$t_min_f=0;$t_min_e=0; //resumen
+        $hora_max_t=0;$hora_max_f=0;$hora_max_e=0; //resumen
+        $hora_min_t=0;$hora_min_f=0;$hora_min_e=0; //resumen
+
+        $resumen_mapa= new stdClass();
+
+        for($i = 0; $i< 24;$i++){
+            $t_total=0;$t_fallo=0;$t_exito=0;
+            for($j=0; $j<count($mapa_calor); $j++){
+                $key_t='hora_'.$i;
+                $key_f='hora_'.$i . '_fallo';
+                $key_e='hora_'.$i . '_exito';
+                $v_total = $mapa_calor[$j]->$key_t;
+                $v_fallo = $mapa_calor[$j]->$key_f;
+                $v_exito = $mapa_calor[$j]->$key_e;
+
+                $t_total+=$v_total;
+                $t_fallo+=$v_fallo;
+                $t_exito+=$v_exito;
+
+                if($v_total > $max_t) $max_t = $v_total;
+                if($v_fallo > $max_f) $max_f = $v_fallo;
+                if($v_exito > $max_e) $max_e = $v_exito;
+            }
+
+            $t_porcentaje=0;
+            if($t_exito)
+                $t_porcentaje= round(($t_exito/$t_total)*100);
+            $resumen_mapa->rows[]=[
+                'total'=>$t_total,
+                'fallo'=>$t_fallo,
+                'exito'=>$t_exito,
+                'porcentaje'=>$t_porcentaje
+            ];
+            if($t_total > $t_max_t) {
+                $t_max_t = $t_total;$hora_max_t = $i;
+            }
+            if($t_fallo > $t_max_f) {
+                $t_max_f = $t_fallo;$hora_max_f = $i;
+            }
+            if($t_exito > $t_max_e) {
+                $t_max_e = $t_exito;$hora_max_e = $i;
+            }
+
+            if($t_total < $t_min_t) {
+                $t_min_t = $t_total;$hora_min_t = $i;
+            }
+            if($t_fallo < $t_min_f) {
+                $t_min_f = $t_fallo;$hora_min_f = $i;
+            }
+            if($t_exito < $t_min_e) {
+                $t_min_e = $t_exito;$hora_min_e = $i;
+            }
+        }
+        $resumen_mapa->max_total=$t_max_t;
+        $resumen_mapa->max_fallo=$t_max_f;
+        $resumen_mapa->max_exito=$t_max_e;
+        $resumen_mapa->max_total_hora=$hora_max_t;
+        $resumen_mapa->max_fallo_hora=$hora_max_f;
+        $resumen_mapa->max_exito_hora=$hora_max_e;
+
+        $resumen_mapa->min_total=$t_min_t;
+        $resumen_mapa->min_fallo=$t_min_f;
+        $resumen_mapa->min_exito=$t_min_e;
+        $resumen_mapa->min_total_hora=$hora_min_t;
+        $resumen_mapa->min_fallo_hora=$hora_min_f;
+        $resumen_mapa->min_exito_hora=$hora_min_e;
+
+        $mapa_calor_max = [
+            'total'=> $max_t,
+            'fallo'=>$max_f,
+            'exito'=> $max_e
+        ];
+
+        return ['mapa_calor'=>$mapa_calor,'mapa_calor_resumen'=>$resumen_mapa,'mapa_calor_max'=>$mapa_calor_max];
+    }
+
+    public static function resumen_por_etapa_logistica()
+    {
+        $sql="
+        SELECT
+                tipo,
+                COUNT(a.dia) as dias,
+               SUM(a.total) as total  ,
+               SUM(a.llamada_exitosa) as exitosas,
+               ROUND((SUM(a.llamada_exitosa)/ SUM(a.total) *100) ) as porcentaje
+        FROM
+            (SELECT date(created_at) as dia,llamada_tipo_id as tipo,COUNT(llamada_tipo_id) as total,
+            SUM(llamada_exitosa) as llamada_exitosa
+            FROM `llamadas`
+            WHERE created_at >= DATE(?)
+            AND created_at < DATE(?) + INTERVAL 1 DAY
+            GROUP BY DATE(created_at) , llamada_tipo_id ) a
+        GROUP BY a.tipo;
+        ";
+        $result= DB::select($sql,[self::$filtro->fecha_inicio,self::$filtro->fecha_fin]);
+        $etapas=[];
+        foreach ($result as $item) $etapas[$item->tipo]=$item;
+
+
+
+        for ($i=1;$i<7;$i++) {
+            if (!($etapas[$i]??0)){
+                $etapas[$i] = new stdClass();
+                $etapas[$i]->dias=0;
+                $etapas[$i]->total=0;
+                $etapas[$i]->exitosas=0;
+                $etapas[$i]->porcentaje=0;
+                $etapas[$i]->tipo=$i;
+            }
+        }
+        return $etapas;
     }
 
     public static function mapa_calor_color_bootstrap($valor, $maximo, $texto=false) {

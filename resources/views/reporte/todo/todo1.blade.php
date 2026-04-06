@@ -314,8 +314,8 @@
                         <tbody>
                             @foreach ($reporte->peores_trts as $item)
                                 @php $problematicos= round((($item->conductores  - $item->conductores_con_exito)/$item->conductores)*100,1) @endphp
-                                <tr class="table-{{ $llamadas::color_porcentaje($item->tasa_exito) }}" >
-                                    <tr><td><strong>{{ $item->trt }}</strong></td>
+                                <tr class="table-{{ $llamadas::color_porcentaje(100-$problematicos) }}" >
+                                    <td><strong>{{ $item->trt }}</strong></td>
                                     <td>{{ $item->conductores  }}</td>
                                     <td><span class='text-danger fw-bold'>{{ $item->conductores  - $item->conductores_con_exito }} </span>/ {{ $item->conductores_con_fallo }}</td>
                                     <td><span class="badge bg-{{ $llamadas::color_porcentaje(100-$problematicos) }}">{{  $problematicos }}%</span></td>
@@ -328,6 +328,7 @@
             </div>
         </div>
 
+{{--   ---EMBUDO---     --}}
     <div class="col-12 card p-4 report-card border-2 mb-4">
         <div class="card-header bg-white border-0 pt-3 pb-0">
             <h5 class="fw-bold"><i class="bi bi-funnel-fill"></i> Embudo de Conversión</h5>
@@ -437,7 +438,43 @@
 
     </div>
 
+    {{--   ---ETAPAS LOGISTICAS---     --}}
+    @if($reporte->etapa_logistica??0)
+        <div class="col-12 card p-4 report-card border-2 mb-4">
+                <div class="card-header bg-white border-0 pt-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-table"></i> Resumen de éxito por etapa logistica</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th>#</th>
+                                <th>Etapa</th>
+                                <th>Llamadas</th>
+                                <th>Exitosas</th>
+                                <th>Dias ({{$dias_total}})</th>
+                                <th>Tasa de éxito</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @for ($i=1;$i<7;$i++)
+                                <tr><td  class="table-{{$llamadas::$tipos_llamada[$reporte->etapa_logistica[$i]->tipo]->color}}">{{$i}}</td><td>
+                                {{$llamadas::$tipos_llamada[(int) $reporte->etapa_logistica[$i]->tipo]->emoji .' ' . $llamadas::$tipos_llamada[(int) $reporte->etapa_logistica[$i]->tipo]->nombre}}</td>
+                                <td>{{$reporte->etapa_logistica[$i]->total}}</td>
+                                <td><b class="text-success">{{$reporte->etapa_logistica[$i]->exitosas}}</b></td>
 
+                                <td><span class="badge bg-{{$llamadas::$tipos_llamada[$reporte->etapa_logistica[$i]->tipo]->color}}">
+                                {{$reporte->etapa_logistica[$i]->dias}}</span></td>
+                                <td><div class="progress" style="height: 8px; width: 100px;">
+                                <div class="progress-bar bg-{{$llamadas::$tipos_llamada[$reporte->etapa_logistica[$i]->tipo]->color}}" style="width: {{$reporte->etapa_logistica[$i]->porcentaje}}%"></div></div> {{$reporte->etapa_logistica[$i]->porcentaje}}%</td></tr>
+                            @endfor
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+    @endif
 
 
 {{--    canvas de grafico   --}}

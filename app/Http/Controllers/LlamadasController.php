@@ -67,82 +67,14 @@ class LlamadasController extends Controller
 
         //-----------PRUEBA--------------
         if ($request->fecha_inicio and $request->fecha_fin) {
-            $reporte->mapa_calor= $llamadas::mapa_calor_rango();
-            $max_t=0;$max_f=0;$max_e=0; //obtener los maximos para el mapa de calor
-            $t_max_t=0;$t_max_f=0;$t_max_e=0; //resumen
-            $t_min_t=0;$t_min_f=0;$t_min_e=0; //resumen
-            $hora_max_t=0;$hora_max_f=0;$hora_max_e=0; //resumen
-            $hora_min_t=0;$hora_min_f=0;$hora_min_e=0; //resumen
+            $result=$llamadas::mapa_calor_rango();
+            $reporte->mapa_calor =$result['mapa_calor'];
+            $reporte->mapa_calor_resumen=$result['mapa_calor_resumen'];
+            $reporte->mapa_calor_max=$result['mapa_calor_max'];
+            if (!$request->llamada_tipo_id)
+                $reporte->etapa_logistica=$llamadas::resumen_por_etapa_logistica();
 
-            $resumen_mapa= new stdClass();
-
-            for($i = 0; $i< 24;$i++){
-                $t_total=0;$t_fallo=0;$t_exito=0;
-                for($j=0; $j<count($reporte->mapa_calor); $j++){
-                    $key_t='hora_'.$i;
-                    $key_f='hora_'.$i . '_fallo';
-                    $key_e='hora_'.$i . '_exito';
-                    $v_total = $reporte->mapa_calor[$j]->$key_t;
-                    $v_fallo = $reporte->mapa_calor[$j]->$key_f;
-                    $v_exito = $reporte->mapa_calor[$j]->$key_e;
-
-                    $t_total+=$v_total;
-                    $t_fallo+=$v_fallo;
-                    $t_exito+=$v_exito;
-
-                    if($v_total > $max_t) $max_t = $v_total;
-                    if($v_fallo > $max_f) $max_f = $v_fallo;
-                    if($v_exito > $max_e) $max_e = $v_exito;
-                }
-                $resumen_mapa->rows[]=[
-                    'total'=>$t_total,
-                    'fallo'=>$t_fallo,
-                    'exito'=>$t_exito,
-                    'porcentaje'=>round(($t_exito/$t_total)*100)
-                ];
-                if($t_total > $t_max_t) {
-                    $t_max_t = $t_total;$hora_max_t = $i;
-                }
-                if($t_fallo > $t_max_f) {
-                    $t_max_f = $t_fallo;$hora_max_f = $i;
-                }
-                if($t_exito > $t_max_e) {
-                    $t_max_e = $t_exito;$hora_max_e = $i;
-                }
-
-                if($t_total < $t_min_t) {
-                    $t_min_t = $t_total;$hora_min_t = $i;
-                }
-                if($t_fallo < $t_min_f) {
-                    $t_min_f = $t_fallo;$hora_min_f = $i;
-                }
-                if($t_exito < $t_min_e) {
-                    $t_min_e = $t_exito;$hora_min_e = $i;
-                }
-            }
-            $resumen_mapa->max_total=$t_max_t;
-            $resumen_mapa->max_fallo=$t_max_f;
-            $resumen_mapa->max_exito=$t_max_e;
-            $resumen_mapa->max_total_hora=$hora_max_t;
-            $resumen_mapa->max_fallo_hora=$hora_max_f;
-            $resumen_mapa->max_exito_hora=$hora_max_e;
-
-            $resumen_mapa->min_total=$t_min_t;
-            $resumen_mapa->min_fallo=$t_min_f;
-            $resumen_mapa->min_exito=$t_min_e;
-            $resumen_mapa->min_total_hora=$hora_min_t;
-            $resumen_mapa->min_fallo_hora=$hora_min_f;
-            $resumen_mapa->min_exito_hora=$hora_min_e;
-
-            $reporte->mapa_calor_resumen= $resumen_mapa;
-
-            $reporte->mapa_calor_max = [
-                'total'=> $max_t,
-                'fallo'=>$max_f,
-                'exito'=> $max_e
-            ];
         }
-
         //-----------------------
 
         return view('reporte.todo.todo1', [
