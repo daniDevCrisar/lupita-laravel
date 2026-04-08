@@ -54,7 +54,7 @@ class DBTmpLlamadas {
         $llamada->razon_finalizacion_id =self::obtener_id_razon($item->razon_finalizacion);
 
         if ($llamada->razon_finalizacion_id==4) $item->error_origen=2;
-        else if ($llamada->razon_finalizacion_id==7 || $llamada->razon_finalizacion_id==9)
+        else if ($llamada->razon_finalizacion_id==7 || $llamada->razon_finalizacion_id==9 || $llamada->razon_finalizacion_id==10)
             $item->error_origen=3;
 
         if ($item->analisis_transcripcion=='' && $item->analisis_audio=='' && self::etiqueta_valor($item->llamada_exitosa)==0 ) {
