@@ -79,6 +79,8 @@ class DBLlamadas {
         self::$filtro->conductor= $request->conductor;
         self::$filtro->trt= $request->trt;
         self::$filtro->exitosa= $request->exitosa;
+        self::$filtro->etiquetas= $request->etiquetas;
+        self::$filtro->e_operador= $request->e_operador;
     }
 
 
@@ -89,6 +91,8 @@ class DBLlamadas {
         $conductor= strtoupper(self::$filtro->conductor??'');
         $trt= strtoupper(self::$filtro->trt)??'';
         $exitosa=self::$filtro->exitosa??'';
+        $etiquetas=self::$filtro->etiquetas??'';
+        $e_operador=self::$filtro->e_operador??'';
 
         $llamadas = DB::table('llamadas as a')
         ->join('conductores as b', 'b.id', '=', 'a.conductor_id')
@@ -176,6 +180,17 @@ class DBLlamadas {
         ->when(is_numeric($exitosa), function ($query) use($exitosa) {
             $query->where('a.error_origen', '=', $exitosa);
             $query->where('a.llamada_exitosa', '=', 0);
+        })
+        // ========== EN EL MEDIO - ETIQUETAS ==========
+        ->when(!empty($etiquetas), function ($query) use ($etiquetas, $e_operador) {
+
+            foreach ($etiquetas as $tag)
+                if (self::$etiquetas_icon_bi[$tag])
+                    if ($e_operador)
+                        $query->orWhere('a.' . $tag, '=', '1');
+                    else
+                        $query->where('a.' . $tag, '=', '1');
+            return $query;
         })
         ->orderBy('a.created_at', 'desc')
         ->paginate($mostrar)

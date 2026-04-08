@@ -10,6 +10,43 @@
 
 <livewire:mensajes-llamada />
 
+<style>
+    /* CSS compacto */
+
+    .acordeon-mini .accordion-button{padding:6px 10px!important;font-size:1rem!important;}
+    .acordeon-mini .accordion-body{padding:8px 10px!important;}
+    .acordeon-mini .accordion-item{margin-bottom:4px;border-radius:5px;}
+    .acordeon-mini .accordion-button::after{background-size:.75rem;width:.75rem;height:.75rem;}
+
+    /* Grid de botones */
+    .grid-botones{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+
+    /* Ocultar checkbox original */
+    .btn-checkbox{display:none;}
+
+    /* Estilo de botón usando clases de Bootstrap */
+    .btn-opcion{
+        display:block;
+        text-align:center;
+        padding:6px 8px;
+        font-size:.7rem;
+        font-weight:500;
+        cursor:pointer;
+        transition:all 0.15s;
+    }
+
+    /* Checkbox chequeado -> botón primary activo */
+    .btn-checkbox:checked + .btn-opcion{
+        background-color:var(--bs-primary);
+        border-color:var(--bs-primary);
+        color:white;
+    }
+
+    .btn-mini{padding:3px 8px;font-size:.65rem;border-radius:3px;}
+</style>
+
+
+
 <div class="row">
     <div class="col-12">
         <h1>Lista de Llamadas</h1>
@@ -125,6 +162,53 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Acordeón mini -->
+                <div class="col-md-4">
+                    <label for="trt" class="form-label">
+                        Etiquetas:
+                    </label>
+                    <div class="acordeon-mini">
+                        <div class="accordion" id="acordeon_etiquetas">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMini">
+                                        <i class="bi bi-tags"></i> <span id="acordeon_head"></span>
+                                    </button>
+
+                                </h2>
+                                <div id="collapseMini" class="accordion-collapse collapse " data-bs-parent="#acordeonMini">
+                                    <div class="accordion-body">
+                                        <div class="btn-group btn-group-sm mb-2" role="group">
+                                            <input type="radio" class="btn-check" name="e_operador" id="opTodas" value="" @checked(!request('e_operador'))>
+                                            <label class="btn btn-outline-primary" for="opTodas"><i class="bi bi-check-all"></i> Todas</label>
+
+                                            <input type="radio" class="btn-check" name="e_operador" id="opAlMenosUna" value="1" @checked(request('e_operador'))>
+                                            <label class="btn btn-outline-primary" for="opAlMenosUna"><i class="bi bi-check"></i> Al menos una</label>
+                                        </div>
+                                        <!-- Grid de botones con colores -->
+                                        <div class="grid-botones">
+                                            <!-- Frontend - Primary (azul) -->
+                                            @php
+                                            $etiquetas=request('etiquetas',[]);
+                                            @endphp
+                                            @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
+                                                @if($item[4]!=0)
+                                                    <div>
+                                                        <input type="checkbox" class="btn-checkbox btn-frontend" name="etiquetas[]" value="{{$key}}" id="{{$key}}"
+                                                        @checked(in_array($key, $etiquetas)) >
+                                                        <label for="{{$key}}" class="btn-opcion btn btn-outline-light w-100"><i class="{{$item[0]}}"></i> {{$item[1]}}</label>
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
 
 
                 <div class="col-md-4 d-flex align-items-end">
@@ -266,5 +350,32 @@
         <i class="bi bi-telephone"></i> ${tlf} <i class="bi bi-person"></i> ${nombres}
         `;
     }
+
+    function actualizarHeader() {
+        let seleccionadas = [];
+        document.querySelectorAll('input[name="etiquetas[]"]:checked').forEach(cb => {
+            let label = document.querySelector(`label[for="${cb.id}"]`);
+            if(label) seleccionadas.push(label.innerText);
+        });
+        let operador= document.querySelector(('input[name="e_operador"]:checked'))
+        let header = document.getElementById('acordeon_head');
+
+
+        if(seleccionadas.length)
+            header.innerHTML = ` ${seleccionadas.length} seleccionada${seleccionadas.length !== 1 ? 's' : ''}`;
+        else
+            header.innerHTML = 'sin seleccion';
+    }
+
+    // Eventos
+    document.querySelectorAll('input[name="etiquetas[]"]').forEach(cb => {
+        cb.addEventListener('change', actualizarHeader);
+    });
+    document.querySelectorAll('input[name="e_operador"]').forEach(rd => {
+        rd.addEventListener('change', actualizarHeader);
+    });
+
+    // Ejecutar al inicio
+    actualizarHeader();
 </script>
 @endsection

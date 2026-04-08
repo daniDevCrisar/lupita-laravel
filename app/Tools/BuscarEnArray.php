@@ -22,10 +22,10 @@ class BuscarEnArray {
         echo 'trt '.$buscar .' no encontrado en array!!!!!!!! <br>';
     }
 
-    public static function en_conductor($buscar,$array){
+    public static function en_conductor($buscar,$array,$omitir_penalizacion = false){
         if ($buscar == "") return null;
         foreach ($array as $item){
-            $comparar=DBTmpLotes::similitud($buscar,$item->conductor);
+            $comparar=DBTmpLotes::similitud($buscar,$item->conductor,true,$omitir_penalizacion);
             if ($comparar==100) return $item->id;
         }
         echo 'conductor '.$buscar .' no encontrado en array!!!!!! <br>';

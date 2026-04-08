@@ -208,7 +208,8 @@ INSERT INTO razones_finalizacion (id, codigo, name, nombre, descripcion, origen)
 (6, 'TIEMPO-MAXIMO-EXCEDIDO', 'EXCEEDED-MAX-DURATION', 'Tiempo maximo excedido', 'La llamada supero la duracion permitida', 'SISTEMA'),
 (7, 'IA-MARCO-NUMERO-INVALIDO', 'TWILIO-REPORTED-CUSTOMER-MISDIALED', 'Ia Marco numero erroneo', 'El numero fue marcado incorrectamente', 'SISTEMA'),
 (8, 'SILENCIO-PROLONGADO', 'SILENCE-TIMED-OUT', 'Silencio prolongado', 'No hubo respuesta de voz por tiempo limite', 'SISTEMA'),
-(9, 'ERROR_VAPI_SIN_WORKERS', 'CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE', 'Error VAPI - Worker no disponible', 'La plataforma VAPI no tiene workers disponibles para procesar la llamada', 'SISTEMA');
+(9, 'ERROR_VAPI_SIN_WORKERS', 'CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE', 'Error VAPI - Worker no disponible', 'La plataforma VAPI no tiene workers disponibles para procesar la llamada', 'SISTEMA'),
+(10, 'CONEXIÓN_FANTASMA', 'CALL.IN-PROGRESS.TWILIO-COMPLETED-CALL', 'Twilio puso fin a la llamada de su lado', 'Twilio logró conectar con la red del destinatario pero se cerro sin intercambiar datos', 'SISTEMA');
 
 CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE
 

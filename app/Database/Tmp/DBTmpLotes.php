@@ -131,14 +131,14 @@ class DBTmpLotes
         return DB::select($sql, [$lote_id]) ? true : false;
     }
 
-    public static function compararNombres($tabla,$campo_1,$campo_2){
+    public static function compararNombres($tabla,$campo_1,$campo_2,$omitir_penalizacion = false){
         $cont=1;
         //echo self::similitud( 'sinche roca victor', 'victor daniel sinche roca');
         foreach ($tabla as $row){
             $row_tabla=  $tabla[$cont]??false;
             if ($row_tabla){
                 if($row_tabla->$campo_1 == $row->$campo_1){
-                    $comparar=self::similitud( $row_tabla->{$campo_2}, $row->$campo_2);
+                    $comparar=self::similitud( $row_tabla->{$campo_2}, $row->$campo_2,true,$omitir_penalizacion);
                     if ($comparar >= 80)
                         //echo 'comp:' . $comparar . ' :' . $row_tabla->{$campo_2} . ' * '.  $row->{$campo_2}.  '<br>';
                         if ( strlen($row_tabla->$campo_1) > strlen($row->$campo_1))
@@ -169,7 +169,7 @@ class DBTmpLotes
         return trim($t);
     }
 
-    public static function similitud($a, $b , $nombres = true) {
+    public static function similitud($a, $b , $nombres = true , $omitir_penalizacion = false) {
 
         if ($a==$b)return 100; // si son iguales devolver directamente
         $a = self::normalizar($a , $nombres);
@@ -195,9 +195,8 @@ class DBTmpLotes
         }
 
         //no ejecutar si la diferia del nombre corto con el nombre largo es mas del doble
-
-        if ($nombres and $count_palabrasA != $count_palabrasB) {
-            if ($count_palabrasA + $count_palabrasB != 7 ){ //si l suma es 7 es el unico caso qq uede existir de diferencia entre nombres y apellidos sin penalizar
+        if ($nombres and $count_palabrasA != $count_palabrasB and !$omitir_penalizacion) {
+            if ($count_palabrasA + $count_palabrasB != 7 ){ //si l suma es 7 es el unico caso q quede existir de diferencia entre nombres y apellidos sin penalizar
                 if ($count_palabrasA > $count_palabrasB){
 
                     if ($palabrasA[$count_palabrasA-2]!= $palabrasB[$count_palabrasB-1]) {

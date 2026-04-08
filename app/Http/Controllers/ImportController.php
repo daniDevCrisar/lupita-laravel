@@ -88,13 +88,13 @@ class ImportController extends Controller
             $l_exitosas += (int) $ultimoValor;
             $total++;
         }
-        
+
         $llamadas = [
             'total' => $total,
             'exitosas' => $l_exitosas,
             'fallidas' => $total - $l_exitosas
         ];
-        
+
 
         return view('import.import_excel_paso_1', [
             'conductores' => $conductores,
@@ -139,7 +139,7 @@ class ImportController extends Controller
         if ( $referencias){
             $cols_tpm_lotes_ref = DBColumns::tmp_lotes_ref();
             $referencias_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref, $referencias,$lote_id);
-            DBCore::insertBatch('tmp_lotes_ref',$cols_tpm_lotes_ref, $referencias_excel_ord);            
+            DBCore::insertBatch('tmp_lotes_ref',$cols_tpm_lotes_ref, $referencias_excel_ord);
         }
 
         //-----------------------------------------------
@@ -147,7 +147,7 @@ class ImportController extends Controller
         $referencias_compromiso = $data[$request->txt_ref_1] ?? [];
         if ( $referencias_compromiso){
             $cols_tpm_lotes_ref_compromiso = DBColumns::tmp_lotes_ref_compromiso();
-            $referencias_c_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref_compromiso, $referencias_compromiso,$lote_id);            
+            $referencias_c_excel_ord = ExcelTool::ordenarColumnasExcel($cols_tpm_lotes_ref_compromiso, $referencias_compromiso,$lote_id);
             DBCore::insertBatch('tmp_lotes_ref_compromiso',$cols_tpm_lotes_ref_compromiso, $referencias_c_excel_ord);
         }
 
@@ -155,7 +155,7 @@ class ImportController extends Controller
 
         //dd($referencias_c_excel_ord,$referencias_excel_ord,$llamadas_excel_ord);
         //dd($llamadas_excel_ord);
-        
+
         //cabezera del lote
         $nombre_archivo = $file->getClientOriginalName();
         DBTmpLotes::crear(
@@ -185,7 +185,7 @@ class ImportController extends Controller
             $l_exitosas += (int) $ultimoValor;
             $total++;
         }
-        
+
         $llamadas = [
             'total' => $total,
             'exitosas' => $l_exitosas,
@@ -218,7 +218,7 @@ class ImportController extends Controller
             else {
                 $id_conductor = $accion['id'];
                 if( $accion['accion']== 'actualizar'){
-                    if( DBConductores::actualizar($accion['row'])) 
+                    if( DBConductores::actualizar($accion['row']))
                         echo $accion['id'] . ' actualizado correrctamente <br>';
                     else echo $accion['id'] .' hubo un error al actualizar <br>';
                 }
@@ -229,7 +229,7 @@ class ImportController extends Controller
         }
         //insertar TRTS--------------------------
         $count=0;
-   
+
         foreach ($trts as $item){
             $id_trt=null; //si el nombre esta en blanco
             if ($item->transportista !='') {
@@ -250,6 +250,9 @@ class ImportController extends Controller
         foreach ($llamadas_detalle as $item){
             $id_trt = BuscarEnArray::en_trt($item->transportista, $trts);
             $id_conductor= BuscarEnArray::en_conductor($item->conductor, $personas);
+            if (!$id_conductor) $id_conductor=BuscarEnArray::en_conductor($item->conductor, $personas,true);
+
+            //if ($item->vapi_id=='019D689A-1DA4-7778-B4D7-6E7C5E3A73E5') dd($personas,$item,$id_conductor);
             echo 'trt id:'.$id_trt.' **** conductor id:'.$id_conductor.'<br>';
             DBConductores::crear_telefono([ 'id'=> $id_conductor, 'telefono'=>$item->telefono ]);
             BuscarEnArray::ref_para_agregar_ids($item->ref,$id_trt, $id_conductor, $refs);

@@ -21,6 +21,9 @@ class LlamadasController extends Controller
             'conductor'        => 'nullable|string',
             'trt'              => 'nullable|string',
             'exitosa'          => 'nullable|string',
+            'e_operador' => 'nullable|numeric:',
+            'etiquetas' => 'nullable|array',
+            'etiquetas.*' => 'string|max:50'
         ]);
 
         $llamadas= new DBLlamadas();
