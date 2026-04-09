@@ -2,12 +2,14 @@
 <html lang="es">
 <head>
     @php
+        $dias_total=1;
         if (request('fecha_inicio') and request('fecha_fin')){
             $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y')  . ' hasta ' . $llamadas->format_fecha(request('fecha_fin'),'d/m/Y');
             $dias_total= count($reporte->mapa_calor);
         }
         else
             $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y');
+
     @endphp
 
     <meta charset="UTF-8">

@@ -69,6 +69,7 @@ class LlamadasController extends Controller
         $reporte->grafico_semana= $llamadas::grafico_semana_query();
 
         //-----------PRUEBA--------------
+
         if ($request->fecha_inicio and $request->fecha_fin) {
             $result=$llamadas::mapa_calor_rango();
             $reporte->mapa_calor =$result['mapa_calor'];
@@ -76,7 +77,6 @@ class LlamadasController extends Controller
             $reporte->mapa_calor_max=$result['mapa_calor_max'];
             if (!$request->llamada_tipo_id)
                 $reporte->etapa_logistica=$llamadas::resumen_por_etapa_logistica();
-
         }
         //-----------------------
 
