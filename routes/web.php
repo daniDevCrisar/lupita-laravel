@@ -22,10 +22,10 @@ Route::get('/procesar_excel/import/paso-1/{lote_id}',
 
 Route::prefix('importar')->group(function () {
 
-    Route::get('/json', [ImportController::class, 'procesar_json']);
+    Route::get('/json', [ImportController::class, 'procesar_json'])->name('importar.json');
     //Route::post('/json/procesar', [ImportController::class, 'jsonProcesar']);
 
-    Route::get('/excel', [ImportController::class, 'cargar_excel']);
+    Route::get('/excel', [ImportController::class, 'cargar_excel'])->name('importar.excel');
     Route::post('/excel/procesar', [ImportController::class, 'procesar_excel_llamadas']);
 
     Route::get('/excel/{lote_id}', [ImportController::class, 'mostrar_lote_importado'])->name('importar.excel.lote');

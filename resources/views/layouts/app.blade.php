@@ -51,15 +51,15 @@
             <ul class="navbar-nav ms-auto">
 
                 <li class="nav-item">
-                    <a class="nav-link active" href="{{route('lupita.llamadas')}}">Llamadas</a>
+                    <a class="nav-link" href="{{route('lupita.llamadas')}}">Llamadas</a>
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link active" href="{{route('lupita.conductores')}}">Conductores</a>
+                    <a class="nav-link" href="{{route('lupita.conductores')}}">Conductores</a>
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link active" href="{{route('lupita.transportistas')}}">Transportistas</a>
+                    <a class="nav-link" href="{{route('lupita.transportistas')}}">Transportistas</a>
                 </li>
 
                 <!-- 🔽 MENÚ DESPLEGABLE -->
@@ -68,20 +68,19 @@
                        role="button"
                        data-bs-toggle="dropdown"
                        aria-expanded="false">
-                        Gestión
+                        Importar
                     </a>
 
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#">Llamadas</a></li>
-                        <li><a class="dropdown-item" href="#">Clientes</a></li>
-                        <li><a class="dropdown-item" href="#">Usuarios</a></li>
+                        <li><a class="dropdown-item" href="{{route('importar.json')}}">JSON</a></li>
+                        <li><a class="dropdown-item" href="{{route('importar.excel')}}">Excel</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="#">Cerrar sesión</a></li>
+                        <li><a class="dropdown-item" href="">Procesar</a></li>
                     </ul>
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Contacto</a>
+                    <a class="nav-link" href="{{route('lupita.audio')}}">Etiquetar</a>
                 </li>
 
             </ul>

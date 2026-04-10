@@ -133,7 +133,7 @@ class ImportController extends Controller
         $columnas_tmpLotesDet = DBColumns::tmpLotesDet();
         $llamadas_excel_ord=ExcelTool::ordenarColumnasExcel($columnas_tmpLotesDet, $llamadas,$lote_id);
 
-        DBCore::insertBatch('tmp_lotes_det',$columnas_tmpLotesDet, $llamadas_excel_ord);
+        $filas_procesadas=DBCore::insertBatch('tmp_lotes_det',$columnas_tmpLotesDet, $llamadas_excel_ord);
         //procesar hoja trt
         $referencias = $data[$request->txt_ref] ?? [];
         if ( $referencias){
@@ -155,12 +155,11 @@ class ImportController extends Controller
 
         //dd($referencias_c_excel_ord,$referencias_excel_ord,$llamadas_excel_ord);
         //dd($llamadas_excel_ord);
-
         //cabezera del lote
         $nombre_archivo = $file->getClientOriginalName();
         DBTmpLotes::crear(
             $lote_id,
-            $nombre_archivo,''
+            $nombre_archivo . ' ('.$filas_procesadas.'/'. count($llamadas_excel_ord).")" ,''
         );
 
         return redirect()->route('importar.excel.lote', [
@@ -269,6 +268,9 @@ class ImportController extends Controller
 
 
         echo '<h2>llamadas:'.$db_llamadas::$log->total_llamadas.' ,duplicadas:'. $db_llamadas::$log->total_duplicados .'</h2><br>';
+
+        DBTmpLotes::actualizar_procesado($lote_id,"procesados :" . $db_llamadas::$log->total_llamadas . " duplicados: ".$db_llamadas::$log->total_duplicados,1);
+
         dd($refs);
         //------------------------------------------------------
 

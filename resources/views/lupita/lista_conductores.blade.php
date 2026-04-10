@@ -161,7 +161,10 @@
                     @foreach($conductores as $row)
                         <tr class="{{ $loop->odd ? 'table-secondary' : '' }} ">
                             <td class="bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{ $row->conductor_id  }}</td>
-                            <td >{{ $row->conductor }}</td>
+                            <td >
+                                <a href="{{ route('lupita.llamadas') . '?' . http_build_query(array_merge(request()->all(),
+                                ['conductor' => $row->conductor_id]))  }}">
+                                    {{ $row->conductor }}</a></td>
                             <td><span class="badge bg-primary">{{ $row->total-$row->total_error }}</span></td>
                             <td> <span class="badge bg-success">{{ $row->exitosas }}</span> </td>
                             <td> <span class="badge bg-danger">{{ $row->fallidas-$row->total_error }}</span> </td>

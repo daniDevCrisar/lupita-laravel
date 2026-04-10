@@ -520,9 +520,10 @@ CREATE TABLE tmp_lotes_det (
 CREATE TABLE tmp_lotes (
     lote_id BIGINT PRIMARY KEY,
     usuario_id INT NOT NULL,
-    tipo TINYINT(1),  -- para q sea escalable en este solo seria 1 para el json basico de vapi
+    tipo TINYINT(1),  -- para q sea escalable en este solo sería 1 para el json basico de vapi
     nombre VARCHAR(50) NOT NULL,
     comentario VARCHAR(200) NOT NULL,
+    procesado TINYINT(1) NOT NULL DEFAULT 0 ,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

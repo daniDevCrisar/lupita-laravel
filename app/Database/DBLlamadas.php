@@ -822,13 +822,23 @@ class DBLlamadas {
         FROM
             (SELECT date(created_at) as dia,llamada_tipo_id as tipo,COUNT(llamada_tipo_id) as total,
             SUM(llamada_exitosa) as llamada_exitosa
-            FROM `llamadas`
+            FROM `llamadas`";
+        $sql_where_1="
             WHERE created_at >= DATE(?)
-            AND created_at < DATE(?) + INTERVAL 1 DAY
+            AND created_at < DATE(?) + INTERVAL 1 DAY";
+        $sql_where_2="
+            WHERE date(created_at) = DATE(?)
+        ";
+        $sql_2="
             GROUP BY DATE(created_at) , llamada_tipo_id ) a
         GROUP BY a.tipo;
         ";
-        $result= DB::select($sql,[self::$filtro->fecha_inicio,self::$filtro->fecha_fin]);
+        //dd(self::$filtro->fecha_inicio and self::$filtro->fecha_fin, self::$filtro);
+        if(self::$filtro->fecha_inicio and self::$filtro->fecha_fin)
+            $result= DB::select($sql . $sql_where_1 . $sql_2 ,[self::$filtro->fecha_inicio,self::$filtro->fecha_fin]);
+        else
+            $result= DB::select($sql . $sql_where_2 . $sql_2 ,[self::$filtro->fecha_inicio]);
+
         $etapas=[];
         foreach ($result as $item) $etapas[$item->tipo]=$item;
 

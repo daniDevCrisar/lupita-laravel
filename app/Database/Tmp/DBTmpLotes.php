@@ -23,7 +23,17 @@ class DBTmpLotes
             $usuario_id,
             $tipo,
             $nombre,
-            $comentario
+            $comentario,
+        ]);
+    }
+
+    public static function actualizar_procesado($lote_id, $comentario,$procesado )
+    {
+        $sql = "UPDATE tmp_lotes SET comentario=?, procesado=? WHERE lote_id=?";
+        return DB::update($sql, [
+            $comentario,
+            $procesado,
+            $lote_id
         ]);
     }
 

@@ -24,7 +24,7 @@ $total_trts = count($trts);
         <!-- DERECHA -->
         <div class="col text-end">
             <a href="{{ url('/importar/excel/'.$lote_id . '/procesar') }}" class="btn btn-success btn-sm">
-                Siguiente <i class="bi bi-arrow-right"></i>
+                Procesar <i class="bi bi-arrow-right"></i>
             </a>
         </div>
 
@@ -35,22 +35,39 @@ $total_trts = count($trts);
         <div class="col-12">
             <div class="card bg-secondary text-white border-0">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Información del Lote</h5>
+                    <div class="col-12">
+
+                        <h5 class="card-title mb-3">Información del Lote</h5>
+                    </div>
 
                     <div class="row">
-                        <div class="col-3">
+                        <div class="col-md-3">
                             <i class="bi bi-file-earmark-text"></i>
                             <strong>Archivo:</strong><br>
                             {{ $cabecera->nombre }}
                         </div>
+                        <div class="col-md-3">
+                            <i class="bi bi-chat"></i>
+                            <strong>Comentario:</strong><br>
+                            {{ $cabecera->comentario }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Procesado:</strong><br>
+                            @if($cabecera->procesado)
+                                <span class="text-success">SI</span>
+                            @else
+                                <span class="text-danger">NO</span>
+                            @endif
 
-                        <div class="col-3">
+                        </div>
+
+                        <div class="col-md-3">
                             <i class="bi bi-calendar-date"></i>
                             <strong>Fecha de Creacion</strong><br>
                             {{ $cabecera->created_at ?: '—' }}
                         </div>
 
-                        <div class="col-3">
+                        <div class="col-md-3">
                             <i class="bi bi-telephone-fill"></i>
                             <strong>Llamadas {{ $llamadas['total'] }} :</strong><br>
                             <i class="bi bi-check-circle-fill text-success"></i>
@@ -59,7 +76,7 @@ $total_trts = count($trts);
                             {{ $llamadas['fallidas'] }}
                         </div>
 
-                        <div class="col-3">
+                        <div class="col-md-3">
                             <i class="bi bi-person-circle"></i>
                             <strong>Usuario ID:</strong><br>
                             {{  $cabecera->user_nombres  }}
@@ -71,7 +88,7 @@ $total_trts = count($trts);
         </div>
     </div>
     @endif
-    
+
     <div class="row">
         <div class="col-6">
             <div class="card bg-primary text-white  border border-white">
@@ -127,11 +144,8 @@ $total_trts = count($trts);
 
     </div>
 
-
-
-
     <div class="row">
-        <div class="col-12">
+        <div class="col-12 table-responsive" style="max-height: 800px; overflow-y: auto;">
             <table class="table table-bordered table-hover table-sm table-dark">
                 <thead class="table-primary">
                     <tr>
@@ -186,7 +200,7 @@ $total_trts = count($trts);
                 @foreach($llamadas['detalle'] as $row)
                 <tr class="{{ $loop->odd ? 'table-secondary' : '' }}">
                     <td>{{ $row->vapi_id }}</td>
-                    <td>{{ $row->type === 'OUTBOUNDPHONECALL' ? '<i class="bi bi-telephone-outbound"></i>' : '<i class="bi bi-telephone-inbound"></i>' }}</td>
+                    <td>{{ $row->type }}</td>
                     <td>{{ $row->created_at }}</td>
                     <td>{{ $row->created_at_excel }}</td>
                     <td>{{ $row->llamada_tipo }}</td>
@@ -197,7 +211,7 @@ $total_trts = count($trts);
                     <td>{{ $row->conductor }}</td>
                     <td>{{ $row->placa }}</td>
                     <td>{{ $row->fecha_prometida }}</td>
-                    <td>{{ $row->mensajes_conten }}</td>
+                    <td>{{ substr($row->mensajes_conten,0,35) }}....</td>
                     <td>{{ $row->audio }}</td>
                     <td>{{ $row->exitosa_segun_ia }}</td>
                     <td>{{ $row->entro_llamada }}</td>
