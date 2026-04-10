@@ -138,10 +138,6 @@ $total_trts = count($trts);
                 </div>
             </div>
         </div>
-
-
-
-
     </div>
 
     <div class="row">
