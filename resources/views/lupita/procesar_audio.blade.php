@@ -108,7 +108,7 @@
                             <td>
                                 @if ($row->entro_llamada)
                                     Duracion: {{$row->audio_duracion}} seg
-                                    <button class="btn btn-outline-success"
+                                    <button class="btn btn-outline-success" name="btn_etiquetas_lista"
                                     onclick="selLlamada({{$loop->index}})">
                                         <i class="bi bi-play-fill me-1"></i> Etiquetar
                                     </button>
@@ -180,7 +180,7 @@
                         Tu navegador no soporta audio.
                     </audio>
                     <div class="d-flex justify-content-center align-items-center gap-3" style="height:40px;">
-                        <button class="btn btn-outline-info btn-circular"
+                        <button class="btn btn-outline-info btn-circular" id="btn_fila_izquierda"
                         onclick="cambiarFila(-1)">
                             <i class="bi bi-skip-backward-fill"></i>
                         </button>
@@ -190,12 +190,16 @@
                             <i class="bi bi-chat-fill"></i>
                         </button>
 
-                        <button class="btn btn-outline-info btn-circular"
+                        <button class="btn btn-outline-info btn-circular" id="btn_fila_derecha"
                         onclick="cambiarFila(1)">
                             <i class="bi bi-skip-forward-fill"></i>
                         </button>
 
                         {{--   GUARDAR    --}}
+                        <button class="btn btn-outline-light btn-circular" id="btn_guardar" onclick="selLlamada(orden_lista)">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+
                         <button class="btn btn-outline-light btn-circular" id="btn_guardar" onclick="guardar_etiqueta()">
                             <i class="bi bi-floppy-fill"></i>
                         </button>
@@ -220,13 +224,14 @@
                             <input class="form-control bg-secondary text-success" type="text" placeholder="Analisis de audio" value=""
                                    name="txt_audio" id="txt_audio" list="audio_list" onchange="modifico=true">
                             <datalist id="audio_list">
-                                <option value="Manzana">
-                                <option value="Banana">
-                                <option value="Naranja">
-                                <option value="Fresa">
-                                <option value="Mango">
+                            @foreach($analisis->texto_mas_usado as $item)
+                                <option value="{{$item->analisis_audio}}">
+                            @endforeach
+
                             </datalist>
-                            <button class="btn btn-primary" type="button" id="button-addon2"><i class="bi bi-floppy"></i></button>
+                            <button class="btn btn-primary" type="button" id="btn_guardar_2">
+                                <i class="bi bi-keyboard"></i> etiquetar
+                            </button>
                         </div>
                         <div class="btn-group col-12 pb-2" role="group">
                             <input type="radio" class="btn-check" name="e_exitosa" id="e_rd_ex_0" value="exito"
@@ -440,7 +445,9 @@
             vapi_id= document.getElementById('lista_' + orden+'_id').value.trim();
             playAudio()
             modifico=false;
+            scrollFila(orden);
 
+            if (anterior_fila===orden) return false
             document.getElementById('lista_' + orden + '_tr').classList.add('tr-primary');
             if (anterior_fila>=0){
                 document.getElementById('lista_' + anterior_fila + '_tr').classList.remove('tr-primary')
@@ -597,5 +604,120 @@
             audio.src = url.toLowerCase();
             audio.play().catch(() => {});
         }
+    //****************************
+    //configurar teclas rapidas
+    //****************************
+        const btn_fila_derecha=document.getElementById('btn_fila_derecha');
+        btn_fila_derecha.addEventListener('keydown',capturarTeclas);
+
+        const btn_fila_izquierda=document.getElementById('btn_fila_izquierda');
+        btn_fila_izquierda.addEventListener('keydown',capturarTeclas);
+
+        document.getElementById('btn_guardar_2').addEventListener('keydown',capturarTeclas);
+        document.querySelectorAll('button[name="btn_etiquetas_lista"]').forEach(btn =>{
+            btn.addEventListener('keydown',capturarTeclas);
+        });
+
+        let time_escritura;
+        const time_retraso = 500; // milisegundos
+        let teclas_capturadas='';
+        function capturarTeclas(event) {
+            event.preventDefault();
+            clearTimeout(time_escritura);
+            const e_exito=document.getElementById('e_rd_ex_0');
+            const e_conductor=document.getElementById('e_rd_ex_2');
+            const e_ia=document.getElementById('e_rd_ex_3');
+            let tecla = event.key.toLowerCase();
+
+            switch (tecla){
+                case 'enter':
+                    event.target.click();
+                    return;
+                case 'escape':
+                    selLlamada(orden_lista);
+                    return;
+                case 'arrowleft':
+                    btn_fila_izquierda.click();
+                    btn_fila_izquierda.focus();
+                    return;
+                case 'arrowright':
+                    btn_fila_derecha.click();
+                    btn_fila_derecha.focus();
+                    return;
+            }
+
+            //if (tecla === ' ') {
+            //    event.target.click();
+            //}
+
+            teclas_capturadas+=tecla;
+
+
+            time_escritura= setTimeout(()=> {
+                console.log(teclas_capturadas);
+
+                if (teclas_capturadas.includes('bu')){
+                    etiquetaClick('e_buzon_de_voz');
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('ha')){
+                    etiquetaClick('e_no_habla');
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('se')){
+                    etiquetaClick('e_conductor_mala_senal');
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('conf')){
+                    etiquetaClick('e_confusion_en_llamada');
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('conv')){
+                    etiquetaClick('e_conversacion_fluida');
+                    tecla='';
+                }
+
+                teclas_capturadas='';
+
+                switch (tecla) {
+                    case 'c':
+                        etiquetaClick('e_conductor_confirma');
+                        break;
+                    case 'd':
+                        etiquetaClick('e_conductor_da_motivos');
+                        break;
+                    case 'a':
+                        document.getElementById('txt_audio').focus();
+                        break;
+                    case ' ':
+                        if (teclas_capturadas===' '){
+                            e_exito.checked =true;
+                            break;
+                        }
+                        else if (e_exito.checked)
+                            e_conductor.checked=true;
+                        else if (e_conductor.checked)
+                            e_ia.checked=true;
+                        else if(e_ia.checked)
+                            e_exito.checked=true;
+                        else e_exito.checked=true;
+                        break;
+                }
+            },time_retraso);
+        }
+
+        function scrollFila(orden) {
+            const fila = document.getElementById('lista_' + orden + '_tr');
+            if (fila) {
+                // Hacer scroll hasta la fila
+                fila.scrollIntoView({
+                    behavior: 'smooth',  // Animación suave
+                    block: 'center'      // Centrar la fila en la vista
+                });
+                return true;
+            }
+            return false;
+        }
+
     </script>
 @endsection

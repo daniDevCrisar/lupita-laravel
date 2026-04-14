@@ -183,13 +183,17 @@ class DBLlamadas {
         })
         // ========== EN EL MEDIO - ETIQUETAS ==========
         ->when(!empty($etiquetas), function ($query) use ($etiquetas, $e_operador) {
-
+            $sql_etiquetas='';
             foreach ($etiquetas as $tag)
                 if (self::$etiquetas_icon_bi[$tag])
                     if ($e_operador)
-                        $query->orWhere('a.' . $tag, '=', '1');
+                        $sql_etiquetas .= 'OR a.'.$tag.' = 1 ';
                     else
-                        $query->where('a.' . $tag, '=', '1');
+                        $sql_etiquetas .= 'AND a.'.$tag.'= 1 ';
+
+            $sql_etiquetas = ltrim($sql_etiquetas,'OR');
+            $sql_etiquetas = ltrim($sql_etiquetas,'AND');
+            $query->whereRaw('('.$sql_etiquetas. ')');
             return $query;
         })
         ->orderBy('a.created_at', 'desc')

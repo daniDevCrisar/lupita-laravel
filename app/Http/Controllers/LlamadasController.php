@@ -132,6 +132,7 @@ class LlamadasController extends Controller
     }
 
     public static function procesar_audio(Request $request){
+        $analisis= new stdClass();
         $request->validate([
             'fecha_inicio'     => 'nullable|date',
             'fecha_fin'        => 'nullable|date',
@@ -145,8 +146,11 @@ class LlamadasController extends Controller
         $llamadas::set_filtro($request);
         $llamadas::listar_principal(30);
 
+        $analisis->texto_mas_usado= DBLlamadaEtiquetar::analisis_audio_mas_usado();
+
         return view('lupita.procesar_audio', [
-            'llamadas' => $llamadas
+            'llamadas' => $llamadas,
+            'analisis' => $analisis
         ]);
     }
 
