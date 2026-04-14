@@ -38,7 +38,6 @@
                     </thead>
                     <tbody>
 
-
                     @foreach($llamadas::$lista as $row)
                         @php
                             //listar llamadas para ayudar al etiquetado
