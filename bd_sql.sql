@@ -394,6 +394,7 @@ CREATE TABLE llamadas (
     ia_error_interpretacion TINYINT(1) DEFAULT 0,
     ia_dice_variable TINYINT(1) DEFAULT 0,
     ia_mala_pronunciacion TINYINT(1) DEFAULT 0,
+    ia_cuelga_sin_finalizar TINYINT(1) DEFAULT 0,
 
     conductor_cuelga TINYINT(1) DEFAULT 0,
     conductor_no_contesta TINYINT(1) DEFAULT 0,
@@ -502,6 +503,7 @@ CREATE TABLE tmp_lotes_det (
     ia_error_interpretacion VARCHAR(10),
     ia_dice_variable VARCHAR(10),
     ia_mala_pronunciacion VARCHAR(10),
+    ia_cuelga_sin_finalizar VARCHAR(10),
 
     conductor_cuelga VARCHAR(10),
     conductor_no_contesta VARCHAR(10),
