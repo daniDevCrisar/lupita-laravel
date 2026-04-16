@@ -55,7 +55,7 @@ class DBLlamadaEtiquetar
         SELECT analisis_audio,total
         FROM (
             SELECT analisis_audio , COUNT(analisis_audio) as total FROM `llamadas` GROUP BY analisis_audio) b
-        where total > 9 and analisis_audio !='' order by total desc;
+        where total > 3 and analisis_audio !='' order by total desc;
         ";
         return DB::select($sql);
     }

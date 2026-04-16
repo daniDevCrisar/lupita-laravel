@@ -76,7 +76,9 @@
                                 <i class="bi bi-card-text"></i> {{ $row->placa }} <br>
                             </td>
                             <td>
-                                <i class="bi bi-telephone"></i> {{ $row->telefono }} <br>
+                                <i class="bi bi-telephone"></i> {{ $row->telefono }}
+                                <a href="https://wa.me/+{{$row->telefono}}?text=Buen%20dia sr {{$row->conductor}}"
+                                   target="_blank" ><i class="fab fa-whatsapp"></i></a> <br>
 
                                 <button class="btn btn-outline-light mb-1">
                                     <i class="bi bi-person"></i> {{$row->conductor }} (#{{ $row->conductor_id }})
