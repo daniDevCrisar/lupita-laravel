@@ -250,6 +250,7 @@
                                 </label>
                             @endforeach
                         </div>
+                        @php $ia_etiq=''; $conductor_etiq=''; @endphp
 
                         <div class="btn-group-vertical col-4">
                             @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
@@ -258,6 +259,7 @@
                                     id="e_{{$key}}" onclick="etiquetaClick('e_{{ $key }}')">
                                         <i class="{{$item[0]}}"></i> {{$item[1]}}
                                     </button>
+
                                 @endif
                             @endforeach
                         </div>
@@ -268,6 +270,9 @@
                                     id="e_{{$key}}" onclick="etiquetaClick('e_{{ $key }}')">
                                         <i class="{{$item[0]}}"></i> {{$item[1]}}
                                     </button>
+                                    @php
+                                        $conductor_etiq.= ",'".$key . "'"; //dar a java los nombres de las etiquetas ia
+                                    @endphp
                                 @endif
                             @endforeach
                         </div>
@@ -279,6 +284,9 @@
                                     id="e_{{$key}}" onclick="etiquetaClick('e_{{ $key }}')">
                                         <i class="{{$item[0]}}"></i> {{$item[1]}}
                                     </button>
+                                    @php
+                                        $ia_etiq.= ",'".$key . "'"; //dar a java los nombres de las etiquetas ia
+                                    @endphp
                                 @endif
                             @endforeach
                         </div>
@@ -350,36 +358,40 @@
         }
 
         function checkedRadio_exito(exito,error_origen){
-            const radio =document.querySelectorAll('input[name="e_exitosa"]');
-            radio.forEach(r => {
+
+            rdo_error_origen.forEach(r => {
                 r.checked = false;
             });
             if (exito==='1') document.querySelector(`input[name="e_exitosa"][value="exito"]`).checked=true;
             else {
-                radio.forEach(r => {
+                rdo_error_origen.forEach(r => {
                     r.checked = r.value === error_origen;
                 });
             }
         }
 
+        const rdo_error_origen =document.querySelectorAll('input[name="e_exitosa"]');
+        rdo_error_origen.forEach(radio=> {
+            radio.addEventListener('change',(event)=>{
+                if (event.target.checked) modifico=true;
+            });
+        });
         function disabledRadio_exito(exito,error_origen){
-            const radio =document.querySelectorAll('input[name="e_exitosa"]');
             const r_exito = document.querySelector(`input[name="e_exitosa"][value="exito"]`);
             const r_ia = document.querySelector(`input[name="e_exitosa"][value="1"]`);
             const r_conductor = document.querySelector(`input[name="e_exitosa"][value="0"]`);
 
-            radio.forEach(r => {
+            rdo_error_origen.forEach(r => {
                 r.disabled = true;
                 r.checked = false;
             });
             if (error_origen !== '0' && error_origen !== '1'){
                 console.log(error_origen);
-                radio.forEach(r => {
+                rdo_error_origen.forEach(r => {
                     r.disabled = !(r.value === error_origen);
                     r.checked = r.value === error_origen;
                 });
             } else {
-                console.log('dadad')
                 r_exito.disabled=false;
                 r_ia.disabled=false;
                 r_conductor.disabled=false;
@@ -438,7 +450,7 @@
             document.querySelectorAll('button[id^="e_"]').forEach(el => {
                 colorearBoton(el.id,'lista_' + orden+'_' + el.id);
             });
-            //disabledRadio_exito(llamada_exitosa,error_origen);
+            disabledRadio_exito(llamada_exitosa,error_origen); // no dejar combinar con errores
             checkedRadio_exito(llamada_exitosa,error_origen);
 
             orden_lista=orden;
@@ -456,6 +468,12 @@
         }
 
         function guardar_etiqueta(){
+            let combinacion_etiq=comprobarCombinacionEtiq();
+            if (combinacion_etiq) {
+                alert(combinacion_etiq);
+                return false;
+            }
+
             if(vapi_id==='' || !modifico) return false;
             let guardo=false;
 
@@ -509,6 +527,34 @@
                 return guardo;
             });
         }
+
+        const ia_etiq= [{!! ltrim($ia_etiq,',') !!}];
+        const conductor_etiq = [{!! ltrim($conductor_etiq) !!}]
+        function comprobarCombinacionEtiq(){
+            const e_exito=document.getElementById('e_rd_ex_0');
+            const e_conductor=document.getElementById('e_rd_ex_2');
+            const e_ia=document.getElementById('e_rd_ex_3');
+            const razon_f_id=document.getElementById('lista_' + orden_lista +'_razon_id').value;
+            let etiq_sel={};
+            document.querySelectorAll('button[id^="e_"]').forEach(el => {
+                let valor=0;
+                if (el.classList.contains("bg-activo")) valor=1
+                // eliminar el e_ en el id del botoon psaa dejar el nombre de etiqueta
+                etiq_sel[el.id.substring(2)]=valor;
+            });
+
+            let ia_etiq_suma=0,conductor_etiq_suma=0;
+            ia_etiq.forEach(el=> {
+               ia_etiq_suma+=etiq_sel[el];
+            });
+            conductor_etiq.forEach(el=> {
+                conductor_etiq_suma+=etiq_sel[el];
+            });
+            //console.log(razon_f_id , razon_f_id=='2');
+            if (e_exito.checked && !etiq_sel['conductor_confirma']) return 'Llamada Exitosa sin confirmacion.';
+            if (e_ia.checked && !ia_etiq_suma) return 'Llamada con Error IA sin etiqueta IA.';
+            if (e_conductor.checked && razon_f_id!=='2' && !conductor_etiq_suma && !etiq_sel['conductor_confirma']) return 'Llamada Fallida sin etiqueta especifica.';
+        };
 
         let ultima_direccion= 0;//guardar ultima direccion para llamarla en el fetch
         let esperar_guardado=false;
@@ -593,11 +639,11 @@
             Livewire.dispatch('abrirMensaje',parametros);
         }
 
-
+        const audio = document.getElementById('mainAudio');
         function playAudio() {
             let url=document.getElementById('lista_' + orden_lista+'_audio').value;
             if (!url) return false;
-            const audio = document.getElementById('mainAudio');
+
             if (!audio.paused) {
                 audio.pause();
             }
@@ -643,6 +689,12 @@
                 case 'arrowright':
                     btn_fila_derecha.click();
                     btn_fila_derecha.focus();
+                    return;
+                case 'arrowup':
+                    moverAudio()
+                    return;
+                case 'arrowdown':
+                    moverAudio(-5)
                     return;
             }
 
@@ -690,17 +742,18 @@
                         document.getElementById('txt_audio').focus();
                         break;
                     case ' ':
-                        if (teclas_capturadas===' '){
-                            e_exito.checked =true;
-                            break;
-                        }
-                        else if (e_exito.checked)
+                        if (e_exito.checked)
                             e_conductor.checked=true;
                         else if (e_conductor.checked)
                             e_ia.checked=true;
                         else if(e_ia.checked)
                             e_exito.checked=true;
                         else e_exito.checked=true;
+                        modifico=true;
+                        break;
+                    case 'e':
+                        e_exito.checked =true;
+                        modifico=true;
                         break;
                 }
             },time_retraso);
@@ -717,6 +770,10 @@
                 return true;
             }
             return false;
+        }
+
+        function moverAudio(segundos = 5) {
+            audio.currentTime += segundos;
         }
 
     </script>
