@@ -5,6 +5,8 @@ function generar_excel_llamadas(json){
     var vapi_entro_llamada,vapi_conductor_no_contesta,vapi_conductor_cuelga,vapi_audio_duracion;
     let vapi_ia_result={};
 
+    var por_mientras='';
+
     const conversacion = new procesarTranscripcion();
     json.forEach((item, index) => {
 
@@ -142,9 +144,9 @@ function generar_excel_llamadas(json){
         razon_finalizacion_español: inglesAEspanol(item.endedReason),
         'transportista':'',
 
-        'ia_result_comments_text': vapi_ia_result['comments_text'],
-        'ia_result_delay_reason_code': vapi_ia_result['delay_reason_code'],
-        'ia_result_delay_reason_desc': vapi_ia_result['delay_reason_desc'],
+        'ia_result_comments_text': limpiarComillas(vapi_ia_result['comments_text']),
+        'ia_result_delay_reason_code': limpiarComillas(vapi_ia_result['delay_reason_code']),
+        'ia_result_delay_reason_desc': limpiarComillas(vapi_ia_result['delay_reason_desc']),
 
         'analisis_transcripcion': conversacion.analisis_transcripcion,
         'analisis_audio' : '',
@@ -177,14 +179,33 @@ function generar_excel_llamadas(json){
         'error_origen' : vapi_error_origen,
         'llamada_exitosa': '',
         };
+        archivo_excel [index]=analisis;
 
-        archivo_excel [index]=analisis
+        // let id= analisis.id.toUpperCase();
+        // por_mientras+=`
+        // update llamadas set
+        //      costo=${analisis.costo} ,
+        //      ia_result_comments_text="${analisis.ia_result_comments_text}" ,
+        //      ia_result_delay_reason_desc="${analisis.ia_result_delay_reason_desc}",
+        //      audio_duracion= ${analisis.audio_duracion}
+        // WHERE vapi_id="${id}"; `
+
     });
+
+    // //------------OBTENER DATOS Q ME FALTAN-------------------
+    // const blob = new Blob([por_mientras], {type: 'text/plain;charset=utf-8'});
+    // const url = URL.createObjectURL(blob);
+    // window.open(url); // Abre en nueva pestaña para ver completo
+    // //----------------------------------
 
     generarExcelDesdeArray(archivo_excel);
     return true;
 }
 
+function limpiarComillas(texto) {
+    if (!texto) return '';
+    return texto.replace(/"/g, '');
+}
 
 function listarPropiedadesSimples(json) {
     console.log("📋 PROPIEDADES DEL JSON:");

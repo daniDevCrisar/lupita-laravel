@@ -157,6 +157,7 @@ $total_trts = count($trts);
                         <th>conductor</th>
                         <th>placa</th>
                         <th>fecha_prometida</th>
+                        <th>costo</th>
                         <th>mensajes_conten</th>
                         <th>audio</th>
                         <th>exitosa_segun_ia</th>
@@ -164,6 +165,10 @@ $total_trts = count($trts);
                         <th>razon_finalizacion</th>
                         <th>razon_finalizacion_espanol</th>
                         <th>transportista</th>
+
+                        <th>ia_result_comments_text</th>
+                        <th>ia_result_delay_reason_desc</th>
+
                         <th>analisis_transcripcion</th>
                         <th>analisis_audio</th>
                         <th>conductor_confirma</th>
@@ -208,6 +213,7 @@ $total_trts = count($trts);
                     <td>{{ $row->conductor }}</td>
                     <td>{{ $row->placa }}</td>
                     <td>{{ $row->fecha_prometida }}</td>
+                    <td>{{ $row->costo }}</td>
                     <td>{{ substr($row->mensajes_conten,0,35) }}....</td>
                     <td>{{ $row->audio }}</td>
                     <td>{{ $row->exitosa_segun_ia }}</td>
@@ -215,6 +221,10 @@ $total_trts = count($trts);
                     <td>{{ $row->razon_finalizacion }}</td>
                     <td>{{ $row->razon_finalizacion_espanol }}</td>
                     <td>{{ $row->transportista }}</td>
+
+                    <td>{{ $row->ia_result_comments_text }}</td>
+                    <td>{{ $row->ia_result_delay_reason_desc }}</td>
+
                     <td>{{ $row->analisis_transcripcion }}</td>
                     <td>{{ $row->analisis_audio }}</td>
                     <td>{{ $row->conductor_confirma }}</td>

@@ -86,11 +86,16 @@
                                 </a>
                                 <br>
                                 @if( $row->trt)
-
                                     <a href="{{ route('lupita.transportistas') . '?' . http_build_query(array_merge(request()->all(),
                                     ['trt' => $row->trt_id]))  }}" target="_blank">
                                         <i class="bi bi-shop"></i> {{ $row->trt }} (#{{ $row->trt_id }})
                                     </a>
+                                @endif
+
+                                @if($row->entro_llamada)
+                                    <br>
+                                    Duracion de llamada: <b>{{$row->audio_duracion}} seg</b><br>
+                                    Costo: <b>${{$row->costo}}</b>
                                 @endif
                             </td>
                             <td>
@@ -109,6 +114,7 @@
                                     </button><br>
                                 @endif
 
+                                <span class="text-info small" style="font-size: 0.75rem">{{ $row->ia_result_delay_reason_desc ?: $row->ia_result_comments_text }}</span> <br>
                                 <span class="text-danger">{{ $row->analisis_transcripcion }}</span> <br>
                                 <span class="text-success">{{ $row->analisis_audio }}</span>
                             </td>

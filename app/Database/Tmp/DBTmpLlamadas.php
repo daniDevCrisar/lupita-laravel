@@ -71,6 +71,12 @@ class DBTmpLlamadas {
         $llamada->analisis_transcripcion = $item->analisis_transcripcion;
         $llamada->analisis_audio = $item->analisis_audio;
 
+        //ultimo agregado---------
+        $llamada->costo = ((float) $item->costo) ?:0 ; //formatear decimal
+        $llamada->ia_result_delay_reason_desc = $item->ia_result_delay_reason_desc;
+        $llamada->ia_result_comments_text = $item->ia_result_comments_text;
+        //------------------
+
         $llamada->conductor_confirma = self::etiqueta_valor($item->conductor_confirma);
         $llamada->buzon_de_voz = self::etiqueta_valor($item->buzon_de_voz);
         $llamada->conductor_contesta_pero_no_habla = self::etiqueta_valor($item->conductor_contesta_pero_no_habla);
@@ -235,10 +241,15 @@ class DBTmpLlamadas {
             origen,
             destino,
             placa,
+
+            costo,
+            ia_result_delay_reason_desc,
+            ia_result_comments_text,
+
             fecha_prometida,
             created_at
         ) VALUES (
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
             FROM_UNIXTIME(?),
             FROM_UNIXTIME(?)
         )";
@@ -288,8 +299,16 @@ class DBTmpLlamadas {
             $llamada->origen,
             $llamada->destino,
             $llamada->placa,
+
+            $llamada->costo,
+            $llamada->ia_result_delay_reason_desc,
+            $llamada->ia_result_comments_text,
+
             $llamada->fecha_prometida,
-            $llamada->created_at
+            $llamada->created_at,
+
+
+
         ];
 
         return DB::insert($sql, $params);

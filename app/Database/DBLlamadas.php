@@ -120,6 +120,10 @@ class DBLlamadas {
             'a.exitosa_segun_ia',
             'entro_llamada',
 
+            'a.costo',
+            'a.ia_result_delay_reason_desc',
+            'a.ia_result_comments_text',
+
             'a.conductor_confirma',
             'a.buzon_de_voz',
             'a.conductor_contesta_pero_no_habla',

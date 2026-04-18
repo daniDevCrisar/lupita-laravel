@@ -368,12 +368,12 @@ CREATE TABLE llamadas (
     -- =========================
     -- 3. METRICAS
     -- =========================
-    costo DECIMAL(10,4),
+    costo DECIMAL(10,4) DEFAULT 0,
     audio_link VARCHAR(255) NOT NULL DEFAULT '',
     audio_duracion INT DEFAULT 0,
 
-    ia_result_delay_reason_desc VARCHAR(255),
-    ia_result_comments_text VARCHAR(255),              -- Puede ser más largo
+    ia_result_delay_reason_desc VARCHAR(255) NOT NULL DEFAULT '',
+    ia_result_comments_text VARCHAR(255) NOT NULL DEFAULT '',
 
     analisis_transcripcion VARCHAR(255) NOT NULL DEFAULT '',
     analisis_audio VARCHAR(255) NOT NULL DEFAULT '',
@@ -425,6 +425,11 @@ CREATE TABLE llamadas (
     -- FOREIGN KEYS (OPCIONAL)
     -- =========================
 );
+
+ALTER TABLE llamadas
+    ADD COLUMN costo DECIMAL(10,4) DEFAULT 0 AFTER llamada_exitosa,
+    ADD COLUMN ia_result_delay_reason_desc VARCHAR(255) DEFAULT '' AFTER audio_duracion,
+    ADD COLUMN ia_result_comments_text VARCHAR(255) DEFAULT '' AFTER ia_result_delay_reason_desc;
 
 update `llamadas` set `error_origen`= 2 where `razon_finalizacion_id`= 4;
 update `llamadas` set `error_origen`= 3 where `razon_finalizacion_id`= 7  or `razon_finalizacion_id`= 9;
@@ -527,6 +532,10 @@ CREATE TABLE tmp_lotes_det (
     llamada_exitosa VARCHAR(10)
 );
 
+ALTER TABLE tmp_lotes_det
+    ADD COLUMN costo VARCHAR(25) DEFAULT '' AFTER audio_duracion,
+    ADD COLUMN ia_result_comments_text VARCHAR(255) DEFAULT '' AFTER transportista,
+    ADD COLUMN ia_result_delay_reason_desc VARCHAR(255) DEFAULT '' AFTER ia_result_comments_text;
 
 
 CREATE TABLE tmp_lotes (
