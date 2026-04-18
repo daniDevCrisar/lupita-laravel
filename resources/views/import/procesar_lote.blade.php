@@ -183,6 +183,7 @@ $total_trts = count($trts);
                         <th>ia_error_interpretacion</th>
                         <th>ia_dice_variable</th>
                         <th>ia_mala_pronunciacion</th>
+                        <th>ia_cuelga_en_plena_llamada</th>
                         <th>conductor_cuelga</th>
                         <th>conductor_no_contesta</th>
                         <th>conductor_conducta_inapropiada</th>
@@ -233,6 +234,7 @@ $total_trts = count($trts);
                     <td>{{ $row->ia_error_interpretacion }}</td>
                     <td>{{ $row->ia_dice_variable }}</td>
                     <td>{{ $row->ia_mala_pronunciacion }}</td>
+                    <td>{{ $row->ia_cuelga_en_plena_llamada }}</td>
                     <td>{{ $row->conductor_cuelga }}</td>
                     <td>{{ $row->conductor_no_contesta }}</td>
                     <td>{{ $row->conductor_conducta_inapropiada }}</td>

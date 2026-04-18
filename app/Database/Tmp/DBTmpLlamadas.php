@@ -89,6 +89,8 @@ class DBTmpLlamadas {
         $llamada->ia_error_interpretacion = self::etiqueta_valor($item->ia_error_interpretacion);
         $llamada->ia_dice_variable = self::etiqueta_valor($item->ia_dice_variable);
         $llamada->ia_mala_pronunciacion = self::etiqueta_valor($item->ia_mala_pronunciacion);
+        $llamada->ia_cuelga_en_plena_llamada = self::etiqueta_valor($item->ia_cuelga_en_plena_llamada);
+
 
         $llamada->conductor_cuelga = self::etiqueta_valor($item->conductor_cuelga);
         $llamada->conductor_no_contesta = self::etiqueta_valor($item->conductor_no_contesta);
@@ -222,6 +224,7 @@ class DBTmpLlamadas {
             ia_error_interpretacion,
             ia_dice_variable,
             ia_mala_pronunciacion,
+            ia_cuelga_en_plena_llamada,
             conductor_cuelga,
             conductor_no_contesta,
             conductor_conducta_inapropiada,
@@ -235,7 +238,7 @@ class DBTmpLlamadas {
             fecha_prometida,
             created_at
         ) VALUES (
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
             FROM_UNIXTIME(?),
             FROM_UNIXTIME(?)
         )";
@@ -274,6 +277,7 @@ class DBTmpLlamadas {
             $llamada->ia_error_interpretacion,
             $llamada->ia_dice_variable,
             $llamada->ia_mala_pronunciacion,
+            $llamada->ia_cuelga_en_plena_llamada,
             $llamada->conductor_cuelga,
             $llamada->conductor_no_contesta,
             $llamada->conductor_conducta_inapropiada,

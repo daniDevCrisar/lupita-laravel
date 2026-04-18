@@ -39,6 +39,7 @@ class DBLlamadas {
         'ia_error_interpretacion' => ['bi bi-exclamation-triangle-fill text-danger','IA error de interpretacion',0,0,3],
         'ia_dice_variable' => ['bi bi-braces text-warning','IA dice variable',0,0,3],
         'ia_mala_pronunciacion' => ['bi bi-volume-down-fill text-warning','IA mala pronunciacion',0,0,3],
+        'ia_cuelga_en_plena_llamada' => ['bi bi-bug-fill text-danger','IA cuelga en plena llamada',0,0,3],
 
         'conductor_cuelga' => ['bi bi-telephone-minus-fill text-danger','Cuelga',0,-5,0],
         'conductor_no_contesta' => ['bi bi-telephone-x-fill text-danger','No contesta',0,-10,0],
@@ -137,6 +138,7 @@ class DBLlamadas {
             'a.ia_error_interpretacion',
             'a.ia_dice_variable',
             'a.ia_mala_pronunciacion',
+            'a.ia_cuelga_en_plena_llamada',
 
             'a.conductor_cuelga',
             'a.conductor_no_contesta',
@@ -316,6 +318,7 @@ class DBLlamadas {
             SUM(ia_error_interpretacion) AS ia_error_interpretacion,
             SUM(ia_dice_variable) AS ia_dice_variable,
             SUM(ia_mala_pronunciacion) AS ia_mala_pronunciacion,
+            SUM(ia_cuelga_en_plena_llamada) AS ia_cuelga_en_plena_llamada,
 
             SUM(conductor_cuelga) AS conductor_cuelga,
             SUM(conductor_no_contesta) AS conductor_no_contesta,
@@ -947,6 +950,21 @@ class DBLlamadas {
                 'cruza_medianoche' => ($peorInicio + $horasConsecutivas) > 24
             ]
         ];
+    }
+
+    public static function diagrama_venn_ia_persona ()
+    {
+        $sql="
+        SELECT SUM(exitosa_segun_ia) as ia,
+            SUM(llamada_exitosa) as persona,
+            SUM(IF(exitosa_segun_ia and llamada_exitosa,1,0)) as 'interseccion',
+            sum(if(exitosa_segun_ia and buzon_de_voz,1,0)) as ia_buzon_de_voz
+        from llamadas a
+        where 1=1
+        ";
+        $filtro= self::aplicar_filtro_sqltext();
+        return DB::select($sql . $filtro[0],$filtro[1]);
+
     }
 
 

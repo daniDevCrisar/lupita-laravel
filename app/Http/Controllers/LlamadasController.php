@@ -67,6 +67,8 @@ class LlamadasController extends Controller
         $reporte->mejores_trts= $llamadas::top_mejores_trts();
         $reporte->peores_trts= $llamadas::top_peores_trts();
         $reporte->grafico_semana= $llamadas::grafico_semana_query();
+        $reporte->diagrama_venn_ia_persona = $llamadas::diagrama_venn_ia_persona()[0];
+
 
         //-----------PRUEBA--------------
         if (!$request->llamada_tipo_id)

@@ -47,6 +47,7 @@ class DBColumns
             'ia_error_interpretacion',
             'ia_dice_variable',
             'ia_mala_pronunciacion',
+            'ia_cuelga_en_plena_llamada',
             'conductor_cuelga',
             'conductor_no_contesta',
             'conductor_conducta_inapropiada',

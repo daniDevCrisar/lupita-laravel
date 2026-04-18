@@ -155,6 +155,7 @@ function generar_excel_llamadas(json){
         'ia_error_interpretacion': '', //cuando esta fuera de contexto
         'ia_dice_variable': '',
         'ia_mala_pronunciacion' :'',
+        'ia_cuelga_en_plena_llamada' : '',
 
         'conductor_cuelga' : vapi_conductor_cuelga,
         'conductor_no_contesta':vapi_conductor_no_contesta,

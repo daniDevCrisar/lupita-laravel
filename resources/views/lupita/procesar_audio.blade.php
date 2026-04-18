@@ -60,7 +60,9 @@
                         <input type="hidden" id="lista_{{$loop->index}}_error_origen" value="{{ $row->error_origen }}">
                         <input type="hidden" id="lista_{{$loop->index}}_llamada_exitosa" value="{{ $row->llamada_exitosa }}">
                         <input type="hidden" id="lista_{{$loop->index}}_error_origen" value="{{ $row->error_origen }}">
-                        @php $orden=$loop->index @endphp
+                        @php
+                            $orden=$loop->index;
+                        @endphp
                         @foreach($llamadas::$etiquetas_icon_bi as $key => $item)
                             @if($item[4])
                                 <input type="hidden" id="lista_{{$orden. '_e_' . $key }}" value="{{ $row->$key }}">

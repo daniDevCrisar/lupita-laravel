@@ -174,7 +174,7 @@
                                 class="fas fa-check-circle fa-2x text-success"></i></div>
                     </div>
                     @php
-                        $exitosas_100=round(($reporte->total->llamada_exitosa / $reporte->total->llamadas)*100);
+                        $exitosas_100=round(($reporte->total->llamada_exitosa / $reporte->total->llamadas)*100)?:0;
                     @endphp
                     <small class="text-muted">{{ $exitosas_100 }}% del total</small>
                 </div>
@@ -188,7 +188,7 @@
                             <h6 class="text-muted text-uppercase fw-normal">Fallidas</h6>
                             @php
                                 $fallidas=$reporte->total->llamadas-$reporte->total->llamada_exitosa;
-                                $fallidas_100=round((($fallidas)/ $reporte->total->llamadas)*100,0);
+                                $fallidas_100=round((($fallidas)/ $reporte->total->llamadas)*100,0)?:0;
                             @endphp
                             <h2 class="fw-bold text-danger">{{$fallidas}}</h2>
                         </div>
@@ -285,10 +285,10 @@
                     </div>
                     <small class="text-muted">
                         @php
-                        $duracion_audio_fallidas_total=$reporte->total->audio_duracion_fallidas_sin_buzon;
-                        if ($duracion_audio_fallidas_total){
-                            $duracion_audio_fallidas_total=round($reporte->total->audio_duracion_fallidas_sin_buzon/$reporte->total->contestadas_fallidas);
-                        }
+                            $duracion_audio_fallidas_total=$reporte->total->audio_duracion_fallidas_sin_buzon;
+                            if ($duracion_audio_fallidas_total){
+                                $duracion_audio_fallidas_total=round($reporte->total->audio_duracion_fallidas_sin_buzon/$reporte->total->contestadas_fallidas);
+                            }
                         @endphp
                         {{$duracion_audio_fallidas_total }}s promedio de llamada</small>
                 </div>
@@ -303,7 +303,7 @@
         @php
             if($duracion_exitosas)
                 $duracion_exitosas= round(($reporte->total->audio_duracion_exitosas /$reporte->total->audio_duracion_total)*100,0);
-            $duracion_fallidas= round(($reporte->total->audio_duracion_fallidas /$reporte->total->audio_duracion_total)*100,0);
+            $duracion_fallidas= round(($reporte->total->audio_duracion_fallidas /$reporte->total->audio_duracion_total)*100,0)?:0;
         @endphp
         <div class="progress">
             <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar"
@@ -868,6 +868,7 @@
                     ia_error_interpretacion = {{ $reporte->total->ia_error_interpretacion }} <br>
                     ia_dice_variable = {{ $reporte->total->ia_dice_variable }} <br>
                     ia_mala_pronunciacion = {{ $reporte->total->ia_mala_pronunciacion }} <br>
+                    ia_cuelga_en_plena_llamada = {{ $reporte->total->ia_cuelga_en_plena_llamada }}
                 </code>
 
                 <hr>
@@ -926,6 +927,158 @@
         </div>
     </div>
 
+    {{--  DIAGRAMA DE VENN  --}}
+    <style>
+        .circulo-a {
+            width: 30vw; /* 30% del ancho de la ventana */
+            height: 30vw; /* Mismo ancho que alto (mantiene círculo) */
+            max-width: 400px; /* Límite máximo */
+            min-width: 180px; /* Límite mínimo */
+            max-height: 400px; /* Límite máximo */
+            min-height: 180px; /* Límite mínimo */
+            position: relative;
+            right: -4vw; /* Escala el desplazamiento también */
+        }
+
+        .circulo-b {
+            width: 30vw; /* 30% del ancho de la ventana */
+            height: 30vw; /* Mismo ancho que alto (mantiene círculo) */
+            max-width: 400px; /* Límite máximo */
+            min-width: 180px; /* Límite mínimo */
+            max-height: 400px; /* Límite máximo */
+            min-height: 180px; /* Límite mínimo */
+            position: relative;
+            right: 4vw; /* Escala el desplazamiento también */
+        }
+    </style>
+    <div class="col-12 mb-4">
+        <div class="card p-4 h-100">
+            <div class="d-flex align-items-center gap-3 mb-3 fs-2">
+                <i class="bi bi-bar-chart-fill text-secondary"></i>
+                <h3 class="h4 mb-0">Analisis de llamadas exitosas segun IA vs Usuario</h3>
+            </div>
+            @php
+                $grafico_venn_exito=0;
+                foreach ($reporte->diagrama_venn_ia_persona as $item)
+                    $grafico_venn_exito+=$item;
+            @endphp
+
+            @if($grafico_venn_exito)
+                <!-- Aquí se dibujará el gráfico -->
+                <div id="diagrama_venn">
+                    <div class="d-flex justify-content-center align-items-center position-relative mb-4"
+                         style="min-height: 200px;">
+
+                        <div
+                            class="bg-danger bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center circulo-a">
+                        <span class="fw-bold text-danger text-center">
+                            <i class="bi bi-robot"></i> IA<br>
+                        <small>{{ $reporte->diagrama_venn_ia_persona->ia }}</small></span>
+                        </div>
+                        <div
+                            class="bg-info bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center circulo-b">
+                        <span class="fw-bold text-info text-center">
+                            <i class="bi bi-person"></i>USUARIO<br>
+                        <small>{{ $reporte->diagrama_venn_ia_persona->persona }}</small></span>
+                        </div>
+                        <div class="position-absolute bg-white px-3 py-1 rounded-pill shadow-sm"
+                             style="top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1;">
+                            <i class="bi bi-intersect text-success"></i>
+                            <strong class="text-success">{{ $reporte->diagrama_venn_ia_persona->interseccion }}</strong>
+                        </div>
+                        <div class="position-absolute bg-danger px-3 py-1 rounded-pill shadow-sm text-white"
+                             style="top: 25%; left: 35%; transform: translate(-50%, -50%); z-index: 1;">
+                            <i class="bi bi-voicemail"></i> Buzon de Voz
+                            <strong class="">{{ $reporte->diagrama_venn_ia_persona->ia_buzon_de_voz }}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Region</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">Porcentaje</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @php
+                            $exito_ia_buzon=$reporte->diagrama_venn_ia_persona->ia_buzon_de_voz;
+                            $exito_user=$reporte->diagrama_venn_ia_persona->persona;
+                            $exito_ia = $reporte->diagrama_venn_ia_persona->ia;
+                            $exito_interseccion= $reporte->diagrama_venn_ia_persona->interseccion;
+                            $exito_ia_solo = $exito_ia - $exito_ia_buzon - $exito_interseccion;
+                            $exito_user_solo = $exito_user - $exito_interseccion;
+
+
+
+                            $exito_ia_buzon_100 = round(($exito_ia_buzon / $exito_ia) *100,1 )?:0;
+                            $exito_ia_solo_100 = round(($exito_ia_solo / $exito_ia) *100,1 )?:0;
+                            $exito_ia_interseccion_100 = round(($exito_interseccion / $exito_ia) *100,1 )?:0;
+                            $exito_user_interseccion_100 = round(($exito_interseccion / $exito_user) *100,1 )?:0;
+                            $exito_user_solo_100 = round(($exito_user_solo / $exito_user)*100,1)?:0;
+
+                        @endphp
+                        <tr>
+                            <td class="table-danger">1</td>
+                            <td><i class="bi bi-circle text-danger"></i> IA</td>
+                            <td class="text-center">{{ $exito_ia }}</td>
+                            <td class="text-danger text-center"><b>100%</b></td>
+                        </tr>
+                        <tr>
+                            <td class="table-danger">2</td>
+                            <td><i class="bi bi-circle-fill text-danger"></i> IA [Buzon de Voz]</td>
+                            <td class="text-center">{{ $exito_ia_buzon }}</td>
+                            <td class="text-danger text-center"><b>{{$exito_ia_buzon_100}}%</b></td>
+                        </tr>
+                        <tr>
+                            <td class="table-danger">3</td>
+                            <td><i class="bi bi-circle-fill text-danger"></i> IA - IA [Buzon de Voz] - (IA ∩ USUARIO)</td>
+                            <td class="text-center">{{ $exito_ia_solo }}</td>
+                            <td class="text-danger text-center"><b>{{$exito_ia_solo_100}}%</b></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><i class="bi bi-intersect text-success"></i> Interseccion</td>
+                            <td class="text-success text-center"><b>{{ $exito_interseccion }}</b></td>
+                            <td class="text-center">
+                                <b class="text-danger"><i class="bi bi-robot"></i> {{$exito_ia_interseccion_100}}%</b>
+                                <b class="text-info"><i class="bi bi-person"></i> {{$exito_user_interseccion_100}}%</b>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="table-info">5</td>
+                            <td><i class="bi bi-circle text-info"></i> USUARIO</td>
+                            <td class="text-center">{{ $exito_user }}</td>
+                            <td class="text-info text-center"><b>100%</b></td>
+                        </tr>
+
+                        <tr>
+                            <td class="table-info">6</td>
+                            <td><i class="bi bi-circle-fill text-info"></i> USUARIO - (IA ∩ USUARIO)</td>
+                            <td class="text-center">{{ $exito_user_solo }}</td>
+                            <td class="text-info text-center"><b>{{$exito_user_solo_100}}%</b></td>
+                        </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="text-danger text-center">
+                    <h4>
+                        Sin exitos
+                    </h4>
+                </div>
+            @endif
+
+
+
+        </div>
+    </div>
+
+
     <!-- FOOTER / NOTAS ACLARATORIAS -->
     <div class="footer-note pt-3 d-flex justify-content-between">
         <span><i class="far fa-file-excel me-1"></i> Datos: Reporte Generado con LUPITA</span>
@@ -938,6 +1091,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
 
 <script>
+
+
     @php
         if ($reporte->mapa_calor??0){
             $data_g= array_map((function($item) {
