@@ -368,8 +368,13 @@ CREATE TABLE llamadas (
     -- =========================
     -- 3. METRICAS
     -- =========================
+    costo DECIMAL(10,4),
     audio_link VARCHAR(255) NOT NULL DEFAULT '',
     audio_duracion INT DEFAULT 0,
+
+    ia_result_delay_reason_desc VARCHAR(255),
+    ia_result_comments_text VARCHAR(255),              -- Puede ser más largo
+
     analisis_transcripcion VARCHAR(255) NOT NULL DEFAULT '',
     analisis_audio VARCHAR(255) NOT NULL DEFAULT '',
 
@@ -474,6 +479,7 @@ CREATE TABLE tmp_lotes_det (
     mensajes_conten TEXT,
     audio VARCHAR(500),
     audio_duracion VARCHAR(6),
+    costo varchar(25),
 
     exitosa_segun_ia VARCHAR(10),
     entro_llamada VARCHAR(10),
@@ -482,8 +488,12 @@ CREATE TABLE tmp_lotes_det (
     razon_finalizacion_espanol VARCHAR(150),
 
     transportista VARCHAR(150),
-    analisis_transcripcion VARCHAR(1000),
-    analisis_audio VARCHAR(1000),
+
+    ia_result_comments_text VARCHAR(255),
+    ia_result_delay_reason_desc VARCHAR(255),
+
+    analisis_transcripcion VARCHAR(255),
+    analisis_audio VARCHAR(255),
 
     conductor_confirma VARCHAR(10),
     buzon_de_voz VARCHAR(10),

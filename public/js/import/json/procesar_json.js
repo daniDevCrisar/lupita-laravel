@@ -3,6 +3,7 @@ function generar_excel_llamadas(json){
     var vapi_ref,vapi_destino,vapi_origen,vapi_conductor,vapi_placa,vapi_mensajes,vapi_audio;
     var vapi_msj_conten,vapi_tlf,vapi_origen,vapi_fecha,vapi_v_prog=0,vapi_error_origen;
     var vapi_entro_llamada,vapi_conductor_no_contesta,vapi_conductor_cuelga,vapi_audio_duracion;
+    let vapi_ia_result={};
 
     const conversacion = new procesarTranscripcion();
     json.forEach((item, index) => {
@@ -108,7 +109,12 @@ function generar_excel_llamadas(json){
         //analisar transcripcion----------
         conversacion.reiniciar()
         conversacion.procesar(vapi_msj_conten,vapi_audio_duracion,item.endedReason);
+        //-------------------------------
+        //---------obtener los datos q obtuvo la ia-----------
 
+        vapi_ia_result['comments_text'] = item.analysis?.structuredData?.comments_text??'';
+        vapi_ia_result['delay_reason_code'] = item.analysis?.structuredData?.delay_reason_code??'';
+        vapi_ia_result['delay_reason_desc'] = item.analysis?.structuredData?.delay_reason_desc??'';
         //-------------------------------
         analisis = {
         id: item.id, //id en la plataforma de llamada
@@ -128,12 +134,18 @@ function generar_excel_llamadas(json){
         mensajes_conten: vapi_msj_conten,
         audio: vapi_audio,
         audio_duracion: vapi_audio_duracion,
+        costo: item.cost??0,//dolar
 
         'exitosa_segun_ia': item.analysis?.successEvaluation??'false',
         entro_llamada: vapi_entro_llamada,
         razon_finalizacion: item.endedReason,
         razon_finalizacion_español: inglesAEspanol(item.endedReason),
         'transportista':'',
+
+        'ia_result_comments_text': vapi_ia_result['comments_text'],
+        'ia_result_delay_reason_code': vapi_ia_result['delay_reason_code'],
+        'ia_result_delay_reason_desc': vapi_ia_result['delay_reason_desc'],
+
         'analisis_transcripcion': conversacion.analisis_transcripcion,
         'analisis_audio' : '',
 

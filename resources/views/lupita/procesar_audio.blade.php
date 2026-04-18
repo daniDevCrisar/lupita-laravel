@@ -520,14 +520,17 @@
                     console.log(json_result);
                     modifico=false;
                     actualizarFila()
+                    //console.log('espero?: ' + esperar_guardado);
                     if (esperar_guardado){
                         esperar_guardado=false;
+                        console.log('direccion_guardado: ' + ultima_direccion);
                         cambiarFila(ultima_direccion);
                     }
                 }
                 else mostrarAlertas(alerta_error,alerta_exito,guardando);
                 return guardo;
             });
+            return true;
         }
 
         const ia_etiq= [{!! ltrim($ia_etiq,',') !!}];
@@ -556,18 +559,26 @@
             if (e_exito.checked && !etiq_sel['conductor_confirma']) return 'Llamada Exitosa sin confirmacion.';
             if (e_ia.checked && !ia_etiq_suma) return 'Llamada con Error IA sin etiqueta IA.';
             if (e_conductor.checked && razon_f_id!=='2' && !conductor_etiq_suma && !etiq_sel['conductor_confirma']) return 'Llamada Fallida sin etiqueta especifica.';
-        };
+        }
 
         let ultima_direccion= 0;//guardar ultima direccion para llamarla en el fetch
         let esperar_guardado=false;
         function cambiarFila(direccion){
             if (vapi_id==='' || esperar_guardado) return false;
             //guardar si hay error no cambiar
+
             if (modifico){
-                guardar_etiqueta()
-                esperar_guardado=true
-                ultima_direccion=direccion;
-                return false;
+                if (guardar_etiqueta()){
+                    //console.log('ultima_direccion:'+ultima_direccion+' direccion: '+direccion);
+                    esperar_guardado=true
+                    ultima_direccion=direccion;
+                    return false;
+                }
+                else{
+                    //console.log('ultima_direccion:'+ultima_direccion+' direccion: '+direccion);
+                    ultima_direccion=direccion;
+                    return false;
+                }
             }
             //------------------
             let suma= orden_lista+direccion;

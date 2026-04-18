@@ -77,18 +77,20 @@
                             </td>
                             <td>
                                 <i class="bi bi-telephone"></i> {{ $row->telefono }}
-                                <a href="https://wa.me/+{{$row->telefono}}?text=Buen%20dia sr {{$row->conductor}}"
+                                <a href="https://wa.me/+{{$row->telefono}}?text=Buen%20dia%20sr%20{{$row->conductor}}"
                                    target="_blank" ><i class="fab fa-whatsapp"></i></a> <br>
 
-                                <button class="btn btn-outline-light mb-1">
+                                <a href="{{ route('lupita.conductores') . '?' . http_build_query(array_merge(request()->all(),
+                                ['conductor' => $row->conductor_id]))  }}" target="_blank">
                                     <i class="bi bi-person"></i> {{$row->conductor }} (#{{ $row->conductor_id }})
-                                </button>
+                                </a>
                                 <br>
                                 @if( $row->trt)
 
-                                    <button class="btn btn-outline-light">
+                                    <a href="{{ route('lupita.transportistas') . '?' . http_build_query(array_merge(request()->all(),
+                                    ['trt' => $row->trt_id]))  }}" target="_blank">
                                         <i class="bi bi-shop"></i> {{ $row->trt }} (#{{ $row->trt_id }})
-                                    </button>
+                                    </a>
                                 @endif
                             </td>
                             <td>
