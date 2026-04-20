@@ -65,10 +65,12 @@ class DBLlamadas {
 
     public static $filtro;
 
-    public function __construct() {
-        self::$razones_finalizacion = DB::select('SELECT * FROM razones_finalizacion');
-        self::$tipos_llamada = DB::select('SELECT * FROM tipos_llamada');
-        self::$error_origen = DB::select('SELECT * FROM error_origen');
+    public function __construct($cargar_tablas=true) {
+        if ($cargar_tablas) {
+            self::$razones_finalizacion = DB::select('SELECT * FROM razones_finalizacion');
+            self::$tipos_llamada = DB::select('SELECT * FROM tipos_llamada');
+            self::$error_origen = DB::select('SELECT * FROM error_origen');
+        }
     }
 
     public static function set_filtro($request): void
@@ -329,7 +331,11 @@ class DBLlamadas {
             SUM(conductor_conducta_inapropiada) AS conductor_conducta_inapropiada,
 
             SUM(error_tecnico_llamada) AS error_tecnico_llamada,
-            SUM(error_audio) AS error_audio
+            SUM(error_audio) AS error_audio,
+            SUM(costo) as costo,
+            sum(if(llamada_exitosa,costo,0) ) as costo_exitosa,
+            sum(if(!llamada_exitosa,costo,0) ) as costo_fallida
+
             FROM llamadas a
             where 1=1
             ";

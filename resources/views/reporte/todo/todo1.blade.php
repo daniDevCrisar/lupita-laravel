@@ -159,6 +159,7 @@
                         <div class="bg-primary bg-opacity-10 p-3 rounded-circle"><i
                                 class="fas fa-phone-volume fa-2x text-info opacity-75"></i></div>
                     </div>
+                    <small class="text-muted">${{round($reporte->total->costo,2)}}</small>
                 </div>
             </div>
         </div>
@@ -176,7 +177,7 @@
                     @php
                         $exitosas_100=round(($reporte->total->llamada_exitosa / $reporte->total->llamadas)*100)?:0;
                     @endphp
-                    <small class="text-muted">{{ $exitosas_100 }}% del total</small>
+                    <small class="text-muted">{{ $exitosas_100 }}% del total (${{round($reporte->total->costo_exitosa,2)}})</small>
                 </div>
             </div>
         </div>
@@ -196,7 +197,7 @@
                                 class="fas fa-times-circle fa-2x text-danger"></i></div>
                     </div>
                     <small class="text-muted">
-                        {{ $fallidas_100 }}% del total</small>
+                        {{ $fallidas_100 }}% del total (${{round($reporte->total->costo_fallida,2)}})</small>
                 </div>
             </div>
         </div>

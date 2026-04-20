@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Database\DBLlamadas;
 use Illuminate\Http\Request;
 
 
@@ -116,7 +117,7 @@ class ImportController extends Controller
         return view('import.importar_excel');
     }
 
-    public function procesar_excel_llamadas(\Illuminate\Http\Request $request)
+    public function procesar_excel_llamadas(Request $request)
     {
         //--------procesar el archivo excel --------
         if (!$request->hasFile('excel')) {
@@ -274,6 +275,15 @@ class ImportController extends Controller
         dd($refs);
         //------------------------------------------------------
 
+    }
+
+    public function lista_lotes(Request $request){
+        $lotes = DBTmpLotes::lista(30);
+        $llamadas = new DBLlamadas(false);
+        return view('import.lista_lotes', [
+            'lotes' => $lotes,
+            'llamadas' => $llamadas
+        ]);
     }
 
 

@@ -20,7 +20,6 @@
     <div class="row">
         @include('lupita.resources.filtros_busqueda')
 
-
         <div class="col-12">{{ $llamadas::$lista->links() }}</div>
         <div class="col-12">
             <div class="card mb-3">
@@ -138,7 +137,6 @@
             </div>
         </div>
         <div class="col-12">{{ $llamadas::$lista->links() }}</div>
-
 
     </div>
 @endsection

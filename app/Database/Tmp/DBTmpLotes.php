@@ -37,6 +37,22 @@ class DBTmpLotes
         ]);
     }
 
+    public static function lista($pagina)
+    {
+        $sql="
+        SELECT u.nombres as 'user_nombres' ,a.* FROM `tmp_lotes` a
+        inner join users u
+        on u.id = a.usuario_id
+        ";
+        $lista=DB::table("tmp_lotes as a")
+        ->join("users as u", "u.id", "=", "a.usuario_id")
+        ->select("u.nombres as user_nombres",'a.*')
+        ->orderBy("a.created_at", "desc")
+        ->paginate($pagina)
+        ->withQueryString();
+        return $lista;
+    }
+
     public static function obtenerCabecera($lote_id)
     {
         $sql = "
