@@ -116,6 +116,7 @@
                                     </button>
                                 @endif
 
+                                <span class="text-info" style="font-size: 0.75rem;" id="lista_{{$loop->index}}_analisis_ia">{{ $row->ia_result_delay_reason_desc ?: $row->ia_result_comments_text }}</span> <br>
                                 <span class="text-danger" id="lista_{{$loop->index}}_analisis_t">{{ $row->analisis_transcripcion }}</span> <br>
                                 <span class="text-success" id="lista_{{$loop->index}}_analisis_a">{{ $row->analisis_audio }}</span>
                             </td>
@@ -216,6 +217,7 @@
                     <li class="list-group-item small">Duracion: <span class="fw-bold text-info" id="card_audio_duracion"></span></li>
                     <li class="list-group-item text-info small" id="card_razon_f"></li>
                     <li class="list-group-item small">
+                        <span class="text-info" style="font-size: 0.75rem;" id="card_analisis_ia"></span><br>
                         Analisis de transcripcion: <span class="text-danger" id="card_analisis_t"></span>
                     </li>
                 </ul>
@@ -431,6 +433,7 @@
             const card_audio_duracion=document.getElementById('card_audio_duracion');
             const card_razon_f=document.getElementById('card_razon_f');
             const card_analisis_t=document.getElementById('card_analisis_t');
+            const card_analisis_ia=document.getElementById('card_analisis_ia');
             const card_numero=document.getElementById('card_numero');
 
             //lenar los datos
@@ -446,6 +449,7 @@
             card_audio_duracion.innerHTML= document.getElementById('lista_' + orden+'_audio_duracion').value;
             card_razon_f.innerHTML= document.getElementById('lista_' + orden+'_razon_f').value;
             card_analisis_t.innerHTML= document.getElementById('lista_' + orden+'_analisis_t').innerHTML;
+            card_analisis_ia.innerHTML= document.getElementById('lista_' + orden+'_analisis_ia').innerHTML;
             txt_audio.value= document.getElementById('lista_' + orden+'_analisis_a').innerHTML;
 
             //colorear las etiquetas(button)

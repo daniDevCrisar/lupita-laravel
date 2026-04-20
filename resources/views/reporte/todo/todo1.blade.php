@@ -951,19 +951,16 @@
             right: 4vw; /* Escala el desplazamiento también */
         }
     </style>
+
+    @if($reporte->diagrama_venn_ia_persona->ia and $reporte->diagrama_venn_ia_persona->persona)
     <div class="col-12 mb-4">
         <div class="card p-4 h-100">
             <div class="d-flex align-items-center gap-3 mb-3 fs-2">
                 <i class="bi bi-bar-chart-fill text-secondary"></i>
                 <h3 class="h4 mb-0">Analisis de llamadas exitosas segun IA vs Usuario</h3>
             </div>
-            @php
-                $grafico_venn_exito=0;
-                foreach ($reporte->diagrama_venn_ia_persona as $item)
-                    $grafico_venn_exito+=$item;
-            @endphp
 
-            @if($grafico_venn_exito)
+
                 <!-- Aquí se dibujará el gráfico -->
                 <div id="diagrama_venn">
                     <div class="d-flex justify-content-center align-items-center position-relative mb-4"
@@ -1065,19 +1062,10 @@
                         </tbody>
                     </table>
                 </div>
-            @else
-                <div class="text-danger text-center">
-                    <h4>
-                        Sin exitos
-                    </h4>
-                </div>
-            @endif
-
-
 
         </div>
     </div>
-
+    @endif
 
     <!-- FOOTER / NOTAS ACLARATORIAS -->
     <div class="footer-note pt-3 d-flex justify-content-between">
