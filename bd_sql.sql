@@ -12,6 +12,14 @@ INSERT INTO users (nickname, nombres, password)
 VALUES ('DaniXtrem','Pedro Daniel Sotelo Aguirre', '');
 
 
+ALTER TABLE users
+    ADD COLUMN name VARCHAR(255) AFTER nickname,
+    ADD COLUMN email VARCHAR(255) UNIQUE,
+    ADD COLUMN email_verified_at TIMESTAMP NULL,
+    ADD COLUMN remember_token VARCHAR(100) NULL,
+    ADD COLUMN updated_at TIMESTAMP NULL;
+
+
 
 CREATE TABLE trts (
     id INT AUTO_INCREMENT PRIMARY KEY,

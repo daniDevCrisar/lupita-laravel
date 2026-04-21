@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+use Spatie\Permission\Traits\HasRoles;
+
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    /** @use HasFactory<\config\database\factories\UserFactory> */
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -18,9 +20,14 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'nickname',           // Index, varchar(30), NOT NULL
+        'name',               // varchar(255), NULL
+        'nombres',            // varchar(80), NOT NULL
+        'password',           // varchar(255), NOT NULL
+        'activo',             // tinyint(1), NOT NULL, default 1
+        'email',              // varchar(255), NULL, Index
+        'email_verified_at',  // timestamp, NULL
+        'remember_token'      // varchar(100), NULL
     ];
 
     /**
