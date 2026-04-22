@@ -11,8 +11,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     -->
-
+{{--    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">--}}
     <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/darkly/bootstrap.min.css" rel="stylesheet">
+{{--    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/journal/bootstrap.min.css" rel="stylesheet">--}}
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -61,7 +62,9 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.transportistas')}}">Transportistas</a>
                 </li>
-
+                <li class="nav-item">
+                    <a class="nav-link" href="{{route('lupita.audio')}}">Etiquetar</a>
+                </li>
                 <!-- 🔽 MENÚ DESPLEGABLE -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
@@ -75,12 +78,29 @@
                         <li><a class="dropdown-item" href="{{route('importar.json')}}">JSON</a></li>
                         <li><a class="dropdown-item" href="{{route('importar.excel')}}">Excel</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="">Procesar</a></li>
+                        <li><a class="dropdown-item"  href="{{route('importar.excel.lotes')}}">Lista de Lotes</a></li>
                     </ul>
                 </li>
 
-                <li class="nav-item">
-                    <a class="nav-link" href="{{route('lupita.audio')}}">Etiquetar</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        Usuario
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a href="{{ route('logout') }}" class="dropdown-item"
+                               onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                Cerrar sesión
+                            </a>
+                            <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+                                @csrf
+                            </form>
+                        </li>
+                    </ul>
                 </li>
 
             </ul>

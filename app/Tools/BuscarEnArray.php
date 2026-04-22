@@ -39,13 +39,13 @@ class BuscarEnArray {
             if ($item->ref == $buscar) {
                 $array[$count]->id_conductor = $id_conduc;
                 $array[$count]->id_trt = $id_trt;
-                echo "se encontro la ref: " . $buscar .'<br>';
-                return true;
+                return "se encontro la ref: " . $buscar .'<br>';
+                //return true;
             }
             $count++;
         }
-        echo "no existe la ref: " . $buscar .'!!<br>';
-        return false;
+        return "no existe la ref: " . $buscar .'!!<br>';
+        //return false;
     }
 
 }

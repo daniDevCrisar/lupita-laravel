@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Lupita - Importar JSON')
+@section('title', 'Importar JSON')
 
 @section('content')
 

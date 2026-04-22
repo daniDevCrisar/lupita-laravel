@@ -20,13 +20,7 @@ use App\Database\DBReferencias;
 class ImportController extends Controller
 {
     //
-    public function index()
-    {
-        return view('index', [
-            'titulo' => '$titulo',
-            'usuario' => '$usuario'
-        ]);
-    }
+
 
     public function procesar_excel(\Illuminate\Http\Request $request)
     {
@@ -203,6 +197,7 @@ class ImportController extends Controller
     }
 
     public function procesar_importacion_de_lote($lote_id){
+        $log='';
         $conductores = DBTmpLotes::obtenerConductoresDuplicados($lote_id);
         $trts = DBTmpLotes::obtenerTransportistasDuplicados($lote_id);
         $llamadas_detalle = DBTmpLotes::obtenerDetalle($lote_id);
@@ -213,15 +208,21 @@ class ImportController extends Controller
         foreach ($personas as $item){
             $accion= DBConductores::buscar_duplicados($item);
 
-            echo $accion['accion'] . ': ' . $item->conductor . ' '. $item->telefono.' - '. $accion['row']->conductor.' ('. $accion['comparar'] .'%)<br>';
-            if ($accion['accion']=='nuevo') $id_conductor = DBConductores::crear($item);
+            //$log.= $accion['accion'] . ': <br> Buscado ' . $item->conductor . ' '. $item->telefono.' - Encontrado '. $accion['row']->conductor.' ('. $accion['comparar'] .'%)<br>';
+            if ($accion['accion']=='nuevo') {
+                $id_conductor = DBConductores::crear($item);
+                $log.= 'NUEVO: <br>' . $item->conductor . ' '. $item->telefono;
+            }
             else {
                 $id_conductor = $accion['id'];
                 if( $accion['accion']== 'actualizar'){
-                    if( DBConductores::actualizar($accion['row']))
-                        echo $accion['id'] . ' actualizado correrctamente <br>';
-                    else echo $accion['id'] .' hubo un error al actualizar <br>';
-                }
+                    if( DBConductores::actualizar($accion['row'])){
+                        $log.= 'ACTUALIZAR: <br> Buscado ' . $item->conductor . ' '. $item->telefono.' - Encontrado '. $accion['row']->conductor.' ('. $accion['comparar'] .'%)<br>';
+                        $log.= $accion['id'] . ' actualizado correrctamente <br>';
+                    }
+                    else $log.= $accion['id'] .' hubo un error al actualizar <br>';
+                } else
+                    $log.= 'Identico: <br> Encontrado '. $accion['row']->conductor.' ('. $accion['comparar'] .'%)<br>';
             }
 
             $personas[$count]->id=$id_conductor;
@@ -236,9 +237,10 @@ class ImportController extends Controller
                 $trt_accion= DBTrts::sp_insertar_o_obtener_trts($item);
 
                 $id_trt=$trt_accion->id;
-                echo $trt_accion->es_nuevo ? 'trt nuevo <br>': 'trt duplicado<br>';
+                $log.= $trt_accion->es_nuevo ? 'trt nuevo': 'trt duplicado';
+                $log.= ' <b>' .$trt_accion->id .'</b><br>';
             }
-            else echo 'trt vacio<br>';
+            else $log.= 'trt vacio<br>';
 
             $trts[$count]->id=$id_trt;
             $count++;
@@ -253,26 +255,30 @@ class ImportController extends Controller
             if (!$id_conductor) $id_conductor=BuscarEnArray::en_conductor($item->conductor, $personas,true);
 
             //if ($item->vapi_id=='019D689A-1DA4-7778-B4D7-6E7C5E3A73E5') dd($personas,$item,$id_conductor);
-            echo 'trt id:'.$id_trt.' **** conductor id:'.$id_conductor.'<br>';
-            DBConductores::crear_telefono([ 'id'=> $id_conductor, 'telefono'=>$item->telefono ]);
-            BuscarEnArray::ref_para_agregar_ids($item->ref,$id_trt, $id_conductor, $refs);
+            $log.= 'trt id:'.$id_trt.' **** conductor id:'.$id_conductor.'<br>';
+            $log.= DBConductores::crear_telefono([ 'id'=> $id_conductor, 'telefono'=>$item->telefono ]);
+            $log.=BuscarEnArray::ref_para_agregar_ids($item->ref,$id_trt, $id_conductor, $refs);
             $db_llamadas::importar_llamadas_de_tmp_al_sistema($id_trt,$id_conductor,$lote_id,$item);
         }
         //insertar referencias
         foreach ($refs as $item){
             $ref_procesada=DBReferencias::sp_insertar_o_nueva_referencia($item);
-            echo $item->ref;
+            $log.= $item->ref;
             if ($ref_procesada)
-                echo $ref_procesada->es_nuevo ? ' ref nueva <br>': ' ref duplicada<br>';
-            else echo 'ref sin conductor<br>';
+                $log.= $ref_procesada->es_nuevo ? ' ref nueva <br>': ' ref duplicada<br>';
+            else $log.= 'ref sin conductor<br>';
         }
 
 
-        echo '<h2>llamadas:'.$db_llamadas::$log->total_llamadas.' ,duplicadas:'. $db_llamadas::$log->total_duplicados .'</h2><br>';
+        $log.= '<h2>llamadas:'.$db_llamadas::$log->total_llamadas.' ,duplicadas:'. $db_llamadas::$log->total_duplicados .'</h2><br>';
 
         DBTmpLotes::actualizar_procesado($lote_id,"procesados :" . $db_llamadas::$log->total_llamadas . " duplicados: ".$db_llamadas::$log->total_duplicados,1);
+        //echo $log;
+        //dd($refs);
 
-        dd($refs);
+        //-------MOSTRAR LOG-----------------------------------
+
+        return view('import.procesar_lote_log' , ['log'=>$log]);
         //------------------------------------------------------
 
     }

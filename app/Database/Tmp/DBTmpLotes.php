@@ -6,8 +6,9 @@ use Illuminate\Support\Facades\DB;
 
 class DBTmpLotes
 {
-    public static function crear($lote_id, $nombre, $comentario, $tipo = 1, $usuario_id = 1)
+    public static function crear($lote_id, $nombre, $comentario, $tipo = 1)
     {
+        $usuario_id = auth()->id();
         $sql = "
             INSERT INTO tmp_lotes (
                 lote_id,

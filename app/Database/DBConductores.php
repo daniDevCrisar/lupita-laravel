@@ -42,8 +42,7 @@ class DBConductores
                 'telefono'=> $row['telefono']
             ]);
         } catch (\Exception $e) {
-            echo 'error telefono duplicado:' . $row['id'] . '-' . $row['telefono'] . '<br>';
-            return false;
+            return 'error telefono duplicado:' . $row['id'] . '-' . $row['telefono'] . '<br>';
         }
     }
 

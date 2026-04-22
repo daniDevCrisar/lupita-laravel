@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Conductores Duplicados')
+@section('title', 'Lote Importado')
 
 @section('content')
 

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Inicio')
+@section('title', 'Importar Excel')
 
 @section('content')
 <div class="container-fluid">
@@ -13,7 +13,7 @@
                     <i class="bi bi-arrow-left"></i> Procesar JSON
                 </a>
             </div>
-     
+
 
             <!-- DERECHA -->
             <div class="col text-end">
@@ -33,7 +33,7 @@
 
 
             </header>
-            
+
             <div class="card shadow-sm">
                 <div class="card-header bg-success text-white">
                     <h2 class="h5 mb-0">
@@ -54,10 +54,10 @@
                                 <label for="excel" class="form-label fw-semibold">
                                     Seleccionar archivo:
                                 </label>
-                                <input 
-                                    type="file" 
+                                <input
+                                    type="file"
                                     id="excel"
-                                    name="excel" 
+                                    name="excel"
                                     class="form-control"
                                     accept=".xls,.xlsx,.csv"
                                     required
@@ -73,7 +73,7 @@
                                         <label for="txt_llamadas" class="form-label fw-semibold">
                                             Llamadas:
                                         </label>
-                                        <input 
+                                        <input
                                             type="text"
                                             id="txt_llamadas"
                                             name="txt_llamadas"
@@ -88,7 +88,7 @@
                                         <label for="txt_ref_1" class="form-label fw-semibold">
                                             Referencias de compromiso:
                                         </label>
-                                        <input 
+                                        <input
                                             type="text"
                                             id="txt_ref_1"
                                             name="txt_ref_1"
@@ -103,7 +103,7 @@
                                         <label for="txt_ref" class="form-label fw-semibold">
                                             Referencias:
                                         </label>
-                                        <input 
+                                        <input
                                             type="text"
                                             id="txt_ref"
                                             name="txt_ref"
@@ -114,7 +114,7 @@
                                     </div>
 
                                 </div>
- 
+
                             </fieldset>
 
                             <!-- BOTÓN -->
@@ -130,7 +130,7 @@
 
                 </div>
 
-                
+
             </div>
 
         </div>
@@ -143,6 +143,6 @@
 
 
 
-    
+
 
 @endsection
