@@ -4,6 +4,7 @@
 
 @section('heads')
     @livewireStyles
+    @vite(['resources/css/pages/lista_llamadas.css'])
 @endsection
 
 @section('content')
@@ -104,8 +105,34 @@
 
                                 @if( $row->trt)
                                     <i class="bi-building"></i> {{ $row->trt }} (#{{ $row->trt_id }})
-
                                 @endif
+
+                                {{--   GENERAR TROFEOS  --}}
+                                @php
+                                    $trofeos = json_decode($row->trofeos, true);
+                                @endphp
+                                @if($trofeos)
+                                    <div class="d-flex flex-wrap justify-content-center gap-3 ">
+                                        @foreach($trofeos as $key=> $item)
+                                            @php
+                                                $positivo=$llamadas::$etiquetas_icon_bi[$key][2];
+                                                $texto_trofeo='danger';
+                                                $fondo_trofeo='danger';
+                                                if ($positivo) {
+                                                    $texto_trofeo='white';
+                                                    $fondo_trofeo='success';
+                                                }
+                                            @endphp
+                                            <div class="text-center">
+                                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle trofeo_{{$positivo}} bg-{{$fondo_trofeo}}">
+                                                    <i class="{{$llamadas::$etiquetas_icon_bi[$key][0]}} text-white fs-6"></i>
+                                                </div>
+                                                <div class="text-{{$texto_trofeo}} trofeo_text_{{$positivo}}">{!! $llamadas::$trofeos_text[$key][$item-1]!!}</div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+
                             </td>
                             <td>
                                 @if ($row->entro_llamada)

@@ -9,6 +9,9 @@ php artisan livewire:publish --config
 git pull origin master
 //cargar cambios de proyecto en otra pc
 
+npm run build
+//cada ves q se crea un css en componens hay q compilarlo
+
 
 php artisan cache:clear
 php artisan config:clear

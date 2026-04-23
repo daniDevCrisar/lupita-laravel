@@ -36,7 +36,6 @@ class DBCore
         if (empty($insertData)) return 0;
 
         return DB::table($tabla)->insertOrIgnore($insertData);
-
     }
 
 }

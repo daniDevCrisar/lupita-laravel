@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Database\DBLlamadaEtiquetar;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Request;
 
 class LoginController extends Controller
 {
@@ -41,5 +44,22 @@ class LoginController extends Controller
     {
         return 'name';
     }
+
+    //-----------------GENERAR TROFEOS PARA CADA CHOFER--------------
+    protected function authenticated(Request $request, $user){
+        // Verificar si ya se ejecutó hoy
+
+        $clave_cache = 'procesamiento_diario_' . now()->format('Y-m-d');
+
+        if (!Cache::has($clave_cache)) {
+            // Ejecutar en el primer login del dia
+            DBLlamadaEtiquetar::generar_trofeos();
+            Cache::put($clave_cache, true, now()->endOfDay());
+
+        }
+
+        return redirect()->intended($this->redirectPath());
+    }
+
 
 }

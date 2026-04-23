@@ -87,12 +87,17 @@ CREATE TABLE conductores (
     vapi_id VARCHAR(9) NULL,
 
     nombres VARCHAR(150) NOT NULL,
-
+    trofeos JSON NOT NULL DEFAULT (JSON_OBJECT()),
     activo TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
     FULLTEXT(nombres)
 );
+
+ALTER TABLE conductores
+    ADD COLUMN trofeos JSON NOT NULL DEFAULT (JSON_OBJECT()) AFTER nombres;
+
 ALTER TABLE conductores ADD FULLTEXT(nombres);
 
 CREATE TABLE tlf_conductores (
@@ -219,7 +224,7 @@ INSERT INTO razones_finalizacion (id, codigo, name, nombre, descripcion, origen)
 (9, 'ERROR_VAPI_SIN_WORKERS', 'CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE', 'Error VAPI - Worker no disponible', 'La plataforma VAPI no tiene workers disponibles para procesar la llamada', 'SISTEMA'),
 (10, 'CONEXIÓN_FANTASMA', 'CALL.IN-PROGRESS.TWILIO-COMPLETED-CALL', 'Twilio puso fin a la llamada de su lado', 'Twilio logró conectar con la red del destinatario pero se cerro sin intercambiar datos', 'SISTEMA');
 
-CALL.IN-PROGRESS.ERROR-VAPIFAULT-WORKER-NOT-AVAILABLE
+
 
 -- Campo: llamada_exitosa
 -- Tipo sugerido: TINYINT

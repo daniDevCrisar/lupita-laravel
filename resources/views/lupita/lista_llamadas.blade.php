@@ -4,6 +4,7 @@
 
 @section('heads')
     @livewireStyles
+    @vite(['resources/css/pages/lista_llamadas.css'])
 @endsection
 
 @section('content')
@@ -80,13 +81,13 @@
                                    target="_blank" ><i class="fab fa-whatsapp"></i></a> <br>
 
                                 <a href="{{ route('lupita.conductores') . '?' . http_build_query(array_merge(request()->all(),
-                                ['conductor' => $row->conductor_id]))  }}" target="_blank">
+                                ['conductor' => $row->conductor_id , 'page'=> 1 ]))  }}" target="_blank">
                                     <i class="bi bi-person"></i> {{$row->conductor }} (#{{ $row->conductor_id }})
                                 </a>
                                 <br>
                                 @if( $row->trt)
                                     <a href="{{ route('lupita.transportistas') . '?' . http_build_query(array_merge(request()->all(),
-                                    ['trt' => $row->trt_id]))  }}" target="_blank">
+                                    ['trt' => $row->trt_id, 'page'=> 1 ]))  }}" target="_blank">
                                         <i class="bi bi-shop"></i> {{ $row->trt }} (#{{ $row->trt_id }})
                                     </a>
                                 @endif
@@ -95,6 +96,32 @@
                                     <br>
                                     Duracion de llamada: <b>{{$row->audio_duracion}} seg</b><br>
                                     Costo: <b>${{$row->costo}}</b>
+                                @endif
+
+                                {{--   GENERAR TROFEOS  --}}
+                                @php
+                                    $trofeos = json_decode($row->trofeos, true);
+                                @endphp
+                                @if($trofeos)
+                                    <div class="d-flex flex-wrap justify-content-center gap-3 ">
+                                    @foreach($trofeos as $key=> $item)
+                                    @php
+                                        $positivo=$llamadas::$etiquetas_icon_bi[$key][2];
+                                        $texto_trofeo='danger';
+                                        $fondo_trofeo='danger';
+                                        if ($positivo) {
+                                            $texto_trofeo='white';
+                                            $fondo_trofeo='success';
+                                        }
+                                    @endphp
+                                        <div class="text-center">
+                                            <div class="d-inline-flex align-items-center justify-content-center rounded-circle trofeo_{{$positivo}} bg-{{$fondo_trofeo}}">
+                                                <i class="{{$llamadas::$etiquetas_icon_bi[$key][0]}} text-white fs-6"></i>
+                                            </div>
+                                            <div class="text-{{$texto_trofeo}} trofeo_text_{{$positivo}}">{!! $llamadas::$trofeos_text[$key][$item-1]!!}</div>
+                                        </div>
+                                    @endforeach
+                                    </div>
                                 @endif
                             </td>
                             <td>

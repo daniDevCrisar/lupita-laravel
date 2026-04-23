@@ -14,12 +14,47 @@ class DBLlamadas {
     public static $tipos_llamada=[];
     public static $error_origen=[];
 
+
+    public static $trofeos_text = ['conductor_confirma' => ['Confirmador <br> Inicial', 'Confirmador <br> Constante', 'Confirmador <br> Excelente'],
+    'buzon_de_voz' => ['Buzon', 'Buzón <br> Recurrente', 'Maestro <br> del Buzón'],
+    'conductor_contesta_pero_no_habla' => ['Silencioso', 'Modo Mute', 'Silencio <br>Absoluto'],
+    'conductor_no_escucha' => ['Distraído', 'No Escucha', 'Sordo <br>Total'],
+    'conductor_da_motivos' => ['Argumentador', 'Analista', 'Experto <br>en Motivos'],
+    'conductor_mala_senal' => ['Señal Baja', 'Conexión Inestable', 'Señal Crítica'],
+    'confusion_en_llamada' => ['Confusión Leve', 'Confusión Media', 'Confusión Total'],
+    'contesta_otra_persona' => ['Tercero', 'Persona Ajena', 'Gestor de Terceros'],
+    'numero_equivocado' => ['Error Leve', 'Repetitivo', 'Maestro del Error'],
+    'conversacion_fluida' => ['Fluido', 'Conversador Pro', 'Conversación Excelente'],
+    'llamada_interesante' => ['Interesante', 'Muy Interesante', 'Llamada Top'],
+
+    'ia_se_confunde' => ['IA Dudosa', 'IA Inestable', 'IA Confundida Crítica'],
+    'ia_no_escucha' => ['IA Baja Recepción', 'IA No Escucha', 'IA Sorda Nivel Dios'],
+    'ia_cambio_de_datos' => ['IA Aprendiz', 'IA Inteligente', 'IA Optimizada Excelente'],
+    'ia_error_interpretacion' => ['Error Leve', 'Interpretación Fallida', 'Error Crítico'],
+    'ia_dice_variable' => ['Variable Simple', 'Variable Recurrente', 'Maestro de Variables'],
+    'ia_mala_pronunciacion' => ['Pronunciación Baja', 'Pronunciación Mala', 'Pronunciación Crítica'],
+    'ia_cuelga_en_plena_llamada' => ['Cuelga Leve', 'Cuelga Recurrente', 'Cuelga Crítico'],
+
+    'conductor_cuelga' => ['Cuelga', 'Cuelga Frecuente', 'Cuelga Siempre'],
+    'conductor_no_contesta' => ['No Contesta', 'No Contesta Recurrente', 'Inubicable'],
+    'conductor_conducta_inapropiada' => ['Conducta Leve', 'Conducta Inapropiada', 'Conducta Crítica'],
+
+    'error_tecnico_llamada' => ['Error Técnico Leve', 'Error Técnico', 'Error Técnico Crítico'],
+    'error_audio' => ['Audio Bajo', 'Audio Defectuoso', 'Audio Crítico'],
+
+    'confirmacion_parcial' => ['Parcial Leve', 'Parcial Media', 'Parcial Experta'],
+    'conductor_ocupado' => ['Ocupado Leve', 'Ocupado', 'Ocupado Frecuente'],];
+
     //---------$etiquetas_icon_bi-----------------------
     // 0 = icono
     // 1 = texto
     // 2 = etiqueta: 1 positivo , 0 negativo
     // 3 = puntaje
     // 4 = grupo
+    public static $etiqueta_colores=[
+        1=> ['primary ' , 'info' , 'success'],
+        0=> ['dark' , 'warning' , 'danger'],
+    ];
     public static $etiquetas_icon_bi=[
         'conductor_confirma' => ['bi bi-check-circle-fill text-success', 'Confirma',1,10,1],
         'buzon_de_voz' => ['bi bi-voicemail text-warning','Buzon de voz',0,-10,2],
@@ -60,8 +95,6 @@ class DBLlamadas {
         2=> 'bi bi-wifi text-danger',
         3=> 'bi bi-gear text-danger',
     ];
-
-
 
     public static $filtro;
 
@@ -125,6 +158,7 @@ class DBLlamadas {
             'a.costo',
             'a.ia_result_delay_reason_desc',
             'a.ia_result_comments_text',
+            'b.trofeos',
 
             'a.conductor_confirma',
             'a.buzon_de_voz',
