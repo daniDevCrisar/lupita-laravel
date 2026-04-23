@@ -29,20 +29,42 @@
                     <th>Archivo</th>
                     <th>Comentario</th>
                     <th>Usuario</th>
+                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
 
                 @foreach($lotes as $row)
                     <tr class="{{ $loop->odd ? 'table-secondary' : '' }}">
-                        <td class="@if($row->procesado) table-success @endif">{{$loop->index+1}} </td>
+                        @php
+                        $procesado_color='';
+                            switch ($row->procesado){
+                                case 1:
+                                    $procesado_color='success';
+                                    break;
+                                case 2:
+                                    $procesado_color='danger';
+                                    break;
+                            }
+                        @endphp
+                        <td class="table-{{$procesado_color}}">{{$loop->index+1}} </td>
                         <td>
+
                             <a href="{{ route('importar.excel.lote',[$row->lote_id]) }}" target="_blank">
                                 {{$row->lote_id}} </a></td>
                         <td>{{$llamadas::format_fecha($row->created_at)}}</td>
                         <td>{{$row->nombre}}</td>
                         <td>{{$row->comentario}}</td>
                         <td>{{$row->user_nombres}}</td>
+                        <td>
+                            @if($row->procesado!==2)
+                            <form method="POST" action="{{ route('importar.excel.eliminar', $row->lote_id) }}">
+                                @csrf
+                                @method('DELETE')
+                                <a href="#" class="text-danger" onclick="return confirm('¿Deseas eliminar este lote {{$row->lote_id}}?') && this.closest('form').submit();"><i class="bi bi-trash-fill me-1"></i></a>
+                            </form>
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
 

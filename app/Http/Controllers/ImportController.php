@@ -292,6 +292,12 @@ class ImportController extends Controller
         ]);
     }
 
+    public function eliminar_lote(Request $request , $id_lote)
+    {
+        $result=DBTmpLotes::eliminarLote($id_lote);
+        return back()->withInput();
+    }
+
 
 
 

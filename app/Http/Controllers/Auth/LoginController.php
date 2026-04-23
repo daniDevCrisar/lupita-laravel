@@ -48,7 +48,7 @@ class LoginController extends Controller
     //-----------------GENERAR TROFEOS PARA CADA CHOFER--------------
     protected function authenticated(Request $request, $user){
         // Verificar si ya se ejecutó hoy
-
+//        DBLlamadaEtiquetar::generar_trofeos();
         $clave_cache = 'procesamiento_diario_' . now()->format('Y-m-d');
 
         if (!Cache::has($clave_cache)) {

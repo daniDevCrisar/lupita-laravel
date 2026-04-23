@@ -251,5 +251,29 @@ class DBTmpLotes
             : 100;
     }
 
+    public static function eliminarLote($id)
+    {
+        //-----------comprobar el estado del lote--------------------
+        $sql_estado_lote="select procesado from tmp_lotes where lote_id=?;";
+        $estado = DB::select($sql_estado_lote,[$id]);
+        if ($estado[0]->procesado==2) return false;
+
+        $sql_llamadas="DELETE FROM llamadas WHERE lote_id=?;";
+        $sql_tmp_det ="DELETE FROM tmp_lotes_det WHERE lote_id=?;";
+
+        $sql_tmp="update tmp_lotes set
+                     procesado=2,
+                     comentario= CONCAT(comentario, CHAR(10), ?)
+                 where lote_id=?;";
+
+        $result['llamadas']= DB::delete($sql_llamadas, [$id]);
+        $result['tmp_det']= DB::delete($sql_tmp_det, [$id]);
+
+        $comentario = 'Llamadas Eliminadas: ' . $result['llamadas'] . ' ,Temporales: ' . $result['tmp_det'];
+        $result['tmp']= DB::update($sql_tmp, [$comentario,$id]);
+
+        return $comentario;
+    }
+
 
 }

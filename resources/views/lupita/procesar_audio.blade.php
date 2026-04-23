@@ -184,6 +184,7 @@
             {{-- --------------------------ETIQUETADO------------------------ --}}
             <div class="card mb-3 border-secondary col-12">
                 @csrf
+                @method('PATCH')
 
                 <div class="card-header bg-primary d-flex justify-content-between align-items-center">
                     <div>
@@ -510,31 +511,47 @@
             if(vapi_id==='' || !modifico) return false;
             let guardo=false;
 
-            const formData = new FormData();
+            // const formData = new FormData();
             const guardando = document.getElementById('overlayGuardando');
             let json_result;
             const alerta_exito = document.getElementById('alerta_exito');
             const alerta_error = document.getElementById('alerta_error');
 
-            formData.append('exito',
-                document.querySelector('input[name="e_exitosa"]:checked')?.value);
+            // formData.append('exito',
+            // document.querySelector('input[name="e_exitosa"]:checked')?.value);
+            // document.querySelectorAll('button[id^="e_"]').forEach(el => {
+            //     let valor=0;
+            //     if (el.classList.contains("bg-activo")) valor=1
+            //     // eliminar el e_ en el id del botoon psaa dejar el nombre de etiqueta
+            //     formData.append(el.id.substring(2),valor)
+            // });
+            // formData.append('vapi_id',vapi_id);
+            // formData.append('analisis_audio',document.getElementById('txt_audio').value);
+
+            //usar json para parsear patch
+            let formData_json = {};
+            formData_json['exito']=document.querySelector('input[name="e_exitosa"]:checked')?.value;
+
             document.querySelectorAll('button[id^="e_"]').forEach(el => {
                 let valor=0;
                 if (el.classList.contains("bg-activo")) valor=1
                 // eliminar el e_ en el id del botoon psaa dejar el nombre de etiqueta
-                formData.append(el.id.substring(2),valor)
+                formData_json[el.id.substring(2)]=valor;
             });
-            formData.append('vapi_id',vapi_id);
-            formData.append('analisis_audio',document.getElementById('txt_audio').value);
+            formData_json['vapi_id']=vapi_id;
+            formData_json['analisis_audio']=document.getElementById('txt_audio').value;
+            //-----------------------------
 
             guardando.classList.remove('d-none');
             fetch('{{ route('lupita.audio.guardar') }}', {
-                method: 'POST',
+                method: 'PATCH',
                 headers: {
+                    'Content-Type': 'application/json',  // ← CLAVE
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
                     //'Accept': 'application/json'
                 },
-                body: formData
+                body: JSON.stringify(formData_json)
             }).then(res => res.json()) // paso 1 JSON
             .then(data => {
                     json_result = data; //  paso 2 JSON

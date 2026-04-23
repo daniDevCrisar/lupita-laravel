@@ -24,7 +24,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/conductores', [LlamadasController::class, 'listar_conductores'])->name('lupita.conductores');
         Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas');
         Route::get('/audio', [LlamadasController::class, 'procesar_audio'])->name('lupita.audio');
-        Route::post('/audio/guardar', [LlamadasController::class, 'guardar_etiquetas'])->name('lupita.audio.guardar');
+        Route::patch('/audio/guardar', [LlamadasController::class, 'guardar_etiquetas'])->name('lupita.audio.guardar');
         Route::get('/reporte', [LlamadasController::class, 'reporte_todo']);
     });
 
@@ -38,6 +38,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/excel/lotes', [ImportController::class, 'lista_lotes'])->name('importar.excel.lotes');
         Route::get('/excel/{lote_id}', [ImportController::class, 'mostrar_lote_importado'])->name('importar.excel.lote');
         Route::get('/excel/{lote_id}/procesar', [ImportController::class, 'procesar_importacion_de_lote'])->name('importar.excel.procesar');
+        Route::delete('/excel/{lote_id}/eliminar', [ImportController::class, 'eliminar_lote'])->name('importar.excel.eliminar');
     });
 });
 

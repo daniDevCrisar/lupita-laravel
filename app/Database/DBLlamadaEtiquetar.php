@@ -76,7 +76,7 @@ class DBLlamadaEtiquetar
             SUM(a.confusion_en_llamada) AS confusion_en_llamada,
             SUM(a.contesta_otra_persona) AS contesta_otra_persona,
             SUM(a.numero_equivocado) AS numero_equivocado,
-            SUM(a.conductor_cuelga) AS conductor_cuelga,
+
             SUM(a.conductor_no_contesta) AS conductor_no_contesta,
             SUM(a.conductor_confirma * (!a.llamada_exitosa and a.error_origen=0)) AS confirmacion_parcial,
             SUM(a.conductor_conducta_inapropiada) AS conductor_conducta_inapropiada,
@@ -85,31 +85,55 @@ class DBLlamadaEtiquetar
             SUM(a.conductor_confirma * a.llamada_exitosa) AS conductor_confirma,
             SUM(a.conductor_da_motivos * a.llamada_exitosa) AS conductor_da_motivos,
             SUM(a.conversacion_fluida * a.llamada_exitosa) AS conversacion_fluida,
-            SUM(a.llamada_interesante * a.llamada_exitosa) AS llamada_interesante
+            SUM(a.llamada_interesante * a.llamada_exitosa) AS llamada_interesante,
+
+            SUM(
+            a.conductor_confirma + a.buzon_de_voz + a.conductor_contesta_pero_no_habla +
+            a.conductor_no_escucha + a.conductor_da_motivos +  a.conductor_mala_senal + a.confusion_en_llamada +
+            a.contesta_otra_persona + a.numero_equivocado + a.conversacion_fluida + a.llamada_interesante +
+            + a.conductor_conducta_inapropiada + a.error_tecnico_llamada + a.error_audio = 0 and a.conductor_cuelga and !a.llamada_exitosa and a.error_origen=0
+            ) as conductor_cuelga
 
         from `llamadas` as `a`
         inner join `conductores` as `b`
         on `b`.`id` = `a`.`conductor_id`
+        where a.created_at BETWEEN DATE_SUB(NOW(), INTERVAL 60 DAY) AND NOW()
         group by `a`.`conductor_id`;
+
         ";
 
         $conductores = DB::select($lista);
-        $trofeos_100=['conductor_confirma','buzon_de_voz','conductor_contesta_pero_no_habla','conductor_cuelga','conductor_no_contesta','conductor_ocupado'];
+        $trofeos_lista=[];
+        $trofeos_lista[]=[[70,35,15],['conductor_confirma','buzon_de_voz','conductor_contesta_pero_no_habla','conductor_cuelga','conductor_no_contesta','conductor_ocupado']];
+        $trofeos_lista[]=[[20,10,5],['conductor_da_motivos','conversacion_fluida']];
+
         $solo_con_trofeos='';
         $ids_con_trofeos=[];
+
         foreach ($conductores as $conductor) {
             $trofeos = [];
             //-----JSON--------
             // NOMBRE_DEL_CAMPO : NIVEL   -> 1 BRONZE 2 PLATA 3 ORO
-            //                              10        50       100
-            foreach ($trofeos_100 as $trofeo) {
-                if ($conductor->$trofeo >= 100)
-                    $trofeos[$trofeo] = 3;
-                elseif ($conductor->$trofeo >= 50)
-                    $trofeos[$trofeo] = 2;
-                elseif ($conductor->$trofeo >= 10)
-                    $trofeos[$trofeo] = 1;
+
+            foreach ($trofeos_lista as $trofeo_config) {
+                foreach ($trofeo_config[1] as $trofeo) {
+                    if ($conductor->$trofeo >= $trofeo_config[0][0])
+                        $trofeos[$trofeo] = 3;
+                    elseif ($conductor->$trofeo >= $trofeo_config[0][1])
+                        $trofeos[$trofeo] = 2;
+                    elseif ($conductor->$trofeo >= $trofeo_config[0][2])
+                        $trofeos[$trofeo] = 1;
+                }
             }
+
+//            foreach ($trofeos_1 as $trofeo) {
+//                if ($conductor->$trofeo >= 70)
+//                    $trofeos[$trofeo] = 3;
+//                elseif ($conductor->$trofeo >= 35)
+//                    $trofeos[$trofeo] = 2;
+//                elseif ($conductor->$trofeo >= 15)
+//                    $trofeos[$trofeo] = 1;
+//            }
 
 
             if (!empty($trofeos)){

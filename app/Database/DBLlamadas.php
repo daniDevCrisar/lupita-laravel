@@ -16,7 +16,7 @@ class DBLlamadas {
 
 
     public static $trofeos_text = ['conductor_confirma' => ['Confirmador <br> Inicial', 'Confirmador <br> Constante', 'Confirmador <br> Excelente'],
-    'buzon_de_voz' => ['Buzon', 'Buzón <br> Recurrente', 'Maestro <br> del Buzón'],
+    'buzon_de_voz' => ['Aprendiz <br> del Buzon', 'Oficial del <br> Buzon', 'Maestro <br> del Buzón'],
     'conductor_contesta_pero_no_habla' => ['Silencioso', 'Modo Mute', 'Silencio <br>Absoluto'],
     'conductor_no_escucha' => ['Distraído', 'No Escucha', 'Sordo <br>Total'],
     'conductor_da_motivos' => ['Argumentador', 'Analista', 'Experto <br>en Motivos'],
@@ -24,7 +24,7 @@ class DBLlamadas {
     'confusion_en_llamada' => ['Confusión Leve', 'Confusión Media', 'Confusión Total'],
     'contesta_otra_persona' => ['Tercero', 'Persona Ajena', 'Gestor de Terceros'],
     'numero_equivocado' => ['Error Leve', 'Repetitivo', 'Maestro del Error'],
-    'conversacion_fluida' => ['Fluido', 'Conversador Pro', 'Conversación Excelente'],
+    'conversacion_fluida' => ['Fluido','Carismático','Maestro de <br> la Palabra'],
     'llamada_interesante' => ['Interesante', 'Muy Interesante', 'Llamada Top'],
 
     'ia_se_confunde' => ['IA Dudosa', 'IA Inestable', 'IA Confundida Crítica'],
@@ -35,8 +35,8 @@ class DBLlamadas {
     'ia_mala_pronunciacion' => ['Pronunciación Baja', 'Pronunciación Mala', 'Pronunciación Crítica'],
     'ia_cuelga_en_plena_llamada' => ['Cuelga Leve', 'Cuelga Recurrente', 'Cuelga Crítico'],
 
-    'conductor_cuelga' => ['Cuelga', 'Cuelga Frecuente', 'Cuelga Siempre'],
-    'conductor_no_contesta' => ['No Contesta', 'No Contesta Recurrente', 'Inubicable'],
+    'conductor_cuelga' => ['Cuelga <br> Ocasionalmente', 'Cuelga Frecuente', 'Cuelga Siempre'],
+    'conductor_no_contesta' => ['Fantasma', 'Desaparecido', 'Inubicable'],
     'conductor_conducta_inapropiada' => ['Conducta Leve', 'Conducta Inapropiada', 'Conducta Crítica'],
 
     'error_tecnico_llamada' => ['Error Técnico Leve', 'Error Técnico', 'Error Técnico Crítico'],
@@ -324,13 +324,11 @@ class DBLlamadas {
             SUM(!a.llamada_exitosa and conductor_confirma and error_origen=0) as confirmacion_parcial,
 
             SUM(
-            conductor_confirma + buzon_de_voz + conductor_contesta_pero_no_habla +
-            conductor_no_escucha + conductor_da_motivos +  conductor_mala_senal + confusion_en_llamada +
-            contesta_otra_persona + numero_equivocado + conversacion_fluida + llamada_interesante +
-            ia_se_confunde + ia_no_escucha + ia_cambio_de_datos +  ia_error_interpretacion + ia_dice_variable +
-            ia_mala_pronunciacion +  conductor_no_contesta + conductor_conducta_inapropiada +
-            error_tecnico_llamada + error_audio = 0 and conductor_cuelga= 1 and !a.llamada_exitosa and error_origen=0
-            ) as solo_cuelga,
+            a.conductor_confirma + a.buzon_de_voz + a.conductor_contesta_pero_no_habla +
+            a.conductor_no_escucha + a.conductor_da_motivos +  a.conductor_mala_senal + a.confusion_en_llamada +
+            a.contesta_otra_persona + a.numero_equivocado + a.conversacion_fluida + a.llamada_interesante +
+            + a.conductor_conducta_inapropiada + a.error_tecnico_llamada + a.error_audio = 0 and a.conductor_cuelga and !a.llamada_exitosa and a.error_origen=0
+            ) as conductor_cuelga
 
             SUM(exitosa_segun_ia) AS exitosa_segun_ia,
             (SUM(entro_llamada) - SUM(buzon_de_voz)) AS contestadas,

@@ -49,12 +49,14 @@ $total_trts = count($trts);
                         <div class="col-md-3">
                             <i class="bi bi-chat"></i>
                             <strong>Comentario:</strong><br>
-                            {{ $cabecera->comentario }}
+                            {!! nl2br($cabecera->comentario) !!}
                         </div>
                         <div class="col-md-3">
                             <strong>Procesado:</strong><br>
-                            @if($cabecera->procesado)
+                            @if($cabecera->procesado == 1)
                                 <span class="text-success">SI</span>
+                            @elseif($cabecera->procesado == 2)
+                                <span class="text-danger">Eliminado</span>
                             @else
                                 <span class="text-danger">NO</span>
                             @endif
@@ -89,6 +91,8 @@ $total_trts = count($trts);
     </div>
     @endif
 
+
+@if($cabecera->procesado != 2)
     <div class="row">
         <div class="col-6">
             <div class="card bg-primary text-white  border border-white">
@@ -329,7 +333,7 @@ $total_trts = count($trts);
         </div>
 
     </div>
-
+@endif
 
 
 
