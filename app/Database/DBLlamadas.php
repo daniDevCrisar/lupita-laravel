@@ -328,7 +328,7 @@ class DBLlamadas {
             a.conductor_no_escucha + a.conductor_da_motivos +  a.conductor_mala_senal + a.confusion_en_llamada +
             a.contesta_otra_persona + a.numero_equivocado + a.conversacion_fluida + a.llamada_interesante +
             + a.conductor_conducta_inapropiada + a.error_tecnico_llamada + a.error_audio = 0 and a.conductor_cuelga and !a.llamada_exitosa and a.error_origen=0
-            ) as conductor_cuelga
+            ) as solo_cuelga,
 
             SUM(exitosa_segun_ia) AS exitosa_segun_ia,
             (SUM(entro_llamada) - SUM(buzon_de_voz)) AS contestadas,

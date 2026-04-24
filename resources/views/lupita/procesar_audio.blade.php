@@ -511,12 +511,12 @@
             if(vapi_id==='' || !modifico) return false;
             let guardo=false;
 
-            // const formData = new FormData();
+
             const guardando = document.getElementById('overlayGuardando');
             let json_result;
             const alerta_exito = document.getElementById('alerta_exito');
             const alerta_error = document.getElementById('alerta_error');
-
+            // const formData = new FormData();
             // formData.append('exito',
             // document.querySelector('input[name="e_exitosa"]:checked')?.value);
             // document.querySelectorAll('button[id^="e_"]').forEach(el => {
