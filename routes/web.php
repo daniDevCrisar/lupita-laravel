@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\LlamadasApiController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LlamadasController;
@@ -40,8 +41,20 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/excel/{lote_id}/procesar', [ImportController::class, 'procesar_importacion_de_lote'])->name('importar.excel.procesar');
         Route::delete('/excel/{lote_id}/eliminar', [ImportController::class, 'eliminar_lote'])->name('importar.excel.eliminar');
     });
+
 });
 
 
 Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+
+Route::prefix('api')->group(function () {
+    // Rutas públicas (sin autenticación)
+    Route::get('/health', function () {
+        return response()->json(['status' => 'OK']);
+    });
+
+    Route::get('/lote/{id}/detalle', [LlamadasApiController::class, 'devolver_lista_lote_refs']);
+    Route::post('/lote/{id}/detalle/actualizar', [LlamadasApiController::class, 'actualizar_lote_detalle']);
+});
