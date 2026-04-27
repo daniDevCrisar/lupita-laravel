@@ -11,6 +11,8 @@ git pull origin master
 
 npm run build
 //cada ves q se crea un css en componens hay q compilarlo
+//antes de usar el api desde eflextexia se debe de activador el
+certificado ssl de laragon
 
 
 php artisan cache:clear

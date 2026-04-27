@@ -60,11 +60,12 @@ class LlamadasApiController extends Controller
                 if (is_string($i)) $i = strtoupper( html_entity_decode($i, ENT_QUOTES, 'UTF-8'));
             });
             //------------------------------------------
-            if ($item['confirmacion']){
+
+            $update=DB::update($sql,[$item['transportista'],$lote_id,$key]);
+            if ($item['confirmacion'] and !$update){
                 $fecha_llamada_buscar= explode(' ',$item['fecha_llamada']);
                 DB::update($sql_conf,[$key,$item['transportista'],$lote_id,$item['placa'],$fecha_llamada_buscar[0] ]);
-            }else
-                DB::update($sql,[$item['transportista'],$lote_id,$key]);
+            }
         }
 
         //-************************************************************************
