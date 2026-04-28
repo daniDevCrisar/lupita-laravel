@@ -83,6 +83,10 @@ $total_trts = count($trts);
                             <strong>Usuario ID:</strong><br>
                             {{  $cabecera->user_nombres  }}
                         </div>
+                        <div class="col-md-3">
+                            <a href="https://efletexia.com/opl/confirmacion-ingreso-carga?vapi_lote={{$cabecera->lote_id}}"
+                               class="text-info" target="_blank">Obtener datos de Referencia en Efletexia<i class="bi bi-box-arrow-in-right me-1"></i></a>
+                        </div>
                     </div>
 
                 </div>

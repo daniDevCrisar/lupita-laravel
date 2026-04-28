@@ -61,7 +61,7 @@
                             <form method="POST" action="{{ route('importar.excel.eliminar', $row->lote_id) }}">
                                 @csrf
                                 @method('DELETE')
-                                <a href="#" class="text-danger" onclick="return confirm('¿Deseas eliminar este lote {{$row->lote_id}}?') && this.closest('form').submit();"><i class="bi bi-trash-fill me-1"></i></a>
+                                <a href="#" class="@role('admin') text-danger @else text-muted  @endrole" onclick="@role('admin') return confirm('¿Deseas eliminar este lote {{$row->lote_id}}?') && this.closest('form').submit(); @endrole"><i class="bi bi-trash-fill me-1"></i></a>
                             </form>
                                 <a href="https://efletexia.com/opl/confirmacion-ingreso-carga?vapi_lote={{$row->lote_id}}"
                                    class="text-info" target="_blank"><i class="bi bi-box-arrow-in-right me-1"></i></a>

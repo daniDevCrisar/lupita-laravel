@@ -13,6 +13,14 @@ npm run build
 //cada ves q se crea un css en componens hay q compilarlo
 //antes de usar el api desde eflextexia se debe de activador el
 certificado ssl de laragon
+php artisan db:seed --class=RoleAndPermissionSeeder //agregar los permisos de users
+
+//-----------ASIGNAR ROL A USER*---
+php artisan tinker
+$user = User::find(2);
+$user->assignRole('editor');
+-------------
+
 
 
 php artisan cache:clear
