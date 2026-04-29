@@ -439,18 +439,20 @@
                     </thead>
                     <tbody>
                     @foreach ($reporte->peores_trts as $item)
-                        @php $problematicos= round((($item->conductores  - $item->conductores_con_exito)/$item->conductores)*100,1) @endphp
-                        <tr class="table-{{ $llamadas::color_porcentaje(100-$problematicos) }}">
-                            <td><strong>{{ $item->trt }}</strong></td>
-                            <td>{{ $item->conductores  }}</td>
-                            <td><span
-                                    class='text-danger fw-bold'>{{ $item->conductores  - $item->conductores_con_exito }} </span>/ {{ $item->conductores_con_fallo }}
-                            </td>
-                            <td><span class="badge bg-{{ $llamadas::color_porcentaje(100-$problematicos) }}">{{  $problematicos }}%</span>
-                            </td>
-                            <td><span class="text-danger">{{ str_repeat('🔴', (100-$item->tasa_exito)/20  ) }} <br>Tasa de exito {{$item->tasa_exito}} %</span>
-                            </td>
-                        </tr>
+                        @if($item->conductores_con_fallo)
+                            @php $problematicos= round((($item->conductores  - $item->conductores_con_exito)/$item->conductores)*100,1) @endphp
+                            <tr class="table-{{ $llamadas::color_porcentaje(100-$problematicos) }}">
+                                <td><strong>{{ $item->trt }}</strong></td>
+                                <td>{{ $item->conductores  }}</td>
+                                <td><span
+                                        class='text-danger fw-bold'>{{ $item->conductores  - $item->conductores_con_exito }} </span>/ {{ $item->conductores_con_fallo }}
+                                </td>
+                                <td><span class="badge bg-{{ $llamadas::color_porcentaje(100-$problematicos) }}">{{  $problematicos }}%</span>
+                                </td>
+                                <td><span class="text-danger">{{ str_repeat('🔴', (100-$item->tasa_exito)/20  ) }} <br>Tasa de exito {{$item->tasa_exito}} %</span>
+                                </td>
+                            </tr>
+                        @endif
                     @endforeach
                     </tbody>
                 </table>
