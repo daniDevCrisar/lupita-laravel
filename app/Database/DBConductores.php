@@ -116,7 +116,14 @@ class DBConductores
 
         $query_lista = DB::table('llamadas as a')
         ->join('conductores as b','b.id','=','a.conductor_id')
-        ->leftJoin('trts as c','c.id','=','a.trt_id')
+        ->leftJoin(DB::raw("(
+        SELECT
+            llamadas.conductor_id,
+            SUBSTRING_INDEX(GROUP_CONCAT(trts.nombres ORDER BY llamadas.created_at DESC), ',', 1) as nom_trt
+        FROM trts
+        INNER JOIN llamadas ON llamadas.trt_id = trts.id
+        GROUP BY llamadas.conductor_id
+        ) as c"),'c.conductor_id','=','a.conductor_id')
         ->selectRaw('
         a.conductor_id,
         b.nombres AS conductor,
@@ -125,6 +132,8 @@ class DBConductores
         SUM(a.llamada_exitosa=0) AS fallidas,
         ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
         SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,
+
+        c.nom_trt as ultimo_trt,
 
         SUM(a.error_origen = -1) as error_desconocido,
         SUM(a.error_origen = 1) as error_ia,
@@ -145,16 +154,16 @@ class DBConductores
         SUM(a.conductor_conducta_inapropiada * (a.llamada_exitosa = 0 and error_origen=0)) AS conductor_conducta_inapropiada,
 
         SUM(razon_finalizacion_id = 5) AS conductor_ocupado,
-        SUM(ia_se_confunde * (a.llamada_exitosa = 0  and error_origen=0)) AS ia_se_confunde,
-        SUM(ia_no_escucha * (a.llamada_exitosa = 0 and error_origen=0)) AS ia_no_escucha,
-        SUM(ia_error_interpretacion * (a.llamada_exitosa = 0  and error_origen=0)) AS ia_error_interpretacion,
-        SUM(ia_dice_variable * (a.llamada_exitosa = 0 and error_origen=0)) AS ia_dice_variable,
-        SUM(ia_mala_pronunciacion * (a.llamada_exitosa = 0 and error_origen=0)) AS ia_mala_pronunciacion,
+        SUM(ia_se_confunde * (!a.llamada_exitosa  and error_origen=0)) AS ia_se_confunde,
+        SUM(ia_no_escucha * (!a.llamada_exitosa and error_origen=0)) AS ia_no_escucha,
+        SUM(ia_error_interpretacion * (!a.llamada_exitosa  and error_origen=0)) AS ia_error_interpretacion,
+        SUM(ia_dice_variable * (!a.llamada_exitosa and error_origen=0)) AS ia_dice_variable,
+        SUM(ia_mala_pronunciacion * (!a.llamada_exitosa and error_origen=0)) AS ia_mala_pronunciacion,
 
-        SUM(a.conductor_confirma * (a.llamada_exitosa = 1)) AS conductor_confirma,
-        SUM(a.conductor_da_motivos * (a.llamada_exitosa = 1)) AS conductor_da_motivos,
-        SUM(a.conversacion_fluida * (a.llamada_exitosa = 1)) AS conversacion_fluida,
-        SUM(a.llamada_interesante * (a.llamada_exitosa = 1)) AS llamada_interesante,
+        SUM(a.conductor_confirma * a.llamada_exitosa) AS conductor_confirma,
+        SUM(a.conductor_da_motivos * a.llamada_exitosa) AS conductor_da_motivos,
+        SUM(a.conversacion_fluida * a.llamada_exitosa) AS conversacion_fluida,
+        SUM(a.llamada_interesante * a.llamada_exitosa) AS llamada_interesante,
 
         sum(a.audio_duracion) as audio_duracion
         ')

@@ -144,6 +144,7 @@
                     <tr>
                         <th>Id</th>
                         <th>Nombres</th>
+                        <th>Ultimo TRT</th>
                         <th>Llamadas sin errores</th>
                         <th>Exitosas</th>
                         <th>Fallidas</th>
@@ -165,6 +166,7 @@
                                 <a href="{{ route('lupita.llamadas') . '?' . http_build_query(array_merge(request()->all(),
                                 ['conductor' => $row->conductor_id]))  }}">
                                     {{ $row->conductor }}</a></td>
+                            <td style="font-size: 0.5rem;">{{$row->ultimo_trt}}</td>
                             <td><span class="badge bg-primary">{{ $row->total-$row->total_error }}</span></td>
                             <td> <span class="badge bg-success">{{ $row->exitosas }}</span> </td>
                             <td> <span class="badge bg-danger">{{ $row->fallidas-$row->total_error }}</span> </td>
