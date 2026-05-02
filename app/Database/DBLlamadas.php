@@ -276,24 +276,37 @@ class DBLlamadas {
         return $iconos[$item->error_origen];
     }
 
-    public static function etiquetas_icon_bi($item , $size='',$solo='todo',$mostrar_cantidad=false, $otros=false){
+    public static function etiquetas_icon_bi($item , $size='',$solo='todo',$mostrar_cantidad=false, $otros=false, $solo_texto=false){
         $iconos= self::$etiquetas_icon_bi;
         $lista_e='';
         $count=0;
         foreach ($iconos as $key => $value) { //buscar por clave de icono
             if ($item->$key??false){ //si existe y es uno etiquetar
                 if($solo==='todo' or $solo===$value[2]){ //value[2] es igual a 0 y 1 positivo y negativo
-                    $lista_e.= "<i class='". $value[0] ." ".$size."'></i> ".$value[1];
+//                    dd($solo_texto);
+                    if (!$solo_texto){
+                        $lista_e.= "<i class='". $value[0] ." ".$size."'></i> ".$value[1];
 
-                    if ($mostrar_cantidad) {
-                        $lista_e.= '('. $item->$key .')';
-                        if ($otros) $count+= $item->$key;
+                        if ($mostrar_cantidad) {
+                            $lista_e.= '('. $item->$key .')';
+                            if ($otros) $count+= $item->$key;
+                        }
+                        $lista_e.="<br>";
+                    } else {
+                        $lista_e.= $value[1];
+                        if ($mostrar_cantidad) {
+                            $lista_e.= '('. $item->$key .') ';
+                            if ($otros) $count+= $item->$key;
+                        }
                     }
-                    $lista_e.="<br>";
+
                 }
             }
         }
-        if ($otros and $otros-$count>0 and $mostrar_cantidad) $lista_e.= "Otros (".($otros-$count).')<br>';
+        if ($otros and $otros-$count>0 and $mostrar_cantidad) {
+            $lista_e.= "Otros (".($otros-$count).')';
+            if ($solo_texto) $lista_e.= "<br>";
+        }
         return $lista_e;
     }
 

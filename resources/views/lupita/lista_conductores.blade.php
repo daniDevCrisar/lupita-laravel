@@ -149,9 +149,10 @@
                         <th>Exitosas</th>
                         <th>Fallidas</th>
                         <th>Tasa de Exito</th>
-                        <th @if(request('reporte'))  style="display:none;" @endif>Etiquetas Positivas</th>
-                        <th  @if(request('reporte'))  style="display:none;" @endif">Etiquetas Negativas</th>
+                        <th>Etiquetas Positivas</th>
+                        <th>Etiquetas Negativas</th>
                         <th @if(request('reporte'))  style="display:none;" @endif>Errores</th>
+{{--                        <th @if(request('reporte'))  style="display:none;" @endif>Errores</th>--}}
                         <th>Puntaje</th>
                         <th>Tiempo en llamada</th>
                     </tr>
@@ -175,10 +176,10 @@
                                     <div class="progress-bar bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}" role="progressbar" style="width: {{$row->tasa_exito }}%;" aria-valuenow="{{$row->tasa_exito }}" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
 
-                                <small class="d-block text-center text-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{$row->tasa_exito }} @if(request('reporte')) %@endif</small>
+                                <small class="d-block text-center text-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{$row->tasa_exito }} @if(!request('reporte')) %@endif</small>
                             </td>
-                            <td @if(request('reporte'))  style="display:none;" @endif>{!! $llamadas::etiquetas_icon_bi($row,'',1,true) !!}</td>
-                            <td @if(request('reporte'))  style="display:none;" @endif>{!! $llamadas::etiquetas_icon_bi($row,'',0,true,$row->fallidas-$row->total_error) !!}</td>
+                            <td>{!! $llamadas::etiquetas_icon_bi($row,'',1,true,false,request('reporte')) !!}</td>
+                            <td>{!! $llamadas::etiquetas_icon_bi($row,'',0,true,$row->fallidas-$row->total_error,request('reporte')) !!}</td>
                             <td class="text-danger" @if(request('reporte'))  style="display:none;" @endif>
                                 @if($row->error_desconocido)
                                     <i class="{{ $llamadas::icon_exito(-1,true) }}"></i>
