@@ -43,6 +43,7 @@ class LlamadasController extends Controller
             'conductor'        => 'nullable|string',
             'trt'              => 'nullable|string',
             'exitosa'          => 'nullable|string',
+            'top_peores'       => 'nullable|numeric',
         ]);
 
         $llamadas= new DBLlamadas();
@@ -61,8 +62,16 @@ class LlamadasController extends Controller
         elseif ($request->llamada_tipo_id == 6) $reporte->titulo = 'Reporte de Espera dentro de planta para descarga VAPI';
 
 
+        //--------------------peores personalizado---------------------
+        $top_peor_c = 5;
+//        dd($request->llamada_tipo_id,$request?->top_peores);
+        if (!$request->llamada_tipo_id??0 and $request?->top_peores??0){
+            $top_peor_c= $request->top_peores;
+        }
+
         $reporte->total= $reporte->total[0];
-        $reporte->peores= $llamadas::top_peores_conductores();
+        $reporte->top_peores= $top_peor_c;
+        $reporte->peores= $llamadas::top_peores_conductores($top_peor_c);
         $reporte->mejores= $llamadas::top_mejores_conductores();
         $reporte->mejores_trts= $llamadas::top_mejores_trts();
         $reporte->peores_trts= $llamadas::top_peores_trts();

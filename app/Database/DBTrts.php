@@ -56,11 +56,16 @@ class DBTrts
         SUM(a.llamada_exitosa=1) AS exitosas,
         SUM(a.llamada_exitosa=0) AS fallidas,
         ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
-        SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,
+        SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0)   + (  ROUND(SUM(a.llamada_exitosa)/COUNT(*)*25,0) ) AS diferencia,
 
         COUNT(DISTINCT conductor_id) AS conductores,
         COUNT(DISTINCT IF(a.llamada_exitosa = 0 and error_origen=0, a.conductor_id, NULL))  AS conductores_con_fallo,
+
         COUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL))  AS conductores_con_exito,
+
+                        (COUNT(DISTINCT a.conductor_id) -
+                        COUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL) )
+                        ) AS cero_exito,
 
         SUM(error_origen = -1) as error_desconocido,
         SUM(error_origen = 1) as error_ia,
@@ -103,10 +108,11 @@ class DBTrts
         SUM(a.llamada_exitosa=1) AS exitosas,
         SUM(a.llamada_exitosa=0) AS fallidas,
         ROUND(SUM(a.llamada_exitosa=1)/(COUNT(*) - SUM(error_origen!= 0) )*100,1) AS tasa_exito,
-        SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,
+        SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0)  AS diferencia,
+
 
         COUNT(DISTINCT conductor_id) AS conductores,
-        COUNT(DISTINCT IF(a.llamada_exitosa = 0 and error_origen=0, a.conductor_id, NULL))  AS conductores_con_fallo,
+        COUNT(DISTINCT IF(a.llamada_exitosa = 0 and error_origen=0, a.conductor_id, NULL)) AS conductores_con_fallo,
         COUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL))  AS conductores_con_exito,
 
         SUM(error_origen = -1) as error_desconocido,

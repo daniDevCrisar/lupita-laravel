@@ -381,7 +381,7 @@
     <!-- PEORES CONDUCTORES (múltiples fallos) -->
     <div class="card report-card mb-5">
         <div class="card-header bg-white border-0 pt-4 pb-0">
-            <h3 class="h4 fw-bold text-danger"><i class="fas fa-skull-crosswalk me-2"></i>Top 5 peores conductores</h3>
+            <h3 class="h4 fw-bold text-danger"><i class="fas fa-skull-crosswalk me-2"></i>Top {{$reporte->top_peores}} peores conductores</h3>
             <p class="text-muted">Múltiples intentos fallidos y problemas graves</p>
         </div>
         <div class="card-body">
