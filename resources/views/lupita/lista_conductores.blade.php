@@ -166,7 +166,10 @@
                             <td >
                                 <a href="{{ route('lupita.llamadas') . '?' . http_build_query(array_merge(request()->all(),
                                 ['conductor' => $row->conductor_id]))  }}">
-                                    {{ $row->conductor }}</a></td>
+                                    {{ $row->conductor }}</a>
+                                <a href="https://wa.me/+{{$row->ultimo_tlf}}?text=Buen%20dia%20sr%20{{$row->conductor}}"
+                                   target="_blank" ><i class="fab fa-whatsapp"></i></a> <br>
+                            </td>
                             <td style="font-size: 0.5rem;">{{$row->ultimo_trt}}</td>
                             <td><span class="badge bg-primary">{{ $row->total-$row->total_error }}</span></td>
                             <td> <span class="badge bg-success">{{ $row->exitosas }}</span> </td>

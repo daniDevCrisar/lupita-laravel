@@ -124,7 +124,7 @@ class DBConductores
         INNER JOIN llamadas ON llamadas.trt_id = trts.id
         GROUP BY llamadas.conductor_id
         ) as c"),'c.conductor_id','=','a.conductor_id')
-        ->selectRaw('
+        ->selectRaw("
         a.conductor_id,
         b.nombres AS conductor,
         COUNT(*) AS total,
@@ -132,6 +132,8 @@ class DBConductores
         SUM(a.llamada_exitosa=0) AS fallidas,
         ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
         SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) + (  ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*20,0) ) AS diferencia,
+
+        SUBSTRING_INDEX(GROUP_CONCAT(a.telefono ORDER BY a.created_at DESC), ',', 1) as ultimo_tlf,
 
         c.nom_trt as ultimo_trt,
 
@@ -166,7 +168,7 @@ class DBConductores
         SUM(a.llamada_interesante * a.llamada_exitosa) AS llamada_interesante,
 
         sum(a.audio_duracion) as audio_duracion
-        ')
+        ")
         ->when($fecha_i or $fecha_f, function ($query) use ($fecha_i, $fecha_f) {
             if ($fecha_i and !$fecha_f)
                 $query->whereBetween('a.created_at', [
