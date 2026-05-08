@@ -905,6 +905,8 @@
                             Conductor no escucha: {{ $reporte->total->conductor_no_escucha }}</li>
                         <li><i class="bi bi-reception-1 me-2 text-warning"></i>
                             Conductor mala señal: {{ $reporte->total->conductor_mala_senal }}</li>
+                        <li>🤬
+                            Conductor conducta inapropiada: {{ $reporte->total->conductor_conducta_inapropiada }}</li>
                         <li><i class="bi bi-question-circle me-2 text-info"></i>
                             Confusión en llamada: {{ $reporte->total->confusion_en_llamada }}</li>
                         <li><i class="bi bi-person-x me-2 text-secondary"></i>

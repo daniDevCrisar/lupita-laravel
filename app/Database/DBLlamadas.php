@@ -379,7 +379,8 @@ class DBLlamadas {
             SUM(error_audio) AS error_audio,
             SUM(costo) as costo,
             sum(if(llamada_exitosa,costo,0) ) as costo_exitosa,
-            sum(if(!llamada_exitosa,costo,0) ) as costo_fallida
+            sum(if(!llamada_exitosa,costo,0) ) as costo_fallida,
+            sum(conductor_conducta_inapropiada) AS conductor_conducta_inapropiada
 
             FROM llamadas a
             where 1=1
