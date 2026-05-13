@@ -165,7 +165,7 @@
                             <td class="bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">{{ $row->conductor_id  }}</td>
                             <td >
                                 <a href="{{ route('lupita.llamadas') . '?' . http_build_query(array_merge(request()->all(),
-                                ['conductor' => $row->conductor_id]))  }}">
+                                ['conductor' => $row->conductor_id, 'page' =>1]))  }}">
                                     {{ $row->conductor }}</a>
                                 <a href="https://wa.me/+{{$row->ultimo_tlf}}?text=Buen%20dia%20sr%20{{$row->conductor}}"
                                    target="_blank" ><i class="fab fa-whatsapp"></i></a> <br>
