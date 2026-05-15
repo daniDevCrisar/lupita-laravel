@@ -111,14 +111,15 @@ class DBTmpLotes
             ANY_VALUE(fin_de_carga) AS fin_de_carga,
             ANY_VALUE(inicio_de_carga) AS inicio_de_carga,
             ANY_VALUE(presenta_para_carga) AS presenta_para_carga,
-            MAX(fecha_despachador) AS fecha_despachador
+            MAX(fecha_despachador) AS fecha_despachador,
+            ANY_VALUE(compromiso_carga) AS compromiso_carga
         FROM (
             -- Primer SELECT: tmp_lotes_ref (con NULLs al final)
             SELECT
                 lote_id, ref, trt, tlf_conductor, titulo_viaje, placa,
                 fin_descargue, inicio_descargue, qr_llegada_destino,
                 fin_de_carga, inicio_de_carga, presenta_para_carga,
-                NULL AS fecha_despachador
+                NULL AS fecha_despachador , compromiso_carga
             FROM tmp_lotes_ref
 
             UNION ALL
@@ -128,7 +129,7 @@ class DBTmpLotes
                 lote_id, ref, trt, tlf_conductor, titulo_viaje, placa,
                 fin_descargue, inicio_descargue, qr_llegada_destino,
                 fin_de_carga, inicio_de_carga, presenta_para_carga,
-                fecha_despachador
+                fecha_despachador , compromiso_carga
             FROM tmp_lotes_ref_compromiso
         ) AS a
         WHERE lote_id = ? and ref !=''

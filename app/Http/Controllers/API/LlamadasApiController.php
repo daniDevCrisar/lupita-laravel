@@ -53,6 +53,25 @@ class LlamadasApiController extends Controller
         UPDATE `tmp_lotes_det` set ref=?, transportista=? where lote_id=? and llamada_tipo='1' and placa=? and
         DATE_FORMAT(FROM_UNIXTIME(CAST(created_at AS UNSIGNED) / 1000) ,'%d/%m/%Y')=?;
         ";
+        //-----------------------SQL REFS TEMPORAL-------------------
+        $sql_ref_tmp ="
+        INSERT INTO tmp_lotes_ref (lote_id, ref, tlf_conductor,titulo_viaje,placa,fin_descargue ,inicio_descargue,
+                                   qr_llegada_destino,fin_de_carga , inicio_de_carga , presenta_para_carga ,compromiso_carga , trt)
+        VALUES (?,?,?,?,?,?,?,
+        ?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE
+            tlf_conductor = VALUES(tlf_conductor),
+            titulo_viaje = VALUES(titulo_viaje),
+            placa = VALUES(placa),
+            fin_descargue = VALUES(fin_descargue),
+            inicio_descargue = VALUES(inicio_descargue),
+            qr_llegada_destino = VALUES(qr_llegada_destino),
+            fin_de_carga = VALUES(fin_de_carga),
+            inicio_de_carga = VALUES(inicio_de_carga),
+            presenta_para_carga = VALUES(presenta_para_carga),
+            compromiso_carga = VALUES(compromiso_carga),
+            trt = VALUES(trt)
+        ";
 
         foreach ($datos as $key => $item) {
             //normalizar texto------------------
@@ -66,6 +85,11 @@ class LlamadasApiController extends Controller
                 $fecha_llamada_buscar= explode(' ',$item['fecha_llamada']);
                 DB::update($sql_conf,[$key,$item['transportista'],$lote_id,$item['placa'],$fecha_llamada_buscar[0] ]);
             }
+            DB::insert($sql_ref_tmp,[
+                $lote_id,$key,$item['tlf_chofer'],$item['titulo_viaje'],$item['placa'],$item['fecha_fin_descarga'],$item['fecha_inicio_descarga'],
+                $item['fecha_qr_descarga'],$item['fecha_fin_carga'],$item['fecha_inicio_carga'],$item['fecha_presente_carga'],$item['fecha_conpromiso'],$item['transportista']
+            ]);
+
         }
 
         //-************************************************************************

@@ -2,6 +2,7 @@
 
 namespace App\Database;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 class DBReferencias {
     public static function existe($id) {
@@ -22,8 +23,43 @@ class DBReferencias {
         else
             $id_trt= null;
 
+        $sql="
+        INSERT INTO referencias (
+            ref,
+            trt_id,
+            conductor_id,
+            fecha_despachador,
+            titulo_viaje,
+            placa,
+            fin_descargue,
+            inicio_descargue,
+            qr_llegada_destino,
+            fin_de_carga,
+            inicio_de_carga,
+            presenta_para_carga,
+            compromiso_carga
+        ) VALUES (
+            ?, ?, ?, FROM_UNIXTIME(?),
+            ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?),
+            FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?),
+            FROM_UNIXTIME(?), FROM_UNIXTIME(?)
+        )
+        ON DUPLICATE KEY UPDATE
+            trt_id = VALUES(trt_id),
+            conductor_id = VALUES(conductor_id),
+            fecha_despachador = VALUES(fecha_despachador),
+            titulo_viaje = VALUES(titulo_viaje),
+            placa = VALUES(placa),
+            fin_descargue = VALUES(fin_descargue),
+            inicio_descargue = VALUES(inicio_descargue),
+            qr_llegada_destino = VALUES(qr_llegada_destino),
+            fin_de_carga = VALUES(fin_de_carga),
+            inicio_de_carga = VALUES(inicio_de_carga),
+            presenta_para_carga = VALUES(presenta_para_carga),
+            compromiso_carga = VALUES(compromiso_carga);
+        ";
         $placa=self::verificar_placa($row->placa);
-        $accion=  DB::select('CALL sp_insertar_o_nueva_referencia(?, ?, ?, FROM_UNIXTIME(?), ?, ?, ?, ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?))',
+        $accion=  DB::affectingStatement($sql,
             [
                 $row->ref,
                 $id_trt,
@@ -31,15 +67,32 @@ class DBReferencias {
                 self::excel_time_a_timestamp($row->fecha_despachador),
                 $row->titulo_viaje,
                 $placa,
-                null,//$row->fin_descargue,
-                null,//$row->inicio_descargue,
-                null,//$row->qr_llegada_destino,
+                self::excel_time_a_timestamp($row->fin_descargue),
+                self::excel_time_a_timestamp($row->inicio_descargue),
+                self::excel_time_a_timestamp($row->qr_llegada_destino),
                 self::excel_time_a_timestamp($row->fin_de_carga),
                 self::excel_time_a_timestamp($row->inicio_de_carga),
-                self::excel_time_a_timestamp($row->presenta_para_carga)
+                self::excel_time_a_timestamp($row->presenta_para_carga),
+                self::excel_time_a_timestamp($row->compromiso_carga),
             ]
         );
-        return $accion[0];
+
+//        SELECT a.* FROM `referencias` a
+//INNER JOIN llamadas b
+//on b.ref = a.ref
+//where b.lote_id='202602272121138107';
+
+
+        if ($accion===1)
+            $es_nuevo=true;
+        else
+            $es_nuevo=false;
+
+        $result = new StdClass();
+        $result->ref=$row->ref;
+        $result->es_nuevo=$es_nuevo;
+
+        return $result;
     }
 
     public static function excel_time_a_timestamp($excel_date) {

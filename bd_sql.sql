@@ -126,8 +126,14 @@ CREATE TABLE referencias (
     qr_llegada_destino TIMESTAMP DEFAULT NULL,
     fin_de_carga TIMESTAMP DEFAULT NULL,
     inicio_de_carga TIMESTAMP DEFAULT NULL,
-    presenta_para_carga TIMESTAMP DEFAULT NULL
+    presenta_para_carga TIMESTAMP DEFAULT NULL,
+    compromiso_carga TIMESTAMP DEFAULT NULL
+
 );
+
+ALTER TABLE referencias
+    ADD COLUMN compromiso_carga TIMESTAMP DEFAULT NULL;
+
 -- ++++++++++++++++++++++++++++++++++++++++++++
 DELIMITER $$
 
@@ -577,9 +583,14 @@ CREATE TABLE tmp_lotes_ref (
     qr_llegada_destino VARCHAR(50) NULL,
     fin_de_carga VARCHAR(50) NULL,
     inicio_de_carga VARCHAR(50) NULL,
-    presenta_para_carga VARCHAR(50) NULL
+    presenta_para_carga VARCHAR(50) NULL,
+
+    compromiso_carga VARCHAR(50) NULL
+
 );
 
+ALTER TABLE tmp_lotes_ref
+    ADD COLUMN compromiso_carga VARCHAR(50) NULL;
 
 CREATE TABLE tmp_lotes_ref_compromiso (
 
@@ -598,5 +609,10 @@ CREATE TABLE tmp_lotes_ref_compromiso (
     qr_llegada_destino VARCHAR(50) NULL,
     fin_de_carga VARCHAR(50) NULL,
     inicio_de_carga VARCHAR(50) NULL,
-    presenta_para_carga VARCHAR(50) NULL
+    presenta_para_carga VARCHAR(50) NULL,
+
+    compromiso_carga VARCHAR(50) NULL
 );
+
+ALTER TABLE tmp_lotes_ref_compromiso
+    ADD COLUMN compromiso_carga VARCHAR(50) NULL;
