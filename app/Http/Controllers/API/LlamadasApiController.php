@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Tools\ExcelTool;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -56,9 +57,9 @@ class LlamadasApiController extends Controller
         //-----------------------SQL REFS TEMPORAL-------------------
         $sql_ref_tmp ="
         INSERT INTO tmp_lotes_ref (lote_id, ref, tlf_conductor,titulo_viaje,placa,fin_descargue ,inicio_descargue,
-                                   qr_llegada_destino,fin_de_carga , inicio_de_carga , presenta_para_carga ,compromiso_carga , trt)
+                                   qr_llegada_destino,fin_de_carga , inicio_de_carga , presenta_para_carga ,compromiso_carga ,fecha_despachador, trt)
         VALUES (?,?,?,?,?,?,?,
-        ?,?,?,?,?,?)
+        ?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
             tlf_conductor = VALUES(tlf_conductor),
             titulo_viaje = VALUES(titulo_viaje),
@@ -70,13 +71,14 @@ class LlamadasApiController extends Controller
             inicio_de_carga = VALUES(inicio_de_carga),
             presenta_para_carga = VALUES(presenta_para_carga),
             compromiso_carga = VALUES(compromiso_carga),
+            fecha_despachador = VALUES(fecha_despachador),
             trt = VALUES(trt)
         ";
 
         foreach ($datos as $key => $item) {
             //normalizar texto------------------
             array_walk_recursive($item, function(&$i, $key) {
-                if (is_string($i)) $i = strtoupper( html_entity_decode($i, ENT_QUOTES, 'UTF-8'));
+                if (is_string($i)) $i = ExcelTool::normalizarTexto(strtoupper( html_entity_decode($i, ENT_QUOTES, 'UTF-8')));
             });
             //------------------------------------------
 
@@ -87,7 +89,8 @@ class LlamadasApiController extends Controller
             }
             DB::insert($sql_ref_tmp,[
                 $lote_id,$key,$item['tlf_chofer'],$item['titulo_viaje'],$item['placa'],$item['fecha_fin_descarga'],$item['fecha_inicio_descarga'],
-                $item['fecha_qr_descarga'],$item['fecha_fin_carga'],$item['fecha_inicio_carga'],$item['fecha_presente_carga'],$item['fecha_conpromiso'],$item['transportista']
+                $item['fecha_qr_descarga'],$item['fecha_fin_carga'],$item['fecha_inicio_carga'],$item['fecha_presente_carga'],$item['fecha_conpromiso'],
+                $item['fecha_despachador'],$item['transportista']
             ]);
 
         }

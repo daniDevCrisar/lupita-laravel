@@ -116,7 +116,7 @@ ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 CREATE TABLE referencias (
     ref VARCHAR(10) PRIMARY KEY,
     trt_id INT,
-    conductor_id INT NOT NULL,
+    conductor_id INT,
     fecha_despachador TIMESTAMP DEFAULT NULL,
     titulo_viaje VARCHAR(200) NOT NULL DEFAULT '',
     placa VARCHAR(10) NOT NULL DEFAULT '',
@@ -132,6 +132,7 @@ CREATE TABLE referencias (
 );
 
 ALTER TABLE referencias
+    MODIFY COLUMN conductor_id INT NULL;
     ADD COLUMN compromiso_carga TIMESTAMP DEFAULT NULL;
 
 -- ++++++++++++++++++++++++++++++++++++++++++++
@@ -585,12 +586,15 @@ CREATE TABLE tmp_lotes_ref (
     inicio_de_carga VARCHAR(50) NULL,
     presenta_para_carga VARCHAR(50) NULL,
 
-    compromiso_carga VARCHAR(50) NULL
-
+    compromiso_carga VARCHAR(50) NULL,
+    fecha_despachador VARCHAR(50) NULL,
+    PRIMARY KEY (lote_id, ref)
 );
 
 ALTER TABLE tmp_lotes_ref
-    ADD COLUMN compromiso_carga VARCHAR(50) NULL;
+    ADD COLUMN fecha_despachador VARCHAR(50) NULL;
+ALTER TABLE tmp_lotes_ref
+    ADD PRIMARY KEY (lote_id, ref);
 
 CREATE TABLE tmp_lotes_ref_compromiso (
 

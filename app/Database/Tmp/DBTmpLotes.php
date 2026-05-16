@@ -99,41 +99,14 @@ class DBTmpLotes
     public static function obtenerRefsDuplicadas($lote_id){
         $sql= "
         SELECT
-            ref,
-            ANY_VALUE(lote_id) AS lote_id,
-            ANY_VALUE(trt) AS trt,
-            ANY_VALUE(tlf_conductor) AS tlf_conductor,
-            ANY_VALUE(titulo_viaje) AS titulo_viaje,
-            ANY_VALUE(placa) AS placa,
-            ANY_VALUE(fin_descargue) AS fin_descargue,
-            ANY_VALUE(inicio_descargue) AS inicio_descargue,
-            ANY_VALUE(qr_llegada_destino) AS qr_llegada_destino,
-            ANY_VALUE(fin_de_carga) AS fin_de_carga,
-            ANY_VALUE(inicio_de_carga) AS inicio_de_carga,
-            ANY_VALUE(presenta_para_carga) AS presenta_para_carga,
-            MAX(fecha_despachador) AS fecha_despachador,
-            ANY_VALUE(compromiso_carga) AS compromiso_carga
-        FROM (
-            -- Primer SELECT: tmp_lotes_ref (con NULLs al final)
-            SELECT
-                lote_id, ref, trt, tlf_conductor, titulo_viaje, placa,
-                fin_descargue, inicio_descargue, qr_llegada_destino,
-                fin_de_carga, inicio_de_carga, presenta_para_carga,
-                NULL AS fecha_despachador , compromiso_carga
-            FROM tmp_lotes_ref
+            lote_id, ref, trt, tlf_conductor, titulo_viaje, placa,
+            fin_descargue, inicio_descargue, qr_llegada_destino,
+            fin_de_carga, inicio_de_carga, presenta_para_carga,
+            fecha_despachador , compromiso_carga
+        FROM tmp_lotes_ref
 
-            UNION ALL
-
-            -- Segundo SELECT: tmp_lotes_ref_compromiso (MISMO orden que el primero)
-            SELECT
-                lote_id, ref, trt, tlf_conductor, titulo_viaje, placa,
-                fin_descargue, inicio_descargue, qr_llegada_destino,
-                fin_de_carga, inicio_de_carga, presenta_para_carga,
-                fecha_despachador , compromiso_carga
-            FROM tmp_lotes_ref_compromiso
-        ) AS a
         WHERE lote_id = ? and ref !=''
-        GROUP BY a.ref;
+
         ";
         return DB::select($sql, [$lote_id]);
     }

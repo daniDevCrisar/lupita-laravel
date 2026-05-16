@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Database;
+use DateTime;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
@@ -14,7 +15,15 @@ class DBReferencias {
     }
 
     public static function sp_insertar_o_nueva_referencia($row){
-        if (!property_exists($row,'id_conductor')) return false;
+//        if (!property_exists($row,'id_conductor')) return false;
+
+        if (property_exists($row,'id_conductor')){
+            $id_conductor=$row->id_conductor;
+            $id_trt= ($id_conductor !== 'null' && $id_conductor !== '') ? $id_conductor : null;
+        }
+        else
+            $id_conductor= null;
+
 
         if (property_exists($row,'id_trt')){
             $id_trt=$row->id_trt;
@@ -25,21 +34,15 @@ class DBReferencias {
 
         $sql="
         INSERT INTO referencias (
-            ref,
-            trt_id,
-            conductor_id,
-            fecha_despachador,
-            titulo_viaje,
-            placa,
-            fin_descargue,
-            inicio_descargue,
+            ref, trt_id, conductor_id, fecha_despachador,
+            titulo_viaje, placa, fin_descargue, inicio_descargue,
             qr_llegada_destino,
             fin_de_carga,
             inicio_de_carga,
             presenta_para_carga,
             compromiso_carga
         ) VALUES (
-            ?, ?, ?, FROM_UNIXTIME(?),
+        ?, ?, ?, FROM_UNIXTIME(?),
             ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?),
             FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?),
             FROM_UNIXTIME(?), FROM_UNIXTIME(?)
@@ -58,22 +61,36 @@ class DBReferencias {
             presenta_para_carga = VALUES(presenta_para_carga),
             compromiso_carga = VALUES(compromiso_carga);
         ";
+
+//        ?, ?, ?, FROM_UNIXTIME(?),
+//            ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?),
+//            FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?),
+//            FROM_UNIXTIME(?), FROM_UNIXTIME(?)
+//        dd( self::excel_time_a_timestamp($row->fin_descargue),
+//            self::excel_time_a_timestamp($row->inicio_descargue),
+//            self::excel_time_a_timestamp($row->qr_llegada_destino),
+//            self::excel_time_a_timestamp($row->fin_de_carga),
+//            self::excel_time_a_timestamp($row->inicio_de_carga),
+//            self::excel_time_a_timestamp($row->presenta_para_carga),
+//            self::excel_time_a_timestamp($row->compromiso_carga) ,$row);
+
         $placa=self::verificar_placa($row->placa);
+        if ($placa==null) return false;
         $accion=  DB::affectingStatement($sql,
             [
                 $row->ref,
                 $id_trt,
-                $row->id_conductor,
-                self::excel_time_a_timestamp($row->fecha_despachador),
+                $id_conductor,
+                self::fecha_str_timestamp($row->fecha_despachador),
                 $row->titulo_viaje,
                 $placa,
-                self::excel_time_a_timestamp($row->fin_descargue),
-                self::excel_time_a_timestamp($row->inicio_descargue),
-                self::excel_time_a_timestamp($row->qr_llegada_destino),
-                self::excel_time_a_timestamp($row->fin_de_carga),
-                self::excel_time_a_timestamp($row->inicio_de_carga),
-                self::excel_time_a_timestamp($row->presenta_para_carga),
-                self::excel_time_a_timestamp($row->compromiso_carga),
+                self::fecha_str_timestamp($row->fin_descargue),
+                self::fecha_str_timestamp($row->inicio_descargue),
+                self::fecha_str_timestamp($row->qr_llegada_destino),
+                self::fecha_str_timestamp($row->fin_de_carga),
+                self::fecha_str_timestamp($row->inicio_de_carga),
+                self::fecha_str_timestamp($row->presenta_para_carga),
+                self::fecha_str_timestamp($row->compromiso_carga),
             ]
         );
 
@@ -115,5 +132,27 @@ class DBReferencias {
         }
         return $placa_2;
     }
+
+    public static function fecha_str_timestamp($fecha_str, $format='d/m/Y H:i') {
+        if (empty($fecha_str)) {
+            return null;
+        }
+        else if (is_numeric($fecha_str))
+            return self::excel_time_a_timestamp($format);
+
+
+        $fecha = DateTime::createFromFormat($format, $fecha_str);
+
+        if ($fecha) {
+            $timestamp = $fecha->getTimestamp() + (5 * 3600); // Restar 5 horas (18000 segundos)
+            return $timestamp;
+        } else {
+            echo $fecha_str . '<br>';
+            return null;
+        }
+
+
+    }
+
 
 }
