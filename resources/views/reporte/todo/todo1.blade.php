@@ -1072,6 +1072,123 @@
     </div>
     @endif
 
+    @if(1===2)
+    <div class="col-12">
+
+        {{--    ----------------------------------------------------------------------}}
+        {{--    --------------------------RUTAS---------------------------}}
+        {{--    ----------------------------------------------------------------------}}
+        {{--    ----------------------------------------------------------------------}}
+
+        <style>
+
+            .contenedor-mapa{
+                width:100%;
+                display:flex;
+                justify-content:center;
+            }
+
+            .mapa{
+                position:relative;
+                width:100%;
+                max-width:600px;
+            }
+
+            .mapa img{
+                width:100%;
+                display:block;
+            }
+
+            .origen {
+                font-size: 0.8rem;
+                /*color: royalblue;*/
+                font-weight: bold;
+            }
+
+            .destino {
+                font-size: 0.8rem;
+                /*color: darkgreen;*/
+                font-weight: bold;
+            }
+
+            .check_prov {
+                background: #ef4444;
+                box-shadow: 0 0 10px #44efe9;
+                font-size: 1rem;
+                color: green;
+            }
+
+            .prov {
+                position: absolute;
+                width: 10px;
+                height: 10px;
+
+                transform: translate(-50%, -50%);
+                border: 2px solid white;
+
+                border-radius: 50%;
+            }
+        </style>
+
+        <div class="col-12">
+
+
+            <div class="contenedor-mapa">
+                <div class="mapa">
+                    <img src="{{ asset('images/peru.png') }}">
+
+                    <div style="position:absolute;left:3%;top:13%;">
+                        <h5>Mapa de Origen y <BR>Destinos</h5>
+                    </div>
+
+                    <div style="position:absolute;left:10%;top:70%;"><button class="btn btn-sm btn-danger">
+                            Origen &nbsp; </button></div>
+                    <div style="position:absolute;left:10%;top:75%;"><button class="btn btn-sm btn-success">
+                            Destino</button></div>
+
+                    @php $depas=$rutas->depas @endphp
+                    @foreach($depas as $nombre => $p)
+
+                        <div style="
+            position:absolute;
+            left:{{ $p['x'] }}%;
+            top:{{ $p['y'] }}%;
+            background:grey;
+            " class="prov"></div>
+
+                    @endforeach
+
+                    @foreach($rutas->lista as $item)
+                        @if ($item->ubigeo != null)
+                            @php
+                                $cant= $item->origen_veces_usada;
+                                if (!$cant) $cant='';
+                                else $cant= "<span class='origen text-danger'>" . $cant . '</span><br>';
+
+                                $cant.= "<span class='destino text-success'>" . $item->destino_veces_usada . '</span><br>';
+                            @endphp
+                            <div style="
+                            left:{{ $depas[$item->ubigeo]['x'] }}%;
+                            top:{{ $depas[$item->ubigeo]['y'] }}%;
+                            background:lightseagreen;
+                            " class=" prov check_prov"
+                            >{!! $cant !!}</div>
+                        @endif
+
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+
+        {{---------------------------------------------------------------}}
+        {{---------------------------------------------------------------}}
+        {{---------------------------------------------------------------}}
+        {{---------------------------------------------------------------}}
+
+    </div>
+    @endif
+
     <!-- FOOTER / NOTAS ACLARATORIAS -->
     <div class="footer-note pt-3 d-flex justify-content-between">
         <span><i class="far fa-file-excel me-1"></i> Datos: Reporte Generado con LUPITA</span>

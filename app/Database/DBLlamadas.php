@@ -390,7 +390,8 @@ class DBLlamadas {
         return  DB::select($sql . $filtro[0], $filtro[1]);
     }
 
-    public static function aplicar_filtro_sqltext(){
+
+    public static function aplicar_filtro_sqltext($letra='a'){
         $fecha_i =self::$filtro->fecha_inicio;
         $fecha_f= self::$filtro->fecha_fin;
         $tipo=self::$filtro->llamada_tipo_id;
@@ -406,11 +407,11 @@ class DBLlamadas {
                 $fecha_i=Carbon::parse($fecha_i)->startOfDay();
                 $fecha_f=Carbon::parse($fecha_f)->addDay()->startOfDay();
             }
-            $sql .= " and a.created_at >= ? AND a.created_at < ? ";
+            $sql .= " and $letra.created_at >= ? AND $letra.created_at < ? ";
             $params[] = $fecha_i;
             $params[] = $fecha_f;
         }
-        if ($tipo!='') $sql .= " and a.llamada_tipo_id=". $tipo.' ';
+        if ($tipo!='') $sql .= " and $letra.llamada_tipo_id=". $tipo.' ';
 
         return [$sql, $params];
     }

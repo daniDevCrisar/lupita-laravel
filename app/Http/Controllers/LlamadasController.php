@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Database\DBRutas;
 use App\Database\DBTrts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -91,9 +92,19 @@ class LlamadasController extends Controller
         }
         //-----------------------
 
+        //------------lista de rutas--------------
+        $rutas = new stdClass();
+        $rutas_lista = new DBRutas();
+        $rutas_lista::$filtro= $llamadas::aplicar_filtro_sqltext('d');
+//        dd($rutas::$filtro);
+        $rutas->lista = $rutas_lista::lista_principal();
+        $rutas->depas = $rutas_lista::$depas;
+        //-------------------------------
+
         return view('reporte.todo.todo1', [
             'llamadas' => $llamadas,
-            'reporte' => $reporte
+            'reporte' => $reporte,
+            'rutas' => $rutas
         ]);
     }
 
