@@ -1,0 +1,362 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de llamadas vapi</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <!--
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    -->
+
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/darkly/bootstrap.min.css" rel="stylesheet">
+
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- CSS propio opcional -->
+
+    <!-- Livewire Styles --><style >[wire\:loading][wire\:loading], [wire\:loading\.delay][wire\:loading\.delay], [wire\:loading\.list-item][wire\:loading\.list-item], [wire\:loading\.inline-block][wire\:loading\.inline-block], [wire\:loading\.inline][wire\:loading\.inline], [wire\:loading\.block][wire\:loading\.block], [wire\:loading\.flex][wire\:loading\.flex], [wire\:loading\.table][wire\:loading\.table], [wire\:loading\.grid][wire\:loading\.grid], [wire\:loading\.inline-flex][wire\:loading\.inline-flex] {display: none;}[wire\:loading\.delay\.none][wire\:loading\.delay\.none], [wire\:loading\.delay\.shortest][wire\:loading\.delay\.shortest], [wire\:loading\.delay\.shorter][wire\:loading\.delay\.shorter], [wire\:loading\.delay\.short][wire\:loading\.delay\.short], [wire\:loading\.delay\.default][wire\:loading\.delay\.default], [wire\:loading\.delay\.long][wire\:loading\.delay\.long], [wire\:loading\.delay\.longer][wire\:loading\.delay\.longer], [wire\:loading\.delay\.longest][wire\:loading\.delay\.longest] {display: none;}[wire\:offline][wire\:offline] {display: none;}[wire\:dirty]:not(textarea):not(input):not(select) {display: none;}:root {--livewire-progress-bar-color: #2299dd;}[x-cloak] {display: none !important;}[wire\:cloak] {display: none !important;}dialog#livewire-error::backdrop {background-color: rgba(0, 0, 0, .6);}</style>
+    <link rel="preload" as="style" href="http://lupita-laravel.test/build/assets/lista_llamadas-QvxMZwVg.css" /><link rel="stylesheet" href="http://lupita-laravel.test/build/assets/lista_llamadas-QvxMZwVg.css" data-navigate-track="reload" /></head>
+
+<body>
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary p-3 mb-3">
+    <div class="container-fluid">
+
+        <!-- Logo + Nombre -->
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <img src="http://lupita-laravel.test/images/logo.png"
+                 alt="Logo"
+                 width="128"
+                 class="me-2 rounded">
+            <div>
+                <h1 class="h3 mb-0 fw-bold">Lupita CRM</h1>
+                <small>Analisis de audio de llamadas IA</small>
+            </div>
+        </a>
+
+        <!-- Botón hamburguesa -->
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Opciones -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+
+                <li class="nav-item">
+                    <a class="nav-link" href="http://lupita-laravel.test/lupita/llamadas">Llamadas</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="http://lupita-laravel.test/lupita/conductores">Conductores</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="http://lupita-laravel.test/lupita/transportistas">Transportistas</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="http://lupita-laravel.test/lupita/audio">Etiquetar</a>
+                </li>
+                <!-- 🔽 MENÚ DESPLEGABLE -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        Importar
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="http://lupita-laravel.test/importar/json">JSON</a></li>
+                        <li><a class="dropdown-item" href="http://lupita-laravel.test/importar/excel">Excel</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item"  href="http://lupita-laravel.test/importar/excel/lotes">Lista de Lotes</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        Usuario
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a href="http://lupita-laravel.test/logout" class="dropdown-item"
+                               onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                Cerrar sesión
+                            </a>
+                            <form id="logout-form" action="http://lupita-laravel.test/logout" method="POST" style="display: none;">
+                                <input type="hidden" name="_token" value="LW1cr9TCE1D70GXSAGQBuwku6VK2dUDYhdI4DjNp" autocomplete="off">                            </form>
+                        </li>
+                    </ul>
+                </li>
+
+            </ul>
+        </div>
+
+    </div>
+</nav>
+
+<div class="container-fluid">
+
+    <div class="row">
+
+
+        <div class="col-12">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <p id='audio_texto'>
+                    </p>
+                    <audio id="mainAudio" controls class="w-100">
+                        <source id="audioSource" src="" type="audio/mpeg">
+                        Tu navegador no soporta audio.
+                    </audio>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6">
+            <div class="card mb-3 p-1">
+                <h3 class="card-header">Conduciendo</h3>
+                <p>* IA demora mucho en responder la confirmacion del conductor</p>
+                <div class="card-body">
+                    EBERTH TEODORO SINCHE SORIA <br>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019DDE6F-7249-7669-8A43-CCC14BB974C1-1777553439268-0C21D7C7-56A9-4592-9667-50E6793B642C-STEREO.MP3','51982977614','EBERTH TEODORO SINCHE SORIA' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <br>
+                    ABDON JESUS NAJARRO CASTRO <br>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019DFD41-96D2-7000-8AB5-5396291190AE-1778070508226-C83F5EF4-3B21-4D9E-BE8C-A8055FCACB3F-STEREO.MP3','51940638522','ABDON JESUS NAJARRO CASTRO' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <br>
+                    CARLOS FERNANDO CAJAHUANCA URETA <br>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019E1CB1-ED4E-7448-B7EB-7437920BD3DC-1778597966828-7C8B3A4D-DFF5-4C5F-9322-6CB5915C95D6-STEREO.MP3','51910335196','CARLOS FERNANDO CAJAHUANCA URETA' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <br>
+                    WILBERTO JULCAHUANCA <br>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019E1C95-F49A-7000-AA2B-8E5E2F971676-1778596108838-59099077-3373-4D88-BA94-A27F7E5CA47C-STEREO.MP3','51999584132','WILBERTO JULCAHUANCA' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <br>
+                    JOSE ANTONIO PUMAJULCA ANASGO <br>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019E1772-97F6-7002-A80D-A2D820065B58-1778509918717-4E9D8130-498B-485B-BEB0-D866688D78E7-STEREO.MP3','51975062606','JOSE ANTONIO PUMAJULCA ANASGO' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <br>
+                    JESUS PUMACAYO CHIPAYO <br>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019E1770-E15A-7002-A812-7FAB3BDFA2A2-1778509856434-96401738-5743-499A-8D54-646C3502CB9A-STEREO.MP3','51941675113','JESUS PUMACAYO CHIPAYO' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                </div>
+
+                <p class="m-1">* Debe haber una condicional para cuando esten conduciendo por q es dificil q confirmen</p>
+                <div class="card-body">
+                    EDMAR GONZALES ALEJO<br>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019E4204-CE4D-7000-898D-EB529B8ED89D-1779224248227-C61A387C-2728-44AE-AF66-FB389788A690-STEREO.MP3','51929493199','EDMAR GONZALES ALEJO' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+                    <br>
+
+                    RIVELINO ARANDA TOLENTINO <br>
+                    <button class="btn btn-outline-success" onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019E22A8-2226-7002-8A54-BE528C1519B7-1778697991744-BF9606AA-908B-45EF-A669-81112C54E037-STEREO.MP3','51994957601','RIVELINO ARANDA TOLENTINO' )">
+                        <i class="bi bi-play-fill me-1"></i> Reproducir
+                    </button>
+
+
+
+                </div>
+            </div>
+
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <div class="col-12"><nav class="d-flex justify-items-center justify-content-between">
+            <div class="d-flex justify-content-between flex-fill d-sm-none">
+                <ul class="pagination">
+
+                    <li class="page-item disabled" aria-disabled="true">
+                        <span class="page-link">&laquo; Previous</span>
+                    </li>
+
+
+                    <li class="page-item">
+                        <a class="page-link" href="http://lupita-laravel.test/lupita/llamadas?llamada_tipo_id=1&amp;fecha_inicio=2026-05-01&amp;fecha_fin=2026-05-19&amp;e_operador=1&amp;etiquetas%5B0%5D=conductor_confirma&amp;etiquetas%5B1%5D=conductor_no_escucha&amp;etiquetas%5B2%5D=conductor_da_motivos&amp;etiquetas%5B3%5D=conductor_mala_senal&amp;etiquetas%5B4%5D=confusion_en_llamada&amp;etiquetas%5B5%5D=conversacion_fluida&amp;etiquetas%5B6%5D=llamada_interesante&amp;etiquetas%5B7%5D=ia_se_confunde&amp;etiquetas%5B8%5D=ia_no_escucha&amp;etiquetas%5B9%5D=ia_error_interpretacion&amp;etiquetas%5B10%5D=ia_dice_variable&amp;etiquetas%5B11%5D=ia_mala_pronunciacion&amp;etiquetas%5B12%5D=ia_cuelga_en_plena_llamada&amp;etiquetas%5B13%5D=conductor_conducta_inapropiada&amp;page=2" rel="next">Next &raquo;</a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="d-none flex-sm-fill d-sm-flex align-items-sm-center justify-content-sm-between">
+                <div>
+                    <p class="small text-muted">
+                        Showing
+                        <span class="fw-semibold">1</span>
+                        to
+                        <span class="fw-semibold">30</span>
+                        of
+                        <span class="fw-semibold">31</span>
+                        results
+                    </p>
+                </div>
+
+            </div>
+        </nav>
+        </div>
+
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="bg-primary text-white mt-5">
+    <div class="container-fluid p-4">
+        <div class="row">
+            <!-- Sección izquierda: Logo + Descripción -->
+            <div class="col-md-4 mb-4 mb-md-0">
+                <div class="d-flex align-items-center mb-3">
+                    <img src="http://lupita-laravel.test/images/logo.png"
+                         alt="Logo"
+                         width="64"
+                         class="me-2 rounded">
+                    <div>
+                        <h5 class="fw-bold mb-0">Lupita CRM</h5>
+                        <small>Análisis de audio de llamadas IA</small>
+                    </div>
+                </div>
+                <p class="small">
+                    Etiquetado de llamadas del VAPI.
+                </p>
+            </div>
+
+            <!-- Sección central: Enlaces rápidos -->
+            <div class="col-md-4 mb-4 mb-md-0">
+                <h5 class="fw-bold mb-3">Enlaces rápidos</h5>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><a href="http://lupita-laravel.test/lupita/llamadas" class="text-white text-decoration-none">Llamadas</a></li>
+                    <li class="mb-2"><a href="http://lupita-laravel.test/lupita/conductores" class="text-white text-decoration-none">Conductores</a></li>
+                    <li class="mb-2"><a href="http://lupita-laravel.test/lupita/transportistas" class="text-white text-decoration-none">Transportistas</a></li>
+                    <li class="mb-2"><a href="#" class="text-white text-decoration-none">Contacto</a></li>
+                </ul>
+            </div>
+
+            <!-- Sección derecha: Contacto y Redes -->
+            <div class="col-md-4">
+                <h5 class="fw-bold mb-3">Contacto</h5>
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="bi bi-envelope-fill me-2"></i>
+                        thedanisa@gmail.com
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-telephone-fill me-2"></i>
+                        +51 944 659 175
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-geo-alt-fill me-2"></i>
+                        Lima, Peru
+                    </li>
+                </ul>
+
+                <!-- Iconos redes sociales -->
+                <div class="mt-3">
+                    <a href="#" class="text-white me-3"><i class="bi bi-facebook fs-5"></i></a>
+                    <a href="#" class="text-white me-3"><i class="bi bi-twitter-x fs-5"></i></a>
+                    <a href="#" class="text-white me-3"><i class="bi bi-linkedin fs-5"></i></a>
+                    <a href="#" class="text-white"><i class="bi bi-instagram fs-5"></i></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra inferior copyright -->
+    <div class="bg-primary border-top border-white border-opacity-25 py-3">
+        <div class="container-fluid text-center small">
+            © 2026 Lupita CRM - Análisis de audio de llamadas IA. Todos los derechos reservados.
+        </div>
+    </div>
+</footer>
+
+<!-- Asegúrate de tener Bootstrap Icons para los iconos sociales -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="http://lupita-laravel.test/js/app.js"></script>
+
+
+
+<script>
+    function etiquetas_actualizar_label() {
+        let seleccionadas = [];
+        document.querySelectorAll('input[name="etiquetas[]"]:checked').forEach(cb => {
+            let label = document.querySelector(`label[for="${cb.id}"]`);
+            if (label) seleccionadas.push(label.innerText);
+        });
+        let operador = document.querySelector(('input[name="e_operador"]:checked')).value;
+        let header = document.getElementById('acordeon_head');
+
+        let txt_operador = 'Todas';
+        if (operador == '1')
+            txt_operador = 'Al menos una';
+
+        if (seleccionadas.length)
+            header.innerHTML = `${txt_operador}: ${seleccionadas.length} seleccionada${seleccionadas.length !== 1 ? 's' : ''}`;
+        else
+            header.innerHTML = txt_operador + ': sin seleccion';
+    }
+
+    // Eventos
+    document.querySelectorAll('input[name="etiquetas[]"]').forEach(cb => {
+        cb.addEventListener('change', etiquetas_actualizar_label);
+    });
+    document.querySelectorAll('input[name="e_operador"]').forEach(rd => {
+        rd.addEventListener('change', etiquetas_actualizar_label);
+    });
+
+    // Ejecutar al inicio
+    etiquetas_actualizar_label();
+</script>
+<!-- Livewire Scripts -->
+<script src="http://lupita-laravel.test/livewire-b0bc84a1/livewire.js?id=cfc5c1ae"   data-csrf="LW1cr9TCE1D70GXSAGQBuwku6VK2dUDYhdI4DjNp" data-module-url="http://lupita-laravel.test/livewire-b0bc84a1" data-update-uri="http://lupita-laravel.test/livewire-b0bc84a1/update" data-navigate-once="true"></script>
+<script>
+    function playAudio(url, tlf, nombres) {
+        const audio = document.getElementById('mainAudio');
+        const audio_texto = document.getElementById('audio_texto');
+        if (!audio.paused) {
+            audio.pause();
+        }
+        audio.src = url.toLowerCase();
+        audio.play().catch(() => {
+        });
+        audio_texto.innerHTML = `
+        <i class="bi bi-telephone"></i> ${tlf} <i class="bi bi-person"></i> ${nombres}
+        `;
+    }
+</script>
+
+</body>
+</html>

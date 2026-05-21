@@ -42,7 +42,7 @@
                     @foreach($llamadas::$lista as $row)
                         @php
                             //listar llamadas para ayudar al etiquetado
-                            $fila_inicial= ($llamadas::$lista->perPage() * ($llamadas::$lista->currentPage()-1) ) ;
+                            $fila_inicial= ($llamadas::$lista->perPage() * ($llamadas::$lista->currentPage()-1));
                         @endphp
 
                         <input type="hidden" id="lista_{{$loop->index}}_id" value="{{ $row->vapi_id }}">
@@ -329,9 +329,15 @@
         </div>
 
         <div class="col-12">{{ $llamadas::$lista->links() }}</div>
-
-
     </div>
+
+
+    <div class="col-12">
+        <button id="btnDescargar" class="btn btn-primary btn-lg" onclick="descargar_lista()">
+            <span id="btnTexto">🎵 Descargar MP3s Llamadas</span>
+        </button>
+    </div>
+
 
     <div id="overlayGuardando" class="position-fixed top-0 start-0 w-100 h-100 d-none"
          style="background: rgba(0,0,0,0.5); z-index:9999;">
@@ -837,5 +843,48 @@
             audio.currentTime += segundos;
         }
 
+        //---------------------DESCARGAR MP3S-------------
+        async function descargarComo(nombre, url) {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = nombre;
+            link.click();
+            window.URL.revokeObjectURL(blobUrl);
+        }
+
+        async function descargar_lista() {
+            @php
+                $fila_inicial= ($llamadas::$lista->perPage() * ($llamadas::$lista->currentPage()-1));
+                $prefijos= [
+                    1 => 'Conf',
+                    2 => 'FPlantaCarga',
+                    3 => 'DPlantaCarga',
+                    5 => 'FPlantaDescarga',
+                    6 => 'DPlantaDescarga',
+                ]
+            @endphp
+            let lista_mp3=[];
+            @foreach($llamadas::$lista as $row)
+                @php
+                    $fecha_prefijo = new DateTime($row->created_at);
+                    $fecha_prefijo = $fecha_prefijo->format('dmy');
+                @endphp
+            lista_mp3.push(['{{ $fecha_prefijo.' '.$prefijos[$row->llamada_tipo_id].'-' . $fila_inicial+$loop->index+1 . ' ' . strtolower($row->vapi_id) }}', '{{ strtolower($row->audio_link) }}']);
+            @endforeach
+
+            let total= lista_mp3.length,count=0;
+            for (const [nombre, url] of lista_mp3) {
+                console.log(nombre,url);
+                await descargarComo(nombre, url);
+                await new Promise(resolve => setTimeout(resolve, 200));
+                count++;
+                console.log(count+'/'+total);
+            }
+        }
+
+        //-------------------------------------------------
     </script>
 @endsection
