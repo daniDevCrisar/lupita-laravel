@@ -270,9 +270,19 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El registro no tiene titulo de viaje';
     END IF;
 
+-- NO PROCESAR MULTIPARADA
+    IF INSTR(v_titulo, 'MULTIPARADA') > 0 THEN
+        SET v_error_msg = CONCAT('Multiparada: ', v_titulo);
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_error_msg;
+    END IF;
+
+
+
     -- PASO 1: Eliminar todo después del primer '/' (fechas, detalles de carga)
     SET v_sin_fecha = SUBSTRING_INDEX(v_titulo, '/', 1);
     SET v_sin_fecha = TRIM(v_sin_fecha);
+
+
 
     -- PASO 2: Separar origen y destino por ' - '
     IF INSTR(v_sin_fecha, ' - ') > 0 THEN
@@ -283,6 +293,10 @@ BEGIN
         SET v_sep_pos = INSTR(v_sin_fecha, '-');
         SET v_origen_raw = TRIM(SUBSTRING(v_sin_fecha, 1, v_sep_pos - 1));
         SET v_destino_raw = TRIM(SUBSTRING(v_sin_fecha, v_sep_pos + 1));
+    ELSEIF INSTR(v_sin_fecha, ' A ') > 0 THEN
+        SET v_sep_pos = INSTR(v_sin_fecha, ' A ');
+        SET v_origen_raw = TRIM(SUBSTRING(v_sin_fecha, 1, v_sep_pos - 1));
+        SET v_destino_raw = TRIM(SUBSTRING(v_sin_fecha, v_sep_pos + 3));
     ELSE
         SET v_origen_raw = '';
         SET v_destino_raw = '';
@@ -340,12 +354,18 @@ BEGIN
     #     //-------------------------------------
 
     -- Validar
-    IF v_origen_id is NULL AND v_ubigeo_origen IS NULL THEN
+    IF v_origen_id is NULL THEN
+        select v_titulo ,v_origen_raw, v_destino_raw ,v_origen_limpio ,v_destino_limpio  , v_ruta_id, v_origen_id, v_destino_id, v_ubigeo_origen, v_ubigeo_destino, 1, NOW();
+
+
         SET v_error_msg = CONCAT('Origen no encontrado: ', v_origen_limpio);
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_error_msg;
     END IF;
 
-    IF v_destino_id IS NULL AND v_ubigeo_destino IS NULL  THEN
+    IF v_destino_id IS NULL THEN
+        select v_titulo ,v_origen_raw, v_destino_raw ,v_origen_limpio ,v_destino_limpio  , v_ruta_id, v_origen_id, v_destino_id, v_ubigeo_origen, v_ubigeo_destino, 1, NOW();
+
+
         SET v_error_msg = CONCAT('Destino no encontrado: ', v_destino_limpio);
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_error_msg;
     END IF;
@@ -374,7 +394,7 @@ BEGIN
 
     -- Actualizar referencia
     UPDATE referencias SET ruta_id = v_ruta_id WHERE ref = p_ref;
-#     select v_origen_raw, v_destino_raw ,v_origen_limpio ,v_destino_limpio  , v_ruta_id, v_origen_id, v_destino_id, v_ubigeo_origen, v_ubigeo_destino, 1, NOW();
+    select v_titulo ,v_origen_raw, v_destino_raw ,v_origen_limpio ,v_destino_limpio  , v_ruta_id, v_origen_id, v_destino_id, v_ubigeo_origen, v_ubigeo_destino, 1, NOW();
 
 
 END$$

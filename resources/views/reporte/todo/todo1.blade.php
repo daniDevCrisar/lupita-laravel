@@ -1072,7 +1072,7 @@
     </div>
     @endif
 
-    @if(1===2)
+@IF(false)
     <div class="col-12">
 
         {{--    ----------------------------------------------------------------------}}
@@ -1130,7 +1130,7 @@
             }
         </style>
 
-        <div class="col-12">
+        <div class="col-6">
 
 
             <div class="contenedor-mapa">
@@ -1155,6 +1155,13 @@
             top:{{ $p['y'] }}%;
             background:grey;
             " class="prov"></div>
+            <div style="
+            position:absolute;
+            left:{{ $p['x'] -3 }}%;
+            top:{{ $p['y'] - 2 }}%;
+            font-size: 0.7rem;
+            " >{{$p['nombre']}}</div>
+
 
                     @endforeach
 
@@ -1187,7 +1194,7 @@
         {{---------------------------------------------------------------}}
 
     </div>
-    @endif
+@ENDIF
 
     <!-- FOOTER / NOTAS ACLARATORIAS -->
     <div class="footer-note pt-3 d-flex justify-content-between">

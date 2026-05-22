@@ -207,4 +207,50 @@ class DBRutas
 
         return DB::select($sql.self::$filtro[0].$sql_2. self::$filtro[0] . $sql_3 , array_merge(self::$filtro[1], self::$filtro[1]) );
     }
+
+    public static function lista_datos_viaje(){
+        $sql ="
+       select
+            COUNT(a.ref) as ref_total,
+            COUNT(IF( b.ruta_id is not null,1,0 ) ) as ref_ruta
+        from llamadas a
+        inner join referencias b
+        on b.ref = a.ref
+        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00';
+        ";
+
+        $sql_viajes="
+        select
+            b.ruta_id , COUNT(b.ruta_id) as veces_usada,
+            (select nombre from locales where locales.id = c.origen_id ) as loc_origen_nombre,
+            (select nombre from locales where locales.id = c.destino_id ) as loc_destino_nombre,
+            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_origen ) as ubg_origen_nombre,
+            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_destino ) as ubg_destino_nombre
+        from llamadas a
+        inner join referencias b
+        on b.ref = a.ref
+        inner join rutas c
+        on c.id=b.ruta_id
+        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00' and b.ruta_id is not null
+        group by b.ruta_id
+        ORDER BY `veces_usada` DESC;
+        ";
+
+        $sql_comprobar_null="
+        select
+            b.ruta_id , COUNT(b.ruta_id) as veces_usada,
+            (select nombre from locales where locales.id = c.origen_id ) as loc_origen_nombre,
+            (select nombre from locales where locales.id = c.destino_id ) as loc_destino_nombre,
+            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_origen ) as ubg_origen_nombre,
+            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_destino ) as ubg_destino_nombre
+        from llamadas a
+        inner join referencias b
+        on b.ref = a.ref
+        inner join rutas c
+        on c.id=b.ruta_id
+        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00' and b.ruta_id is not null
+        group by b.ruta_id
+        ORDER BY `veces_usada` DESC;
+        ";
+    }
 }
