@@ -101,7 +101,7 @@ class DBTmpLotes
         SELECT
             lote_id, ref, trt, tlf_conductor, titulo_viaje, placa,
             fin_descargue, inicio_descargue, qr_llegada_destino,
-            fin_de_carga, inicio_de_carga, presenta_para_carga,
+            inicio_ruta,fin_de_carga, inicio_de_carga, presenta_para_carga,
             fecha_despachador , compromiso_carga
         FROM tmp_lotes_ref
 

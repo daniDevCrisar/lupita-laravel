@@ -209,14 +209,22 @@ class DBRutas
     }
 
     public static function lista_datos_viaje(){
-        $sql ="
-       select
-            COUNT(a.ref) as ref_total,
-            COUNT(IF( b.ruta_id is not null,1,0 ) ) as ref_ruta
-        from llamadas a
-        inner join referencias b
+        $sql_estadisticas ="
+        select
+            SUM(IF(ref IS NOT NULL,1,0)) as ref_total,
+            SUM(IF(ref IS NOT NULL and ruta_id IS NOT NULL,1,0)) as ref_total_ruta ,
+            SUM(IF(ref IS NOT NULL and ruta_id IS NOT NULL and etapas != 1 ,1,0)) as ref_sin_conf_ruta ,
+            COUNT(DISTINCT CASE WHEN ruta_id IS NOT NULL THEN ruta_id END) as ruta_distintas
+        from (select
+            b.ref as ref,
+            b.ruta_id as ruta_id,
+            COUNT(b.ref) as ref_total,
+            GROUP_CONCAT(DISTINCT a.llamada_tipo_id) as etapas
+        from referencias b
+        inner join llamadas a
         on b.ref = a.ref
-        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00';
+        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00'
+        GROUP by a.ref) a;
         ";
 
         $sql_viajes="
@@ -225,7 +233,14 @@ class DBRutas
             (select nombre from locales where locales.id = c.origen_id ) as loc_origen_nombre,
             (select nombre from locales where locales.id = c.destino_id ) as loc_destino_nombre,
             (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_origen ) as ubg_origen_nombre,
-            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_destino ) as ubg_destino_nombre
+            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_destino ) as ubg_destino_nombre,
+            SUM(a.llamada_exitosa) as total_exito,
+
+
+            SUM(if (b.inicio_de_carga is not null and b.inicio_ruta is not null , 1,0 ) ) as fuera_carga_completa,
+            SUM(TIMESTAMPDIFF(MINUTE,b.inicio_de_carga,b.inicio_ruta )) as fuera_carga_minutos,
+            AVG(TIMESTAMPDIFF(MINUTE, b.inicio_de_carga,b.inicio_ruta)) as fuera_carga_promedio
+
         from llamadas a
         inner join referencias b
         on b.ref = a.ref
@@ -236,21 +251,23 @@ class DBRutas
         ORDER BY `veces_usada` DESC;
         ";
 
-        $sql_comprobar_null="
+    }
+
+    public static function lista_referencias_con_etapas_de_llamadas(){
+        $sql="
         select
-            b.ruta_id , COUNT(b.ruta_id) as veces_usada,
-            (select nombre from locales where locales.id = c.origen_id ) as loc_origen_nombre,
-            (select nombre from locales where locales.id = c.destino_id ) as loc_destino_nombre,
-            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_origen ) as ubg_origen_nombre,
-            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_destino ) as ubg_destino_nombre
+			b.inicio_de_carga,
+			b.fin_de_carga,
+			TIMESTAMPDIFF(MINUTE, b.inicio_de_carga, b.fin_de_carga) as carga,
+            a.ref,
+            b.ruta_id,
+            GROUP_CONCAT(DISTINCT a.llamada_tipo_id) as etapas
         from llamadas a
         inner join referencias b
         on b.ref = a.ref
-        inner join rutas c
-        on c.id=b.ruta_id
-        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00' and b.ruta_id is not null
-        group by b.ruta_id
-        ORDER BY `veces_usada` DESC;
+        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00'
+        GROUP BY a.ref
+        ORDER BY `etapas` ASC;
         ";
     }
 }

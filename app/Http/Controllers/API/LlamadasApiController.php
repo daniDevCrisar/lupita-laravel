@@ -57,9 +57,9 @@ class LlamadasApiController extends Controller
         //-----------------------SQL REFS TEMPORAL-------------------
         $sql_ref_tmp ="
         INSERT INTO tmp_lotes_ref (lote_id, ref, tlf_conductor,titulo_viaje,placa,fin_descargue ,inicio_descargue,
-                                   qr_llegada_destino,fin_de_carga , inicio_de_carga , presenta_para_carga ,compromiso_carga ,fecha_despachador, trt)
+                                   qr_llegada_destino,inicio_ruta,fin_de_carga , inicio_de_carga , presenta_para_carga ,compromiso_carga ,fecha_despachador, trt)
         VALUES (?,?,?,?,?,?,?,
-        ?,?,?,?,?,?,?)
+        ?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
             tlf_conductor = VALUES(tlf_conductor),
             titulo_viaje = VALUES(titulo_viaje),
@@ -67,6 +67,8 @@ class LlamadasApiController extends Controller
             fin_descargue = VALUES(fin_descargue),
             inicio_descargue = VALUES(inicio_descargue),
             qr_llegada_destino = VALUES(qr_llegada_destino),
+
+            inicio_ruta = VALUES(inicio_ruta),
             fin_de_carga = VALUES(fin_de_carga),
             inicio_de_carga = VALUES(inicio_de_carga),
             presenta_para_carga = VALUES(presenta_para_carga),
@@ -89,7 +91,7 @@ class LlamadasApiController extends Controller
             }
             DB::insert($sql_ref_tmp,[
                 $lote_id,$key,$item['tlf_chofer'],$item['titulo_viaje'],$item['placa'],$item['fecha_fin_descarga'],$item['fecha_inicio_descarga'],
-                $item['fecha_qr_descarga'],$item['fecha_fin_carga'],$item['fecha_inicio_carga'],$item['fecha_presente_carga'],$item['fecha_conpromiso'],
+                $item['fecha_qr_descarga'],$item['fecha_inicio_ruta'],$item['fecha_fin_carga'],$item['fecha_inicio_carga'],$item['fecha_presente_carga'],$item['fecha_conpromiso'],
                 $item['fecha_despachador'],$item['transportista']
             ]);
 

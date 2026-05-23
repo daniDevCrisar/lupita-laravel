@@ -124,12 +124,17 @@ CREATE TABLE referencias (
     fin_descargue TIMESTAMP DEFAULT NULL,
     inicio_descargue TIMESTAMP DEFAULT NULL,
     qr_llegada_destino TIMESTAMP DEFAULT NULL,
+    inicio_ruta TIMESTAMP DEFAULT NULL,
+
     fin_de_carga TIMESTAMP DEFAULT NULL,
     inicio_de_carga TIMESTAMP DEFAULT NULL,
     presenta_para_carga TIMESTAMP DEFAULT NULL,
     compromiso_carga TIMESTAMP DEFAULT NULL
 
 );
+
+ALTER TABLE referencias
+    ADD COLUMN inicio_ruta TIMESTAMP DEFAULT NULL AFTER qr_llegada_destino;
 
 ALTER TABLE referencias
     MODIFY COLUMN conductor_id INT NULL;
@@ -582,6 +587,7 @@ CREATE TABLE tmp_lotes_ref (
     fin_descargue VARCHAR(50) NULL,
     inicio_descargue VARCHAR(50) NULL,
     qr_llegada_destino VARCHAR(50) NULL,
+    inicio_ruta VARCHAR(50) NULL,
     fin_de_carga VARCHAR(50) NULL,
     inicio_de_carga VARCHAR(50) NULL,
     presenta_para_carga VARCHAR(50) NULL,
@@ -590,6 +596,9 @@ CREATE TABLE tmp_lotes_ref (
     fecha_despachador VARCHAR(50) NULL,
     PRIMARY KEY (lote_id, ref)
 );
+
+ALTER TABLE tmp_lotes_ref
+    ADD COLUMN inicio_ruta  VARCHAR(50) NULL AFTER qr_llegada_destino;
 
 ALTER TABLE tmp_lotes_ref
     ADD COLUMN fecha_despachador VARCHAR(50) NULL;

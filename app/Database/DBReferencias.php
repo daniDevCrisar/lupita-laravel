@@ -37,6 +37,7 @@ class DBReferencias {
             ref, trt_id, conductor_id, fecha_despachador,
             titulo_viaje, placa, fin_descargue, inicio_descargue,
             qr_llegada_destino,
+            inicio_ruta,
             fin_de_carga,
             inicio_de_carga,
             presenta_para_carga,
@@ -45,7 +46,7 @@ class DBReferencias {
         ?, ?, ?, FROM_UNIXTIME(?),
             ?, ?, FROM_UNIXTIME(?), FROM_UNIXTIME(?),
             FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?),
-            FROM_UNIXTIME(?), FROM_UNIXTIME(?)
+            FROM_UNIXTIME(?), FROM_UNIXTIME(?), FROM_UNIXTIME(?)
         )
         ON DUPLICATE KEY UPDATE
             trt_id = VALUES(trt_id),
@@ -56,6 +57,7 @@ class DBReferencias {
             fin_descargue = VALUES(fin_descargue),
             inicio_descargue = VALUES(inicio_descargue),
             qr_llegada_destino = VALUES(qr_llegada_destino),
+            inicio_ruta = VALUES(inicio_ruta),
             fin_de_carga = VALUES(fin_de_carga),
             inicio_de_carga = VALUES(inicio_de_carga),
             presenta_para_carga = VALUES(presenta_para_carga),
@@ -87,6 +89,7 @@ class DBReferencias {
                 self::fecha_str_timestamp($row->fin_descargue),
                 self::fecha_str_timestamp($row->inicio_descargue),
                 self::fecha_str_timestamp($row->qr_llegada_destino),
+                self::fecha_str_timestamp($row->inicio_ruta),
                 self::fecha_str_timestamp($row->fin_de_carga),
                 self::fecha_str_timestamp($row->inicio_de_carga),
                 self::fecha_str_timestamp($row->presenta_para_carga),
