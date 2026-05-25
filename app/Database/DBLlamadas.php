@@ -628,10 +628,26 @@ class DBLlamadas {
 
         $tiempo = '';
         if ($horas > 0) $tiempo .= $horas . ' H, ';
-        if ($minutos > 0) $tiempo .= $minutos . ' Min y ';
-        if ($seg > 0) $tiempo .= $seg . ' Seg';
+        if ($minutos > 0) $tiempo .= $minutos . ' Min';
+        if ($seg > 0) $tiempo .= 'y '. $seg . ' Seg';
 
         return trim($tiempo);
+    }
+
+    public static function ruta_duracion_format($min)
+    {
+        if ($min<1) return '0 min';
+
+        $dias = floor($min / 1440); //dividir entre dias
+        $horas = floor(($min % 1440) / 60);
+        $minutos = $min % 60;
+
+        $tiempo = '';
+        if ($dias > 0) $tiempo .= $dias . ' D, ';
+        if ($horas > 0) $tiempo .= $horas . ' H, ';
+        if ($minutos > 0) $tiempo .= $minutos . ' Min';
+
+        return trim($tiempo,',');
     }
 
     public static function buscar_razon_finalizacion($id)

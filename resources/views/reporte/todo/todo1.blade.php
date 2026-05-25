@@ -1072,7 +1072,7 @@
     </div>
     @endif
 
-@IF(false)
+@IF( !request('llamada_tipo_id') )
     <div class="col-12">
 
         {{--    ----------------------------------------------------------------------}}
@@ -1130,32 +1130,33 @@
             }
         </style>
 
-        <div class="col-6">
+        <div class="row">
+            <div class="col-12 col-lg-5">
 
 
-            <div class="contenedor-mapa">
-                <div class="mapa">
-                    <img src="{{ asset('images/peru.png') }}">
+                <div class="contenedor-mapa">
+                    <div class="mapa">
+                        <img src="{{ asset('images/peru.png') }}">
 
-                    <div style="position:absolute;left:3%;top:13%;">
-                        <h5>Mapa de Origen y <BR>Destinos</h5>
-                    </div>
+                        <div style="position:absolute;left:3%;top:13%;">
+                            <h5>Mapa de Origen y <BR>Destinos</h5>
+                        </div>
 
-                    <div style="position:absolute;left:10%;top:70%;"><button class="btn btn-sm btn-danger">
-                            Origen &nbsp; </button></div>
-                    <div style="position:absolute;left:10%;top:75%;"><button class="btn btn-sm btn-success">
-                            Destino</button></div>
+                        <div style="position:absolute;left:10%;top:70%;"><button class="btn btn-sm btn-danger">
+                                Origen &nbsp; </button></div>
+                        <div style="position:absolute;left:10%;top:75%;"><button class="btn btn-sm btn-success">
+                                Destino</button></div>
 
-                    @php $depas=$rutas->depas @endphp
-                    @foreach($depas as $nombre => $p)
+                        @php $depas=$rutas->depas @endphp
+                        @foreach($depas as $nombre => $p)
 
-                        <div style="
+                            <div style="
             position:absolute;
             left:{{ $p['x'] }}%;
             top:{{ $p['y'] }}%;
             background:grey;
             " class="prov"></div>
-            <div style="
+                            <div style="
             position:absolute;
             left:{{ $p['x'] -3 }}%;
             top:{{ $p['y'] - 2 }}%;
@@ -1163,29 +1164,151 @@
             " >{{$p['nombre']}}</div>
 
 
-                    @endforeach
+                        @endforeach
 
-                    @foreach($rutas->lista as $item)
-                        @if ($item->ubigeo != null)
-                            @php
-                                $cant= $item->origen_veces_usada;
-                                if (!$cant) $cant='';
-                                else $cant= "<span class='origen text-danger'>" . $cant . '</span><br>';
+                        @foreach($rutas->lista as $item)
+                            @if ($item->ubigeo != null)
+                                @php
+                                    $cant= $item->origen_veces_usada;
+                                    if (!$cant) $cant='';
+                                    else $cant= "<span class='origen text-danger'>" . $cant . '</span><br>';
 
-                                $cant.= "<span class='destino text-success'>" . $item->destino_veces_usada . '</span><br>';
-                            @endphp
-                            <div style="
+                                    $cant.= "<span class='destino text-success'>" . $item->destino_veces_usada . '</span><br>';
+                                @endphp
+                                <div style="
                             left:{{ $depas[$item->ubigeo]['x'] }}%;
                             top:{{ $depas[$item->ubigeo]['y'] }}%;
                             background:lightseagreen;
                             " class=" prov check_prov"
-                            >{!! $cant !!}</div>
-                        @endif
+                                >{!! $cant !!}</div>
+                            @endif
 
-                    @endforeach
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-7 d-flex align-items-center">
+                <div class="table-responsive">
+                    <h1>Llamadas Exitosas por Ruta</h1>
+                    <p class="text-muted">Total de referencias procesadas (IA): {{ $rutas->resumen->ref_total  }}
+                    <br> Referencias con ruta identificada: {{ $rutas->resumen->ref_total_ruta  }}
+                    <br> Diversidad de rutas (distintas): {{ $rutas->resumen->ruta_distintas  }}</p>
+                    <h4>🏆 Top 5 Rutas más Concurridas</h4>
+                    <table class="table table-hover">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Concurrencia</th>
+                            <th>Llamadas Exitosas</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($rutas->lista_detalle as $item)
+                            <tr class="{{ $loop->odd ? 'table-secondary' : '' }} ">
+                            <td>{{ $loop->iteration }} <b>{{ $item->ruta_id }}</b></td>
+                            <td class="text-center">{{ $item->veces_usada }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-success">{{$item->total_exito}}</span>
+                            </td>
+                        </tr>
+                        @endforeach
+
+                        </tbody>
+                    </table>
+                    <p class="text-muted">* Datos actualizados hasta hoy a las 7am</p>
+                </div>
+            </div>
+
+
+            <div class="col-12">
+                <div class="table-responsive">
+                    <h2>Tiempos en Ruta</h2>
+                    <p class="text-muted">Analisis de Tiempo.</p>
+                    <table class="table table-hover">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Analisis</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                        @foreach($rutas->lista_detalle as $item)
+                            <th>1 <b>{{$item->ruta_id}}</b></th>
+                            <td>
+                                <table class="table table-hover">
+                                    <thead>
+                                    <tr>
+                                        <th colspan="3">Tiempos Promedio</th>
+                                        <th>Efectuadas</th>
+                                        <th>Total</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <td class="table-success">1</td>
+                                        <td>✅ Compromiso vs Arribo</td>
+                                        <td><b class="text-danger-emphasis">+- {{$llamadas::ruta_duracion_format($item->etapa_1_promedio)}}</b></td>
+                                        <td><span class="badge bg-success">{{$item->etapa_1_completadas}}</span></td>
+                                        <td> {{$llamadas::ruta_duracion_format($item->etapa_1_minutos)}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="table-primary">2</td>
+                                        <td>
+                                            🛻 Fuera de planta para carga</td>
+                                        <td><b class="text-danger-emphasis">{{$llamadas::ruta_duracion_format($item->etapa_2_promedio) }}</b></td>
+                                        <td><span class="badge bg-primary">{{$item->etapa_2_completadas}}</span></td>
+                                        <td>{{$llamadas::ruta_duracion_format($item->etapa_2_minutos)}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="table-info">3</td>
+                                        <td>
+                                            🏭 Dentro de planta para carga</td>
+                                        <td><b class="text-danger-emphasis">{{$llamadas::ruta_duracion_format($item->etapa_3_promedio) }}</b></td>
+                                        <td><span class="badge bg-info">{{$item->etapa_3_completadas}}</span></td>
+                                        <td>{{$llamadas::ruta_duracion_format($item->etapa_3_minutos)}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="table-warning">4</td>
+                                        <td>
+                                            🛣️ En ruta</td>
+                                        <td><b class="text-danger-emphasis">{{$llamadas::ruta_duracion_format($item->etapa_4_promedio) }}</b></td>
+                                        <td><span class="badge bg-warning">{{$item->etapa_4_completadas}}</span></td>
+                                        <td>{{$llamadas::ruta_duracion_format($item->etapa_4_minutos)}}</td>
+
+                                    </tr>
+                                    <tr>
+                                        <td class="table-danger">5</td>
+                                        <td>
+                                            🚛 Fuera de planta para descarga</td>
+                                        <td><b class="text-danger-emphasis">{{$llamadas::ruta_duracion_format($item->etapa_5_promedio) }}</b></td>
+                                        <td><span class="badge bg-danger">{{$item->etapa_5_completadas}}</span></td>
+                                        <td>{{$llamadas::ruta_duracion_format($item->etapa_5_minutos)}}</td>
+
+                                    </tr>
+                                    <tr>
+                                        <td class="table-success">6</td>
+                                        <td>
+                                            🏁 Dentro de planta para descarga</td>
+                                        <td><b class="text-danger-emphasis">{{$llamadas::ruta_duracion_format($item->etapa_6_promedio) }}</b></td>
+                                        <td><span class="badge bg-success">{{$item->etapa_6_completadas}}</span></td>
+                                        <td>{{$llamadas::ruta_duracion_format($item->etapa_6_minutos)}}</td>
+
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                    <p class="text-muted">* Datos actualizados hasta hoy a las 7am</p>
                 </div>
             </div>
         </div>
+
+
 
 
         {{---------------------------------------------------------------}}

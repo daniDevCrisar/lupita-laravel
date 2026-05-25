@@ -340,15 +340,14 @@ BEGIN
 -- PASO 5: Si no se encontró local, buscar ubigeo en tabla de distritos
     IF v_origen_id IS NULL THEN
         SELECT ubigeo,ubigeo INTO v_ubigeo_origen ,v_origen_id FROM ubigeo_distritos
-        WHERE UPPER(distrito) = v_origen_limpio
-           OR v_origen_limpio LIKE CONCAT('%', UPPER(distrito), '%')
+        WHERE v_origen_limpio REGEXP CONCAT('\\b', UPPER(distrito) , '\\b')
         LIMIT 1;
     END IF;
 
     IF v_destino_id IS NULL THEN
         SELECT ubigeo,ubigeo INTO v_ubigeo_destino,v_destino_id FROM ubigeo_distritos
         WHERE UPPER(distrito) = v_destino_limpio
-           OR v_destino_limpio LIKE CONCAT('%', UPPER(distrito), '%')
+           OR v_destino_limpio REGEXP CONCAT('\\b', UPPER(distrito) , '\\b')
         LIMIT 1;
     END IF;
     #     //-------------------------------------

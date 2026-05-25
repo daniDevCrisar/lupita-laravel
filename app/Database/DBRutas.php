@@ -208,7 +208,7 @@ class DBRutas
         return DB::select($sql.self::$filtro[0].$sql_2. self::$filtro[0] . $sql_3 , array_merge(self::$filtro[1], self::$filtro[1]) );
     }
 
-    public static function lista_datos_viaje(){
+    public static function lista_rutas_recorridas(){
         $sql_estadisticas ="
         select
             SUM(IF(ref IS NOT NULL,1,0)) as ref_total,
@@ -227,30 +227,52 @@ class DBRutas
         GROUP by a.ref) a;
         ";
 
-        $sql_viajes="
+        $sql_rutas="
         select
-            b.ruta_id , COUNT(b.ruta_id) as veces_usada,
+            b.ruta_id as ruta_id , COUNT(b.ruta_id) as veces_usada,
             (select nombre from locales where locales.id = c.origen_id ) as loc_origen_nombre,
             (select nombre from locales where locales.id = c.destino_id ) as loc_destino_nombre,
             (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_origen ) as ubg_origen_nombre,
             (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_destino ) as ubg_destino_nombre,
             SUM(a.llamada_exitosa) as total_exito,
 
+            SUM(if (b.compromiso_carga is not null and b.presenta_para_carga is not null , 1,0 ) ) as etapa_1_completadas,
+            SUM(ABS(TIMESTAMPDIFF(MINUTE,b.compromiso_carga ,b.presenta_para_carga))) as etapa_1_minutos,
+            AVG(ABS(TIMESTAMPDIFF(MINUTE, b.compromiso_carga ,b.presenta_para_carga))) as etapa_1_promedio,
 
-            SUM(if (b.inicio_de_carga is not null and b.inicio_ruta is not null , 1,0 ) ) as fuera_carga_completa,
-            SUM(TIMESTAMPDIFF(MINUTE,b.inicio_de_carga,b.inicio_ruta )) as fuera_carga_minutos,
-            AVG(TIMESTAMPDIFF(MINUTE, b.inicio_de_carga,b.inicio_ruta)) as fuera_carga_promedio
+            SUM(if (b.presenta_para_carga is not null and b.inicio_de_carga is not null , 1,0 ) ) as etapa_2_completadas,
+            SUM(TIMESTAMPDIFF(MINUTE, b.presenta_para_carga ,b.inicio_de_carga )) as etapa_2_minutos,
+            AVG(TIMESTAMPDIFF(MINUTE, b.presenta_para_carga ,b.inicio_de_carga)) as etapa_2_promedio,
+
+                        SUM(if (b.inicio_de_carga is not null and b.inicio_ruta is not null , 1,0 ) ) as etapa_3_completadas,
+            SUM(TIMESTAMPDIFF(MINUTE,b.inicio_de_carga,b.inicio_ruta )) as etapa_3_minutos,
+            AVG(TIMESTAMPDIFF(MINUTE, b.inicio_de_carga,b.inicio_ruta)) as etapa_3_promedio,
+
+            SUM(if (b.inicio_ruta is not null and b.qr_llegada_destino is not null , 1,0 ) ) as etapa_4_completadas,
+            SUM(TIMESTAMPDIFF(MINUTE,b.inicio_ruta, b.qr_llegada_destino )) as etapa_4_minutos,
+            AVG(TIMESTAMPDIFF(MINUTE, b.inicio_ruta ,b.qr_llegada_destino)) as etapa_4_promedio,
+
+            SUM(if (b.qr_llegada_destino  is not null and b.inicio_descargue is not null , 1,0 ) ) as etapa_5_completadas,
+            SUM(ABS(TIMESTAMPDIFF(MINUTE,b.qr_llegada_destino , b.inicio_descargue )) ) as etapa_5_minutos,
+            AVG(ABS(TIMESTAMPDIFF(MINUTE, b.qr_llegada_destino ,b.inicio_descargue )) ) as etapa_5_promedio,
+
+            SUM(if (b.inicio_descargue is not null and b.fin_descargue is not null , 1,0 ) ) as etapa_6_completadas,
+            SUM(TIMESTAMPDIFF(MINUTE,b.inicio_descargue ,b.fin_descargue )) as etapa_6_minutos,
+            AVG(TIMESTAMPDIFF(MINUTE, b.inicio_descargue ,b.fin_descargue )) as etapa_6_promedio
 
         from llamadas a
         inner join referencias b
         on b.ref = a.ref
         inner join rutas c
         on c.id=b.ruta_id
-        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00' and b.ruta_id is not null
+        where 1=1";
+        $sql_rutas_2="
         group by b.ruta_id
-        ORDER BY `veces_usada` DESC;
+        ORDER BY `veces_usada` DESC
+        limit 5;
         ";
 
+        return DB::select($sql_rutas . self::$filtro[0]. $sql_rutas_2 , self::$filtro[1] );
     }
 
     public static function lista_referencias_con_etapas_de_llamadas(){
@@ -270,4 +292,31 @@ class DBRutas
         ORDER BY `etapas` ASC;
         ";
     }
+
+    public static function rutas_resumen(){
+        $sql_1 ="
+        select
+            SUM(IF(ref IS NOT NULL,1,0)) as ref_total,
+            SUM(IF(ref IS NOT NULL and ruta_id IS NOT NULL,1,0)) as ref_total_ruta ,
+            SUM(IF(ref IS NOT NULL and ruta_id IS NOT NULL and etapas = 1 ,1,0)) as ref_conf_ruta ,
+            COUNT(DISTINCT CASE WHEN ruta_id IS NOT NULL THEN ruta_id END) as ruta_distintas
+        from (select
+            b.ref as ref,
+            b.ruta_id as ruta_id,
+            GROUP_CONCAT(DISTINCT a.llamada_tipo_id) as etapas
+        from referencias b
+        inner join llamadas a
+        on b.ref = a.ref
+        where 1=1 ";
+        $sql_2="
+        GROUP by a.ref) a;
+        ";
+
+        $resumen=DB::select($sql_1 . self::$filtro[0]. $sql_2 , self::$filtro[1] );
+
+        return $resumen[0];
+    }
+
+
+
 }

@@ -99,6 +99,11 @@ class LlamadasController extends Controller
 //        dd($rutas::$filtro);
         $rutas->lista = $rutas_lista::lista_principal();
         $rutas->depas = $rutas_lista::$depas;
+
+        $rutas_lista::$filtro= $llamadas::aplicar_filtro_sqltext('a');
+        $rutas->lista_detalle = $rutas_lista::lista_rutas_recorridas();
+        $rutas->resumen= $rutas_lista::rutas_resumen();
+//        dd($rutas->lista_detalle);
         //-------------------------------
 
         return view('reporte.todo.todo1', [
