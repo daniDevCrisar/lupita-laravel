@@ -174,33 +174,31 @@ class DBRutas
             SUM(CASE WHEN tipo = 'destino' THEN veces_usada ELSE 0 END) AS destino_veces_usada
         FROM (
             SELECT
-                LEFT(b.distrito_ubigeo, 2) as ubigeo,
+                LEFT(a.ubigeo_destino,2) as ubigeo,
                 'origen' as tipo,
                 COUNT(DISTINCT a.id) as ruta_count,           -- Rutas únicas
                 COUNT(DISTINCT c.ref) as veces_usada           -- Referencias únicas
             FROM rutas a
-            INNER JOIN locales b ON b.id = a.origen_id
             INNER JOIN referencias c ON c.ruta_id = a.id
             INNER JOIN llamadas d ON d.ref = c.ref
             where 1=1 ";
         $sql_2="
 
-            GROUP BY LEFT(b.distrito_ubigeo, 2)
+            group by LEFT(a.ubigeo_destino, 2)
 
             UNION ALL
 
             SELECT
-                LEFT(b.distrito_ubigeo, 2) as ubigeo,
+                LEFT(a.ubigeo_destino,2) as ubigeo,
                 'destino' as tipo,
                 COUNT(DISTINCT a.id) as ruta_count,           -- Rutas únicas
                 COUNT(DISTINCT c.ref) as veces_usada           -- Referencias únicas
             FROM rutas a
-            INNER JOIN locales b ON b.id = a.destino_id
             INNER JOIN referencias c ON c.ruta_id = a.id
             INNER JOIN llamadas d ON d.ref = c.ref
             where 1=1 ";
         $sql_3="
-            GROUP BY LEFT(b.distrito_ubigeo, 2)
+            group by LEFT(a.ubigeo_destino, 2)
         ) AS combinado
         GROUP BY ubigeo;
        ";
