@@ -174,7 +174,7 @@ class DBRutas
             SUM(CASE WHEN tipo = 'destino' THEN veces_usada ELSE 0 END) AS destino_veces_usada
         FROM (
             SELECT
-                LEFT(a.ubigeo_destino,2) as ubigeo,
+                LEFT(a.ubigeo_origen,2) as ubigeo,
                 'origen' as tipo,
                 COUNT(DISTINCT a.id) as ruta_count,           -- Rutas únicas
                 COUNT(DISTINCT c.ref) as veces_usada           -- Referencias únicas
@@ -184,7 +184,7 @@ class DBRutas
             where 1=1 ";
         $sql_2="
 
-            group by LEFT(a.ubigeo_destino, 2)
+            group by LEFT(a.ubigeo_origen, 2)
 
             UNION ALL
 
