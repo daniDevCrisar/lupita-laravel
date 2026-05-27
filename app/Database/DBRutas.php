@@ -170,14 +170,25 @@ class DBRutas
             ubigeo,
             SUM(CASE WHEN tipo = 'origen' THEN ruta_count ELSE 0 END) AS origen_ruta_count,
             SUM(CASE WHEN tipo = 'origen' THEN veces_usada ELSE 0 END) AS origen_veces_usada,
+
             SUM(CASE WHEN tipo = 'destino' THEN ruta_count ELSE 0 END) AS destino_ruta_count,
-            SUM(CASE WHEN tipo = 'destino' THEN veces_usada ELSE 0 END) AS destino_veces_usada
+            SUM(CASE WHEN tipo = 'destino' THEN veces_usada ELSE 0 END) AS destino_veces_usada,
+
+
+            SUM(exito_1+exito_2+exito_3) as origen_exito,
+            SUM(exito_5 + exito_6) as destino_exito
+
         FROM (
             SELECT
                 LEFT(a.ubigeo_origen,2) as ubigeo,
                 'origen' as tipo,
                 COUNT(DISTINCT a.id) as ruta_count,           -- Rutas únicas
-                COUNT(DISTINCT c.ref) as veces_usada           -- Referencias únicas
+                COUNT(DISTINCT c.ref) as veces_usada,           -- Referencias únicas
+                SUM(IF(d.llamada_tipo_id=1 AND d.llamada_exitosa,1,0)) as exito_1,
+                SUM(IF(d.llamada_tipo_id=2 AND d.llamada_exitosa,1,0)) as exito_2,
+                SUM(IF(d.llamada_tipo_id=3 AND d.llamada_exitosa,1,0)) as exito_3,
+                0 as exito_5,
+                0 as exito_6
             FROM rutas a
             INNER JOIN referencias c ON c.ruta_id = a.id
             INNER JOIN llamadas d ON d.ref = c.ref
@@ -192,7 +203,12 @@ class DBRutas
                 LEFT(a.ubigeo_destino,2) as ubigeo,
                 'destino' as tipo,
                 COUNT(DISTINCT a.id) as ruta_count,           -- Rutas únicas
-                COUNT(DISTINCT c.ref) as veces_usada           -- Referencias únicas
+                COUNT(DISTINCT c.ref) as veces_usada,           -- Referencias únicas
+                0 as exito_1,
+                0 as exito_2,
+                0 as exito_3,
+                SUM(IF(d.llamada_tipo_id=5 AND d.llamada_exitosa,1,0)) as exito_5,
+                SUM(IF(d.llamada_tipo_id=6 AND d.llamada_exitosa,1,0)) as exito_6
             FROM rutas a
             INNER JOIN referencias c ON c.ruta_id = a.id
             INNER JOIN llamadas d ON d.ref = c.ref

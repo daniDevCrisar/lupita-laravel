@@ -146,7 +146,7 @@
         </div>
     </div>
 
-    <!-- RESUMEN EJECUTIVO (TARJETAS KPI) -->
+    <!-- RESUMEN -->
     <div class="row g-4 mb-5">
         <div class="col-md-3">
             <div class="card report-card h-100 border-0 bg-white">
@@ -634,7 +634,7 @@
 
             function alternar_mapa() {
                 pos_mapa++;
-                mapa_num = pos_mapa % 3;
+                let mapa_num = pos_mapa % 3;
 
                 document.querySelectorAll("[data-m='" + mapa_num + "']").forEach(td => {
                     td.classList.remove('d-none')
@@ -1072,7 +1072,7 @@
     </div>
     @endif
 
-@IF( !request('llamada_tipo_id') )
+@if( !request('llamada_tipo_id') )
     <div class="col-12">
 
         {{--    ----------------------------------------------------------------------}}
@@ -1112,10 +1112,11 @@
             }
 
             .check_prov {
-                background: #ef4444;
+                background:lightseagreen;
                 box-shadow: 0 0 10px #44efe9;
                 font-size: 1rem;
                 color: green;
+                line-height: 0.75;
             }
 
             .prov {
@@ -1128,62 +1129,100 @@
 
                 border-radius: 50%;
             }
+            .nombre_prov{
+                font-size: 0.7rem;
+                position:absolute;
+            }
         </style>
+
+        <script>
+            let pos_mapa_peru = 0;
+
+            function alternar_mapa_peru() {
+                pos_mapa_peru++;
+                let mapa_num = pos_mapa_peru % 2;
+
+                document.querySelectorAll("[name='peru_mapa_" + mapa_num + "']").forEach(div => {
+                    div.classList.remove('d-none')
+                });
+                document.querySelectorAll("[name='peru_mapa_" + ((pos_mapa_peru - 1) % 2) + "']").forEach(div => {
+                    div.classList.add('d-none')
+                });
+            }
+        </script>
 
         <div class="row">
             <div class="col-12 col-lg-5">
-
-
                 <div class="contenedor-mapa">
                     <div class="mapa">
                         <img src="{{ asset('images/peru.png') }}">
 
-                        <div style="position:absolute;left:3%;top:13%;">
+                        <div style="position:absolute;left:3%;top:7%;">
+                            <button class="btn btn-secondary" onclick="alternar_mapa_peru()">
+                                <i class="bi bi-arrow-repeat me-1"></i>
+                            </button>
+                        </div>
+                        <div style="position:absolute;left:3%;top:13%;" name="peru_mapa_0">
                             <h5>Mapa de Origen y <BR>Destinos</h5>
                         </div>
 
-                        <div style="position:absolute;left:10%;top:70%;"><button class="btn btn-sm btn-danger">
+                        <div style="position:absolute;left:10%;top:70%;" name="peru_mapa_0"><button class="btn btn-sm btn-danger">
                                 Origen &nbsp; </button></div>
-                        <div style="position:absolute;left:10%;top:75%;"><button class="btn btn-sm btn-success">
+                        <div style="position:absolute;left:10%;top:75%;" name="peru_mapa_0"><button class="btn btn-sm btn-success">
                                 Destino</button></div>
 
                         @php $depas=$rutas->depas @endphp
                         @foreach($depas as $nombre => $p)
 
                             <div style="
-            position:absolute;
-            left:{{ $p['x'] }}%;
-            top:{{ $p['y'] }}%;
-            background:grey;
-            " class="prov"></div>
+                            position:absolute;
+                            left:{{ $p['x'] }}%;
+                            top:{{ $p['y'] }}%;
+                            background:grey;
+                            " class="prov">
+                            </div>
+
                             <div style="
-            position:absolute;
-            left:{{ $p['x'] -3 }}%;
-            top:{{ $p['y'] - 2 }}%;
-            font-size: 0.7rem;
-            " >{{$p['nombre']}}</div>
+                            left:{{ $p['x'] -3 }}%;
+                            top:{{ $p['y'] - 3 }}%;
+                            " class="nombre_prov text-muted">{{$p['nombre']}}</div>
 
 
                         @endforeach
-
+                        @php $ruta_lexito_total =0;@endphp
                         @foreach($rutas->lista as $item)
                             @if ($item->ubigeo != null)
                                 @php
                                     $cant= $item->origen_veces_usada;
                                     if (!$cant) $cant='';
                                     else $cant= "<span class='origen text-danger'>" . $cant . '</span><br>';
-
-                                    $cant.= "<span class='destino text-success'>" . $item->destino_veces_usada . '</span><br>';
+                                    $cant.= "<span class='destino text-success'>" . $item->destino_veces_usada . '</span>';
                                 @endphp
                                 <div style="
-                            left:{{ $depas[$item->ubigeo]['x'] }}%;
-                            top:{{ $depas[$item->ubigeo]['y'] }}%;
-                            background:lightseagreen;
-                            " class=" prov check_prov"
-                                >{!! $cant !!}</div>
+                                left:{{ $depas[$item->ubigeo]['x'] }}%;
+                                top:{{ $depas[$item->ubigeo]['y'] }}%;"
+                                class="prov check_prov" name="peru_mapa_0">
+                                <br>{!! $cant !!}</div>
                             @endif
-
+                            @php
+                                $ruta_lexito=$item->origen_exito + $item->destino_exito;
+                                $ruta_lexito_total +=$ruta_lexito;
+                            @endphp
+                            @if ($ruta_lexito)
+                                <div style="
+                                left:{{ $depas[$item->ubigeo]['x'] }}%;
+                                top:{{ $depas[$item->ubigeo]['y'] }}%;"
+                                class="prov check_prov d-none" name="peru_mapa_1">
+                                <br>{!! $ruta_lexito !!}</div>
+                            @endif
                         @endforeach
+
+                        <div style="position:absolute;left:3%;top:13%;" name="peru_mapa_1" class="d-none"
+                             data-bs-toggle="tooltip"
+                             data-bs-original-title="Llamadas Exitosas con rutas identificadas {{$ruta_lexito_total}}/{{$reporte->total->llamada_exitosa}}">
+                            <h5>Mapa de Llamadas <BR>Exitosas</h5>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -1205,11 +1244,15 @@
                         </thead>
                         <tbody>
                         @foreach($rutas->lista_detalle as $item)
-                            <tr class="{{ $loop->odd ? 'table-secondary' : '' }} ">
+                        <tr class="{{ $loop->odd ? 'table-secondary' : '' }} ">
                             <td>{{ $loop->iteration }} <b>{{ $item->ruta_id }}</b></td>
                             <td class="text-center">{{ $item->veces_usada }}</td>
                             <td class="text-center">
-                                <span class="badge bg-success">{{$item->total_exito}}</span>
+                                @php
+                                    $color_span='danger';
+                                    if ($item->total_exito) $color_span='success';
+                                @endphp
+                                <span class="badge bg-{{$color_span}}">{{$item->total_exito}}</span>
                             </td>
                         </tr>
                         @endforeach
@@ -1331,7 +1374,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
 
 <script>
-
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        new bootstrap.Tooltip(el)
+    })
 
     @php
         if ($reporte->mapa_calor??0){
