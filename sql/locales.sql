@@ -148,7 +148,6 @@ ORDER BY l.cliente_id, l.nombre;
 
 
 
-
 # comprobar si los viajes se asignaron bien
 SELECT
     a.ref, a.titulo_viaje,GROUP_CONCAT(b.origen) as origen_llamada,GROUP_CONCAT(b.destino) as destino_llamada

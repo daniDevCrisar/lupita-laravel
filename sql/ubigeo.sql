@@ -23,8 +23,6 @@ UNLOCK TABLES;
 
 
 DROP TABLE IF EXISTS `ubigeo_provincias`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `ubigeo_provincias` (
     `id` bigint unsigned NOT NULL AUTO_INCREMENT,
     `provincia` varchar(100) NOT NULL,
@@ -35,7 +33,6 @@ CREATE TABLE `ubigeo_provincias` (
     CONSTRAINT `ubigeo_provincias_departamento_id_foreign` 
         FOREIGN KEY (`departamento_id`) REFERENCES `ubigeo_departamentos` (`id`)
 );
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `ubigeo_provincias`
@@ -50,8 +47,6 @@ UNLOCK TABLES;
 
 
 DROP TABLE IF EXISTS `ubigeo_distritos`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `ubigeo_distritos` (
     `id` bigint unsigned NOT NULL AUTO_INCREMENT,
     `distrito` varchar(150) NOT NULL,
@@ -66,7 +61,6 @@ CREATE TABLE `ubigeo_distritos` (
     CONSTRAINT `ubigeo_distritos_provincia_id_foreign` 
         FOREIGN KEY (`provincia_id`) REFERENCES `ubigeo_provincias` (`id`)
 );
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `ubigeo_distritos`

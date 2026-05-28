@@ -490,7 +490,7 @@
             document.querySelectorAll('button[id^="e_"]').forEach(el => {
                 colorearBoton(el.id,'lista_' + orden+'_' + el.id);
             });
-            disabledRadio_exito(llamada_exitosa,error_origen); // no dejar combinar con errores
+            // disabledRadio_exito(llamada_exitosa,error_origen); // no dejar combinar con errores
             checkedRadio_exito(llamada_exitosa,error_origen);
 
             orden_lista=orden;
