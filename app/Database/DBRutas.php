@@ -331,6 +331,4 @@ class DBRutas
         return $resumen[0];
     }
 
-
-
 }
