@@ -1244,8 +1244,12 @@
                         </thead>
                         <tbody>
                         @foreach($rutas->lista_detalle as $item)
+                        @php
+                            $loc_destino_nombre= $item->loc_destino_nombre??$item->ubg_destino_nombre;
+                            $loc_origen_nombre= $item->loc_origen_nombre??$item->ubg_origen_nombre;
+                        @endphp
                         <tr class="{{ $loop->odd ? 'table-secondary' : '' }} ">
-                            <td>{{ $loop->iteration }} <b>{{ $item->ruta_id }}</b></td>
+                            <td>{{ $loop->iteration }} <b> {{ 'RUT_'.$loc_origen_nombre.'-'.$loc_destino_nombre }}</b></td>
                             <td class="text-center">{{ $item->veces_usada }}</td>
                             <td class="text-center">
                                 @php
@@ -1278,7 +1282,11 @@
                         <tbody>
                         <tr>
                         @foreach($rutas->lista_detalle as $item)
-                            <th>1 <b>{{$item->ruta_id}}</b></th>
+                            @php
+                                $loc_destino_nombre= $item->loc_destino_nombre??$item->ubg_destino_nombre;
+                                $loc_origen_nombre= $item->loc_origen_nombre??$item->ubg_origen_nombre;
+                            @endphp
+                            <th>1 <b>{{ 'RUT_'.$loc_origen_nombre.'-'.$loc_destino_nombre }}</b></th>
                             <td>
                                 <table class="table table-hover">
                                     <thead>

@@ -647,7 +647,7 @@ class DBLlamadas {
         if ($horas > 0) $tiempo .= $horas . ' H, ';
         if ($minutos > 0) $tiempo .= $minutos . ' Min';
 
-        return trim($tiempo,',');
+        return trim(trim($tiempo),',');
     }
 
     public static function buscar_razon_finalizacion($id)
