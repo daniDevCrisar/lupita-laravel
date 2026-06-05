@@ -103,6 +103,7 @@ class LlamadasController extends Controller
         $rutas_lista::$filtro= $llamadas::aplicar_filtro_sqltext('a');
         $rutas->lista_detalle = $rutas_lista::lista_rutas_recorridas();
         $rutas->resumen= $rutas_lista::rutas_resumen();
+        $rutas->mas_rapido= $rutas_lista::conductor_mas_rapido();
 //        dd($rutas->lista_detalle);
         //-------------------------------
 

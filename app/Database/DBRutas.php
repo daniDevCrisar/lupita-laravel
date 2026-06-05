@@ -289,24 +289,6 @@ class DBRutas
         return DB::select($sql_rutas . self::$filtro[0]. $sql_rutas_2 , self::$filtro[1] );
     }
 
-    public static function lista_referencias_con_etapas_de_llamadas(){
-        $sql="
-        select
-			b.inicio_de_carga,
-			b.fin_de_carga,
-			TIMESTAMPDIFF(MINUTE, b.inicio_de_carga, b.fin_de_carga) as carga,
-            a.ref,
-            b.ruta_id,
-            GROUP_CONCAT(DISTINCT a.llamada_tipo_id) as etapas
-        from llamadas a
-        inner join referencias b
-        on b.ref = a.ref
-        where a.created_at >= '2026-05-20 00:00:00' AND a.created_at < '2026-05-21 00:00:00'
-        GROUP BY a.ref
-        ORDER BY `etapas` ASC;
-        ";
-    }
-
     public static function rutas_resumen(){
         $sql_1 ="
         select
@@ -329,6 +311,50 @@ class DBRutas
         $resumen=DB::select($sql_1 . self::$filtro[0]. $sql_2 , self::$filtro[1] );
 
         return $resumen[0];
+    }
+
+    public static function conductor_mas_rapido()
+    {
+        $lista_mas_rapido= [];
+        $rutas_principales = [
+            'Caral a Huachipa' => "'RUT_CARAL-BABEL_MAXO', 'RUT_CARAL-HUACHIPA', 'RUT_CARAL-BABEL_AMAZON'",
+            'Huachipa a Caral' => "'RUT_HUACHIPA-CARAL','RUT_BABEL_AMAZON-CARAL','RUT_BABEL_MAXO-CARAL'",
+            'Caral a Ves' => "'RUT_CARAL-SALEM_VES'",
+            'Caral a Callao' => "'RUT_CARAL-CODISAL_CALLAO','RUT_CARAL-BABEL_CALLAO'",
+            'Caral a Puente P' => "'RUT_CARAL-CODISAL_PTE_PIEDRA','RUT_CARAL-BABEL_PUENTE_PIEDRA'",
+            'Caral a Huancayo' => "'RUT_CARAL-CODISAL_HUANCAYO'",
+            'Caral a Chincha' => "'RUT_CARAL-CODISAL_CHINCHA'",
+            'Caral a Ica' => "'RUT_CARAL-CODISAL_ICA'",
+            'Caral a Selva' => "'RUT_CARAL-ECO_SUAREZ'"
+        ];
+
+        foreach ($rutas_principales as $key => $value) {
+            $sql="
+            SELECT conductor_id, nombres, promedio, total_viajes,
+                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado
+            FROM (
+                SELECT conductor_id, b.nombres,
+                       AVG(etapa_4_minutos) AS promedio,
+                       COUNT(etapa_4_minutos) AS total_viajes
+                FROM (
+                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,
+                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos
+                    FROM referencias a
+                    INNER JOIN llamadas b ON b.ref = a.ref
+                    WHERE a.ruta_id IN ($value)
+                    GROUP BY a.ref
+                ) a
+                INNER JOIN conductores b ON b.id = a.conductor_id
+                GROUP BY a.conductor_id, b.nombres
+            ) t
+            WHERE total_viajes >= 5
+            ORDER BY puntaje_ajustado ASC
+            LIMIT 3;
+            ";
+            $lista_mas_rapido[$key]=DB::select($sql);
+        }
+        return $lista_mas_rapido;
+
     }
 
 }

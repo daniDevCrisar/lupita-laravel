@@ -1267,6 +1267,20 @@
                 </div>
             </div>
 
+            @foreach($rutas->mas_rapido as $key => $ruta)
+                <div class="col-md-6 col-lg-4 p-1">
+                    <div class="card small">
+                        <div class="card-header py-1 fw-bold">🚗 De {{$key}}</div>
+                        <div class="card-body py-2">
+                            <div>🥇 {{$ruta[0]->nombres}} | 284min | 51v | 211pts</div>
+                            <div>🥈 JORGE MARCOS | 239min | 5v | 214pts</div>
+                            <div>🥉 ADRIAN ALCANTARA | 255min | 8v | 221pts</div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+
+
 
             <div class="col-12">
                 <div class="table-responsive">
