@@ -1266,7 +1266,7 @@
                     <p class="text-muted">* Datos actualizados hasta hoy a las 7am</p>
                 </div>
             </div>
-
+            @if(false)
             @foreach($rutas->mas_rapido as $key => $ruta)
                 <div class="col-md-6 col-lg-4 p-1">
                     <div class="card small">
@@ -1279,7 +1279,7 @@
                     </div>
                 </div>
             @endforeach
-
+            @endif
 
 
             <div class="col-12">
