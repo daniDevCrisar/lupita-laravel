@@ -172,7 +172,7 @@ class LlamadasController extends Controller
 
         $llamadas= new DBLlamadas();
         $llamadas::set_filtro($request);
-        $llamadas::listar_principal(30);
+        $llamadas::listar_principal(100);
 
         $analisis->texto_mas_usado= DBLlamadaEtiquetar::analisis_audio_mas_usado();
 

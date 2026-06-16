@@ -336,6 +336,9 @@
         <button id="btnDescargar" class="btn btn-primary btn-lg" onclick="descargar_lista()">
             <span id="btnTexto">🎵 Descargar MP3s Llamadas</span>
         </button>
+        <button id="btnDescargar" class="btn btn-primary btn-lg" onclick="descargar_reportes()">
+            <span id="btnTexto">📊 Descargar Reportes</span>
+        </button>
     </div>
 
 
@@ -864,15 +867,24 @@
                     3 => 'DPlantaCarga',
                     5 => 'FPlantaDescarga',
                     6 => 'DPlantaDescarga',
-                ]
+                ];
+                $cont= [
+                    1 => 0,
+                    2 => 0,
+                    3 => 0,
+                    5 => 0,
+                    6 => 0,
+                ];
             @endphp
             let lista_mp3=[];
             @foreach($llamadas::$lista as $row)
                 @php
                     $fecha_prefijo = new DateTime($row->created_at);
                     $fecha_prefijo = $fecha_prefijo->format('dmy');
+                    $cont[$row->llamada_tipo_id]++;
+                    $num=$cont[$row->llamada_tipo_id]
                 @endphp
-            lista_mp3.push(['{{ $fecha_prefijo.' '.$prefijos[$row->llamada_tipo_id].'-' . $fila_inicial+$loop->index+1 . ' ' . strtolower($row->vapi_id) }}', '{{ strtolower($row->audio_link) }}']);
+            lista_mp3.push(['{{ $fecha_prefijo.' '.$prefijos[$row->llamada_tipo_id].'-' . $num . ' ' . strtolower($row->vapi_id) }}', '{{ strtolower($row->audio_link) }}']);
             @endforeach
 
             let total= lista_mp3.length,count=0;
@@ -883,6 +895,35 @@
                 count++;
                 console.log(count+'/'+total);
             }
+        }
+
+        async function descargar_reportes() {
+
+            let lista=[];
+            @php
+                $link="http://lupita-laravel.test/lupita/reporte?fecha_inicio=".request('fecha_inicio')."&llamada_tipo_id=";
+                    $nombres= [
+                        '' => '0-resumen.html',
+                        1 => '1-confirmaciones.html',
+                        2 => '2-fuera-de-planta-para-carga.html',
+                        3 => '3-dentro-de-planta-para-carga.html',
+                        5 => '5-fuera-de-planta-para-descarga.html',
+                        6 => '6-dentro-de-planta-para-descarga.html',
+                    ]
+            @endphp
+            @foreach($nombres as $key => $item)
+            lista.push(['{{ $item }}','{!! $link . $key !!}']);
+            @endforeach
+
+            let total= lista.length,count=0;
+            for (const [nombre, url] of lista) {
+                console.log(nombre,url);
+                await descargarComo(nombre, url);
+                await new Promise(resolve => setTimeout(resolve, 200));
+                count++;
+                console.log(count+'/'+total);
+            }
+
         }
 
         //-------------------------------------------------
