@@ -20,6 +20,15 @@
     <div class="row">
         @include('lupita.resources.filtros_busqueda')
 
+        <div class="col-12">
+            <button id="btnDescargar" class="btn btn-primary btn-lg" onclick="descargar_lista()">
+                <span id="btnTexto">🎵 Descargar MP3s Llamadas {{request('fecha_inicio')}}</span>
+            </button>
+            <button id="btnDescargar" class="btn btn-primary btn-lg" onclick="descargar_reportes()">
+                <span id="btnTexto">📊 Descargar Reportes {{request('fecha_inicio')}}</span>
+            </button>
+        </div>
+
         <div class="col-12">{{ $llamadas::$lista->links() }}</div>
 
         <div class="col-12  col-lg-6">
@@ -332,14 +341,7 @@
     </div>
 
 
-    <div class="col-12">
-        <button id="btnDescargar" class="btn btn-primary btn-lg" onclick="descargar_lista()">
-            <span id="btnTexto">🎵 Descargar MP3s Llamadas</span>
-        </button>
-        <button id="btnDescargar" class="btn btn-primary btn-lg" onclick="descargar_reportes()">
-            <span id="btnTexto">📊 Descargar Reportes</span>
-        </button>
-    </div>
+
 
 
     <div id="overlayGuardando" class="position-fixed top-0 start-0 w-100 h-100 d-none"

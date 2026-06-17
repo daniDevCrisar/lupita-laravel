@@ -629,9 +629,9 @@ class DBLlamadas {
         $tiempo = '';
         if ($horas > 0) $tiempo .= $horas . ' H, ';
         if ($minutos > 0) $tiempo .= $minutos . ' Min';
-        if ($seg > 0) $tiempo .= 'y '. $seg . ' Seg';
+        if ($seg > 0) $tiempo .= ' y '. $seg . ' Seg';
 
-        return trim($tiempo);
+        return trim(trim($tiempo) , 'y');
     }
 
     public static function ruta_duracion_format($min)
