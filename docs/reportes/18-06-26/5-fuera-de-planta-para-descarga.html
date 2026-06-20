@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Espera fuera de planta para descarga VAPI - 18/06/2026</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .report-card {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(-3px);
+        }
+
+        .bg-exito {
+            background: linear-gradient(145deg, #e6f7e6, #c8e6c9);
+            border-left: 6px solid #2e7d32;
+        }
+
+        .bg-fallo {
+            background: linear-gradient(145deg, #ffebee, #ffcdd2);
+            border-left: 6px solid #c62828;
+        }
+
+        .bg-advertencia {
+            background: linear-gradient(145deg, #fff8e1, #ffecb3);
+            border-left: 6px solid #ff8f00;
+        }
+
+        .estrella {
+            color: #ffc107;
+            font-size: 1.1rem;
+        }
+
+        .peligro {
+            color: #d32f2f;
+            font-size: 1.2rem;
+        }
+
+        .tabla-conductores th {
+            background-color: #2c3e50;
+            color: white;
+            font-weight: 500;
+        }
+
+        .badge-exito {
+            background-color: #2e7d32;
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        .badge-fallo {
+            background-color: #c62828;
+            color: white;
+        }
+
+        .badge-critico {
+            background-color: #b71c1c;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.85;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .footer-note {
+            font-size: 0.85rem;
+            color: #5f6368;
+            border-top: 1px dashed #ccc;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .tooltip-custom {
+            border-bottom: 1px dotted #007bff;
+            cursor: help;
+        }
+
+        .heatmap-cell {
+            text-align: center;
+            font-size: 0.85rem;
+            padding: 8px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <div>
+            <h1 class="display-5 fw-bold" style="color: #1e2a3a;"><i class="fas fa-phone-alt me-3"
+                                                                     style="color: #0d6efd;"></i>Reporte de Espera fuera de planta para descarga VAPI
+            </h1>
+            <p class="lead">Análisis de llamadas totales | Exitosas = <span
+                    class="badge bg-success">16</span></p>
+        </div>
+        <div class="text-end">
+                <span class="badge bg-dark p-3 fs-6">
+                <i class="far fa-calendar-alt me-2"></i>Llamadas analizadas: 18/06/2026</span>
+        </div>
+    </div>
+
+    <!-- RESUMEN -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Total llamadas</h6>
+                            <h2 class="fw-bold">66</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-phone-volume fa-2x text-info opacity-75"></i></div>
+                    </div>
+                    <small class="text-muted">$3.56</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Exitosas</h6>
+                            <h2 class="fw-bold text-success">16</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-check-circle fa-2x text-success"></i></div>
+                    </div>
+                                        <small class="text-muted">24% del total ($1.95)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Fallidas</h6>
+                                                        <h2 class="fw-bold text-danger">50</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-times-circle fa-2x text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                        76% del total ($1.61)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-advertencia">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Conductores únicos</h6>
+                            <h2 class="fw-bold" style="color:#b26a00;">66</h2>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-users fa-2x text-warning"></i></div>
+                    </div>
+                    <small class="text-muted">47 transportistas</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">LLAMADAS CONTESTADAS</h6>
+                            <h2 class="fw-bold text-success">40</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="bi bi-telephone-outbound-fill text-success fs-3"></i></div>
+                    </div>
+                    <small class="text-muted">17 buzon de voz</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">CONDUCTORES CONFIRMADOS</h6>
+                            <h2 class="fw-bold text-success">16</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-check-circle fa-2x text-success"></i></div>
+                    </div>
+                                        <small class="text-muted">67s promedio de llamada</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">LLAMADAS NO CONTESTADAS</h6>
+                            <h2 class="fw-bold text-danger">7</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="bi bi-telephone-x-fill fs-3 text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal small">LLAMADAS CONTESTADAS SIN
+                                CONFIRMACION</h6>
+                            <h2 class="fw-bold text-danger">24</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-times-circle fa-2x text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                                                26s promedio de llamada</small>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    
+                    <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar"
+                 style="width: 52%;" aria-valuenow="52">
+                17 Min y 56 Seg
+            </div>
+            <div class="progress-bar bg-danger" role="progressbar" style="width: 48%;"
+                 aria-valuenow="48">
+                16 Min y 25 Seg
+            </div>
+        </div>
+    
+    
+        <div class="col-12">
+            <div class="card mb-3 ">
+                <div class="card-body">
+                    <p id='audio_texto'>
+                    </p>
+                    <audio id="mainAudio" controls class="w-100">
+                        <source id="audioSource" src="" type="audio/mpeg">
+                        Tu navegador no soporta audio.
+                    </audio>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP 5 MEJORES CONDUCTORES -->
+        <div class="card report-card mb-5">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <h3 class="h4 fw-bold"><i class="fas fa-crown text-warning me-2"></i>Top 5 mejores conductores</h3>
+                <p class="text-muted">Basado en éxito.</p>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Conductor</th>
+                            <th>Transportista</th>
+                            <th>Llamadas exitosas</th>
+                            <th>Estrellas</th>
+                            <th>Comportamiento</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                                                                                    <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019EDBF6-9BFC-7000-968A-1A28CCCB3F55-1781806917458-A5910453-113A-45B1-9744-863DBCBC9294-STEREO.MP3','FESELL DISTRIBUIDORA S.A.C.','JESUS TORRES' )">
+                                    <td>991</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>JESUS TORRES</strong></td>
+                                    <td>FESELL DISTRIBUIDORA S.A.C.</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1),<i class='bi bi-chat-left-text-fill text-info '></i> Da motivos(1)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019EDAD6-0926-7000-8835-31184B3BA8FB-1781788041982-75C166AB-B033-4B58-9B9B-9C4E12DD4430-STEREO.MP3','INVERSIONES Y TRANSPORTES MARISA EIRL','OSCAR PORTILLA' )">
+                                    <td>160</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>OSCAR PORTILLA</strong></td>
+                                    <td>INVERSIONES Y TRANSPORTES MARISA EIRL</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1),<i class='bi bi-chat-left-text-fill text-info '></i> Da motivos(1)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019ED9A3-50A3-7DD0-A4F8-C11B18C6A4A5-1781767878917-149F10D5-C89D-49A8-A703-D901AE31FF84-STEREO.MP3','GRUPO DE INVERSIONES Y TRANSPORTES MENDOZA','HILARION ALARCON VENTURA' )">
+                                    <td>1148</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>HILARION ALARCON VENTURA</strong></td>
+                                    <td>GRUPO DE INVERSIONES Y TRANSPORTES MENDOZA</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019ED9B0-FCE5-7000-832F-C77882F206DE-1781768801857-FBD4497F-DF96-4DEE-B426-CC3C58840256-STEREO.MP3','TRANSPORTIME S.A.C','NARCIZO CASTILLO' )">
+                                    <td>921</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>NARCIZO CASTILLO</strong></td>
+                                    <td>TRANSPORTIME S.A.C</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019EDA6C-C750-7000-93FF-62931018E3E9-1781781094584-15A85CFF-86F0-49C5-9F19-4002D5BD5405-STEREO.MP3','HERMES GEVENCIO ATAHUAMAN GUILLERMO','HERMES ATAHUAMAN' )">
+                                    <td>1013</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>HERMES ATAHUAMAN</strong></td>
+                                    <td>HERMES GEVENCIO ATAHUAMAN GUILLERMO</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1)</td>
+                                </tr>
+                                                                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    
+    <!-- PEORES CONDUCTORES (múltiples fallos) -->
+    <div class="card report-card mb-5">
+        <div class="card-header bg-white border-0 pt-4 pb-0">
+            <h3 class="h4 fw-bold text-danger"><i class="fas fa-skull-crosswalk me-2"></i>Top 5 peores conductores</h3>
+            <p class="text-muted">Múltiples intentos fallidos y problemas graves</p>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="tabla-conductores">
+                    <tr>
+                        <th>#id</th>
+                        <th>Conductor</th>
+                        <th>Transportista</th>
+                        <th>Intentos fallidos</th>
+                        <th>Nivel de riesgo</th>
+                        <th>Problema principal</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                                                                        <tr class="table-danger">
+                                <td>102</td>
+                                <td><strong>AURELIO ESPINOZA</strong></td>
+                                <td>NEGOCIACIONES YANCE SAC</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-voicemail text-warning '></i> Buzon de voz(1)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>928</td>
+                                <td><strong>JHULINIO DIUNOR SANTILLAN</strong></td>
+                                <td>CORPORACION CATALINA E.I.R.L.</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-telephone-x-fill text-danger '></i> No contesta(1)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>2</td>
+                                <td><strong>CESAR CHAPONAN MONTALVAN</strong></td>
+                                <td>TRANSPORTE AGUERO EIRL</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-mic-mute-fill text-danger '></i> No habla(1)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>807</td>
+                                <td><strong>EDGAR MAMANI</strong></td>
+                                <td>G Y A MULTISERVICIOS EL TREBOL SRL</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-question-circle-fill text-warning '></i> Confusion en llamada(1),<i class='bi bi-telephone-minus-fill text-danger '></i> Cuelga(1)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>362</td>
+                                <td><strong>ADIN SUAREZ</strong></td>
+                                <td>FESELL DISTRIBUIDORA S.A.C.</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-voicemail text-warning '></i> Buzon de voz(1)</td>
+                            </tr>
+                                                                </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- PEORES TRANSPORTISTAS -->
+    <div class="card report-card mb-5">
+        <div class="card-header bg-white border-0 pt-4 pb-0">
+            <h3 class="h4 fw-bold text-danger-emphasis"><i class="fas fa-truck-moving me-2" style="color:#b71c1c;"></i>Top
+                5 transportistas con más conductores problemáticos</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="tabla-conductores">
+                    <tr>
+                        <th>Transportista</th>
+                        <th>Conductores únicos</th>
+                        <th>Conductores fallidos (0 exitos) / con un fallo</th>
+                        <th>% problemático</th>
+                        <th>Nivel de riesgo</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                                                                                                    <tr class="table-danger">
+                                <td><strong>EMPRESA DE SERVICIOS GENERALES SANSAJUL SAC</strong></td>
+                                <td>3</td>
+                                <td><span
+                                        class='text-danger fw-bold'>3 </span>/ 3
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>CORPORACION TRANS FANY S.R.L.</strong></td>
+                                <td>3</td>
+                                <td><span
+                                        class='text-danger fw-bold'>3 </span>/ 3
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-warning">
+                                <td><strong>GRUPO FAMIZA SAC</strong></td>
+                                <td>4</td>
+                                <td><span
+                                        class='text-danger fw-bold'>3 </span>/ 3
+                                </td>
+                                <td><span class="badge bg-warning">75%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴 <br>Tasa de exito 25.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>GRUPO SANTO TORIBIO LOGISTICA PERU SAC - GRUSTOLP SAC</strong></td>
+                                <td>2</td>
+                                <td><span
+                                        class='text-danger fw-bold'>2 </span>/ 2
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>EMPRESA DE TRANSPORTE VIGSAN EIRL</strong></td>
+                                <td>2</td>
+                                <td><span
+                                        class='text-danger fw-bold'>2 </span>/ 2
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="col-12 card p-4 report-card border-2 mb-4">
+        <div class="card-header bg-white border-0 pt-3 pb-0">
+            <h5 class="fw-bold"><i class="bi bi-funnel-fill"></i> Embudo de Conversión</h5>
+            <small class="text-muted">Análisis por etapa</small>
+        </div>
+        <div class="card-body pt-2 pb-3">
+                            <!-- Totales -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success rounded-pill">📞</span>
+                    <span class="small fw-semibold">Totales</span>
+                </div>
+                <div>
+                    <span class="badge bg-success">66</span>
+                    <span class="badge bg-secondary ms-1">100%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-success" style="width: 100%">100%</div>
+            </div>
+
+            <!-- Contestadas -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary rounded-pill">✅</span>
+                    <span class="small fw-semibold">Contestadas</span>
+                </div>
+                <div>
+                    <span class="badge bg-primary">40</span>
+                    <span class="badge bg-secondary ms-1">61%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-primary" style="width: 61%">61%</div>
+            </div>
+
+            <!-- Conversación -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info rounded-pill">💬</span>
+                    <span class="small fw-semibold">Conversación</span>
+                </div>
+                <div>
+                    <span class="badge bg-info">20</span>
+                    <span class="badge bg-secondary ms-1">30%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-info" style="width: 30%">30%</div>
+            </div>
+
+            <!-- Exitosas -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning rounded-pill">🎯</span>
+                    <span class="small fw-semibold">Exitosas</span>
+                </div>
+                <div>
+                    <span class="badge bg-warning text-dark">16</span>
+                    <span class="badge bg-secondary ms-1">24%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-warning" style="width: 24%">24%</div>
+            </div>
+
+            <!-- da motivos -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger rounded-pill">🧠</span>
+                    <span class="small fw-semibold">Da motivos</span>
+                </div>
+                <div>
+                    <span class="badge bg-danger">2</span>
+                    <span class="badge bg-secondary ms-1">3%</span>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-danger" style="width: 3%">3%</div>
+            </div>
+            <!-- FLUIDA -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light rounded-pill">🗣️</span>
+                    <span class="small fw-semibold">Conversacion fluida</span>
+                </div>
+                <div>
+                    <span class="badge bg-light text-dark">0</span>
+                    <span class="badge bg-secondary ms-1">0%</span>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-light text-dark" style="width: 0%">0%</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    
+    
+
+    
+    <div class="col-12 card p-4 report-card border-2 mb-4">
+        <div class="card-header bg-white border-0">
+            <h4 class="h5 fw-bold"><i class="fa-solid fa-chart-line"></i> Progreso de exito en llamadas</h4>
+        </div>
+        <div style="height: 400px">
+            <canvas id="canvas_semana"></canvas>
+        </div>
+    </div>
+
+    
+    <!-- por q el porcentaje de fallo -->
+    <div class="col-12">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="display-5"><i class="bi bi-question-octagon text-danger"></i></span>
+            <h1 class="display-6 fw-semibold" style="color: #12263a;">¿Por qué el 76% de las llamadas
+                son fallidas?</h1>
+        </div>
+        <p class="lead ps-5 text-secondary">Análisis que incorpora las etiquetas de llamada.</p>
+    </div>
+
+    <!-- GraficoPIZZA -->
+    <div class="col-12 mb-3">
+        <div style="height: 500px">
+            <canvas id="chart_fallidos" style=""></canvas>
+        </div>
+
+    </div>
+
+
+    <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
+    
+    <div class="row g-4 mb-5">
+        <!-- FALLO DE CONTACTO -->
+        <div class="col-lg-6">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="fs-2 text-warning"><i class="bi bi-mailbox2"></i></span>
+                    <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">24 fallos</span>
+                    </h3>
+                </div>
+                <p><strong>48% de los fallos</strong> – el conductor no responde o la llamada va
+                    a buzón.</p>
+                <div class="ms-3">
+                    <span class="etiqueta"><i
+                            class="bi bi-voicemail me-1"></i> buzón de voz: <strong>17</strong></span>
+                    <br>
+                    <span class="etiqueta"><i
+                            class="bi bi-telephone-x me-1"></i> no contesta: <strong>5</strong></span>
+                    <br>
+                    <span class="etiqueta">
+                        <i class="bi bi-hourglass me-1"></i> ocupado: <strong>2</strong></span>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- NO COOPERA -->
+        <div class="col-lg-6">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="fs-2 text-danger"><i class="bi bi-person-fill-slash"></i></span>
+                    <h3 class="h4 mb-0">Conductor no coopera <span
+                            class="badge bg-danger bg-opacity-10 text-danger ms-3">20 fallos</span></h3>
+                </div>
+                <p><strong>40% de los fallos</strong> – el conductor contesta pero no facilita el
+                    objetivo.</p>
+                <div class="ms-3">
+                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i
+                            class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>12</strong></span>
+                    <br>
+                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;">
+                        <i class="bi bi-telephone-x me-1"></i> colgo directamente: <strong>8</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ERRORES TÉCNICOS -->
+        <div class="col-lg-6">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="fs-2 text-info"><i class="bi bi-tools"></i></span>
+                    <h3 class="h4 mb-0">Errores Técnicos
+                    <span class="badge bg-info bg-opacity-10 text-info ms-3">2 fallos</span></h3>
+                </div>
+                <p><strong>4% de los fallos</strong>
+                    - errores referentes a la IA no necesariamente con llevan a un fallo.</p>
+                <div class="ms-3">
+                    
+                    <div class="mb-2">
+                    <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>0</strong>
+                    <span class="text-muted" style="font-size:0.8rem;">
+                        (ia_se_confunde: 0,
+                        ia_no_escucha: 0,
+                        ia_error_interpretacion: 0,
+                        ia_dice_variable: 0,
+                        ia_mala_pronunciacion: 0,
+                        ia_cuelga_en_plena_llamada: 0)
+                    </span></div>
+                    
+                    <i class="bi bi-wifi text-danger"></i> Error de red: <strong>2</strong><br>
+                    <i class="bi bi-question-circle text-danger"></i> Error desconocido: <strong>0</strong><br>
+                    <i class="bi bi-gear text-danger"></i> Error de sistema: <strong>0</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTROS -->
+        <div class="col-lg-6">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
+                    <h3 class="h4 mb-0">Otros
+                                                    <span class="badge bg-primary bg-opacity-15 text-white ms-3">4 fallos</span></h3>
+                                    </div>
+
+                                    <p><strong>8% de los fallos</strong>:</p>
+                                <div class="ms-3">
+                    <ul class="etiqueta list-unstyled">
+                        <li><i class="bi bi-volume-mute me-2 text-danger"></i>
+                            Conductor no escucha: 0</li>
+                        <li><i class="bi bi-reception-1 me-2 text-warning"></i>
+                            Conductor mala señal: 0</li>
+                        <li>🤬
+                            Conductor conducta inapropiada: 0</li>
+                        <li><i class="bi bi-question-circle me-2 text-info"></i>
+                            Confusión en llamada: 3</li>
+                        <li><i class="bi bi-person-x me-2 text-secondary"></i>
+                            Contesta otra persona: 0</li>
+                        <li><i class="bi bi-check2-square me-2 text-primary"></i>
+                            Confirmacion Parcial: 1</li>
+                        <li><i class="bi bi-telephone-minus me-2 text-dark"></i>
+                            Número equivocado: 0</li>
+                    </ul>
+                    <span class="small">* Una llamada puede tener 1 o multiples etiquetas.</span>
+                </div>
+            </div>
+        </div>
+
+    
+    </div>
+
+    
+    <style>
+        .circulo-a {
+            width: 30vw; /* 30% del ancho de la ventana */
+            height: 30vw; /* Mismo ancho que alto (mantiene círculo) */
+            max-width: 400px; /* Límite máximo */
+            min-width: 180px; /* Límite mínimo */
+            max-height: 400px; /* Límite máximo */
+            min-height: 180px; /* Límite mínimo */
+            position: relative;
+            right: -4vw; /* Escala el desplazamiento también */
+        }
+
+        .circulo-b {
+            width: 30vw; /* 30% del ancho de la ventana */
+            height: 30vw; /* Mismo ancho que alto (mantiene círculo) */
+            max-width: 400px; /* Límite máximo */
+            min-width: 180px; /* Límite mínimo */
+            max-height: 400px; /* Límite máximo */
+            min-height: 180px; /* Límite mínimo */
+            position: relative;
+            right: 4vw; /* Escala el desplazamiento también */
+        }
+    </style>
+
+            <div class="col-12 mb-4">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3 fs-2">
+                    <i class="bi bi-bar-chart-fill text-secondary"></i>
+                    <h3 class="h4 mb-0">Analisis de llamadas exitosas segun IA vs Usuario</h3>
+                </div>
+
+
+                <!-- Aquí se dibujará el gráfico -->
+                <div id="diagrama_venn">
+                    <div class="d-flex justify-content-center align-items-center position-relative mb-4"
+                         style="min-height: 200px;">
+
+                        <div
+                            class="bg-danger bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center circulo-a">
+                        <span class="fw-bold text-danger text-center">
+                            <i class="bi bi-robot"></i> IA<br>
+                        <small>15</small></span>
+                        </div>
+                        <div
+                            class="bg-info bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center circulo-b">
+                        <span class="fw-bold text-info text-center">
+                            <i class="bi bi-person"></i>USUARIO<br>
+                        <small>16</small></span>
+                        </div>
+                        <div class="position-absolute bg-white px-3 py-1 rounded-pill shadow-sm"
+                             style="top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1;">
+                            <i class="bi bi-intersect text-success"></i>
+                            <strong class="text-success">11</strong>
+                        </div>
+                        <div class="position-absolute bg-danger px-3 py-1 rounded-pill shadow-sm text-white"
+                             style="top: 25%; left: 35%; transform: translate(-50%, -50%); z-index: 1;">
+                            <i class="bi bi-voicemail"></i> Buzon de Voz
+                            <strong class="">4</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Region</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">Porcentaje</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                                                <tr>
+                            <td class="table-danger">1</td>
+                            <td><i class="bi bi-circle text-danger"></i> IA</td>
+                            <td class="text-center">15</td>
+                            <td class="text-danger text-center"><b>100%</b></td>
+                        </tr>
+                        <tr>
+                            <td class="table-danger">2</td>
+                            <td><i class="bi bi-circle-fill text-danger"></i> IA [Buzon de Voz]</td>
+                            <td class="text-center">4</td>
+                            <td class="text-danger text-center"><b>26.7%</b></td>
+                        </tr>
+                        <tr>
+                            <td class="table-danger">3</td>
+                            <td><i class="bi bi-circle-fill text-danger"></i> IA - IA [Buzon de Voz] - (IA ∩ USUARIO)</td>
+                            <td class="text-center">0</td>
+                            <td class="text-danger text-center"><b>0%</b></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><i class="bi bi-intersect text-success"></i> Interseccion</td>
+                            <td class="text-success text-center"><b>11</b></td>
+                            <td class="text-center">
+                                <b class="text-danger"><i class="bi bi-robot"></i> 73.3%</b>
+                                <b class="text-info"><i class="bi bi-person"></i> 68.8%</b>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="table-info">5</td>
+                            <td><i class="bi bi-circle text-info"></i> USUARIO</td>
+                            <td class="text-center">16</td>
+                            <td class="text-info text-center"><b>100%</b></td>
+                        </tr>
+
+                        <tr>
+                            <td class="table-info">6</td>
+                            <td><i class="bi bi-circle-fill text-info"></i> USUARIO - (IA ∩ USUARIO)</td>
+                            <td class="text-center">5</td>
+                            <td class="text-info text-center"><b>31.3%</b></td>
+                        </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    
+    
+    <!-- FOOTER / NOTAS ACLARATORIAS -->
+    <div class="footer-note pt-3 d-flex justify-content-between">
+        <span><i class="far fa-file-excel me-1"></i> Datos: Reporte Generado con LUPITA</span>
+        <span><i class="fas fa-database me-1"></i> Indicador único de éxito: <code>llamada_exitosa = 1</code> (se ignora "exitosa_segun_ia").</span>
+    </div>
+</div>
+
+<!-- Bootstrap JS ----------------------------------- -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+    Chart.register(ChartDataLabels);
+
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        new bootstrap.Tooltip(el)
+    })
+
+    
+    const data = [{"total":42,"exitosas":"5","fallidas":"37","total_errores":"3","fecha_text":"jueves 11\/06\/26"},{"total":62,"exitosas":"12","fallidas":"50","total_errores":"8","fecha_text":"viernes 12\/06\/26"},{"total":41,"exitosas":"11","fallidas":"30","total_errores":"2","fecha_text":"s\u00e1bado 13\/06\/26"},{"total":46,"exitosas":"12","fallidas":"34","total_errores":"2","fecha_text":"domingo 14\/06\/26"},{"total":41,"exitosas":"8","fallidas":"33","total_errores":"4","fecha_text":"lunes 15\/06\/26"},{"total":49,"exitosas":"17","fallidas":"32","total_errores":"4","fecha_text":"martes 16\/06\/26"},{"total":63,"exitosas":"11","fallidas":"52","total_errores":"2","fecha_text":"mi\u00e9rcoles 17\/06\/26"},{"total":66,"exitosas":"16","fallidas":"50","total_errores":"2","fecha_text":"jueves 18\/06\/26"}];
+    const labels = data.map(x => x.fecha_text);
+    const exitosas = data.map(x => x.exitosas);
+    const fallidas = data.map(x => x.fallidas);
+    const errores = data.map(x => x.total_errores);
+
+    const ctx = document.getElementById('canvas_semana');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Exitosas',
+                    data: exitosas,
+                    borderWidth: 2,
+                    tension: 0.5
+                },
+                {
+                    label: 'Fallidas',
+                    data: fallidas,
+                    borderWidth: 2,
+                    tension: 0.5,
+                    hidden: true
+                },
+                {
+                    label: 'Errores',
+                    data: errores,
+                    borderWidth: 2,
+                    tension: 0.5,
+                    hidden: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                datalabels: {
+                    display: false  // ← Oculta las etiquetas
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        },
+    });
+
+    new Chart(document.getElementById('chart_fallidos'), {
+        type: 'pie',
+        data: {
+            labels: ['Fallo de contacto', 'Conductor no coopera', 'Errores tecnicos', 'Otros'],
+            datasets: [{
+                data: [24 , 20, 2 , 4],
+                backgroundColor: ['#F2A007', '#E04B59', '#10CBF0', '#0F71F2'],
+                borderColor: 'transparent',  // ← Borde transparente
+                borderWidth: 0               // ← O usa 0 para eliminarlo
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'left'
+                },
+                datalabels: {
+                    color: '#fff',
+                    font: {
+                        weight: 'white',
+                        size: 18
+                    },
+                    formatter: (value, ctx) => {
+                        if (value===0) return '';
+                        let total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        let pct = ((value / total) * 100).toFixed(1);
+
+                        return pct + '%';
+                    }
+                }
+            }
+        },
+    });
+
+    function playAudio(url, trt, nombres) {
+        const audio = document.getElementById('mainAudio');
+        const audio_texto = document.getElementById('audio_texto');
+        if (!audio.paused) {
+            audio.pause();
+        }
+        audio.src = url.toLowerCase();
+        audio.play().catch(() => {
+        });
+        audio_texto.innerHTML = `
+        <i class="bi bi-person"></i> ${nombres} <i class="bi bi-building"></i> ${trt}
+        `;
+    }
+</script>
+
+</body>
+</html>
