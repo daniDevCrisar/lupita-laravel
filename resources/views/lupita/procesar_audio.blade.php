@@ -745,6 +745,7 @@
             const e_exito=document.getElementById('e_rd_ex_0');
             const e_conductor=document.getElementById('e_rd_ex_2');
             const e_ia=document.getElementById('e_rd_ex_3');
+            const txt_audio=document.getElementById('txt_audio');
             let tecla = event.key.toLowerCase();
 
             switch (tecla){
@@ -784,8 +785,10 @@
                     etiquetaClick('e_buzon_de_voz');
                     tecla='';
                 }
-                else if (teclas_capturadas.includes('ha')){
+                else if (teclas_capturadas.includes('no ha')){
                     etiquetaClick('e_no_habla');
+                    e_conductor.checked=true;
+                    txt_audio.value='NO HABLA';
                     tecla='';
                 }
                 else if (teclas_capturadas.includes('se')){
@@ -798,6 +801,43 @@
                 }
                 else if (teclas_capturadas.includes('conv')){
                     etiquetaClick('e_conversacion_fluida');
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('ia no')){
+                    etiquetaClick('e_ia_no_escucha');
+                    e_ia.checked=true;
+                    txt_audio.value='IA NO ESCUCHA';
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('ya des')){
+                    etiquetaClick('e_conductor_confirma');
+                    e_exito.checked=true;
+                    txt_audio.value='YA DESCARGO';
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('ya car')){
+                    etiquetaClick('e_conductor_confirma');
+                    e_exito.checked=true;
+                    txt_audio.value='YA CARGO';
+                    tecla='';
+                }
+
+                else if (teclas_capturadas.includes('carg')){
+                    etiquetaClick('e_conductor_confirma');
+                    e_exito.checked=true;
+                    txt_audio.value='CARGANDO';
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('desc')){
+                    etiquetaClick('e_conductor_confirma');
+                    e_exito.checked=true;
+                    txt_audio.value='DESCARGANDO';
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('gui')){
+                    etiquetaClick('e_conductor_confirma');
+                    e_exito.checked=true;
+                    txt_audio.value='ESPERANDO GUIA';
                     tecla='';
                 }
 
