@@ -783,6 +783,7 @@
 
                 if (teclas_capturadas.includes('bu')){
                     etiquetaClick('e_buzon_de_voz');
+                    txt_audio.value= 'BUZON';
                     tecla='';
                 }
                 else if (teclas_capturadas.includes('no ha')){
@@ -791,7 +792,7 @@
                     txt_audio.value='NO HABLA';
                     tecla='';
                 }
-                else if (teclas_capturadas.includes('se')){
+                else if (teclas_capturadas.includes('mala')){
                     etiquetaClick('e_conductor_mala_senal');
                     tecla='';
                 }
@@ -838,6 +839,12 @@
                     etiquetaClick('e_conductor_confirma');
                     e_exito.checked=true;
                     txt_audio.value='ESPERANDO GUIA';
+                    tecla='';
+                }
+                else if (teclas_capturadas.includes('esp')){
+                    etiquetaClick('e_conductor_confirma');
+                    e_exito.checked=true;
+                    txt_audio.value='ESPERANDO';
                     tecla='';
                 }
 
