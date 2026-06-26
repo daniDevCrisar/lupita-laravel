@@ -153,8 +153,11 @@ class DBReferencias {
             echo $fecha_str . '<br>';
             return null;
         }
+    }
 
-
+    public static function actualizar_rutas($lote_id){
+        $ruta_log= DB::statement("CALL sp_actualizar_rutas_lote('$lote_id');");
+        return 'Se Actualizo las Rutas: ' . $ruta_log;
     }
 
 

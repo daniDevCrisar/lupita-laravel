@@ -321,16 +321,16 @@ class DBRutas
             'Huachipa a Caral' => "'RUT_HUACHIPA-CARAL','RUT_BABEL_AMAZON-CARAL','RUT_BABEL_MAXO-CARAL'",
             'Caral a Ves' => "'RUT_CARAL-SALEM_VES'",
             'Caral a Callao' => "'RUT_CARAL-CODISAL_CALLAO','RUT_CARAL-BABEL_CALLAO'",
-            'Caral a Puente P' => "'RUT_CARAL-CODISAL_PTE_PIEDRA','RUT_CARAL-BABEL_PUENTE_PIEDRA'",
+            'Caral a Puente Piedra' => "'RUT_CARAL-CODISAL_PTE_PIEDRA','RUT_CARAL-BABEL_PUENTE_PIEDRA'",
             'Caral a Huancayo' => "'RUT_CARAL-CODISAL_HUANCAYO'",
             'Caral a Chincha' => "'RUT_CARAL-CODISAL_CHINCHA'",
             'Caral a Ica' => "'RUT_CARAL-CODISAL_ICA'",
-            'Caral a Selva' => "'RUT_CARAL-ECO_SUAREZ'"
+            'Caral a la Selva' => "'RUT_CARAL-ECO_SUAREZ'"
         ];
 
         foreach ($rutas_principales as $key => $value) {
             $sql="
-            SELECT conductor_id, nombres, promedio, total_viajes,
+            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,
                    ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado
             FROM (
                 SELECT conductor_id, b.nombres,

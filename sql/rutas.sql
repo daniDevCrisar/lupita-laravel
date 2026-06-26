@@ -356,7 +356,6 @@ BEGIN
     IF v_origen_id is NULL THEN
         select v_titulo ,v_origen_raw, v_destino_raw ,v_origen_limpio ,v_destino_limpio  , v_ruta_id, v_origen_id, v_destino_id, v_ubigeo_origen, v_ubigeo_destino, 1, NOW();
 
-
         SET v_error_msg = CONCAT('Origen no encontrado: ', v_origen_limpio);
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_error_msg;
     END IF;

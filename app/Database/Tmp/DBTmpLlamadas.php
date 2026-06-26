@@ -18,6 +18,7 @@ class DBTmpLlamadas {
         self::$log->duplicados = [];
         self::$log->total_duplicados = 0;
         self::$log->total_llamadas = 0;
+        self::$log->sin_conductor = 0;
     }
 
     public static function existe($id) {
@@ -37,6 +38,8 @@ class DBTmpLlamadas {
         $llamada->vapi_id = $item->vapi_id;
         $llamada->lote_id = $id_lote;
         $llamada->conductor_id = $id_conductor;
+        if ($id_conductor ==='' or $id_conductor==null) {self::$log->sin_conductor++; return false;}
+
         $llamada->trt_id = ($id_trt !== 'null' && $id_trt !== '') ? $id_trt : null;
         $llamada->telefono= $item->telefono;
         $llamada->ref = $item->ref == '' ? null : $item->ref;
@@ -116,10 +119,15 @@ class DBTmpLlamadas {
 
         $llamada->placa = DBReferencias::verificar_placa($item->placa);
         $se_inserto=self::guardar_llamada($llamada);
-        if ($se_inserto)
+
+        if ($se_inserto){
             self::guardar_mensajes($item->vapi_id,$item->mensajes_conten);
+        }
+
         return $se_inserto;
     }
+
+
 
     public static function fecha_string_o_numero($fecha) {
         // Si es null o vacío

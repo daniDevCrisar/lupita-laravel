@@ -391,6 +391,8 @@
         const card_id_html=document.getElementById('card_id_html');
         const card_conductor_html=document.getElementById('card_conductor_html');
         const txt_audio=document.getElementById('txt_audio');
+        document.getElementById('e_rd_ex_4').disabled=true; //no se puede seleccionar red por q es automatico del vapi
+        document.getElementById('e_rd_ex_1').disabled=true; //no se puede seleccionar q es automatico del vapi
 
         function etiquetaClick(id){
             if (!vapi_id) return false;
@@ -401,7 +403,6 @@
         }
 
         function checkedRadio_exito(exito,error_origen){
-
             rdo_error_origen.forEach(r => {
                 r.checked = false;
             });
@@ -419,35 +420,35 @@
                 if (event.target.checked) modifico=true;
             });
         });
-        function disabledRadio_exito(exito,error_origen){
-            const r_exito = document.querySelector(`input[name="e_exitosa"][value="exito"]`);
-            const r_ia = document.querySelector(`input[name="e_exitosa"][value="1"]`);
-            const r_conductor = document.querySelector(`input[name="e_exitosa"][value="0"]`);
-
-            rdo_error_origen.forEach(r => {
-                r.disabled = true;
-                r.checked = false;
-            });
-            if (error_origen !== '0' && error_origen !== '1'){
-                console.log(error_origen);
-                rdo_error_origen.forEach(r => {
-                    r.disabled = !(r.value === error_origen);
-                    r.checked = r.value === error_origen;
-                });
-            } else {
-                r_exito.disabled=false;
-                r_ia.disabled=false;
-                r_conductor.disabled=false;
-                if (exito==='1'){
-                    r_exito.checked = true;
-                }else {
-                    if (error_origen==='0')
-                        r_conductor.checked=true
-                    else
-                        r_ia.checked=true
-                }
-            }
-        }
+        // function disabledRadio_exito(exito,error_origen){
+        //     const r_exito = document.querySelector(`input[name="e_exitosa"][value="exito"]`);
+        //     const r_ia = document.querySelector(`input[name="e_exitosa"][value="1"]`);
+        //     const r_conductor = document.querySelector(`input[name="e_exitosa"][value="0"]`);
+        //
+        //     rdo_error_origen.forEach(r => {
+        //         r.disabled = true;
+        //         r.checked = false;
+        //     });
+        //     if (error_origen !== '0' && error_origen !== '1'){
+        //         console.log(error_origen);
+        //         rdo_error_origen.forEach(r => {
+        //             r.disabled = !(r.value === error_origen);
+        //             r.checked = r.value === error_origen;
+        //         });
+        //     } else {
+        //         r_exito.disabled=false;
+        //         r_ia.disabled=false;
+        //         r_conductor.disabled=false;
+        //         if (exito==='1'){
+        //             r_exito.checked = true;
+        //         }else {
+        //             if (error_origen==='0')
+        //                 r_conductor.checked=true
+        //             else
+        //                 r_ia.checked=true
+        //         }
+        //     }
+        // }
 
         function colorearBoton(id,valor){
             const btn = document.getElementById(id);
@@ -464,6 +465,8 @@
 
         let anterior_fila=-1;
         function selLlamada(orden){
+
+
             const error_origen = document.getElementById('lista_' + orden+'_error_origen').value;
             const llamada_exitosa = document.getElementById('lista_' + orden+'_llamada_exitosa').value;
 
@@ -496,6 +499,7 @@
                 colorearBoton(el.id,'lista_' + orden+'_' + el.id);
             });
             // disabledRadio_exito(llamada_exitosa,error_origen); // no dejar combinar con errores
+
             checkedRadio_exito(llamada_exitosa,error_origen);
 
             orden_lista=orden;
@@ -527,17 +531,6 @@
             let json_result;
             const alerta_exito = document.getElementById('alerta_exito');
             const alerta_error = document.getElementById('alerta_error');
-            // const formData = new FormData();
-            // formData.append('exito',
-            // document.querySelector('input[name="e_exitosa"]:checked')?.value);
-            // document.querySelectorAll('button[id^="e_"]').forEach(el => {
-            //     let valor=0;
-            //     if (el.classList.contains("bg-activo")) valor=1
-            //     // eliminar el e_ en el id del botoon psaa dejar el nombre de etiqueta
-            //     formData.append(el.id.substring(2),valor)
-            // });
-            // formData.append('vapi_id',vapi_id);
-            // formData.append('analisis_audio',document.getElementById('txt_audio').value);
 
             //usar json para parsear patch
             let formData_json = {};
@@ -592,12 +585,13 @@
             return true;
         }
 
-        const ia_etiq= [{!! ltrim($ia_etiq,',') !!}];
-        const conductor_etiq = [{!! ltrim($conductor_etiq) !!}]
+        const ia_etiq= [{!! ltrim($ia_etiq,',') !!}]; //array de etiquetas q son de ia
+        const conductor_etiq = [{!! ltrim($conductor_etiq) !!}] // array de etiquestas q son de conductor
         function comprobarCombinacionEtiq(){
             const e_exito=document.getElementById('e_rd_ex_0');
             const e_conductor=document.getElementById('e_rd_ex_2');
             const e_ia=document.getElementById('e_rd_ex_3');
+            const e_sis=document.getElementById('e_rd_ex_5');
             const razon_f_id=document.getElementById('lista_' + orden_lista +'_razon_id').value;
             let etiq_sel={};
             document.querySelectorAll('button[id^="e_"]').forEach(el => {
@@ -617,6 +611,7 @@
             //console.log(razon_f_id , razon_f_id=='2');
             if (e_exito.checked && !etiq_sel['conductor_confirma']) return 'Llamada Exitosa sin confirmacion.';
             if (e_ia.checked && !ia_etiq_suma) return 'Llamada con Error IA sin etiqueta IA.';
+            if (e_sis.checked && (!etiq_sel['error_audio'] && !etiq_sel['error_tecnico_llamada'] )) return 'Llamada con Error Sistema sin etiquetas Error Tecnico o Error de audio.';
             if (e_conductor.checked && razon_f_id!=='2' && !conductor_etiq_suma && !etiq_sel['conductor_confirma']) return 'Llamada Fallida sin etiqueta especifica.';
         }
 
