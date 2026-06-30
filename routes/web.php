@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\LlamadasApiController;
+use App\Http\Controllers\LogConductoresController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LlamadasController;
+use App\Livewire\LogConductores\Padre as LogConductoresPadre;
 
 
 
@@ -11,16 +13,16 @@ Route::get('/', function () {
     return view('index');
 });
 
-Route::post('/procesar_excel', [ImportController::class, 'procesar_excel']);
-
-Route::get('/procesar_excel/import/paso-1/{lote_id}',
-    [ImportController::class, 'paso_1']
-)->name('import.paso1');
-
 Route::middleware(['auth'])->group(function () {
     Route::prefix('lupita')->group(function () {
         Route::get('/llamadas', [LlamadasController::class, 'listar_llamadas'])->name('lupita.llamadas');
         Route::get('/conductores', [LlamadasController::class, 'listar_conductores'])->name('lupita.conductores');
+
+        Route::get('/conductores/log/nuevo', [LogConductoresController::class, 'nuevo'])->name('lupita.conductores.log.nuevo');
+
+        Route::get('/conductores/log', LogConductoresPadre::class)->name('lupita.conductores.log');
+
+
         Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas');
         Route::get('/audio', [LlamadasController::class, 'procesar_audio'])->name('lupita.audio')->middleware('permission:etiquetar llamada');
         Route::patch('/audio/guardar', [LlamadasController::class, 'guardar_etiquetas'])->name('lupita.audio.guardar')->middleware('permission:etiquetar llamada');

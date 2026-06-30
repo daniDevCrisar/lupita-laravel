@@ -110,7 +110,10 @@
 </nav>
 
 <div class="container-fluid">
-     @yield('content')
+{{-- SOLO PARA LIVEWIRE   --}}
+    {{ $slot??'' }}
+
+    @yield('content')
 </div>
 
 <!-- Footer -->

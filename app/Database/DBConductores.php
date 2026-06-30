@@ -119,7 +119,8 @@ class DBConductores
         ->leftJoin(DB::raw("(
         SELECT
             llamadas.conductor_id,
-            SUBSTRING_INDEX(GROUP_CONCAT(trts.nombres ORDER BY llamadas.created_at DESC), ',', 1) as nom_trt
+            SUBSTRING_INDEX(GROUP_CONCAT(trts.nombres ORDER BY llamadas.created_at DESC), ',', 1) as nom_trt,
+            SUBSTRING_INDEX(GROUP_CONCAT(trts.id ORDER BY llamadas.created_at DESC), ',', 1) as id_trt
         FROM trts
         INNER JOIN llamadas ON llamadas.trt_id = trts.id
         GROUP BY llamadas.conductor_id
@@ -132,10 +133,10 @@ class DBConductores
         SUM(a.llamada_exitosa=0) AS fallidas,
         ROUND(SUM(a.llamada_exitosa=1)/COUNT(*)*100,1) AS tasa_exito,
         SUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0 and a.error_origen=0)  AS diferencia,
-
         SUBSTRING_INDEX(GROUP_CONCAT(a.telefono ORDER BY a.created_at DESC), ',', 1) as ultimo_tlf,
 
         c.nom_trt as ultimo_trt,
+        c.id_trt as ultimo_trt_id,
 
         SUM(a.error_origen = -1) as error_desconocido,
         SUM(a.error_origen = 1) as error_ia,
