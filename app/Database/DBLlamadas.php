@@ -1040,7 +1040,20 @@ class DBLlamadas {
 
     }
 
-
+    public static function request_limpio(){
+        return (object)[
+            'fecha_inicio'     => '',
+            'fecha_fin'        => '',
+            'llamada_tipo_id'  => '',
+            'conductor'        => '',
+            'trt'              => '',
+            'ordenar_por'        => '',
+            'orden'        => '',
+            'exitosa' => '',
+            'etiquetas' => '',
+            'e_operador' => '',
+        ];
+    }
 
 
 

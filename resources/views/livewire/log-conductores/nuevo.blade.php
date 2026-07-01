@@ -21,9 +21,9 @@
                                 <div class="mb-4 col-12">
                                     <label class="form-label fw-bold"><i class="bi bi-calendar-range me-1"></i>Rango de Fechas</label>
                                     <div class="p-2 bg-dark bg-opacity-25 rounded d-flex align-items-center gap-3 flex-wrap border border-secondary">
-                                        <span><i class="bi bi-calendar-plus me-1 text-info"></i><strong>Desde:</strong> 01/06/2026</span>
+                                        <span><i class="bi bi-calendar-plus me-1 text-info"></i><strong>Desde:</strong>{{$logData->fecha_rango[0]}}</span>
                                         <span><i class="bi bi-arrow-right me-1 text-light"></i></span>
-                                        <span><i class="bi bi-calendar-minus me-1 text-info"></i><strong>Hasta:</strong> 17/06/2026</span>
+                                        <span><i class="bi bi-calendar-minus me-1 text-info"></i><strong>Hasta:</strong>{{$logData->fecha_rango[1]}}</span>
                                         <span class="ms-auto text-light"><i class="bi bi-calendar-range me-1"></i>17 días</span>
                                     </div>
                                     <input type="hidden" name="fecha_inicio" value="2026-06-01">
@@ -50,8 +50,8 @@
                                     <label class="form-label fw-bold"><i class="bi bi-truck me-1"></i>Transportista</label>
                                     <div class="card border-warning bg-warning bg-opacity-10">
                                         <div class="card-body py-2 d-flex flex-wrap gap-4 align-items-center">
-                                            <span><i class="bi bi-building me-1"></i>Transportes del Norte S.A.C.</span>
-                                            <span><i class="bi bi-hash me-1"></i><strong>ID:</strong> 1001</span>
+                                            <span><i class="bi bi-building me-1"></i>{{$logData->trt['nombres']}}</span>
+                                            <span><i class="bi bi-hash me-1"></i><strong>ID:</strong>{{$logData->trt['id']}}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -68,7 +68,7 @@
                                                 <div class="col-6">
                                                     <div class="card text-center bg-success bg-opacity-10 border-success">
                                                         <div class="card-body py-2">
-                                                            <div class="h3 mb-0 text-success"><i class="bi bi-check-circle-fill me-1"></i>12</div>
+                                                            <div class="h3 mb-0 text-success"><i class="bi bi-check-circle-fill me-1"></i>{{$logData->metricas['exitosas']}}</div>
                                                             <small class="text-light">Exitosas</small>
                                                         </div>
                                                     </div>
@@ -76,7 +76,7 @@
                                                 <div class="col-6">
                                                     <div class="card text-center bg-danger bg-opacity-10 border-danger">
                                                         <div class="card-body py-2">
-                                                            <div class="h3 mb-0 text-danger"><i class="bi bi-x-circle-fill me-1"></i>8</div>
+                                                            <div class="h3 mb-0 text-danger"><i class="bi bi-x-circle-fill me-1"></i>{{$logData->metricas['fallidas'] - $logData->metricas['errores']}}</div>
                                                             <small class="text-light">Fallidas</small>
                                                         </div>
                                                     </div>
@@ -84,7 +84,7 @@
                                                 <div class="col-6">
                                                     <div class="card text-center bg-warning bg-opacity-10 border-warning">
                                                         <div class="card-body py-2">
-                                                            <div class="h3 mb-0 text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>2</div>
+                                                            <div class="h3 mb-0 text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{$logData->metricas['errores']}}</div>
                                                             <small class="text-light">Errores</small>
                                                         </div>
                                                     </div>
@@ -92,7 +92,7 @@
                                                 <div class="col-6">
                                                     <div class="card text-center bg-info bg-opacity-10 border-info">
                                                         <div class="card-body py-2">
-                                                            <div class="h3 mb-0 text-info"><i class="bi bi-phone me-1"></i>22</div>
+                                                            <div class="h3 mb-0 text-info"><i class="bi bi-phone me-1"></i>{{$logData->metricas['total']}}</div>
                                                             <small class="text-light">Total</small>
                                                         </div>
                                                     </div>
@@ -130,11 +130,11 @@
                                                 <div class="card-body py-2">
                                                     <small class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Positivas</small>
                                                     <div class="mt-1">
-                                                        <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>confirmo (5)</span>
-                                                        <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>acepto (4)</span>
-                                                        <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>respondio (3)</span>
+                                                        @foreach($logData->etiquetas['data'][1] as $item)
+                                                            <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>{{$item['nombre']}} ({{$item['cantidad']}})</span>
+                                                        @endforeach
                                                     </div>
-                                                    <input type="hidden" name="etiquetas_1" value='["confirmo","acepto","respondio"]'>
+                                                    <input type="hidden" name="etiquetas_1" value="{{ json_encode($logData->etiquetas['data'][1])  }}">
                                                 </div>
                                             </div>
                                         </div>
@@ -143,11 +143,11 @@
                                                 <div class="card-body py-2">
                                                     <small class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-1"></i>Negativas</small>
                                                     <div class="mt-1">
-                                                        <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>no_contesta (4)</span>
-                                                        <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>buzon_voz (3)</span>
-                                                        <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>cuelga (1)</span>
+                                                        @foreach($logData->etiquetas['data'][0] as $item)
+                                                            <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>{{$item['nombre']}} ({{$item['cantidad']}})</span>
+                                                        @endforeach
                                                     </div>
-                                                    <input type="hidden" name="etiquetas_0" value='["no_contesta","buzon_voz","cuelga"]'>
+                                                    <input type="hidden" name="etiquetas_0" value="{{ json_encode($logData->etiquetas['data'][0])  }}">
                                                 </div>
                                             </div>
                                         </div>

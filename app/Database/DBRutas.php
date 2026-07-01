@@ -357,4 +357,29 @@ class DBRutas
 
     }
 
+    public static function lista_rutas_por_conductor($conductor_id){
+
+        $sql_rutas="
+        select
+            b.ruta_id as ruta_id , COUNT(b.ruta_id) as veces_usada,
+            (select nombre from locales where locales.id = c.origen_id ) as loc_origen_nombre,
+            (select nombre from locales where locales.id = c.destino_id ) as loc_destino_nombre,
+            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_origen ) as ubg_origen_nombre,
+            (select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_destino ) as ubg_destino_nombre
+        from llamadas a
+        inner join referencias b
+        on b.ref = a.ref
+        inner join rutas c
+        on c.id=b.ruta_id
+        where a.conductor_id=? ";
+        $sql_rutas_2="
+        group by b.ruta_id
+        ORDER BY `veces_usada` DESC
+        limit 5;
+        ";
+
+        array_unshift(self::$filtro[1],$conductor_id); // combinar el array pero el primer indice tiene q ser conductor
+        return DB::select($sql_rutas . self::$filtro[0]. $sql_rutas_2 , self::$filtro[1]);
+    }
+
 }

@@ -33,14 +33,18 @@
 
                             @php
                             $log_data=[];
+                            $log_data['accion'] = ['nuevo',0];
                             $log_data['conductor'] = ['id'=>$row->conductor_id , 'nombres'=> $row->conductor ];
                             $log_data['trt']= ['id'=>$row->ultimo_trt_id,'nombres'=>$row->ultimo_trt];
-                            $log_data['fecha_rango']=[request('fecha_inicio'),request('fecha_fin')];
+                            $log_data['fecha_rango']=[$request->fecha_inicio,$request->fecha_fin];
 
-                            $log_data['metricas'] = ['exitosas'=> $row->exitosas,'fallidas'=> $row->fallidas,'errores'=>$row->total_error ];
+                            $log_data['metricas'] = [
+                                'exitosas'=> $row->exitosas,'fallidas'=> $row->fallidas,
+                                'errores'=>$row->total_error,
+                                 'total' => $row->total];
                             $log_data['etiquetas'] = [
-                            '1' => $llamadas::etiquetas_icon_bi($row, '', 1, true, false, true),
-                            '0' => $llamadas::etiquetas_icon_bi($row, '', 0, true, $row->fallidas - $row->total_error, true)
+                                0 => $llamadas::etiquetas_icon_bi($row, '', 0, true, $row->fallidas - $row->total_error, true),
+                                1 => $llamadas::etiquetas_icon_bi($row, '', 1, true, false, true),
                             ];
                             $log_data_json =  json_encode($log_data);
                             @endphp

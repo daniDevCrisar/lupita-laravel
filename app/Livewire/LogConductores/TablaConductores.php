@@ -23,17 +23,6 @@ class TablaConductores extends Component
     public $orden = '';
     public $reporte = false;
 
-    // QueryString para mantener el estado en la URL
-    protected $queryString = [
-        'fecha_inicio' => ['except' => ''],
-        'fecha_fin' => ['except' => ''],
-        'llamada_tipo_id' => ['except' => ''],
-        'conductor' => ['except' => ''],
-        'trt' => ['except' => ''],
-        'ordenar_por' => ['except' => ''],
-        'orden' => ['except' => ''],
-        'reporte' => ['except' => false]
-    ];
 
     public function updating($property, $value)
     {
@@ -68,11 +57,10 @@ class TablaConductores extends Component
         ]);
 
         $llamadas = new DBLlamadas();
-
         $conductores = new DBConductores();
         $conductores::set_filtro($request);
         $conductores = $conductores::lista_principal();
 
-        return view('livewire.log-conductores.tabla-conductores', compact('conductores', 'llamadas'));
+        return view('livewire.log-conductores.tabla-conductores', compact('conductores', 'llamadas','request'));
     }
 }
