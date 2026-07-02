@@ -38,4 +38,14 @@ class DBCore
         return DB::table($tabla)->insertOrIgnore($insertData);
     }
 
+    public static function date_diff_dias($start, $end){ //retorna siempre valor absoluto
+        $date_1 = strtotime($start);
+        $date_2 = strtotime($end);
+
+        $diff = $date_2 - $date_1;
+        return abs(floor($diff/(60*60*24))) +1;
+        // se suma mas 1 por la diferencia de:
+        // ?? 00:00  a ?? 23:59
+    }
+
 }

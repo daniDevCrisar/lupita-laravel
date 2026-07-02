@@ -208,4 +208,14 @@ class DBConductores
         ->withQueryString();
         return $query_lista;
     }
+
+    public static function obtenerTelefonos( $conductor_id,$activo='todos'){
+        $sql="select telefono,activo,created_at from tlf_conductores where conductor_id=? ";
+        if ($activo=='todos')
+            return DB::select($sql,[$conductor_id]);
+        elseif ($activo=='activos')
+            return DB::select($sql . 'and activo=1 ',[$conductor_id]);
+
+        return $activo;
+    }
 }

@@ -97,6 +97,7 @@ class LlamadasController extends Controller
         $rutas_lista = new DBRutas();
         $rutas_lista::$filtro= $llamadas::aplicar_filtro_sqltext('d');
 //        dd($rutas::$filtro);
+        $rutas->clase=$rutas_lista;
         $rutas->lista = $rutas_lista::lista_principal();
         $rutas->depas = $rutas_lista::$depas;
 

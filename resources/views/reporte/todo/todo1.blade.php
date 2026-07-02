@@ -1355,8 +1355,10 @@
                             <tr>
                                 @foreach($rutas->lista_detalle as $item)
                                     @php
-                                        $loc_destino_nombre= $item->loc_destino_nombre??$item->ubg_destino_nombre;
-                                        $loc_origen_nombre= $item->loc_origen_nombre??$item->ubg_origen_nombre;
+//                                        $loc_destino_nombre= $item->loc_destino_nombre??$item->ubg_destino_nombre;
+//                                        $loc_origen_nombre= $item->loc_origen_nombre??$item->ubg_origen_nombre;
+
+                                        [$loc_origen_nombre,$loc_destino_nombre]= $rutas->clase::obtenerNombreRuta($item);
                                     @endphp
                                     <th>{{$loop->index+1}} <b>{{ 'RUTA '.$loc_origen_nombre.' - '.$loc_destino_nombre }}</b></th>
                                     <td>

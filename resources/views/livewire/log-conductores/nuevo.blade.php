@@ -24,10 +24,8 @@
                                         <span><i class="bi bi-calendar-plus me-1 text-info"></i><strong>Desde:</strong>{{$logData->fecha_rango[0]}}</span>
                                         <span><i class="bi bi-arrow-right me-1 text-light"></i></span>
                                         <span><i class="bi bi-calendar-minus me-1 text-info"></i><strong>Hasta:</strong>{{$logData->fecha_rango[1]}}</span>
-                                        <span class="ms-auto text-light"><i class="bi bi-calendar-range me-1"></i>17 días</span>
+                                        <span class="ms-auto text-light"><i class="bi bi-calendar-range me-1"></i>{{$logData->fecha_rango[2]}} días</span>
                                     </div>
-                                    <input type="hidden" name="fecha_inicio" value="2026-06-01">
-                                    <input type="hidden" name="fecha_fin" value="2026-06-17">
                                 </div>
 
                                 <!-- ========================================== -->
@@ -76,7 +74,7 @@
                                                 <div class="col-6">
                                                     <div class="card text-center bg-danger bg-opacity-10 border-danger">
                                                         <div class="card-body py-2">
-                                                            <div class="h3 mb-0 text-danger"><i class="bi bi-x-circle-fill me-1"></i>{{$logData->metricas['fallidas'] - $logData->metricas['errores']}}</div>
+                                                            <div class="h3 mb-0 text-danger"><i class="bi bi-x-circle-fill me-1"></i>{{$logData->metricas['fallidas']}}</div>
                                                             <small class="text-light">Fallidas</small>
                                                         </div>
                                                     </div>
@@ -106,13 +104,11 @@
                                             <div class="card border-primary bg-primary bg-opacity-10 h-100">
                                                 <div class="card-body py-2">
                                                     <div class="d-flex flex-wrap gap-2">
-                                                        <span class="badge bg-primary"><i class="bi bi-arrow-right me-1"></i>LIMA - CALLAO: 8</span>
-                                                        <span class="badge bg-primary"><i class="bi bi-arrow-right me-1"></i>LIMA - HUACHIPA: 6</span>
-                                                        <span class="badge bg-primary"><i class="bi bi-arrow-right me-1"></i>CALLAO - CHICLAYO: 4</span>
-                                                        <span class="badge bg-primary"><i class="bi bi-arrow-right me-1"></i>LIMA - AREQUIPA: 3</span>
-                                                        <span class="badge bg-primary"><i class="bi bi-arrow-right me-1"></i>CALLAO - TRUJILLO: 2</span>
+                                                        @foreach($logData->rutas['lista'] as $item)
+                                                            <span class="badge bg-primary"><i class="bi bi-arrow-right me-1"></i>{{$item['nombre']}}({{$item['cantidad']}})</span>
+                                                        @endforeach
                                                     </div>
-                                                    <small class="text-light d-block mt-1">Total de rutas: 23 viajes</small>
+                                                    <small class="text-light d-block mt-1">Total de rutas: {{$logData->rutas['total']}} viajes</small>
                                                 </div>
                                             </div>
                                         </div>
@@ -134,7 +130,6 @@
                                                             <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>{{$item['nombre']}} ({{$item['cantidad']}})</span>
                                                         @endforeach
                                                     </div>
-                                                    <input type="hidden" name="etiquetas_1" value="{{ json_encode($logData->etiquetas['data'][1])  }}">
                                                 </div>
                                             </div>
                                         </div>
@@ -147,7 +142,6 @@
                                                             <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>{{$item['nombre']}} ({{$item['cantidad']}})</span>
                                                         @endforeach
                                                     </div>
-                                                    <input type="hidden" name="etiquetas_0" value="{{ json_encode($logData->etiquetas['data'][0])  }}">
                                                 </div>
                                             </div>
                                         </div>
@@ -160,18 +154,22 @@
                                 <div class="mb-4 col-12">
                                     <label class="form-label fw-bold"><i class="bi bi-telephone-fill me-1"></i>Teléfonos Activos</label>
                                     <div class="d-flex flex-wrap gap-2">
-                                        <button type="button" class="btn btn-success btn-sm telefono-btn" data-telefono="987654321" onclick="toggleTelefono(this)">
-                                            <i class="bi bi-check-circle me-1"></i>987654321
-                                        </button>
-                                        <button type="button" class="btn btn-success btn-sm telefono-btn" data-telefono="987654322" onclick="toggleTelefono(this)">
-                                            <i class="bi bi-check-circle me-1"></i>987654322
-                                        </button>
-                                        <button type="button" class="btn btn-success btn-sm telefono-btn" data-telefono="987654323" onclick="toggleTelefono(this)">
-                                            <i class="bi bi-check-circle me-1"></i>987654323
-                                        </button>
-                                        <button type="button" class="btn btn-success btn-sm telefono-btn" data-telefono="987654324" onclick="toggleTelefono(this)">
-                                            <i class="bi bi-check-circle me-1"></i>987654324
-                                        </button>
+
+                                        @foreach($logData->telefonos as $item)
+                                            @php $tlf_format = ltrim( $item->telefono,'51') @endphp
+                                            <input class="form-check-input telefono-checkbox d-none"
+                                                   type="checkbox"
+                                                   name="chk_tlf"
+                                                   id="chk_tlf_{{ $item->telefono }}"
+                                                   wire:model.live="log_tlfs"
+                                                   value="{{ $item->telefono . ',' . $item->activo }}"
+                                                   @if($item->activo) checked @endif>
+
+                                            <button type="button" class="btn @if($item->activo) btn-success @endif  btn-sm telefono-btn"
+                                                    data-telefono="{{$item->telefono}}" data-telefono-format="{{$tlf_format}}" data-chk="chk_tlf_{{ $item->telefono }}" onclick="toggleTelefono(this)">
+                                                <i class="bi bi-check-circle me-1"></i>{{$tlf_format}}
+                                            </button>
+                                        @endforeach
                                     </div>
                                     <input type="hidden" name="telefonos_inactivos" id="telefonosInactivos" value="">
                                 </div>
@@ -183,7 +181,8 @@
                                     <label class="form-label fw-bold"><i class="bi bi-file-earmark-text me-1"></i>Análisis</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary"><i class="bi bi-file-earmark-text"></i></span>
-                                        <textarea name="analisis" class="form-control bg-secondary text-white" rows="3" placeholder="¿Qué patrón detectaste? ¿Por qué evade la llamada?"></textarea>
+                                        <textarea name="analisis" class="form-control bg-secondary text-white" rows="3"
+                                                  wire:model.live="log_analisis" placeholder="¿Qué patrón detectaste? ¿Por qué evade la llamada?"></textarea>
                                     </div>
                                 </div>
 
@@ -194,7 +193,8 @@
                                     <label class="form-label fw-bold"><i class="bi bi-lightning me-1"></i>Acción</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary"><i class="bi bi-lightning"></i></span>
-                                        <textarea name="accion" class="form-control bg-secondary text-white" rows="3" placeholder="¿Qué intentaste hacer para contactarlo?"></textarea>
+                                        <textarea name="accion" class="form-control bg-secondary text-white" rows="3"
+                                                  wire:model.live="log_accion" placeholder="¿Qué intentaste hacer para contactarlo?"></textarea>
                                     </div>
                                 </div>
 
@@ -205,7 +205,8 @@
                                     <label class="form-label fw-bold"><i class="bi bi-chat-fill me-1"></i>Respuesta</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary"><i class="bi bi-reply-fill"></i></span>
-                                        <textarea name="respuesta" class="form-control bg-secondary text-white" rows="3" placeholder="¿Qué pasó después? ¿Funcionó la acción?"></textarea>
+                                        <textarea name="respuesta" class="form-control bg-secondary text-white" rows="3"
+                                                  wire:model.live="log_respuesta" placeholder="¿Qué pasó después? ¿Funcionó la acción?"></textarea>
                                     </div>
                                 </div>
 
@@ -216,7 +217,8 @@
                                     <label class="form-label fw-bold"><i class="bi bi-check2-circle me-1"></i>Conclusión</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary"><i class="bi bi-emoji-smile"></i></span>
-                                        <select class="form-select bg-secondary text-white border-secondary" name="conclusion">
+                                        <select class="form-select bg-secondary text-white border-secondary"
+                                                wire:model.live="log_conclusion" name="conclusion">
                                             <option value="" selected>Seleccionar conclusión...</option>
                                             <option value="positiva">😊 Positiva</option>
                                             <option value="sin_comunicacion">📵 Sin Comunicación</option>
@@ -237,17 +239,21 @@
                                             <label class="form-label fw-bold"><i class="bi bi-circle-fill me-1"></i>Status</label>
                                             <div class="input-group">
                                                 <div class="btn-group" role="group">
-                                                    <input type="radio" class="btn-check" name="status" id="status_curso" value="EN CURSO" checked>
+                                                    <input type="radio" class="btn-check" name="status"
+                                                           wire:model.live="log_status" id="status_curso" value="EN CURSO" checked>
                                                     <label class="btn btn-outline-warning" for="status_curso">
                                                         <i class="bi bi-play-circle me-1"></i>EN CURSO
                                                     </label>
 
-                                                    <input type="radio" class="btn-check" name="status" id="status_cerrado" value="CERRADO">
+                                                    <input type="radio" class="btn-check" name="status"
+                                                           wire:model.live="log_status" id="status_cerrado" value="CERRADO">
                                                     <label class="btn btn-outline-success" for="status_cerrado">
                                                         <i class="bi bi-check-circle me-1"></i>CERRADO
                                                     </label>
 
-                                                    <input type="radio" class="btn-check" name="status" id="status_cancelado" value="CANCELADO">
+                                                    <input type="radio" class="btn-check" name="status"
+                                                           wire:model.live="log_status"
+                                                           id="status_cancelado" value="CANCELADO">
                                                     <label class="btn btn-outline-danger" for="status_cancelado">
                                                         <i class="bi bi-x-circle me-1"></i>CANCELADO
                                                     </label>
@@ -260,12 +266,14 @@
                                             <label class="form-label fw-bold"><i class="bi bi-geo-alt-fill me-1"></i>Ubicación</label>
                                             <div class="input-group">
                                                 <div class="btn-group" role="group">
-                                                    <input type="radio" class="btn-check" name="ubicacion" id="ubicacion_lima" value="LIMA" checked>
+                                                    <input type="radio" class="btn-check" name="ubicacion"
+                                                           wire:model.live="log_ubicacion" id="ubicacion_lima" value="LIMA" checked>
                                                     <label class="btn btn-outline-primary" for="ubicacion_lima">
                                                         <i class="bi bi-building me-1"></i>LIMA
                                                     </label>
 
-                                                    <input type="radio" class="btn-check" name="ubicacion" id="ubicacion_provincias" value="PROVINCIAS">
+                                                    <input type="radio" class="btn-check" name="ubicacion"
+                                                           wire:model.live="log_ubicacion" id="ubicacion_provincias" value="PROVINCIAS">
                                                     <label class="btn btn-outline-secondary" for="ubicacion_provincias">
                                                         <i class="bi bi-globe me-1"></i>PROVINCIAS
                                                     </label>
@@ -291,6 +299,16 @@
                                 </div>
 
                             </div>
+                            {{-- DATOS NO MODIFICABLES SOLO JSON --}}
+                            <input type="hidden" wire:model.live="log_fecha_rango" value="{{json_encode($logData->fecha_rango)}}">
+                            <input type="hidden" wire:model.live="log_conductor" value="{{json_encode($logData->conductor)}}">
+                            <input type="hidden" wire:model.live="log_trt" value="{{json_encode($logData->trt)}}">
+                            <input type="hidden" wire:model.live="log_metricas" value="{{json_encode($logData->metricas)}}">
+                            <input type="hidden" wire:model.live="log_rutas" value="{{json_encode($logData->rutas)}}">
+                            <input type="hidden" wire:model.live="log_telefonos" value="{{json_encode($logData->telefonos)}}">
+                            <input type="hidden" wire:model.live="log_etiquetas_0" value="{{json_encode($logData->etiquetas['data'][0])}}">
+                            <input type="hidden" wire:model.live="log_etiquetas_1" value="{{json_encode($logData->etiquetas['data'][1])}}">
+
                         </form>
 
                     </div>
@@ -305,23 +323,27 @@
         if (btn.classList.contains('btn-success')) {
             btn.classList.remove('btn-success');
             btn.classList.add('btn-secondary');
-            btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>' + btn.getAttribute('data-telefono');
+            btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>' + btn.getAttribute('data-telefono-format');
         } else {
             btn.classList.remove('btn-secondary');
             btn.classList.add('btn-success');
-            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + btn.getAttribute('data-telefono');
+            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + btn.getAttribute('data-telefono-format');
         }
-        actualizarInactivos();
+        const chk= document.getElementById(btn.getAttribute('data-chk'));
+        chk.checked = !chk.checked;
+        const chk_estado = chk.checked ? '1' : '0';
+        chk.value = btn.getAttribute('data-telefono') +  ',' + chk_estado;
+        // actualizarInactivos();
     }
-
-    function actualizarInactivos() {
-        var inactivos = [];
-        document.querySelectorAll('.telefono-btn.btn-secondary').forEach(function(btn) {
-            inactivos.push(btn.getAttribute('data-telefono'));
-        });
-        var input = document.getElementById('telefonosInactivos');
-        if (input) {
-            input.value = inactivos.join(',');
-        }
-    }
+    //
+    // function actualizarInactivos() {
+    //     var inactivos = [];
+    //     document.querySelectorAll('.telefono-btn.btn-secondary').forEach(function(btn) {
+    //         inactivos.push(btn.getAttribute('data-telefono'));
+    //     });
+    //     var input = document.getElementById('telefonosInactivos');
+    //     if (input) {
+    //         input.value = inactivos.join(',');
+    //     }
+    // }
 </script>

@@ -374,12 +374,18 @@ class DBRutas
         where a.conductor_id=? ";
         $sql_rutas_2="
         group by b.ruta_id
-        ORDER BY `veces_usada` DESC
-        limit 5;
+        ORDER BY `veces_usada` DESC;
         ";
 
         array_unshift(self::$filtro[1],$conductor_id); // combinar el array pero el primer indice tiene q ser conductor
         return DB::select($sql_rutas . self::$filtro[0]. $sql_rutas_2 , self::$filtro[1]);
+    }
+
+    public static function obtenerNombreRuta($item)
+    {
+        $loc_destino_nombre= $item->loc_destino_nombre??$item->ubg_destino_nombre;
+        $loc_origen_nombre= $item->loc_origen_nombre??$item->ubg_origen_nombre;
+        return [$loc_origen_nombre,$loc_destino_nombre];
     }
 
 }

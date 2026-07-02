@@ -39,7 +39,7 @@
                             $log_data['fecha_rango']=[$request->fecha_inicio,$request->fecha_fin];
 
                             $log_data['metricas'] = [
-                                'exitosas'=> $row->exitosas,'fallidas'=> $row->fallidas,
+                                'exitosas'=> $row->exitosas,'fallidas'=> $row->fallidas-$row->total_error,
                                 'errores'=>$row->total_error,
                                  'total' => $row->total];
                             $log_data['etiquetas'] = [
