@@ -631,3 +631,37 @@ CREATE TABLE tmp_lotes_ref_compromiso (
 
 ALTER TABLE tmp_lotes_ref_compromiso
     ADD COLUMN compromiso_carga VARCHAR(50) NULL;
+
+DROP TABLE IF EXISTS log_conductores;
+CREATE TABLE log_conductores (
+    id_log_conductor INT AUTO_INCREMENT PRIMARY KEY,
+    id_conductor INT NOT NULL,
+    last_id_trt INT NOT NULL,
+
+    -- Fechas
+    fecha_inicio TIMESTAMP NULL,
+    fecha_fin TIMESTAMP NULL,
+
+    -- Métricas de llamadas
+    metricas JSON NULL,
+
+    -- Etiquetas de IA (resultados de llamadas)
+    etiquetas_1 JSON NULL,  -- Etiquetas positivas (confirmó, aceptó, etc)
+    etiquetas_0 JSON NULL,  -- Etiquetas negativas (no contesta, cuelga, etc)
+
+    -- Log de evasión
+    analisis TEXT NULL,
+    accion TEXT NULL,
+    respuesta TEXT NULL,
+    status ENUM('EN CURSO', 'CERRADO', 'CANCELADO') DEFAULT 'EN CURSO',
+    ubicacion ENUM ('LIMA','PROVINCIA'),
+    id_conclusion INT NULL ,
+
+         -- Metadatos
+    telefonos JSON NULL,    -- Historial de teléfonos usados
+    rutas JSON NULL,		-- Historial de rutas
+
+    -- Auditoría
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);

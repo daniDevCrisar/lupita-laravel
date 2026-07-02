@@ -55,7 +55,7 @@
                                 </div>
 
                                 <!-- ========================================== -->
-                                <!-- 4. MÉTRICAS + RUTAS CONCURRIDAS           -->
+                                <!-- 4. MÉTRICAS + RUTAS CONCURRIDAS            -->
                                 <!-- ========================================== -->
                                 <div class="mb-4 col-12">
                                     <div class="row g-3">
@@ -158,17 +158,15 @@
                                         @foreach($logData->telefonos as $item)
                                             @php $tlf_format = ltrim( $item->telefono,'51') @endphp
                                             <input class="form-check-input telefono-checkbox d-none"
-                                                   type="checkbox"
-                                                   name="chk_tlf"
+                                                   type="checkbox" name="chk_tlf"
+                                                   wire:key="tlf_{{ $item->telefono }}"
                                                    id="chk_tlf_{{ $item->telefono }}"
-                                                   wire:model.live="log_tlfs"
-                                                   value="{{ $item->telefono . ',' . $item->activo }}"
-                                                   @if($item->activo) checked @endif>
-
-                                            <button type="button" class="btn @if($item->activo) btn-success @endif  btn-sm telefono-btn"
-                                                    data-telefono="{{$item->telefono}}" data-telefono-format="{{$tlf_format}}" data-chk="chk_tlf_{{ $item->telefono }}" onclick="toggleTelefono(this)">
-                                                <i class="bi bi-check-circle me-1"></i>{{$tlf_format}}
-                                            </button>
+                                                   wire:model="log_tlfs"
+                                                   value="{{ $item->telefono}}"
+                                                   @checked($item->activo==1)>
+                                            {{-- Label que activa el checkbox --}}
+                                            <label class="btn btn-sm btn-success" onclick="chk_tlf_change(this)"
+                                                   for="chk_tlf_{{ $item->telefono }}">{{ $tlf_format }}</label>
                                         @endforeach
                                     </div>
                                     <input type="hidden" name="telefonos_inactivos" id="telefonosInactivos" value="">
@@ -182,7 +180,7 @@
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary"><i class="bi bi-file-earmark-text"></i></span>
                                         <textarea name="analisis" class="form-control bg-secondary text-white" rows="3"
-                                                  wire:model.live="log_analisis" placeholder="¿Qué patrón detectaste? ¿Por qué evade la llamada?"></textarea>
+                                                  wire:model="log_analisis" placeholder="¿Qué patrón detectaste? ¿Por qué evade la llamada?"></textarea>
                                     </div>
                                 </div>
 
@@ -194,7 +192,7 @@
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary"><i class="bi bi-lightning"></i></span>
                                         <textarea name="accion" class="form-control bg-secondary text-white" rows="3"
-                                                  wire:model.live="log_accion" placeholder="¿Qué intentaste hacer para contactarlo?"></textarea>
+                                                  wire:model="log_accion" placeholder="¿Qué intentaste hacer para contactarlo?"></textarea>
                                     </div>
                                 </div>
 
@@ -206,7 +204,7 @@
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary"><i class="bi bi-reply-fill"></i></span>
                                         <textarea name="respuesta" class="form-control bg-secondary text-white" rows="3"
-                                                  wire:model.live="log_respuesta" placeholder="¿Qué pasó después? ¿Funcionó la acción?"></textarea>
+                                                  wire:model="log_respuesta" placeholder="¿Qué pasó después? ¿Funcionó la acción?"></textarea>
                                     </div>
                                 </div>
 
@@ -218,13 +216,13 @@
                                     <div class="input-group">
                                         <span class="input-group-text bg-primary"><i class="bi bi-emoji-smile"></i></span>
                                         <select class="form-select bg-secondary text-white border-secondary"
-                                                wire:model.live="log_conclusion" name="conclusion">
+                                                wire:model="log_conclusion" name="conclusion">
                                             <option value="" selected>Seleccionar conclusión...</option>
-                                            <option value="positiva">😊 Positiva</option>
-                                            <option value="sin_comunicacion">📵 Sin Comunicación</option>
-                                            <option value="no_colabora">🙅 No Colabora</option>
-                                            <option value="no_es_su_numero">❌ No es su número</option>
-                                            <option value="neutral">😐 Neutral</option>
+                                            <option value="1">😊 Positiva</option>
+                                            <option value="2">📵 Sin Comunicación</option>
+                                            <option value="3">🙅 No Colabora</option>
+                                            <option value="4">❌ No es su número</option>
+                                            <option value="5">😐 Neutral</option>
                                         </select>
                                     </div>
                                 </div>
@@ -240,19 +238,19 @@
                                             <div class="input-group">
                                                 <div class="btn-group" role="group">
                                                     <input type="radio" class="btn-check" name="status"
-                                                           wire:model.live="log_status" id="status_curso" value="EN CURSO" checked>
+                                                           wire:model="log_status" id="status_curso" value="EN CURSO" checked>
                                                     <label class="btn btn-outline-warning" for="status_curso">
                                                         <i class="bi bi-play-circle me-1"></i>EN CURSO
                                                     </label>
 
                                                     <input type="radio" class="btn-check" name="status"
-                                                           wire:model.live="log_status" id="status_cerrado" value="CERRADO">
+                                                           wire:model= "log_status" id="status_cerrado" value="CERRADO">
                                                     <label class="btn btn-outline-success" for="status_cerrado">
                                                         <i class="bi bi-check-circle me-1"></i>CERRADO
                                                     </label>
 
                                                     <input type="radio" class="btn-check" name="status"
-                                                           wire:model.live="log_status"
+                                                           wire:model="log_status"
                                                            id="status_cancelado" value="CANCELADO">
                                                     <label class="btn btn-outline-danger" for="status_cancelado">
                                                         <i class="bi bi-x-circle me-1"></i>CANCELADO
@@ -267,13 +265,13 @@
                                             <div class="input-group">
                                                 <div class="btn-group" role="group">
                                                     <input type="radio" class="btn-check" name="ubicacion"
-                                                           wire:model.live="log_ubicacion" id="ubicacion_lima" value="LIMA" checked>
+                                                           wire:model="log_ubicacion" id="ubicacion_lima" value="LIMA" checked>
                                                     <label class="btn btn-outline-primary" for="ubicacion_lima">
                                                         <i class="bi bi-building me-1"></i>LIMA
                                                     </label>
 
                                                     <input type="radio" class="btn-check" name="ubicacion"
-                                                           wire:model.live="log_ubicacion" id="ubicacion_provincias" value="PROVINCIAS">
+                                                           wire:model="log_ubicacion" id="ubicacion_provincias" value="PROVINCIAS">
                                                     <label class="btn btn-outline-secondary" for="ubicacion_provincias">
                                                         <i class="bi bi-globe me-1"></i>PROVINCIAS
                                                     </label>
@@ -299,16 +297,6 @@
                                 </div>
 
                             </div>
-                            {{-- DATOS NO MODIFICABLES SOLO JSON --}}
-                            <input type="hidden" wire:model.live="log_fecha_rango" value="{{json_encode($logData->fecha_rango)}}">
-                            <input type="hidden" wire:model.live="log_conductor" value="{{json_encode($logData->conductor)}}">
-                            <input type="hidden" wire:model.live="log_trt" value="{{json_encode($logData->trt)}}">
-                            <input type="hidden" wire:model.live="log_metricas" value="{{json_encode($logData->metricas)}}">
-                            <input type="hidden" wire:model.live="log_rutas" value="{{json_encode($logData->rutas)}}">
-                            <input type="hidden" wire:model.live="log_telefonos" value="{{json_encode($logData->telefonos)}}">
-                            <input type="hidden" wire:model.live="log_etiquetas_0" value="{{json_encode($logData->etiquetas['data'][0])}}">
-                            <input type="hidden" wire:model.live="log_etiquetas_1" value="{{json_encode($logData->etiquetas['data'][1])}}">
-
                         </form>
 
                     </div>
@@ -319,21 +307,9 @@
 </div>
 
 <script>
-    function toggleTelefono(btn) {
-        if (btn.classList.contains('btn-success')) {
-            btn.classList.remove('btn-success');
-            btn.classList.add('btn-secondary');
-            btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>' + btn.getAttribute('data-telefono-format');
-        } else {
-            btn.classList.remove('btn-secondary');
-            btn.classList.add('btn-success');
-            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + btn.getAttribute('data-telefono-format');
-        }
-        const chk= document.getElementById(btn.getAttribute('data-chk'));
-        chk.checked = !chk.checked;
-        const chk_estado = chk.checked ? '1' : '0';
-        chk.value = btn.getAttribute('data-telefono') +  ',' + chk_estado;
-        // actualizarInactivos();
+    function chk_tlf_change(lbl){
+        lbl.classList.toggle('btn-success')
+        lbl.classList.toggle('btn-secondary')
     }
     //
     // function actualizarInactivos() {

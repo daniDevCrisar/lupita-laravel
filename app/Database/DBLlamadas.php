@@ -305,7 +305,7 @@ class DBLlamadas {
         }
         if ($otros and $otros-$count>0 and $mostrar_cantidad) {
             $lista_e.= "Otros (".($otros-$count).')';
-            if ($solo_texto) $lista_e.= "<br>";
+//            if ($solo_texto) $lista_e.= "<br>";
         }
         return $lista_e;
     }
@@ -1037,7 +1037,6 @@ class DBLlamadas {
         ";
         $filtro= self::aplicar_filtro_sqltext();
         return DB::select($sql . $filtro[0],$filtro[1]);
-
     }
 
     public static function request_limpio(){
