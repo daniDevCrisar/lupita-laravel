@@ -13,6 +13,7 @@ class TablaConductores extends Component
     use WithPagination;
     protected $paginationTheme = 'bootstrap';
 
+
     // Props que recibe del PADRE
     public $fecha_inicio = '';
     public $fecha_fin = '';
@@ -23,13 +24,7 @@ class TablaConductores extends Component
     public $orden = '';
     public $reporte = false;
 
-
-    public function updating($property, $value)
-    {
-        if (in_array($property, ['fecha_inicio', 'fecha_fin', 'llamada_tipo_id', 'conductor', 'trt', 'ordenar_por', 'orden', 'reporte'])) {
-            $this->resetPage();
-        }
-    }
+    protected $listeners = ['updateRender' => 'updateRender'];
 
     public function nuevoLog($logData = null)
     {
@@ -40,6 +35,11 @@ class TablaConductores extends Component
     {
         $this->reset(['fecha_inicio', 'fecha_fin', 'llamada_tipo_id', 'conductor', 'trt', 'ordenar_por', 'orden', 'reporte']);
         $this->resetPage();
+    }
+
+    public function updateRender()
+    {
+        $this->render();
     }
 
     public function render()

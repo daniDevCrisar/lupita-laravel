@@ -39,6 +39,9 @@ class DBCore
     }
 
     public static function date_diff_dias($start, $end){ //retorna siempre valor absoluto
+        if (!$start) return false;
+        if (!$start && !$end) return false;
+        if ($start && !$end) return 1;
         $date_1 = strtotime($start);
         $date_2 = strtotime($end);
 

@@ -127,6 +127,7 @@ class DBConductores
         ) as c"),'c.conductor_id','=','a.conductor_id')
         ->selectRaw("
         a.conductor_id,
+        b.last_id_log,
         b.nombres AS conductor,
         COUNT(*) AS total,
         SUM(a.llamada_exitosa=1) AS exitosas,
@@ -217,5 +218,11 @@ class DBConductores
             return DB::select($sql . 'and activo=1 ',[$conductor_id]);
 
         return $activo;
+    }
+
+    public static function actualizarLogActivo($id_conductor, $id_log) {
+        return DB::table('conductores')
+            ->where('id', $id_conductor)
+            ->update(['last_id_log' => $id_log]);
     }
 }

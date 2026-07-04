@@ -7,7 +7,10 @@
             <div class="modal-dialog modal-xl modal-dialog-centered">
                 <div class="modal-content bg-dark">
                     <div class="modal-header border-secondary">
-                        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nuevo Log de Conductor</h5>
+                        <h5 class="modal-title">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            {{ isset($logData->id_log_conductor) ? 'Log #'.$logData->id_log_conductor.' - ' . date('d/m/Y H:i', strtotime($logData->created_at)) : 'Nuevo Log de Conductor' }}
+                        </h5>
                         <button type="button" class="btn-close" wire:click="closeModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
@@ -21,10 +24,10 @@
                                 <div class="mb-4 col-12">
                                     <label class="form-label fw-bold"><i class="bi bi-calendar-range me-1"></i>Rango de Fechas</label>
                                     <div class="p-2 bg-dark bg-opacity-25 rounded d-flex align-items-center gap-3 flex-wrap border border-secondary">
-                                        <span><i class="bi bi-calendar-plus me-1 text-info"></i><strong>Desde:</strong>{{$logData->fecha_rango[0]}}</span>
+                                        <span><i class="bi bi-calendar-plus me-1 text-info"></i><strong>Desde:</strong> {{$logData->fecha_rango[0] ?: 'Vacio'}}</span>
                                         <span><i class="bi bi-arrow-right me-1 text-light"></i></span>
-                                        <span><i class="bi bi-calendar-minus me-1 text-info"></i><strong>Hasta:</strong>{{$logData->fecha_rango[1]}}</span>
-                                        <span class="ms-auto text-light"><i class="bi bi-calendar-range me-1"></i>{{$logData->fecha_rango[2]}} días</span>
+                                        <span><i class="bi bi-calendar-minus me-1 text-info"></i><strong>Hasta:</strong> {{$logData->fecha_rango[1] ?: 'Vacio' }}</span>
+                                        <span class="ms-auto text-light"><i class="bi bi-calendar-range me-1"></i> @if ($logData->fecha_rango[2]) {{$logData->fecha_rango[2]}} días @else Sin rango @endif</span>
                                     </div>
                                 </div>
 
@@ -157,7 +160,7 @@
 
                                         @foreach($logData->telefonos as $item)
                                             @php $tlf_format = ltrim( $item->telefono,'51') @endphp
-                                            <input class="form-check-input telefono-checkbox d-none"
+                                            <input class="d-none"
                                                    type="checkbox" name="chk_tlf"
                                                    wire:key="tlf_{{ $item->telefono }}"
                                                    id="chk_tlf_{{ $item->telefono }}"
@@ -165,7 +168,8 @@
                                                    value="{{ $item->telefono}}"
                                                    @checked($item->activo==1)>
                                             {{-- Label que activa el checkbox --}}
-                                            <label class="btn btn-sm btn-success" onclick="chk_tlf_change(this)"
+                                            <label class="btn btn-sm {{ $item->activo ? 'btn-success' : 'btn-secondary' }}"
+                                                   onclick="chk_tlf_change(this)"
                                                    for="chk_tlf_{{ $item->telefono }}">{{ $tlf_format }}</label>
                                         @endforeach
                                     </div>
@@ -271,9 +275,9 @@
                                                     </label>
 
                                                     <input type="radio" class="btn-check" name="ubicacion"
-                                                           wire:model="log_ubicacion" id="ubicacion_provincias" value="PROVINCIAS">
+                                                           wire:model="log_ubicacion" id="ubicacion_provincias" value="PROVINCIA">
                                                     <label class="btn btn-outline-secondary" for="ubicacion_provincias">
-                                                        <i class="bi bi-globe me-1"></i>PROVINCIAS
+                                                        <i class="bi bi-globe me-1"></i>PROVINCIA
                                                     </label>
                                                 </div>
                                             </div>

@@ -395,11 +395,15 @@
         document.getElementById('e_rd_ex_1').disabled=true; //no se puede seleccionar q es automatico del vapi
 
         function etiquetaClick(id){
-            if (!vapi_id) return false;
-            const btn = document.getElementById(id);
-            btn.classList.toggle("bg-activo");
-            btn.classList.toggle("bg-primary");
-            modifico=true;
+            try{
+                if (!vapi_id) return false;
+                const btn = document.getElementById(id);
+                btn.classList.toggle("bg-activo");
+                btn.classList.toggle("bg-primary");
+                modifico=true;
+            }catch(e){
+                console.error(e);
+            }
         }
 
         function checkedRadio_exito(exito,error_origen){
@@ -782,13 +786,14 @@
                     tecla='';
                 }
                 else if (teclas_capturadas.includes('no ha')){
-                    etiquetaClick('e_no_habla');
+                    etiquetaClick('e_conductor_contesta_pero_no_habla');
                     e_conductor.checked=true;
                     txt_audio.value='NO HABLA';
                     tecla='';
                 }
                 else if (teclas_capturadas.includes('mala')){
                     etiquetaClick('e_conductor_mala_senal');
+                    txt_audio.value='MALA SEÑAL';
                     tecla='';
                 }
                 else if (teclas_capturadas.includes('conf')){

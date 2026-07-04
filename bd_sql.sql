@@ -88,12 +88,16 @@ CREATE TABLE conductores (
 
     nombres VARCHAR(150) NOT NULL,
     trofeos JSON NOT NULL DEFAULT (JSON_OBJECT()),
+    last_id_log INT DEFAULT 0,
     activo TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     FULLTEXT(nombres)
 );
+
+ALTER TABLE conductores
+    ADD COLUMN last_id_log INT DEFAULT 0 AFTER trofeos;
 
 ALTER TABLE conductores
     ADD COLUMN trofeos JSON NOT NULL DEFAULT (JSON_OBJECT()) AFTER nombres;
@@ -109,6 +113,8 @@ CREATE TABLE tlf_conductores (
     PRIMARY KEY (conductor_id, telefono),
     INDEX idx_telefono (telefono)
 );
+
+select * from conductores where conductores.last_id_log!=0;
 
 ALTER TABLE tlf_conductores
 ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

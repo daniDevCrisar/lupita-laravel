@@ -33,23 +33,25 @@
 
                             @php
                             $log_data=[];
-                            $log_data['accion'] = ['nuevo',0];
-                            $log_data['conductor'] = ['id'=>$row->conductor_id , 'nombres'=> $row->conductor ];
-                            $log_data['trt']= ['id'=>$row->ultimo_trt_id,'nombres'=>$row->ultimo_trt];
-                            $log_data['fecha_rango']=[$request->fecha_inicio,$request->fecha_fin];
+                            $log_data['id_log_conductor']  =$row->last_id_log;
+                            if (!$row->last_id_log){
+                                $log_data['conductor'] = ['id'=>$row->conductor_id , 'nombres'=> $row->conductor ];
+                                $log_data['trt']= ['id'=>$row->ultimo_trt_id,'nombres'=>$row->ultimo_trt];
+                                $log_data['fecha_rango']=[$request->fecha_inicio,$request->fecha_fin];
 
-                            $log_data['metricas'] = [
-                                'exitosas'=> $row->exitosas,'fallidas'=> $row->fallidas-$row->total_error,
-                                'errores'=>$row->total_error,
-                                 'total' => $row->total];
-                            $log_data['etiquetas'] = [
-                                0 => $llamadas::etiquetas_icon_bi($row, '', 0, true, $row->fallidas - $row->total_error, true),
-                                1 => $llamadas::etiquetas_icon_bi($row, '', 1, true, false, true),
-                            ];
+                                $log_data['metricas'] = [
+                                    'exitosas'=> $row->exitosas,'fallidas'=> $row->fallidas-$row->total_error,
+                                    'errores'=>$row->total_error,
+                                    'total' => $row->total];
+                                $log_data['etiquetas'] = [
+                                    0 => $llamadas::etiquetas_icon_bi($row, '', 0, true, $row->fallidas - $row->total_error, true),
+                                    1 => $llamadas::etiquetas_icon_bi($row, '', 1, true, false, true),
+                                ];
+                            }
                             $log_data_json =  json_encode($log_data);
                             @endphp
                             <button class="btn btn-success btn-sm" wire:click="nuevoLog({{ $log_data_json }})">
-                                <i class="bi bi-plus-circle me-1"></i> Nuevo Log
+                                <i class="bi @if(!$row->last_id_log) bi-plus-circle @else bi-pencil @endif me-1"></i> @if(!$row->last_id_log)  Nuevo Log @else Modificar @endif
                             </button>
 
                             {{ $row->conductor_id }}
