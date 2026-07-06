@@ -116,6 +116,7 @@ class DBConductores
 
         $query_lista = DB::table('llamadas as a')
         ->join('conductores as b','b.id','=','a.conductor_id')
+        ->leftJoin('log_conductores as c','c.id_log_conductor','=','b.last_id_log')
         ->leftJoin(DB::raw("(
         SELECT
             llamadas.conductor_id,

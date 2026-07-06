@@ -146,6 +146,7 @@
         </div>
     </div>
 
+
     <!-- RESUMEN -->
     <div class="row g-4 mb-5">
         <div class="col-md-3">
@@ -378,6 +379,8 @@
         </div>
     @endif
 
+
+    @if($fallidas)
     <!-- PEORES CONDUCTORES (múltiples fallos) -->
     <div class="card report-card mb-5">
         <div class="card-header bg-white border-0 pt-4 pb-0">
@@ -419,6 +422,8 @@
         </div>
     </div>
 
+
+
     <!-- PEORES TRANSPORTISTAS -->
     <div class="card report-card mb-5">
         <div class="card-header bg-white border-0 pt-4 pb-0">
@@ -459,6 +464,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{--   ---EMBUDO---     --}}
     <div class="col-12 card p-4 report-card border-2 mb-4">
@@ -774,6 +780,8 @@
         </div>
     @endif
 
+
+    @if($fallidas)
     <!-- por q el porcentaje de fallo -->
     <div class="col-12">
         <div class="d-flex align-items-center gap-3 mb-3">
@@ -793,84 +801,87 @@
     </div>
 
 
-    <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
-    @php
-        $fallo_contacto_total=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->razon_5_ocupado;
-        $fallo_contacto_100= round(($fallo_contacto_total/$fallidas)*100,1);
 
-        $solo_cuelga=$reporte->total->solo_cuelga;
-        $fallo_no_copera_total=$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga;
-        $fallo_no_copera_100= round(($fallo_no_copera_total/$fallidas)*100,1);
+        <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
+        @php
+            $fallo_contacto_total=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->razon_5_ocupado;
+            $fallo_contacto_100= round(($fallo_contacto_total/$fallidas)*100,1);
 
-        $errores_tecnicos=$reporte->total->error_desconocido + $reporte->total->error_red + $reporte->total->error_sistema + $reporte->total->error_ia;
-        $errores_tecnicos= [$errores_tecnicos,round(($errores_tecnicos/$fallidas)*100,1)];
+            $solo_cuelga=$reporte->total->solo_cuelga;
+            $fallo_no_copera_total=$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga;
+            $fallo_no_copera_100= round(($fallo_no_copera_total/$fallidas)*100,1);
 
-        $total_3=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $errores_tecnicos[0]
-        +$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga +$reporte->total->razon_5_ocupado;
-        $fallo_otros_total=$fallidas-$total_3;
-        $fallo_otros_100= round(($fallo_otros_total/$fallidas)*100,1);
-    @endphp
+            $errores_tecnicos=$reporte->total->error_desconocido + $reporte->total->error_red + $reporte->total->error_sistema + $reporte->total->error_ia;
+            $errores_tecnicos= [$errores_tecnicos,round(($errores_tecnicos/$fallidas)*100,1)];
 
-    <div class="row g-4 mb-5">
-        <!-- FALLO DE CONTACTO -->
-        <div class="col-lg-6">
-            <div class="card p-4 h-100">
-                <div class="d-flex align-items-center gap-3">
-                    <span class="fs-2 text-warning"><i class="bi bi-mailbox2"></i></span>
-                    <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">{{ $fallo_contacto_total }} fallos</span>
-                    </h3>
-                </div>
-                <p><strong>{{  $fallo_contacto_100 }}% de los fallos</strong> – el conductor no responde o la llamada va
-                    a buzón.</p>
-                <div class="ms-3">
+            $total_3=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $errores_tecnicos[0]
+            +$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga +$reporte->total->razon_5_ocupado;
+            $fallo_otros_total=$fallidas-$total_3;
+            $fallo_otros_100= round(($fallo_otros_total/$fallidas)*100,1);
+        @endphp
+
+
+
+        <div class="row g-4 mb-5">
+            <!-- FALLO DE CONTACTO -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fs-2 text-warning"><i class="bi bi-mailbox2"></i></span>
+                        <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">{{ $fallo_contacto_total }} fallos</span>
+                        </h3>
+                    </div>
+                    <p><strong>{{  $fallo_contacto_100 }}% de los fallos</strong> – el conductor no responde o la llamada va
+                        a buzón.</p>
+                    <div class="ms-3">
                     <span class="etiqueta"><i
                             class="bi bi-voicemail me-1"></i> buzón de voz: <strong>{{ $reporte->total->buzon_de_voz }}</strong></span>
-                    <br>
-                    <span class="etiqueta"><i
-                            class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ $reporte->total->razon_3_no_contesta }}</strong></span>
-                    <br>
-                    <span class="etiqueta">
+                        <br>
+                        <span class="etiqueta"><i
+                                class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ $reporte->total->razon_3_no_contesta }}</strong></span>
+                        <br>
+                        <span class="etiqueta">
                         <i class="bi bi-hourglass me-1"></i> ocupado: <strong>{{ $reporte->total->razon_5_ocupado}}</strong></span>
-                </div>
+                    </div>
 
+                </div>
             </div>
-        </div>
 
-        <!-- NO COOPERA -->
-        <div class="col-lg-6">
-            <div class="card p-4 h-100">
-                <div class="d-flex align-items-center gap-3 mb-3">
-                    <span class="fs-2 text-danger"><i class="bi bi-person-fill-slash"></i></span>
-                    <h3 class="h4 mb-0">Conductor no coopera <span
-                            class="badge bg-danger bg-opacity-10 text-danger ms-3">{{ $fallo_no_copera_total }} fallos</span></h3>
-                </div>
-                <p><strong>{{$fallo_no_copera_100}}% de los fallos</strong> – el conductor contesta pero no facilita el
-                    objetivo.</p>
-                <div class="ms-3">
+            <!-- NO COOPERA -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="fs-2 text-danger"><i class="bi bi-person-fill-slash"></i></span>
+                        <h3 class="h4 mb-0">Conductor no coopera <span
+                                class="badge bg-danger bg-opacity-10 text-danger ms-3">{{ $fallo_no_copera_total }} fallos</span></h3>
+                    </div>
+                    <p><strong>{{$fallo_no_copera_100}}% de los fallos</strong> – el conductor contesta pero no facilita el
+                        objetivo.</p>
+                    <div class="ms-3">
                     <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i
                             class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>{{ $reporte->total->conductor_contesta_pero_no_habla}}</strong></span>
-                    <br>
-                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;">
+                        <br>
+                        <span class="etiqueta etiqueta-conductor" style="font-size:1rem;">
                         <i class="bi bi-telephone-x me-1"></i> colgo directamente: <strong>{{ $solo_cuelga }}</strong></span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- ERRORES TÉCNICOS -->
-        <div class="col-lg-6">
-            <div class="card p-4 h-100">
-                <div class="d-flex align-items-center gap-3 mb-3">
-                    <span class="fs-2 text-info"><i class="bi bi-tools"></i></span>
-                    <h3 class="h4 mb-0">Errores Técnicos
-                    <span class="badge bg-info bg-opacity-10 text-info ms-3">{{ $errores_tecnicos[0] }} fallos</span></h3>
-                </div>
-                <p><strong>{{ $errores_tecnicos[1] }}% de los fallos</strong>
-                    - errores referentes a la IA no necesariamente con llevan a un fallo.</p>
-                <div class="ms-3">
-                    {{-- Errores de IA --}}
-                    <div class="mb-2">
-                    <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>{{ $reporte->total->error_ia }}</strong>
-                    <span class="text-muted" style="font-size:0.8rem;">
+            <!-- ERRORES TÉCNICOS -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="fs-2 text-info"><i class="bi bi-tools"></i></span>
+                        <h3 class="h4 mb-0">Errores Técnicos
+                            <span class="badge bg-info bg-opacity-10 text-info ms-3">{{ $errores_tecnicos[0] }} fallos</span></h3>
+                    </div>
+                    <p><strong>{{ $errores_tecnicos[1] }}% de los fallos</strong>
+                        - errores referentes a la IA no necesariamente con llevan a un fallo.</p>
+                    <div class="ms-3">
+                        {{-- Errores de IA --}}
+                        <div class="mb-2">
+                            <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>{{ $reporte->total->error_ia }}</strong>
+                            <span class="text-muted" style="font-size:0.8rem;">
                         (ia_se_confunde: {{ $reporte->total->ia_se_confunde }},
                         ia_no_escucha: {{ $reporte->total->ia_no_escucha }},
                         ia_error_interpretacion: {{ $reporte->total->ia_error_interpretacion }},
@@ -878,88 +889,22 @@
                         ia_mala_pronunciacion: {{ $reporte->total->ia_mala_pronunciacion }},
                         ia_cuelga_en_plena_llamada: {{ $reporte->total->ia_cuelga_en_plena_llamada }})
                     </span></div>
-                    {{-- Otros errores técnicos --}}
-                    <i class="{{ $llamadas::icon_exito(2,true) }}"></i> Error de red: <strong>{{$reporte->total->error_red}}</strong><br>
-                    <i class="{{ $llamadas::icon_exito(-1,true) }}"></i> Error desconocido: <strong>{{$reporte->total->error_desconocido}}</strong><br>
-                    <i class="{{ $llamadas::icon_exito(3,true) }}"></i> Error de sistema: <strong>{{$reporte->total->error_sistema}}</strong>
-                </div>
-            </div>
-        </div>
-
-        <!-- OTROS -->
-        <div class="col-lg-6">
-            <div class="card p-4 h-100">
-                <div class="d-flex align-items-center gap-3 mb-3">
-                    <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
-                    <h3 class="h4 mb-0">Otros
-                        @if($total>=0)
-                            <span class="badge bg-primary bg-opacity-15 text-white ms-3">{{ $fallo_otros_total }} fallos</span></h3>
-                    @endif
-                </div>
-
-                @if($total>=0)
-                    <p><strong>{{  $fallo_otros_100 }}% de los fallos</strong>:</p>
-                @endif
-                <div class="ms-3">
-                    <ul class="etiqueta list-unstyled">
-                        <li><i class="bi bi-volume-mute me-2 text-danger"></i>
-                            Conductor no escucha: {{ $reporte->total->conductor_no_escucha }}</li>
-                        <li><i class="bi bi-reception-1 me-2 text-warning"></i>
-                            Conductor mala señal: {{ $reporte->total->conductor_mala_senal }}</li>
-                        <li>🤬
-                            Conductor conducta inapropiada: {{ $reporte->total->conductor_conducta_inapropiada }}</li>
-                        <li><i class="bi bi-question-circle me-2 text-info"></i>
-                            Confusión en llamada: {{ $reporte->total->confusion_en_llamada }}</li>
-                        <li><i class="bi bi-person-x me-2 text-secondary"></i>
-                            Contesta otra persona: {{ $reporte->total->contesta_otra_persona }}</li>
-                        <li><i class="bi bi-check2-square me-2 text-primary"></i>
-                            Confirmacion Parcial: {{ $reporte->total->confirmacion_parcial }}</li>
-                        <li><i class="bi bi-telephone-minus me-2 text-dark"></i>
-                            Número equivocado: {{ $reporte->total->numero_equivocado }}</li>
-                    </ul>
-                    <span class="small">* Una llamada puede tener 1 o multiples etiquetas.</span>
-                </div>
-            </div>
-        </div>
-
-    @if(false)
-            <!-- IA -->
-            <div class="col-lg-6">
-                <div class="card p-4 border-info border-2">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        @php
-                            $fallo_ia_100= round(($reporte->total->error_ia/$fallidas)*100,1);
-                        @endphp
-                        <span class="fs-2 text-info"><i class="bi bi-robot"></i></span>
-                        <h3 class="h4 mb-0">Error de IA<span class="badge bg-info ms-3">{{ $reporte->total->error_ia }} fallos</span>
-                        </h3>
+                        {{-- Otros errores técnicos --}}
+                        <i class="{{ $llamadas::icon_exito(2,true) }}"></i> Error de red: <strong>{{$reporte->total->error_red}}</strong><br>
+                        <i class="{{ $llamadas::icon_exito(-1,true) }}"></i> Error desconocido: <strong>{{$reporte->total->error_desconocido}}</strong><br>
+                        <i class="{{ $llamadas::icon_exito(3,true) }}"></i> Error de sistema: <strong>{{$reporte->total->error_sistema}}</strong>
                     </div>
-                    <p><strong>{{ $fallo_ia_100 }}% de los fallos.</strong> <br>
-                        Errores referentes a la ia en todas las llamadas no necesariamente con llevan a un fallo:</p>
-                    <code>ia_se_confunde = {{ $reporte->total->ia_se_confunde }} <br>
-                        ia_no_escucha = {{ $reporte->total->ia_no_escucha }} <br>
-                        ia_error_interpretacion = {{ $reporte->total->ia_error_interpretacion }} <br>
-                        ia_dice_variable = {{ $reporte->total->ia_dice_variable }} <br>
-                        ia_mala_pronunciacion = {{ $reporte->total->ia_mala_pronunciacion }} <br>
-                        ia_cuelga_en_plena_llamada = {{ $reporte->total->ia_cuelga_en_plena_llamada }}
-                    </code>
                 </div>
             </div>
 
             <!-- OTROS -->
             <div class="col-lg-6">
                 <div class="card p-4 h-100">
-                    @php
-                        $total_3=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->error_ia
-                        +$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga +$reporte->total->razon_5_ocupado;
-                        $total=$fallidas-$total_3;
-                        $fallo_otros_100= round(($total/$fallidas)*100,1);
-                    @endphp
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
                         <h3 class="h4 mb-0">Otros
                             @if($total>=0)
-                                <span class="badge bg-primary bg-opacity-15 text-white ms-3">{{ $total }} fallos</span></h3>
+                                <span class="badge bg-primary bg-opacity-15 text-white ms-3">{{ $fallo_otros_total }} fallos</span></h3>
                         @endif
                     </div>
 
@@ -982,22 +927,89 @@
                                 Confirmacion Parcial: {{ $reporte->total->confirmacion_parcial }}</li>
                             <li><i class="bi bi-telephone-minus me-2 text-dark"></i>
                                 Número equivocado: {{ $reporte->total->numero_equivocado }}</li>
-                            <li><i class="{{ $llamadas::icon_exito(-1,true) }}"></i>
-                                Error desconocido:{{ $reporte->total->error_desconocido }}</li>
-                            <li><i class="{{ $llamadas::icon_exito(2,true) }}"></i>
-                                Error de red:{{ $reporte->total->error_red }}</li>
-                            <li><i class="{{ $llamadas::icon_exito(3,true) }}"></i>
-                                Error de sistema:{{ $reporte->total->error_sistema }}</li>
-                            <li>otros motivos...</li>
-
                         </ul>
                         <span class="small">* Una llamada puede tener 1 o multiples etiquetas.</span>
                     </div>
                 </div>
             </div>
- @endif
 
-    </div>
+            @if(false)
+                <!-- IA -->
+                <div class="col-lg-6">
+                    <div class="card p-4 border-info border-2">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            @php
+                                $fallo_ia_100= round(($reporte->total->error_ia/$fallidas)*100,1);
+                            @endphp
+                            <span class="fs-2 text-info"><i class="bi bi-robot"></i></span>
+                            <h3 class="h4 mb-0">Error de IA<span class="badge bg-info ms-3">{{ $reporte->total->error_ia }} fallos</span>
+                            </h3>
+                        </div>
+                        <p><strong>{{ $fallo_ia_100 }}% de los fallos.</strong> <br>
+                            Errores referentes a la ia en todas las llamadas no necesariamente con llevan a un fallo:</p>
+                        <code>ia_se_confunde = {{ $reporte->total->ia_se_confunde }} <br>
+                            ia_no_escucha = {{ $reporte->total->ia_no_escucha }} <br>
+                            ia_error_interpretacion = {{ $reporte->total->ia_error_interpretacion }} <br>
+                            ia_dice_variable = {{ $reporte->total->ia_dice_variable }} <br>
+                            ia_mala_pronunciacion = {{ $reporte->total->ia_mala_pronunciacion }} <br>
+                            ia_cuelga_en_plena_llamada = {{ $reporte->total->ia_cuelga_en_plena_llamada }}
+                        </code>
+                    </div>
+                </div>
+
+                <!-- OTROS -->
+                <div class="col-lg-6">
+                    <div class="card p-4 h-100">
+                        @php
+                            $total_3=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->error_ia
+                            +$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga +$reporte->total->razon_5_ocupado;
+                            $total=$fallidas-$total_3;
+                            $fallo_otros_100= round(($total/$fallidas)*100,1);
+                        @endphp
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
+                            <h3 class="h4 mb-0">Otros
+                                @if($total>=0)
+                                    <span class="badge bg-primary bg-opacity-15 text-white ms-3">{{ $total }} fallos</span></h3>
+                            @endif
+                        </div>
+
+                        @if($total>=0)
+                            <p><strong>{{  $fallo_otros_100 }}% de los fallos</strong>:</p>
+                        @endif
+                        <div class="ms-3">
+                            <ul class="etiqueta list-unstyled">
+                                <li><i class="bi bi-volume-mute me-2 text-danger"></i>
+                                    Conductor no escucha: {{ $reporte->total->conductor_no_escucha }}</li>
+                                <li><i class="bi bi-reception-1 me-2 text-warning"></i>
+                                    Conductor mala señal: {{ $reporte->total->conductor_mala_senal }}</li>
+                                <li>🤬
+                                    Conductor conducta inapropiada: {{ $reporte->total->conductor_conducta_inapropiada }}</li>
+                                <li><i class="bi bi-question-circle me-2 text-info"></i>
+                                    Confusión en llamada: {{ $reporte->total->confusion_en_llamada }}</li>
+                                <li><i class="bi bi-person-x me-2 text-secondary"></i>
+                                    Contesta otra persona: {{ $reporte->total->contesta_otra_persona }}</li>
+                                <li><i class="bi bi-check2-square me-2 text-primary"></i>
+                                    Confirmacion Parcial: {{ $reporte->total->confirmacion_parcial }}</li>
+                                <li><i class="bi bi-telephone-minus me-2 text-dark"></i>
+                                    Número equivocado: {{ $reporte->total->numero_equivocado }}</li>
+                                <li><i class="{{ $llamadas::icon_exito(-1,true) }}"></i>
+                                    Error desconocido:{{ $reporte->total->error_desconocido }}</li>
+                                <li><i class="{{ $llamadas::icon_exito(2,true) }}"></i>
+                                    Error de red:{{ $reporte->total->error_red }}</li>
+                                <li><i class="{{ $llamadas::icon_exito(3,true) }}"></i>
+                                    Error de sistema:{{ $reporte->total->error_sistema }}</li>
+                                <li>otros motivos...</li>
+
+                            </ul>
+                            <span class="small">* Una llamada puede tener 1 o multiples etiquetas.</span>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+        </div>
+    @endif
 
     {{--  DIAGRAMA DE VENN  --}}
     <style>
@@ -1514,6 +1526,8 @@
     const errores = data.map(x => x.total_errores);
 
     const ctx = document.getElementById('canvas_semana');
+
+
     new Chart(ctx, {
         type: 'line',
         data: {
@@ -1560,6 +1574,8 @@
         },
     });
 
+    @if($fallidas)
+
     new Chart(document.getElementById('chart_fallidos'), {
         type: 'pie',
         data: {
@@ -1595,6 +1611,8 @@
             }
         },
     });
+
+    @endif
 
     function playAudio(url, trt, nombres) {
         const audio = document.getElementById('mainAudio');

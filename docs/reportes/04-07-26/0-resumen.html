@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de llamadas totales VAPI - 04/07/2026</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .report-card {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(-3px);
+        }
+
+        .bg-exito {
+            background: linear-gradient(145deg, #e6f7e6, #c8e6c9);
+            border-left: 6px solid #2e7d32;
+        }
+
+        .bg-fallo {
+            background: linear-gradient(145deg, #ffebee, #ffcdd2);
+            border-left: 6px solid #c62828;
+        }
+
+        .bg-advertencia {
+            background: linear-gradient(145deg, #fff8e1, #ffecb3);
+            border-left: 6px solid #ff8f00;
+        }
+
+        .estrella {
+            color: #ffc107;
+            font-size: 1.1rem;
+        }
+
+        .peligro {
+            color: #d32f2f;
+            font-size: 1.2rem;
+        }
+
+        .tabla-conductores th {
+            background-color: #2c3e50;
+            color: white;
+            font-weight: 500;
+        }
+
+        .badge-exito {
+            background-color: #2e7d32;
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        .badge-fallo {
+            background-color: #c62828;
+            color: white;
+        }
+
+        .badge-critico {
+            background-color: #b71c1c;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.85;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .footer-note {
+            font-size: 0.85rem;
+            color: #5f6368;
+            border-top: 1px dashed #ccc;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .tooltip-custom {
+            border-bottom: 1px dotted #007bff;
+            cursor: help;
+        }
+
+        .heatmap-cell {
+            text-align: center;
+            font-size: 0.85rem;
+            padding: 8px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <div>
+            <h1 class="display-5 fw-bold" style="color: #1e2a3a;"><i class="fas fa-phone-alt me-3"
+                                                                     style="color: #0d6efd;"></i>Reporte de llamadas totales VAPI
+            </h1>
+            <p class="lead">Análisis de llamadas totales | Exitosas = <span
+                    class="badge bg-success">43</span></p>
+        </div>
+        <div class="text-end">
+                <span class="badge bg-dark p-3 fs-6">
+                <i class="far fa-calendar-alt me-2"></i>Llamadas analizadas: 04/07/2026</span>
+        </div>
+    </div>
+
+
+    <!-- RESUMEN -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Total llamadas</h6>
+                            <h2 class="fw-bold">146</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-phone-volume fa-2x text-info opacity-75"></i></div>
+                    </div>
+                    <small class="text-muted">$6.47</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Exitosas</h6>
+                            <h2 class="fw-bold text-success">43</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-check-circle fa-2x text-success"></i></div>
+                    </div>
+                                        <small class="text-muted">29% del total ($4.53)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Fallidas</h6>
+                                                        <h2 class="fw-bold text-danger">103</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-times-circle fa-2x text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                        71% del total ($1.94)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-advertencia">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Conductores únicos</h6>
+                            <h2 class="fw-bold" style="color:#b26a00;">118</h2>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-users fa-2x text-warning"></i></div>
+                    </div>
+                    <small class="text-muted">71 transportistas</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">LLAMADAS CONTESTADAS</h6>
+                            <h2 class="fw-bold text-success">86</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="bi bi-telephone-outbound-fill text-success fs-3"></i></div>
+                    </div>
+                    <small class="text-muted">37 buzon de voz</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">CONDUCTORES CONFIRMADOS</h6>
+                            <h2 class="fw-bold text-success">39</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-check-circle fa-2x text-success"></i></div>
+                    </div>
+                                        <small class="text-muted">65s promedio de llamada</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">LLAMADAS NO CONTESTADAS</h6>
+                            <h2 class="fw-bold text-danger">19</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="bi bi-telephone-x-fill fs-3 text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal small">LLAMADAS CONTESTADAS SIN
+                                CONFIRMACION</h6>
+                            <h2 class="fw-bold text-danger">43</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-times-circle fa-2x text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                                                20s promedio de llamada</small>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    
+                    <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar"
+                 style="width: 64%;" aria-valuenow="64">
+                46 Min y 52 Seg
+            </div>
+            <div class="progress-bar bg-danger" role="progressbar" style="width: 36%;"
+                 aria-valuenow="36">
+                26 Min y 10 Seg
+            </div>
+        </div>
+    
+    
+        <div class="col-12">
+            <div class="card mb-3 ">
+                <div class="card-body">
+                    <p id='audio_texto'>
+                    </p>
+                    <audio id="mainAudio" controls class="w-100">
+                        <source id="audioSource" src="" type="audio/mpeg">
+                        Tu navegador no soporta audio.
+                    </audio>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP 5 MEJORES CONDUCTORES -->
+        <div class="card report-card mb-5">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <h3 class="h4 fw-bold"><i class="fas fa-crown text-warning me-2"></i>Top 5 mejores conductores</h3>
+                <p class="text-muted">Basado en éxito.</p>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Conductor</th>
+                            <th>Transportista</th>
+                            <th>Llamadas exitosas</th>
+                            <th>Estrellas</th>
+                            <th>Comportamiento</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                                                                                    <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019F2BDF-BF69-7000-8AB6-C513BB48141B-1783147622312-56BB300B-1D29-400A-B2E8-B1DF44DC4B87-STEREO.MP3','TRANSPORTES LOGISTICOS PERALTA S.A.C.','MARCO PERALTA' )">
+                                    <td>67</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>MARCO PERALTA</strong></td>
+                                    <td>TRANSPORTES LOGISTICOS PERALTA S.A.C.</td>
+                                    <td><span
+                                            class='text-success fw-bold'>2</span>/2
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(2),<i class='bi bi-chat-left-text-fill text-info '></i> Da motivos(1)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019F2CD2-7636-7000-91CE-AE5E51A24091-1783163549783-ADD2D952-3CA0-4904-9DC4-02E440BC0710-STEREO.MP3','NEGOCIACIONES YANCE SAC','JORGE LUIS APANG REYES' )">
+                                    <td>181</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>JORGE LUIS APANG REYES</strong></td>
+                                    <td>NEGOCIACIONES YANCE SAC</td>
+                                    <td><span
+                                            class='text-success fw-bold'>2</span>/2
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(2)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019F2F2A-16B5-7DD3-A4CD-A34D7FAF41C8-1783202777353-95505BBF-7769-4381-94E1-3D87D6ED89BF-STEREO.MP3','TRANSPORTES E INVERSIONES RODRIGOS S.R.L.','HUGO RODRIGO MAMANI' )">
+                                    <td>224</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>HUGO RODRIGO MAMANI</strong></td>
+                                    <td>TRANSPORTES E INVERSIONES RODRIGOS S.R.L.</td>
+                                    <td><span
+                                            class='text-success fw-bold'>2</span>/2
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(2)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019F2F8E-E2B9-7DD3-A628-25CB899ACEA8-1783209396706-D85E5CFE-8514-4DDF-8606-9EF3D6721822-STEREO.MP3','SOLUCIONES LOGISTICAS CHEN SAC','YOHUAU FRAN LEON QUISPE' )">
+                                    <td>89</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>YOHUAU FRAN LEON QUISPE</strong></td>
+                                    <td>SOLUCIONES LOGISTICAS CHEN SAC</td>
+                                    <td><span
+                                            class='text-success fw-bold'>2</span>/2
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(2)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://STORAGE.VAPI.AI/019F2F20-F455-7DD3-A498-C4166D73314B-1783202195207-804620D8-CAEA-445A-A977-9C0FD4CFD3A1-STEREO.MP3','JM TRANS MHAX S.A.C.','JOSE MAMANI' )">
+                                    <td>489</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>JOSE MAMANI</strong></td>
+                                    <td>JM TRANS MHAX S.A.C.</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1),<i class='bi bi-chat-left-text-fill text-info '></i> Da motivos(1)</td>
+                                </tr>
+                                                                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    
+
+        <!-- PEORES CONDUCTORES (múltiples fallos) -->
+    <div class="card report-card mb-5">
+        <div class="card-header bg-white border-0 pt-4 pb-0">
+            <h3 class="h4 fw-bold text-danger"><i class="fas fa-skull-crosswalk me-2"></i>Top 5 peores conductores</h3>
+            <p class="text-muted">Múltiples intentos fallidos y problemas graves</p>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="tabla-conductores">
+                    <tr>
+                        <th>#id</th>
+                        <th>Conductor</th>
+                        <th>Transportista</th>
+                        <th>Intentos fallidos</th>
+                        <th>Nivel de riesgo</th>
+                        <th>Problema principal</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                                                                        <tr class="table-danger">
+                                <td>348</td>
+                                <td><strong>JORGE SANCHEZ</strong></td>
+                                <td>EMPRESA DE SERVICIOS GENERALES SANSAJUL SAC</td>
+                                <td><span class='text-danger fw-bold'>3</span>/3
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-voicemail text-warning '></i> Buzon de voz(3)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>165</td>
+                                <td><strong>RIVELINO ARANDA TOLENTINO</strong></td>
+                                <td>E&amp;D CARDENAS CONTRATISTAS SAC</td>
+                                <td><span class='text-danger fw-bold'>3</span>/3
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-mic-mute-fill text-danger '></i> No habla(3)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>211</td>
+                                <td><strong>ELIAS LUIS PEREZ MEZA</strong></td>
+                                <td>SOLUCIONES LOGISTICAS CHEN SAC</td>
+                                <td><span class='text-danger fw-bold'>3</span>/3
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-mic-mute-fill text-danger '></i> No habla(3)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>11</td>
+                                <td><strong>WILDER ALVAREZ</strong></td>
+                                <td>TRANSPORTE FLASH &amp; RAPIDASH S.A.C.</td>
+                                <td><span class='text-danger fw-bold'>3</span>/3
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-telephone-x-fill text-danger '></i> No contesta(3)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>968</td>
+                                <td><strong>NICKER CUARESMA CAYETANO</strong></td>
+                                <td>OPERADOR LOGISTICO MAREMOL SCRL</td>
+                                <td><span class='text-danger fw-bold'>2</span>/2
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-telephone-x-fill text-danger '></i> No contesta(1),Otros(1)</td>
+                            </tr>
+                                                                </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+
+
+    <!-- PEORES TRANSPORTISTAS -->
+    <div class="card report-card mb-5">
+        <div class="card-header bg-white border-0 pt-4 pb-0">
+            <h3 class="h4 fw-bold text-danger-emphasis"><i class="fas fa-truck-moving me-2" style="color:#b71c1c;"></i>Top
+                5 transportistas con más conductores problemáticos</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="tabla-conductores">
+                    <tr>
+                        <th>Transportista</th>
+                        <th>Conductores únicos</th>
+                        <th>Conductores fallidos (0 exitos) / con un fallo</th>
+                        <th>% problemático</th>
+                        <th>Nivel de riesgo</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                                                                                                    <tr class="table-danger">
+                                <td><strong>EMPRESA DE TRANSPORTE VIGSAN EIRL</strong></td>
+                                <td>4</td>
+                                <td><span
+                                        class='text-danger fw-bold'>4 </span>/ 4
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-warning">
+                                <td><strong>TRANSPORTE FLASH &amp; RAPIDASH S.A.C.</strong></td>
+                                <td>5</td>
+                                <td><span
+                                        class='text-danger fw-bold'>3 </span>/ 4
+                                </td>
+                                <td><span class="badge bg-warning">60%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴 <br>Tasa de exito 22.2 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>FONPELL TRANSPORTE S.A.C.</strong></td>
+                                <td>3</td>
+                                <td><span
+                                        class='text-danger fw-bold'>3 </span>/ 3
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>CORPORATION LOGISTIC MALVINA SA</strong></td>
+                                <td>3</td>
+                                <td><span
+                                        class='text-danger fw-bold'>3 </span>/ 3
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>LOGISTICA INVERSIONES CAMPOS</strong></td>
+                                <td>3</td>
+                                <td><span
+                                        class='text-danger fw-bold'>3 </span>/ 3
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    
+    <div class="col-12 card p-4 report-card border-2 mb-4">
+        <div class="card-header bg-white border-0 pt-3 pb-0">
+            <h5 class="fw-bold"><i class="bi bi-funnel-fill"></i> Embudo de Conversión</h5>
+            <small class="text-muted">Análisis por etapa</small>
+        </div>
+        <div class="card-body pt-2 pb-3">
+                            <!-- Totales -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success rounded-pill">📞</span>
+                    <span class="small fw-semibold">Totales</span>
+                </div>
+                <div>
+                    <span class="badge bg-success">146</span>
+                    <span class="badge bg-secondary ms-1">100%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-success" style="width: 100%">100%</div>
+            </div>
+
+            <!-- Contestadas -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary rounded-pill">✅</span>
+                    <span class="small fw-semibold">Contestadas</span>
+                </div>
+                <div>
+                    <span class="badge bg-primary">86</span>
+                    <span class="badge bg-secondary ms-1">59%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-primary" style="width: 59%">59%</div>
+            </div>
+
+            <!-- Conversación -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info rounded-pill">💬</span>
+                    <span class="small fw-semibold">Conversación</span>
+                </div>
+                <div>
+                    <span class="badge bg-info">48</span>
+                    <span class="badge bg-secondary ms-1">33%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-info" style="width: 33%">33%</div>
+            </div>
+
+            <!-- Exitosas -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning rounded-pill">🎯</span>
+                    <span class="small fw-semibold">Exitosas</span>
+                </div>
+                <div>
+                    <span class="badge bg-warning text-dark">43</span>
+                    <span class="badge bg-secondary ms-1">29%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-warning" style="width: 29%">29%</div>
+            </div>
+
+            <!-- da motivos -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger rounded-pill">🧠</span>
+                    <span class="small fw-semibold">Da motivos</span>
+                </div>
+                <div>
+                    <span class="badge bg-danger">3</span>
+                    <span class="badge bg-secondary ms-1">2.1%</span>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-danger" style="width: 2.1%">2.1%</div>
+            </div>
+            <!-- FLUIDA -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light rounded-pill">🗣️</span>
+                    <span class="small fw-semibold">Conversacion fluida</span>
+                </div>
+                <div>
+                    <span class="badge bg-light text-dark">0</span>
+                    <span class="badge bg-secondary ms-1">0%</span>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-light text-dark" style="width: 0%">0%</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    
+            <div class="col-12 card p-4 report-card border-2 mb-4">
+            <div class="card-header bg-white border-0 pt-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-table"></i> Resumen de éxito por etapa logistica</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Etapa</th>
+                            <th>Llamadas</th>
+                            <th>Exitosas</th>
+                            <th>Dias (1)</th>
+                            <th>Tasa de éxito</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                                                    <tr>
+                                <td class="table-success">1</td>
+                                <td>
+                                    ✅ Confirmacion</td>
+                                <td>0</td>
+                                <td><b class="text-success">0</b></td>
+
+                                <td><span
+                                        class="badge bg-success">
+                                0</span></td>
+                                <td>
+                                    <div class="progress" style="height: 8px; width: 100px;">
+                                        <div
+                                            class="progress-bar bg-success"
+                                            style="width: 0%"></div>
+                                    </div> 0%
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td class="table-primary">2</td>
+                                <td>
+                                    🛻 Fuera de planta para carga</td>
+                                <td>8</td>
+                                <td><b class="text-success">2</b></td>
+
+                                <td><span
+                                        class="badge bg-primary">
+                                1</span></td>
+                                <td>
+                                    <div class="progress" style="height: 8px; width: 100px;">
+                                        <div
+                                            class="progress-bar bg-primary"
+                                            style="width: 25%"></div>
+                                    </div> 25%
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td class="table-info">3</td>
+                                <td>
+                                    🏭 Dentro de planta para carga</td>
+                                <td>67</td>
+                                <td><b class="text-success">19</b></td>
+
+                                <td><span
+                                        class="badge bg-info">
+                                1</span></td>
+                                <td>
+                                    <div class="progress" style="height: 8px; width: 100px;">
+                                        <div
+                                            class="progress-bar bg-info"
+                                            style="width: 28%"></div>
+                                    </div> 28%
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td class="table-warning">4</td>
+                                <td>
+                                    🛣️ En ruta</td>
+                                <td>0</td>
+                                <td><b class="text-success">0</b></td>
+
+                                <td><span
+                                        class="badge bg-warning">
+                                0</span></td>
+                                <td>
+                                    <div class="progress" style="height: 8px; width: 100px;">
+                                        <div
+                                            class="progress-bar bg-warning"
+                                            style="width: 0%"></div>
+                                    </div> 0%
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td class="table-danger">5</td>
+                                <td>
+                                    🚛 Fuera de planta para descarga</td>
+                                <td>54</td>
+                                <td><b class="text-success">19</b></td>
+
+                                <td><span
+                                        class="badge bg-danger">
+                                1</span></td>
+                                <td>
+                                    <div class="progress" style="height: 8px; width: 100px;">
+                                        <div
+                                            class="progress-bar bg-danger"
+                                            style="width: 35%"></div>
+                                    </div> 35%
+                                </td>
+                            </tr>
+                                                    <tr>
+                                <td class="table-success">6</td>
+                                <td>
+                                    🏁 Dentro de planta para descarga</td>
+                                <td>17</td>
+                                <td><b class="text-success">3</b></td>
+
+                                <td><span
+                                        class="badge bg-success">
+                                1</span></td>
+                                <td>
+                                    <div class="progress" style="height: 8px; width: 100px;">
+                                        <div
+                                            class="progress-bar bg-success"
+                                            style="width: 18%"></div>
+                                    </div> 18%
+                                </td>
+                            </tr>
+                                                </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    
+
+    
+    <div class="col-12 card p-4 report-card border-2 mb-4">
+        <div class="card-header bg-white border-0">
+            <h4 class="h5 fw-bold"><i class="fa-solid fa-chart-line"></i> Progreso de exito en llamadas</h4>
+        </div>
+        <div style="height: 400px">
+            <canvas id="canvas_semana"></canvas>
+        </div>
+    </div>
+
+    
+
+        <!-- por q el porcentaje de fallo -->
+    <div class="col-12">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="display-5"><i class="bi bi-question-octagon text-danger"></i></span>
+            <h1 class="display-6 fw-semibold" style="color: #12263a;">¿Por qué el 71% de las llamadas
+                son fallidas?</h1>
+        </div>
+        <p class="lead ps-5 text-secondary">Análisis que incorpora las etiquetas de llamada.</p>
+    </div>
+
+    <!-- GraficoPIZZA -->
+    <div class="col-12 mb-3">
+        <div style="height: 500px">
+            <canvas id="chart_fallidos" style=""></canvas>
+        </div>
+
+    </div>
+
+
+
+        <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
+        
+
+
+        <div class="row g-4 mb-5">
+            <!-- FALLO DE CONTACTO -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fs-2 text-warning"><i class="bi bi-mailbox2"></i></span>
+                        <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">56 fallos</span>
+                        </h3>
+                    </div>
+                    <p><strong>54.4% de los fallos</strong> – el conductor no responde o la llamada va
+                        a buzón.</p>
+                    <div class="ms-3">
+                    <span class="etiqueta"><i
+                            class="bi bi-voicemail me-1"></i> buzón de voz: <strong>37</strong></span>
+                        <br>
+                        <span class="etiqueta"><i
+                                class="bi bi-telephone-x me-1"></i> no contesta: <strong>17</strong></span>
+                        <br>
+                        <span class="etiqueta">
+                        <i class="bi bi-hourglass me-1"></i> ocupado: <strong>2</strong></span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- NO COOPERA -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="fs-2 text-danger"><i class="bi bi-person-fill-slash"></i></span>
+                        <h3 class="h4 mb-0">Conductor no coopera <span
+                                class="badge bg-danger bg-opacity-10 text-danger ms-3">38 fallos</span></h3>
+                    </div>
+                    <p><strong>36.9% de los fallos</strong> – el conductor contesta pero no facilita el
+                        objetivo.</p>
+                    <div class="ms-3">
+                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i
+                            class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>26</strong></span>
+                        <br>
+                        <span class="etiqueta etiqueta-conductor" style="font-size:1rem;">
+                        <i class="bi bi-telephone-x me-1"></i> colgo directamente: <strong>12</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ERRORES TÉCNICOS -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="fs-2 text-info"><i class="bi bi-tools"></i></span>
+                        <h3 class="h4 mb-0">Errores Técnicos
+                            <span class="badge bg-info bg-opacity-10 text-info ms-3">6 fallos</span></h3>
+                    </div>
+                    <p><strong>5.8% de los fallos</strong>
+                        - errores referentes a la IA no necesariamente con llevan a un fallo.</p>
+                    <div class="ms-3">
+                        
+                        <div class="mb-2">
+                            <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>2</strong>
+                            <span class="text-muted" style="font-size:0.8rem;">
+                        (ia_se_confunde: 1,
+                        ia_no_escucha: 1,
+                        ia_error_interpretacion: 0,
+                        ia_dice_variable: 0,
+                        ia_mala_pronunciacion: 0,
+                        ia_cuelga_en_plena_llamada: 0)
+                    </span></div>
+                        
+                        <i class="bi bi-wifi text-danger"></i> Error de red: <strong>4</strong><br>
+                        <i class="bi bi-question-circle text-danger"></i> Error desconocido: <strong>0</strong><br>
+                        <i class="bi bi-gear text-danger"></i> Error de sistema: <strong>0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTROS -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
+                        <h3 class="h4 mb-0">Otros
+                                                            <span class="badge bg-primary bg-opacity-15 text-white ms-3">3 fallos</span></h3>
+                                            </div>
+
+                                            <p><strong>2.9% de los fallos</strong>:</p>
+                                        <div class="ms-3">
+                        <ul class="etiqueta list-unstyled">
+                            <li><i class="bi bi-volume-mute me-2 text-danger"></i>
+                                Conductor no escucha: 0</li>
+                            <li><i class="bi bi-reception-1 me-2 text-warning"></i>
+                                Conductor mala señal: 2</li>
+                            <li>🤬
+                                Conductor conducta inapropiada: 0</li>
+                            <li><i class="bi bi-question-circle me-2 text-info"></i>
+                                Confusión en llamada: 0</li>
+                            <li><i class="bi bi-person-x me-2 text-secondary"></i>
+                                Contesta otra persona: 0</li>
+                            <li><i class="bi bi-check2-square me-2 text-primary"></i>
+                                Confirmacion Parcial: 1</li>
+                            <li><i class="bi bi-telephone-minus me-2 text-dark"></i>
+                                Número equivocado: 0</li>
+                        </ul>
+                        <span class="small">* Una llamada puede tener 1 o multiples etiquetas.</span>
+                    </div>
+                </div>
+            </div>
+
+            
+        </div>
+    
+    
+    <style>
+        .circulo-a {
+            width: 30vw; /* 30% del ancho de la ventana */
+            height: 30vw; /* Mismo ancho que alto (mantiene círculo) */
+            max-width: 400px; /* Límite máximo */
+            min-width: 180px; /* Límite mínimo */
+            max-height: 400px; /* Límite máximo */
+            min-height: 180px; /* Límite mínimo */
+            position: relative;
+            right: -4vw; /* Escala el desplazamiento también */
+        }
+
+        .circulo-b {
+            width: 30vw; /* 30% del ancho de la ventana */
+            height: 30vw; /* Mismo ancho que alto (mantiene círculo) */
+            max-width: 400px; /* Límite máximo */
+            min-width: 180px; /* Límite mínimo */
+            max-height: 400px; /* Límite máximo */
+            min-height: 180px; /* Límite mínimo */
+            position: relative;
+            right: 4vw; /* Escala el desplazamiento también */
+        }
+    </style>
+
+            <div class="col-12 mb-4">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3 fs-2">
+                    <i class="bi bi-bar-chart-fill text-secondary"></i>
+                    <h3 class="h4 mb-0">Analisis de llamadas exitosas segun IA vs Usuario</h3>
+                </div>
+
+
+                <!-- Aquí se dibujará el gráfico -->
+                <div id="diagrama_venn">
+                    <div class="d-flex justify-content-center align-items-center position-relative mb-4"
+                         style="min-height: 200px;">
+
+                        <div
+                            class="bg-danger bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center circulo-a">
+                        <span class="fw-bold text-danger text-center">
+                            <i class="bi bi-robot"></i> IA<br>
+                        <small>44</small></span>
+                        </div>
+                        <div
+                            class="bg-info bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center circulo-b">
+                        <span class="fw-bold text-info text-center">
+                            <i class="bi bi-person"></i>USUARIO<br>
+                        <small>43</small></span>
+                        </div>
+                        <div class="position-absolute bg-white px-3 py-1 rounded-pill shadow-sm"
+                             style="top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1;">
+                            <i class="bi bi-intersect text-success"></i>
+                            <strong class="text-success">29</strong>
+                        </div>
+                        <div class="position-absolute bg-danger px-3 py-1 rounded-pill shadow-sm text-white"
+                             style="top: 25%; left: 35%; transform: translate(-50%, -50%); z-index: 1;">
+                            <i class="bi bi-voicemail"></i> Buzon de Voz
+                            <strong class="">15</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Region</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">Porcentaje</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                                                <tr>
+                            <td class="table-danger">1</td>
+                            <td><i class="bi bi-circle text-danger"></i> IA</td>
+                            <td class="text-center">44</td>
+                            <td class="text-danger text-center"><b>100%</b></td>
+                        </tr>
+                        <tr>
+                            <td class="table-danger">2</td>
+                            <td><i class="bi bi-circle-fill text-danger"></i> IA [Buzon de Voz]</td>
+                            <td class="text-center">15</td>
+                            <td class="text-danger text-center"><b>34.1%</b></td>
+                        </tr>
+                        <tr>
+                            <td class="table-danger">3</td>
+                            <td><i class="bi bi-circle-fill text-danger"></i> IA - IA [Buzon de Voz] - (IA ∩ USUARIO)</td>
+                            <td class="text-center">0</td>
+                            <td class="text-danger text-center"><b>0%</b></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><i class="bi bi-intersect text-success"></i> Interseccion</td>
+                            <td class="text-success text-center"><b>29</b></td>
+                            <td class="text-center">
+                                <b class="text-danger"><i class="bi bi-robot"></i> 65.9%</b>
+                                <b class="text-info"><i class="bi bi-person"></i> 67.4%</b>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="table-info">5</td>
+                            <td><i class="bi bi-circle text-info"></i> USUARIO</td>
+                            <td class="text-center">43</td>
+                            <td class="text-info text-center"><b>100%</b></td>
+                        </tr>
+
+                        <tr>
+                            <td class="table-info">6</td>
+                            <td><i class="bi bi-circle-fill text-info"></i> USUARIO - (IA ∩ USUARIO)</td>
+                            <td class="text-center">14</td>
+                            <td class="text-info text-center"><b>32.6%</b></td>
+                        </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    
+            <div class="col-12">
+
+            
+            
+            
+            
+
+            <style>
+
+                .contenedor-mapa{
+                    width:100%;
+                    display:flex;
+                    justify-content:center;
+                }
+
+                .mapa{
+                    position:relative;
+                    width:100%;
+                    max-width:600px;
+                }
+
+                .mapa img{
+                    width:100%;
+                    display:block;
+                }
+
+                .origen {
+                    font-size: 0.8rem;
+                    /*color: royalblue;*/
+                    font-weight: bold;
+                }
+
+                .destino {
+                    font-size: 0.8rem;
+                    /*color: darkgreen;*/
+                    font-weight: bold;
+                }
+
+                .check_prov {
+                    background:lightseagreen;
+                    box-shadow: 0 0 10px #44efe9;
+                    font-size: 1rem;
+                    color: green;
+                    line-height: 0.75;
+                }
+
+                .prov {
+                    position: absolute;
+                    width: 10px;
+                    height: 10px;
+
+                    transform: translate(-50%, -50%);
+                    border: 2px solid white;
+
+                    border-radius: 50%;
+                }
+                .nombre_prov{
+                    font-size: 0.7rem;
+                    position:absolute;
+                }
+            </style>
+
+            <script>
+                let pos_mapa_peru = 0;
+
+                function alternar_mapa_peru() {
+                    pos_mapa_peru++;
+                    let mapa_num = pos_mapa_peru % 2;
+
+                    document.querySelectorAll("[name='peru_mapa_" + mapa_num + "']").forEach(div => {
+                        div.classList.remove('d-none')
+                    });
+                    document.querySelectorAll("[name='peru_mapa_" + ((pos_mapa_peru - 1) % 2) + "']").forEach(div => {
+                        div.classList.add('d-none')
+                    });
+                }
+            </script>
+
+            <div class="row">
+                <div class="col-12 col-lg-5">
+                    <div class="contenedor-mapa">
+                        <div class="mapa">
+                            
+                                                            <img src="https://danidevcrisar.github.io/lupita-laravel/peru.png">
+                            
+
+                            <div style="position:absolute;left:3%;top:7%;">
+                                <button class="btn btn-secondary" onclick="alternar_mapa_peru()">
+                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                </button>
+                            </div>
+                            <div style="position:absolute;left:3%;top:13%;" name="peru_mapa_0">
+                                <h5>Mapa de Origen y <BR>Destinos</h5>
+                            </div>
+
+                            <div style="position:absolute;left:10%;top:70%;" name="peru_mapa_0"><button class="btn btn-sm btn-danger">
+                                    Origen &nbsp; </button></div>
+                            <div style="position:absolute;left:10%;top:75%;" name="peru_mapa_0"><button class="btn btn-sm btn-success">
+                                    Destino</button></div>
+
+                                                        
+                                <div style="
+                            position:absolute;
+                            left:8.67%;
+                            top:24.67%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:5.67%;
+                            top:21.67%;
+                            " class="nombre_prov text-muted">Tumbes</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:11.17%;
+                            top:30.89%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:8.17%;
+                            top:27.89%;
+                            " class="nombre_prov text-muted">Piura</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:15.33%;
+                            top:36.33%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:12.33%;
+                            top:33.33%;
+                            " class="nombre_prov text-muted">Lambayeque</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:23.17%;
+                            top:37.89%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:20.17%;
+                            top:34.89%;
+                            " class="nombre_prov text-muted">Cajamarca</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:27.17%;
+                            top:31.78%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:24.17%;
+                            top:28.78%;
+                            " class="nombre_prov text-muted">Amazonas</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:37.33%;
+                            top:40.44%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:34.33%;
+                            top:37.44%;
+                            " class="nombre_prov text-muted">San Martín</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:24.17%;
+                            top:45.22%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:21.17%;
+                            top:42.22%;
+                            " class="nombre_prov text-muted">La Libertad</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:30.33%;
+                            top:51.33%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:27.33%;
+                            top:48.33%;
+                            " class="nombre_prov text-muted">Áncash</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:41.5%;
+                            top:52.11%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:38.5%;
+                            top:49.11%;
+                            " class="nombre_prov text-muted">Huánuco</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:59.33%;
+                            top:52.67%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:56.33%;
+                            top:49.67%;
+                            " class="nombre_prov text-muted">Ucayali</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:47.17%;
+                            top:56.22%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:44.17%;
+                            top:53.22%;
+                            " class="nombre_prov text-muted">Pasco</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:49.17%;
+                            top:62%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:46.17%;
+                            top:59%;
+                            " class="nombre_prov text-muted">Junín</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:40.83%;
+                            top:64.22%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:37.83%;
+                            top:61.22%;
+                            " class="nombre_prov text-muted">Lima</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:36.67%;
+                            top:62.78%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:33.67%;
+                            top:59.78%;
+                            " class="nombre_prov text-muted">Callao</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:50.33%;
+                            top:68.78%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:47.33%;
+                            top:65.78%;
+                            " class="nombre_prov text-muted">Huancavelica</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:46.67%;
+                            top:75.44%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:43.67%;
+                            top:72.44%;
+                            " class="nombre_prov text-muted">Ica</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:56.5%;
+                            top:75.44%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:53.5%;
+                            top:72.44%;
+                            " class="nombre_prov text-muted">Ayacucho</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:65%;
+                            top:73.56%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:62%;
+                            top:70.56%;
+                            " class="nombre_prov text-muted">Apurímac</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:69.67%;
+                            top:69%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:66.67%;
+                            top:66%;
+                            " class="nombre_prov text-muted">Cusco</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:80.33%;
+                            top:63.78%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:77.33%;
+                            top:60.78%;
+                            " class="nombre_prov text-muted">Madre de Dios</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:70%;
+                            top:82.89%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:67%;
+                            top:79.89%;
+                            " class="nombre_prov text-muted">Arequipa</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:87%;
+                            top:81.33%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:84%;
+                            top:78.33%;
+                            " class="nombre_prov text-muted">Puno</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:80.33%;
+                            top:87.44%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:77.33%;
+                            top:84.44%;
+                            " class="nombre_prov text-muted">Moquegua</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:83.83%;
+                            top:91.33%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:80.83%;
+                            top:88.33%;
+                            " class="nombre_prov text-muted">Tacna</div>
+
+
+                            
+                                <div style="
+                            position:absolute;
+                            left:51.33%;
+                            top:26.56%;
+                            background:grey;
+                            " class="prov">
+                                </div>
+
+                                <div style="
+                            left:48.33%;
+                            top:23.56%;
+                            " class="nombre_prov text-muted">Loreto</div>
+
+
+                                                                                                                                                                                            <div style="
+                                left:15.33%;
+                                top:36.33%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='origen text-danger'>20</span><br><span class='destino text-success'>3</span></div>
+                                                                                                                                    <div style="
+                                left:15.33%;
+                                top:36.33%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>1</div>
+                                                                                                                                                                    <div style="
+                                left:40.83%;
+                                top:64.22%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='origen text-danger'>97</span><br><span class='destino text-success'>42</span></div>
+                                                                                                                                    <div style="
+                                left:40.83%;
+                                top:64.22%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>26</div>
+                                                                                                                                                                    <div style="
+                                left:37.33%;
+                                top:40.44%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='origen text-danger'>6</span><br><span class='destino text-success'>6</span></div>
+                                                                                                                                    <div style="
+                                left:37.33%;
+                                top:40.44%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>1</div>
+                                                                                                                                                                    <div style="
+                                left:59.33%;
+                                top:52.67%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='origen text-danger'>2</span><br><span class='destino text-success'>5</span></div>
+                                                                                                                                    <div style="
+                                left:59.33%;
+                                top:52.67%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>1</div>
+                                                                                                                                                                    <div style="
+                                left:27.17%;
+                                top:31.78%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>3</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:30.33%;
+                                top:51.33%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>5</span></div>
+                                                                                                                                    <div style="
+                                left:30.33%;
+                                top:51.33%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>2</div>
+                                                                                                                                                                    <div style="
+                                left:70%;
+                                top:82.89%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>1</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:56.5%;
+                                top:75.44%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>4</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:23.17%;
+                                top:37.89%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>3</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:36.67%;
+                                top:62.78%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>9</span></div>
+                                                                                                                                    <div style="
+                                left:36.67%;
+                                top:62.78%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>1</div>
+                                                                                                                                                                    <div style="
+                                left:69.67%;
+                                top:69%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>3</span></div>
+                                                                                                                                    <div style="
+                                left:69.67%;
+                                top:69%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>1</div>
+                                                                                                                                                                    <div style="
+                                left:41.5%;
+                                top:52.11%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>2</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:46.67%;
+                                top:75.44%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>6</span></div>
+                                                                                                                                    <div style="
+                                left:46.67%;
+                                top:75.44%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>2</div>
+                                                                                                                                                                    <div style="
+                                left:49.17%;
+                                top:62%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>10</span></div>
+                                                                                                                                    <div style="
+                                left:49.17%;
+                                top:62%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>2</div>
+                                                                                                                                                                    <div style="
+                                left:24.17%;
+                                top:45.22%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>2</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:51.33%;
+                                top:26.56%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>4</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:80.33%;
+                                top:87.44%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>2</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:47.17%;
+                                top:56.22%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>1</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:11.17%;
+                                top:30.89%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>7</span></div>
+                                                                                                                                    <div style="
+                                left:11.17%;
+                                top:30.89%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>3</div>
+                                                                                                                                                                    <div style="
+                                left:87%;
+                                top:81.33%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>3</span></div>
+                                                                                                                                    <div style="
+                                left:87%;
+                                top:81.33%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>2</div>
+                                                                                                                                                                    <div style="
+                                left:83.83%;
+                                top:91.33%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>3</span></div>
+                                                                                                                                                                                                                                    <div style="
+                                left:8.67%;
+                                top:24.67%;"
+                                         class="prov check_prov" name="peru_mapa_0">
+                                        <br><span class='destino text-success'>1</span></div>
+                                                                                                                                    <div style="
+                                left:8.67%;
+                                top:24.67%;"
+                                         class="prov check_prov d-none" name="peru_mapa_1">
+                                        <br>1</div>
+                                                            
+                            <div style="position:absolute;left:3%;top:13%;" name="peru_mapa_1" class="d-none"
+                                 data-bs-toggle="tooltip"
+                                 data-bs-original-title="Llamadas Exitosas con rutas identificadas 43/43">
+                                <h5>Mapa de Llamadas <BR>Exitosas</h5>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-7 d-flex align-items-center">
+                    <div class="table-responsive">
+                        <h1>Llamadas Exitosas por Ruta</h1>
+                        <p class="text-muted">Total de referencias procesadas (IA): 126
+                            <br> Referencias con ruta identificada: 125
+                            <br> Diversidad de rutas (distintas): 60</p>
+                        <h4>🏆 Top 5 Rutas más Concurridas</h4>
+                        <table class="table table-hover">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th>#</th>
+                                <th>Concurrencia</th>
+                                <th>Llamadas Exitosas</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                            <tr class="table-secondary ">
+                                    <td>1 <b> RUTA PLANTA CARAL - BABEL MAXO</b></td>
+                                    <td class="text-center">11</td>
+                                    <td class="text-center">
+                                                                                <span class="badge bg-danger">0</span>
+                                    </td>
+                                </tr>
+                                                                                            <tr class=" ">
+                                    <td>2 <b> RUTA PLANTA CARAL - CODISAL CALLAO</b></td>
+                                    <td class="text-center">9</td>
+                                    <td class="text-center">
+                                                                                <span class="badge bg-success">1</span>
+                                    </td>
+                                </tr>
+                                                                                            <tr class="table-secondary ">
+                                    <td>3 <b> RUTA PLANTA CARAL - SALEM VILLA EL SALVADOR</b></td>
+                                    <td class="text-center">9</td>
+                                    <td class="text-center">
+                                                                                <span class="badge bg-success">4</span>
+                                    </td>
+                                </tr>
+                                                                                            <tr class=" ">
+                                    <td>4 <b> RUTA PLANTA CARAL - PLANTA HUACHIPA</b></td>
+                                    <td class="text-center">6</td>
+                                    <td class="text-center">
+                                                                                <span class="badge bg-success">1</span>
+                                    </td>
+                                </tr>
+                                                                                            <tr class="table-secondary ">
+                                    <td>5 <b> RUTA PLANTA CARAL - CODISAL PUENTE PIEDRA</b></td>
+                                    <td class="text-center">6</td>
+                                    <td class="text-center">
+                                                                                <span class="badge bg-success">3</span>
+                                    </td>
+                                </tr>
+                            
+                            </tbody>
+                        </table>
+                        <p class="text-muted">* Datos actualizados hasta hoy a las 7am</p>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="table-responsive">
+                        <h2>🛣️ Tiempos en Ruta</h2>
+                        <p class="text-muted">Analisis de Tiempo.</p>
+                        <table class="table table-hover">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th>#</th>
+                                <th>Analisis</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                                                                                        <th>1 <b>RUTA PLANTA CARAL - BABEL MAXO</b></th>
+                                    <td>
+                                        <table class="table table-hover">
+                                            <thead>
+                                            <tr>
+                                                <th colspan="3">Tiempos Promedio</th>
+                                                <th>Efectuadas</th>
+                                                <th>Total</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td class="table-success">1</td>
+                                                <td>✅ Compromiso vs Arribo</td>
+                                                <td><b class="text-danger-emphasis">+- 1 H, 22 Min</b></td>
+                                                <td><span class="badge bg-success">9</span></td>
+                                                <td> 12 H, 22 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-primary">2</td>
+                                                <td>
+                                                    🛻 Fuera de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">1 H, 31 Min</b></td>
+                                                <td><span class="badge bg-primary">11</span></td>
+                                                <td>16 H, 45 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-info">3</td>
+                                                <td>
+                                                    🏭 Dentro de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">1 H, 30 Min</b></td>
+                                                <td><span class="badge bg-info">11</span></td>
+                                                <td>16 H, 33 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-warning">4</td>
+                                                <td>
+                                                    🛣️ En ruta</td>
+                                                <td><b class="text-danger-emphasis">4 H, 38 Min</b></td>
+                                                <td><span class="badge bg-warning">11</span></td>
+                                                <td>2 D, 3 H, 2 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-danger">5</td>
+                                                <td>
+                                                    🚛 Fuera de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">43 Min</b></td>
+                                                <td><span class="badge bg-danger">11</span></td>
+                                                <td>7 H, 55 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-success">6</td>
+                                                <td>
+                                                    🏁 Dentro de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">38 Min</b></td>
+                                                <td><span class="badge bg-success">11</span></td>
+                                                <td>7 H, 4 Min</td>
+
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                            </tr>
+                                                                                                    <th>2 <b>RUTA PLANTA CARAL - CODISAL CALLAO</b></th>
+                                    <td>
+                                        <table class="table table-hover">
+                                            <thead>
+                                            <tr>
+                                                <th colspan="3">Tiempos Promedio</th>
+                                                <th>Efectuadas</th>
+                                                <th>Total</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td class="table-success">1</td>
+                                                <td>✅ Compromiso vs Arribo</td>
+                                                <td><b class="text-danger-emphasis">+- 3 H, 15 Min</b></td>
+                                                <td><span class="badge bg-success">8</span></td>
+                                                <td> 1 D, 2 H, 5 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-primary">2</td>
+                                                <td>
+                                                    🛻 Fuera de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">33 Min</b></td>
+                                                <td><span class="badge bg-primary">9</span></td>
+                                                <td>5 H, 4 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-info">3</td>
+                                                <td>
+                                                    🏭 Dentro de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">1 H, 17 Min</b></td>
+                                                <td><span class="badge bg-info">9</span></td>
+                                                <td>11 H, 34 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-warning">4</td>
+                                                <td>
+                                                    🛣️ En ruta</td>
+                                                <td><b class="text-danger-emphasis">4 H, 53 Min</b></td>
+                                                <td><span class="badge bg-warning">9</span></td>
+                                                <td>1 D, 19 H, 58 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-danger">5</td>
+                                                <td>
+                                                    🚛 Fuera de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">45 Min</b></td>
+                                                <td><span class="badge bg-danger">9</span></td>
+                                                <td>6 H, 49 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-success">6</td>
+                                                <td>
+                                                    🏁 Dentro de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">34 Min</b></td>
+                                                <td><span class="badge bg-success">9</span></td>
+                                                <td>5 H, 13 Min</td>
+
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                            </tr>
+                                                                                                    <th>3 <b>RUTA PLANTA CARAL - SALEM VILLA EL SALVADOR</b></th>
+                                    <td>
+                                        <table class="table table-hover">
+                                            <thead>
+                                            <tr>
+                                                <th colspan="3">Tiempos Promedio</th>
+                                                <th>Efectuadas</th>
+                                                <th>Total</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td class="table-success">1</td>
+                                                <td>✅ Compromiso vs Arribo</td>
+                                                <td><b class="text-danger-emphasis">+- 33 Min</b></td>
+                                                <td><span class="badge bg-success">7</span></td>
+                                                <td> 3 H, 56 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-primary">2</td>
+                                                <td>
+                                                    🛻 Fuera de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">2 H, 37 Min</b></td>
+                                                <td><span class="badge bg-primary">9</span></td>
+                                                <td>23 H, 41 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-info">3</td>
+                                                <td>
+                                                    🏭 Dentro de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">1 H, 58 Min</b></td>
+                                                <td><span class="badge bg-info">9</span></td>
+                                                <td>17 H, 47 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-warning">4</td>
+                                                <td>
+                                                    🛣️ En ruta</td>
+                                                <td><b class="text-danger-emphasis">4 H, 10 Min</b></td>
+                                                <td><span class="badge bg-warning">9</span></td>
+                                                <td>1 D, 13 H, 32 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-danger">5</td>
+                                                <td>
+                                                    🚛 Fuera de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">1 H, 32 Min</b></td>
+                                                <td><span class="badge bg-danger">9</span></td>
+                                                <td>13 H, 52 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-success">6</td>
+                                                <td>
+                                                    🏁 Dentro de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">43 Min</b></td>
+                                                <td><span class="badge bg-success">9</span></td>
+                                                <td>6 H, 29 Min</td>
+
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                            </tr>
+                                                                                                    <th>4 <b>RUTA PLANTA CARAL - PLANTA HUACHIPA</b></th>
+                                    <td>
+                                        <table class="table table-hover">
+                                            <thead>
+                                            <tr>
+                                                <th colspan="3">Tiempos Promedio</th>
+                                                <th>Efectuadas</th>
+                                                <th>Total</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td class="table-success">1</td>
+                                                <td>✅ Compromiso vs Arribo</td>
+                                                <td><b class="text-danger-emphasis">+- 1 H, 28 Min</b></td>
+                                                <td><span class="badge bg-success">4</span></td>
+                                                <td> 5 H, 55 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-primary">2</td>
+                                                <td>
+                                                    🛻 Fuera de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">1 H, 8 Min</b></td>
+                                                <td><span class="badge bg-primary">6</span></td>
+                                                <td>6 H, 48 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-info">3</td>
+                                                <td>
+                                                    🏭 Dentro de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">34 Min</b></td>
+                                                <td><span class="badge bg-info">6</span></td>
+                                                <td>3 H, 28 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-warning">4</td>
+                                                <td>
+                                                    🛣️ En ruta</td>
+                                                <td><b class="text-danger-emphasis">3 H, 39 Min</b></td>
+                                                <td><span class="badge bg-warning">6</span></td>
+                                                <td>21 H, 57 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-danger">5</td>
+                                                <td>
+                                                    🚛 Fuera de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">19 Min</b></td>
+                                                <td><span class="badge bg-danger">6</span></td>
+                                                <td>1 H, 56 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-success">6</td>
+                                                <td>
+                                                    🏁 Dentro de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">42 Min</b></td>
+                                                <td><span class="badge bg-success">6</span></td>
+                                                <td>4 H, 12 Min</td>
+
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                            </tr>
+                                                                                                    <th>5 <b>RUTA PLANTA CARAL - CODISAL PUENTE PIEDRA</b></th>
+                                    <td>
+                                        <table class="table table-hover">
+                                            <thead>
+                                            <tr>
+                                                <th colspan="3">Tiempos Promedio</th>
+                                                <th>Efectuadas</th>
+                                                <th>Total</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td class="table-success">1</td>
+                                                <td>✅ Compromiso vs Arribo</td>
+                                                <td><b class="text-danger-emphasis">+- 1 H, 40 Min</b></td>
+                                                <td><span class="badge bg-success">6</span></td>
+                                                <td> 10 H, 1 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-primary">2</td>
+                                                <td>
+                                                    🛻 Fuera de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">55 Min</b></td>
+                                                <td><span class="badge bg-primary">6</span></td>
+                                                <td>5 H, 31 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-info">3</td>
+                                                <td>
+                                                    🏭 Dentro de planta para carga</td>
+                                                <td><b class="text-danger-emphasis">1 H, 8 Min</b></td>
+                                                <td><span class="badge bg-info">6</span></td>
+                                                <td>6 H, 53 Min</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="table-warning">4</td>
+                                                <td>
+                                                    🛣️ En ruta</td>
+                                                <td><b class="text-danger-emphasis">3 H, 46 Min</b></td>
+                                                <td><span class="badge bg-warning">6</span></td>
+                                                <td>22 H, 39 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-danger">5</td>
+                                                <td>
+                                                    🚛 Fuera de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">34 Min</b></td>
+                                                <td><span class="badge bg-danger">6</span></td>
+                                                <td>3 H, 24 Min</td>
+
+                                            </tr>
+                                            <tr>
+                                                <td class="table-success">6</td>
+                                                <td>
+                                                    🏁 Dentro de planta para descarga</td>
+                                                <td><b class="text-danger-emphasis">30 Min</b></td>
+                                                <td><span class="badge bg-success">6</span></td>
+                                                <td>3 H, 1 Min</td>
+
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                            </tr>
+                                                        </tbody>
+                        </table>
+                        
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <h2 class="display-6 fw-semibold">🚛 Conductores mas rapidos por ruta</h2>
+                    <p class="text-muted">Analisis de Tiempo de Inicio de Ruta a Planta (desde febrero)</p>
+                </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Caral a Huachipa</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">KENNY SINCHE</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">3 H, 53 Min</td>
+                                    <td class="text-center fw-bold">5</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">JUAN CARLOS ROJAS BARDALES</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">4 H, 26 Min</td>
+                                    <td class="text-center fw-bold">16</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">ANTONIO AGUILAR</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">4 H, 13 Min</td>
+                                    <td class="text-center fw-bold">6</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Huachipa a Caral</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">REIVER WILLIAM ALCANTARA URETA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">5 H, 40 Min</td>
+                                    <td class="text-center fw-bold">42</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">JESUS ARANIBAR</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">5 H, 51 Min</td>
+                                    <td class="text-center fw-bold">60</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">ADRIAN FRANKLIN ALCANTARA URETA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">5 H, 32 Min</td>
+                                    <td class="text-center fw-bold">25</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Caral a Ves</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">AURELIO ESPINOZA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">4 H, 52 Min</td>
+                                    <td class="text-center fw-bold">20</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">MARCOS RAFAEL CELESTINO ARRIETA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">4 H, 53 Min</td>
+                                    <td class="text-center fw-bold">5</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">PEDRO RAMOS</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">5 H, 38 Min</td>
+                                    <td class="text-center fw-bold">9</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Caral a Callao</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">ALVARO CARRASCO</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">4 H, 53 Min</td>
+                                    <td class="text-center fw-bold">50</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">YHEISON STILL CARBAJAL ESPINOZA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">4 H, 41 Min</td>
+                                    <td class="text-center fw-bold">23</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">ABDON JESUS NAJARRO CASTRO</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">4 H, 49 Min</td>
+                                    <td class="text-center fw-bold">22</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Caral a Puente Piedra</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">EDGAR EDUARDO VIDALON CONTRERAS</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">3 H, 27 Min</td>
+                                    <td class="text-center fw-bold">22</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">LAZARO VARGAS</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">3 H, 33 Min</td>
+                                    <td class="text-center fw-bold">14</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">RAMELBIS GOMEZ</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">3 H, 27 Min</td>
+                                    <td class="text-center fw-bold">9</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Caral a Huancayo</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">YUDER QUILCA TORRES</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">23 H, 2 Min</td>
+                                    <td class="text-center fw-bold">10</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">ROMIO CODOY HUAMAN RIVEROS</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">23 H, 15 Min</td>
+                                    <td class="text-center fw-bold">8</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">RENE IBANEZ CARITA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">1 D, 29 Min</td>
+                                    <td class="text-center fw-bold">15</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Caral a Chincha</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">MARCO PERALTA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">14 H, 28 Min</td>
+                                    <td class="text-center fw-bold">25</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">PERCI JAIME CHOQUEPATA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">14 H, 30 Min</td>
+                                    <td class="text-center fw-bold">13</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">RICHARD LEONCIO DIAZ TRUJILLO</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">19 H, 51 Min</td>
+                                    <td class="text-center fw-bold">5</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Caral a Ica</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">MAX CASTILLO</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">19 H, 4 Min</td>
+                                    <td class="text-center fw-bold">38</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">JUNIOR JHOAN CAYETANO CHAMORRO</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">19 H, 28 Min</td>
+                                    <td class="text-center fw-bold">8</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">MARCO PERALTA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">19 H, 6 Min</td>
+                                    <td class="text-center fw-bold">5</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                                    <div class="col-md-6 col-lg-4 col-12 p-2">
+                        <table class="table table-hover p-0 m-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th><i class="bi bi-geo-alt-fill"></i> De Caral a la Selva</th><th>Promedio</th><th>Viajes</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                                                                        <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🏆</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">EDSON RICAPA</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">1 D, 15 H, 37 Min</td>
+                                    <td class="text-center fw-bold">6</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥈</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">PERCY ROJAS</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">1 D, 16 H, 21 Min</td>
+                                    <td class="text-center fw-bold">7</td>
+                                </tr>
+                                                            <tr><td>
+                                        <p class="mb-0">
+                                        <h4 class="d-inline-block mb-0">🥉</h4>
+                                        <span style="font-size: 0.7rem" class="d-inline-block">MAXIMO REYNAGA RIVAS</span>
+                                        </p>
+                                    </td>
+                                    <td class="text-center text-success fw-bold">2 D, 1 H, 42 Min</td>
+                                    <td class="text-center fw-bold">17</td>
+                                </tr>
+                                                        </tbody>
+                        </table>
+                    </div>
+                
+
+            </div>
+
+
+
+
+            
+            
+            
+            
+
+        </div>
+    
+    <!-- FOOTER / NOTAS ACLARATORIAS -->
+    <div class="footer-note pt-3 d-flex justify-content-between">
+        <span><i class="far fa-file-excel me-1"></i> Datos: Reporte Generado con LUPITA</span>
+        <span><i class="fas fa-database me-1"></i> Indicador único de éxito: <code>llamada_exitosa = 1</code> (se ignora "exitosa_segun_ia").</span>
+    </div>
+</div>
+
+<!-- Bootstrap JS ----------------------------------- -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+    Chart.register(ChartDataLabels);
+
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        new bootstrap.Tooltip(el)
+    })
+
+    
+    const data = [{"total":161,"exitosas":"40","fallidas":"121","total_errores":"8","fecha_text":"s\u00e1bado 27\/06\/26"},{"total":56,"exitosas":"14","fallidas":"42","total_errores":"4","fecha_text":"domingo 28\/06\/26"},{"total":116,"exitosas":"20","fallidas":"96","total_errores":"6","fecha_text":"lunes 29\/06\/26"},{"total":152,"exitosas":"35","fallidas":"117","total_errores":"5","fecha_text":"martes 30\/06\/26"},{"total":155,"exitosas":"29","fallidas":"126","total_errores":"6","fecha_text":"mi\u00e9rcoles 01\/07\/26"},{"total":156,"exitosas":"31","fallidas":"125","total_errores":"5","fecha_text":"jueves 02\/07\/26"},{"total":174,"exitosas":"33","fallidas":"141","total_errores":"4","fecha_text":"viernes 03\/07\/26"},{"total":146,"exitosas":"43","fallidas":"103","total_errores":"6","fecha_text":"s\u00e1bado 04\/07\/26"}];
+    const labels = data.map(x => x.fecha_text);
+    const exitosas = data.map(x => x.exitosas);
+    const fallidas = data.map(x => x.fallidas);
+    const errores = data.map(x => x.total_errores);
+
+    const ctx = document.getElementById('canvas_semana');
+
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Exitosas',
+                    data: exitosas,
+                    borderWidth: 2,
+                    tension: 0.5
+                },
+                {
+                    label: 'Fallidas',
+                    data: fallidas,
+                    borderWidth: 2,
+                    tension: 0.5,
+                    hidden: true
+                },
+                {
+                    label: 'Errores',
+                    data: errores,
+                    borderWidth: 2,
+                    tension: 0.5,
+                    hidden: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                datalabels: {
+                    display: false  // ← Oculta las etiquetas
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        },
+    });
+
+    
+    new Chart(document.getElementById('chart_fallidos'), {
+        type: 'pie',
+        data: {
+            labels: ['Fallo de contacto', 'Conductor no coopera', 'Errores tecnicos', 'Otros'],
+            datasets: [{
+                data: [56 , 38, 6 , 3],
+                backgroundColor: ['#F2A007', '#E04B59', '#10CBF0', '#0F71F2'],
+                borderColor: 'transparent',  // ← Borde transparente
+                borderWidth: 0               // ← O usa 0 para eliminarlo
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'left'
+                },
+                datalabels: {
+                    color: '#fff',
+                    font: {
+                        weight: 'white',
+                        size: 18
+                    },
+                    formatter: (value, ctx) => {
+                        if (value===0) return '';
+                        let total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        let pct = ((value / total) * 100).toFixed(1);
+
+                        return pct + '%';
+                    }
+                }
+            }
+        },
+    });
+
+    
+    function playAudio(url, trt, nombres) {
+        const audio = document.getElementById('mainAudio');
+        const audio_texto = document.getElementById('audio_texto');
+        if (!audio.paused) {
+            audio.pause();
+        }
+        audio.src = url.toLowerCase();
+        audio.play().catch(() => {
+        });
+        audio_texto.innerHTML = `
+        <i class="bi bi-person"></i> ${nombres} <i class="bi bi-building"></i> ${trt}
+        `;
+    }
+</script>
+
+</body>
+</html>

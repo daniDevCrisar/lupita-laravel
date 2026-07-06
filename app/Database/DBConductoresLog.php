@@ -32,8 +32,17 @@ class DBConductoresLog {
             return self::get($data['id_log_conductor']);
         } else {
             // Caso INSERT: Si el ID es nulo o vacío
-            $id = DB::table('log_conductores')->insertGetId($fields);
+            // Comprobación si existen logs activos con el id del conductor
+            $existeActivo = DB::table('log_conductores')
+                ->where('id_conductor', $data['id_conductor'])
+                ->where('status', 'EN CURSO')
+                ->exists();
 
+            if ($existeActivo) {
+                throw new \Exception("Ya existe un log activo para este conductor.");
+            }
+
+            $id = DB::table('log_conductores')->insertGetId($fields);
             return self::get($id);
         }
     }

@@ -9,12 +9,11 @@
                     <div class="modal-header border-secondary">
                         <h5 class="modal-title">
                             <i class="bi bi-plus-circle me-2"></i>
-                            {{ isset($logData->id_log_conductor) ? 'Log #'.$logData->id_log_conductor.' - ' . date('d/m/Y H:i', strtotime($logData->created_at)) : 'Nuevo Log de Conductor' }}
+                            {{ isset($logData->id_log_conductor) ? 'Log #'.$logData->id_log_conductor.' - ' . date('d/m/Y', strtotime($logData->created_at)) : 'Nuevo Log de Conductor' }}
                         </h5>
                         <button type="button" class="btn-close" wire:click="closeModal"></button>
                     </div>
                     <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
-
                         <form wire:submit.prevent="save">
                             <div class="row">
 
@@ -24,9 +23,9 @@
                                 <div class="mb-4 col-12">
                                     <label class="form-label fw-bold"><i class="bi bi-calendar-range me-1"></i>Rango de Fechas</label>
                                     <div class="p-2 bg-dark bg-opacity-25 rounded d-flex align-items-center gap-3 flex-wrap border border-secondary">
-                                        <span><i class="bi bi-calendar-plus me-1 text-info"></i><strong>Desde:</strong> {{$logData->fecha_rango[0] ?: 'Vacio'}}</span>
+                                        <span><i class="bi bi-calendar-plus me-1 text-info"></i><strong>Desde:</strong> {{$db_core::format_fecha($logData->fecha_rango[0],'d/m/Y') ?: 'Vacio'}}</span>
                                         <span><i class="bi bi-arrow-right me-1 text-light"></i></span>
-                                        <span><i class="bi bi-calendar-minus me-1 text-info"></i><strong>Hasta:</strong> {{$logData->fecha_rango[1] ?: 'Vacio' }}</span>
+                                        <span><i class="bi bi-calendar-minus me-1 text-info"></i><strong>Hasta:</strong> {{$db_core::format_fecha($logData->fecha_rango[1],'d/m/Y') ?: 'Vacio' }}</span>
                                         <span class="ms-auto text-light"><i class="bi bi-calendar-range me-1"></i> @if ($logData->fecha_rango[2]) {{$logData->fecha_rango[2]}} días @else Sin rango @endif</span>
                                     </div>
                                 </div>
@@ -39,7 +38,7 @@
                                     <div class="card border-info bg-info bg-opacity-10">
                                         <div class="card-body py-2 d-flex flex-wrap gap-4 align-items-center">
                                             <span><i class="bi bi-person me-1"></i> {{$logData->conductor['nombres']}}</span>
-                                            <span><i class="bi bi-hash me-1"></i><strong>ID:</strong> 1001</span>
+                                            <span><i class="bi bi-hash me-1"></i><strong>ID:</strong> {{$logData->conductor['id']}}  </span>
                                         </div>
                                     </div>
                                 </div>
@@ -129,9 +128,12 @@
                                                 <div class="card-body py-2">
                                                     <small class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Positivas</small>
                                                     <div class="mt-1">
-                                                        @foreach($logData->etiquetas['data'][1] as $item)
-                                                            <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>{{$item['nombre']}} ({{$item['cantidad']}})</span>
-                                                        @endforeach
+                                                        @forelse($logData->etiquetas['data'][1] ?? [] as $item)
+                                                            <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>{{ $item['nombre'] }} ({{ $item['cantidad'] }})</span>
+                                                        @empty
+                                                            <span class="text-muted">Sin etiquetas</span>
+                                                        @endforelse
+
                                                     </div>
                                                 </div>
                                             </div>
@@ -141,9 +143,11 @@
                                                 <div class="card-body py-2">
                                                     <small class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-1"></i>Negativas</small>
                                                     <div class="mt-1">
-                                                        @foreach($logData->etiquetas['data'][0] as $item)
+                                                        @forelse($logData->etiquetas['data'][0]??[] as $item)
                                                             <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>{{$item['nombre']}} ({{$item['cantidad']}})</span>
-                                                        @endforeach
+                                                        @empty
+                                                             <span class="text-muted">Sin etiquetas</span>
+                                                        @endforelse
                                                     </div>
                                                 </div>
                                             </div>
@@ -158,7 +162,7 @@
                                     <label class="form-label fw-bold"><i class="bi bi-telephone-fill me-1"></i>Teléfonos Activos</label>
                                     <div class="d-flex flex-wrap gap-2">
 
-                                        @foreach($logData->telefonos as $item)
+                                        @forelse ($logData->telefonos as $item)
                                             @php $tlf_format = ltrim( $item->telefono,'51') @endphp
                                             <input class="d-none"
                                                    type="checkbox" name="chk_tlf"
@@ -166,12 +170,14 @@
                                                    id="chk_tlf_{{ $item->telefono }}"
                                                    wire:model="log_tlfs"
                                                    value="{{ $item->telefono}}"
-                                                   @checked($item->activo==1)>
+                                                   @checked($item->activo)>
                                             {{-- Label que activa el checkbox --}}
-                                            <label class="btn btn-sm {{ $item->activo ? 'btn-success' : 'btn-secondary' }}"
+                                            <label class="btn btn-sm {{ $item->activo==1 ? 'btn-success' : 'btn-secondary' }}"
                                                    onclick="chk_tlf_change(this)"
                                                    for="chk_tlf_{{ $item->telefono }}">{{ $tlf_format }}</label>
-                                        @endforeach
+                                        @empty
+                                            <span class="text-muted">Sin teléfonos</span>
+                                        @endforelse
                                     </div>
                                     <input type="hidden" name="telefonos_inactivos" id="telefonosInactivos" value="">
                                 </div>
@@ -283,12 +289,23 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    @if (session()->has('error'))
+                                        <div class="mt-3 alert alert-danger alert-dismissible fade show" role="alert">
+                                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                            {{ session('error') }}
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                        </div>
+                                    @endif
+
                                 </div>
+
+
 
                                 <!-- ========================================== -->
                                 <!-- 12. BOTONES                              -->
                                 <!-- ========================================== -->
-                                <div class="d-flex gap-2 mt-3 pt-3 border-top border-secondary">
+                                <div class="d-flex gap-2 border-top border-secondary">
                                     <button type="submit" class="btn btn-primary px-4">
                                         <i class="bi bi-save me-1"></i>Guardar
                                     </button>

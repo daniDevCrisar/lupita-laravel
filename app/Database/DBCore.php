@@ -2,6 +2,7 @@
 
 namespace App\Database;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class DBCore
@@ -49,6 +50,11 @@ class DBCore
         return abs(floor($diff/(60*60*24))) +1;
         // se suma mas 1 por la diferencia de:
         // ?? 00:00  a ?? 23:59
+    }
+
+    public static function format_fecha($fecha ,$format='d/m/Y H:i'){
+        if (!$fecha) return false;
+        return Carbon::parse($fecha)->format($format);
     }
 
 }

@@ -26,7 +26,7 @@ class Nuevo extends Component
     public $log_conclusion;
     public $log_ubicacion;
     public $log_status;
-
+    public $db_core;
     //------------campos a validar
     public $validate_rules = [
     'log_tlfs'              => 'nullable|array',
@@ -47,6 +47,7 @@ class Nuevo extends Component
     {
         $this->logData = $logData;
         //----si es nuevo darle al id null
+
         if ($logData['id_log_conductor'] ===0){
             $logData['id_log_conductor']=null;
             //------------------------------------------------
@@ -59,34 +60,49 @@ class Nuevo extends Component
             $logData['telefonos'] = (array) $telefonos;
         }
         else {
+            //modificar--------
             $id_log=$logData['id_log_conductor'];
             $logData = DBConductoresLog::get($id_log);
             $logData = json_decode(json_encode($logData),true);
             $logData['fecha_rango'] = [ 0=>$logData['fecha_inicio'], 1=>$logData['fecha_fin']];
             $logData['metricas']    = json_decode($logData['metricas'], true);
-            $logData['etiquetas_1'] = json_decode($logData['etiquetas_1'], true);
-            $logData['etiquetas_0'] = json_decode($logData['etiquetas_0'], true);
+
+            $logData['etiquetas']['data'][1] =json_decode($logData['etiquetas_1'], true);
+            $logData['etiquetas']['data'][0] =json_decode($logData['etiquetas_0'], true);
+
+//            $logData['etiquetas_1'] = json_decode($logData['etiquetas_1'], true);
+//            $logData['etiquetas_0'] = json_decode($logData['etiquetas_0'], true);
             $logData['telefonos']   = json_decode($logData['telefonos']);
-            $logData['rutas']       = json_decode($logData['rutas']);
+            $logData['rutas']       = json_decode($logData['rutas'],true);
 
             $logData['conductor'] = ['nombres' =>$logData['conductor_nombres'] , 'id' =>$logData['id_conductor']];
             $logData['trt'] = ['nombres' =>$logData['trt_nombres'] , 'id' =>$logData['last_id_trt']];
             $logData['id_log_conductor']=$id_log;
+
+            $this->log_status = $logData['status'];
+            $this->log_ubicacion = $logData['ubicacion'];
+
             $this->logData = $logData;
 //            dd($logData);
         }
 
-
         //-------Obtener telefonos de conductor-------------
         $this->log_tlfs=[];
-//        dd($logData['telefonos']);
         foreach ($logData['telefonos'] as $item) {
-            $this->log_tlfs[]=$item->telefono; //guardar los datos predeterminados
+            if (isset($item->activo) && $item->activo == 1)
+                $this->log_tlfs[] = $item->telefono;
         }
 
+
+        $this->log_analisis=$logData['analisis']??'';
+        $this->log_accion=$logData['accion']??'';
+        $this->log_respuesta=$logData['respuesta']??'';
+        $this->log_conclusion=$logData['id_conclusion']??'';
+
+
         //-------calcular dif de dias -------
-        $core= new DBCore();
-        $logData['fecha_rango'][2] = $core::date_diff_dias($logData['fecha_rango'][0],$logData['fecha_rango'][1]);
+        $logData['fecha_rango'][2] = DBCore::date_diff_dias($logData['fecha_rango'][0],$logData['fecha_rango'][1]);
+        $this->db_core = DBCore::class; //si se quiere enviar ala vista
         //-----------------------------------
         $this->logData = (object) $logData;
         $this->showModal = true;
@@ -158,51 +174,73 @@ class Nuevo extends Component
 
     public function save(){
         $logData = $this->logData;
+
+        // Validar que las fechas no estén vacías
+        if (empty($logData->fecha_rango[0]) || empty($logData->fecha_rango[1])) {
+            session()->flash('error', 'El rango de fechas (Inicio y Fin) es obligatorio.');
+            return;
+        }
+
         // Procesar teléfonos para incluir el estado 'activo'
         // solo a los telefonos seleccionados
         $telefonos_procesados = [];
         if (!empty($logData->telefonos)) {
             foreach ($logData->telefonos as $key => $item) {
-                $telefono = is_object($item) ? $item->telefono : $item['telefono'];
-                $activo = in_array($telefono, $this->log_tlfs) ? 1 : 0;
-
+                $telefono = $item->telefono;
+                $activo = in_array($telefono, $this->log_tlfs) ? 1 : 0; //buscar en array original de la bd
                 $telefonos_procesados[] = [
                     'telefono' => $telefono,
                     'activo'   => $activo
                 ];
-
-                // Actualizar el estado en el objeto original $logData
                 $this->logData->telefonos[$key]->activo = $activo;
             }
         }
         //-------------------------------------------------
-
         $data=
             [
                 'id_log_conductor' => $logData->id_log_conductor,
                 'id_conductor' => $logData->conductor['id'],
-                'last_id_trt' => $logData->trt['id'],
+                'last_id_trt' => $logData->trt['id']?:null,
                 'fecha_inicio' => $logData->fecha_rango[0] ?: null,
                 'fecha_fin' => $logData->fecha_rango[1] ?: null,
                 'metricas' => $logData->metricas ? json_encode($logData->metricas) : null,
                 'etiquetas_1' => $logData->etiquetas['data'][1] ? json_encode($logData->etiquetas['data'][1]) : null,
                 'etiquetas_0' => $logData->etiquetas['data'][0] ? json_encode($logData->etiquetas['data'][0]) : null,
-                'analisis' => $this->log_analisis ?? null,
-                'accion' => $this->log_accion ?? null,
-                'respuesta' => $this->log_respuesta ?? null,
-                'status' => $this->log_status ?? 'EN CURSO',
-                'ubicacion' => $this->log_ubicacion ?? 'LIMA',
-                'id_conclusion' => $this->log_conclusion ?? null,
+                'analisis' => $this->log_analisis ?: null,
+                'accion' => $this->log_accion ?: null,
+                'respuesta' => $this->log_respuesta ?: null,
+                'status' => $this->log_status ?: 'EN CURSO',
+                'ubicacion' => $this->log_ubicacion ?: 'LIMA',
+                'id_conclusion' => $this->log_conclusion ?: null,
                 'telefonos' => !empty($telefonos_procesados) ? json_encode($telefonos_procesados) : null,
                 'rutas' => $logData->rutas ? json_encode($logData->rutas) : null,
             ];
-        $res = DBConductoresLog::upsert($data);
+
+        $this->log_status = $data['status'];
+        $this->log_ubicacion = $data['ubicacion'];
+
+        //-----si se esta intentando agregar un log
+        // ----nuevo cuando ya existe mostrar el error
+        // ------en la vista
+        try {
+            $res = DBConductoresLog::upsert($data);
+        } catch (\Exception $e) {
+            session()->flash('error', $e->getMessage());
+            return;
+        }
+        //--------------------------
+
         $this->logData->id_log_conductor = $res->id_log_conductor;
         $this->logData->created_at = $res->created_at;
         DBConductores::actualizarLogActivo($logData->conductor['id'], $res->id_log_conductor);
 
         // Actualizar la tabla de conductores
-        $this->dispatch('updateRender');
+        if ($data['status'] === 'CERRADO') {
+            DBConductores::actualizarLogActivo($logData->conductor['id'], 0);
+            $this->dispatch('updateRender');
+            $this->closeModal();
+        }else
+            $this->dispatch('updateRender');
     }
 
 

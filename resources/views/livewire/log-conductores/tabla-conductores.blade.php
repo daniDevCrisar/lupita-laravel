@@ -14,26 +14,19 @@
                 <tr>
                     <th>Id</th>
                     <th>Nombres</th>
-                    <th>Ultimo TRT</th>
                     <th>Llamadas sin errores</th>
-                    <th>Exitosas</th>
-                    <th>Fallidas</th>
-                    <th>Tasa de Exito</th>
                     <th>Etiquetas Positivas</th>
                     <th>Etiquetas Negativas</th>
                     <th @if($reporte) style="display:none;" @endif>Errores</th>
-                    <th>Puntaje</th>
-                    <th>Tiempo en llamada</th>
                 </tr>
                 </thead>
                 <tbody>
                 @forelse($conductores as $row)
                     <tr class="{{ $loop->odd ? 'table-secondary' : '' }}">
                         <td class="bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">
-
                             @php
                             $log_data=[];
-                            $log_data['id_log_conductor']  =$row->last_id_log;
+                            $log_data['id_log_conductor']=$row->last_id_log;
                             if (!$row->last_id_log){
                                 $log_data['conductor'] = ['id'=>$row->conductor_id , 'nombres'=> $row->conductor ];
                                 $log_data['trt']= ['id'=>$row->ultimo_trt_id,'nombres'=>$row->ultimo_trt];
@@ -50,13 +43,10 @@
                             }
                             $log_data_json =  json_encode($log_data);
                             @endphp
-                            <button class="btn btn-success btn-sm" wire:click="nuevoLog({{ $log_data_json }})">
-                                <i class="bi @if(!$row->last_id_log) bi-plus-circle @else bi-pencil @endif me-1"></i> @if(!$row->last_id_log)  Nuevo Log @else Modificar @endif
-                            </button>
-
                             {{ $row->conductor_id }}
                         </td>
                         <td>
+                            <i class="bi bi-person"></i>
                             <a href="{{ route('lupita.llamadas') . '?' . http_build_query(array_merge(request()->all(), ['conductor' => $row->conductor_id, 'page' => 1])) }}">
                                 {{ $row->conductor }}
                             </a>
@@ -64,17 +54,40 @@
                                 <i class="fab fa-whatsapp"></i>
                             </a>
                             <br>
+                            <i class="bi bi-shop text-muted"> {{ $row->ultimo_trt ?: 'Sin TRT' }}</i>
+                            <br>
+                            <button class="btn btn-outline-info btn-sm" wire:click="nuevoLog({{ $log_data_json }})">
+                                <i class="bi @if(!$row->last_id_log) bi-plus-circle @else bi-pencil @endif me-1"></i> @if(!$row->last_id_log)  Nuevo Log @else Modificar Log @endif
+                            </button>
                         </td>
-                        <td style="font-size: 0.5rem;">{{ $row->ultimo_trt }}</td>
-                        <td><span class="badge bg-primary">{{ $row->total - $row->total_error }}</span></td>
-                        <td><span class="badge bg-success">{{ $row->exitosas }}</span></td>
-                        <td><span class="badge bg-danger">{{ $row->fallidas - $row->total_error }}</span></td>
-                        <td>
-                            <div class="progress">
-                                <div class="progress-bar bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}" role="progressbar" style="width: {{ $row->tasa_exito }}%;" aria-valuenow="{{ $row->tasa_exito }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-3 mb-1">
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                                    <i class="bi bi-check-circle me-1"></i>{{ number_format($row->exitosas, 0, ',', '.') }}
+                                </span>
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                                    <i class="bi bi-x-circle me-1"></i>{{ number_format($row->fallidas - $row->total_error, 0, ',', '.') }}
+                                </span>
+                                    <span class="badge bg-primary bg-opacity-10 text-white border border-white">
+                                    <i class="bi bi-phone me-1"></i>{{ number_format($row->total - $row->total_error, 0, ',', '.') }}
+                                </span>
                             </div>
-                            <small class="d-block text-center text-{{ $llamadas::color_porcentaje($row->tasa_exito) }}">
-                                {{ $row->tasa_exito }} @if(!$reporte) % @endif
+                            <div class="progress mx-auto" style="height: 6px; max-width: 180px;">
+                                <div class="progress-bar bg-{{ $llamadas::color_porcentaje($row->tasa_exito) }}" role="progressbar"
+                                     style="width: {{ $row->tasa_exito }}%;"
+                                     aria-valuenow="{{ $row->tasa_exito }}"
+                                     aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                                <div class="progress-bar bg-dark" role="progressbar"
+                                     style="width: {{ 100 - $row->tasa_exito }}%;"
+                                     aria-valuenow="{{ 100 - $row->tasa_exito }}"
+                                     aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="d-block fw-bold text-{{ $llamadas::color_porcentaje($row->tasa_exito) }}"
+                                   style="font-size: 0.75rem; margin-top: 2px;">
+                                <i class="bi bi-graph-up-arrow me-1"></i>
+                                {{ number_format($row->tasa_exito, 1) }}% de éxito
                             </small>
                         </td>
                         <td>{!! $llamadas::etiquetas_icon_bi($row, '', 1, true, false, $reporte) !!}</td>
@@ -97,11 +110,6 @@
                                 Sistema:({{ $row->error_sistema }})
                             @endif
                         </td>
-                        @php $puntaje = $llamadas::puntaje_conductor($row); @endphp
-                        <td class="text-{{ $puntaje > 0 ? 'success' : 'danger' }} fw-bold">
-                            {{ $puntaje }}
-                        </td>
-                        <td class="small">{{ $llamadas::audio_duracion_format($row->audio_duracion) }}</td>
                     </tr>
                 @empty
                     <tr>
