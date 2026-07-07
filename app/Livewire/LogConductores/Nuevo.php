@@ -15,7 +15,6 @@ class Nuevo extends Component
 {
     public $showModal = false;
     public $logData = null;
-
     protected $listeners = ['nuevoLog' => 'openModal'];
 
     //------FORM PARA EL POST----------
@@ -58,6 +57,8 @@ class Nuevo extends Component
             $telefonos = new DBConductores();
             $telefonos = $telefonos::obtenerTelefonos($logData['conductor']['id']);
             $logData['telefonos'] = (array) $telefonos;
+            $this->log_status = 'EN CURSO';
+            $this->log_ubicacion = 'LIMA';
         }
         else {
             //modificar--------
@@ -237,10 +238,11 @@ class Nuevo extends Component
         // Actualizar la tabla de conductores
         if ($data['status'] === 'CERRADO') {
             DBConductores::actualizarLogActivo($logData->conductor['id'], 0);
-            $this->dispatch('updateRender');
             $this->closeModal();
-        }else
-            $this->dispatch('updateRender');
+        }
+
+        $this->dispatch('updateRenderLogs');
+        $this->dispatch('updateRender');
     }
 
 

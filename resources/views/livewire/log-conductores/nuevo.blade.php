@@ -332,15 +332,4 @@
         lbl.classList.toggle('btn-success')
         lbl.classList.toggle('btn-secondary')
     }
-    //
-    // function actualizarInactivos() {
-    //     var inactivos = [];
-    //     document.querySelectorAll('.telefono-btn.btn-secondary').forEach(function(btn) {
-    //         inactivos.push(btn.getAttribute('data-telefono'));
-    //     });
-    //     var input = document.getElementById('telefonosInactivos');
-    //     if (input) {
-    //         input.value = inactivos.join(',');
-    //     }
-    // }
 </script>

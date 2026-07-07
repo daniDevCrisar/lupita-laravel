@@ -1,0 +1,110 @@
+<!-- resources/views/livewire/log-conductores/tabla-conductores.blade.php -->
+
+<div>
+    {{-- Tabla --}}
+    <div class="col-12">
+        <div class="table-responsive" style="max-height: 800px; overflow-y: auto;">
+            <table class="table table-bordered table-hover table-sm table-dark">
+                <thead class="table-primary" style="position: sticky;top: 0;z-index: 2;">
+                <tr>
+                    <th>Id</th>
+                    <th>Nombres</th>
+                    <th>Llamadas sin errores</th>
+                    <th>Etiquetas Positivas</th>
+                    <th>Etiquetas Negativas</th>
+                </tr>
+                </thead>
+                <tbody>
+
+                @forelse($clogs->lista as $row)
+                    @php
+                        $row_metricas= json_decode($row->metricas);
+                        $row_metricas_porcentaje=round(($row_metricas->exitosas/$row_metricas->total)*100);
+                        $row_etiquetas_1=json_decode($row->etiquetas_1);
+                        $row_etiquetas_0=json_decode($row->etiquetas_0);
+                        $row_telefonos=json_decode($row->telefonos);
+                        $row_rutas = json_decode($row->rutas);
+                    @endphp
+                    <tr class="{{ $loop->odd ? 'table-secondary' : '' }}">
+                        <td class="bg-{{$clogs->clase::getColorStatus($row->status)}}">
+                            {{ $row->id_log_conductor}}
+                        </td>
+                        <td>
+                            <i class="bi bi-person"></i>
+                            <a href="{{ route('lupita.llamadas') . '?' . http_build_query(array_merge(request()->all(), ['conductor' => $row->id_conductor, 'page' => 1])) }}"
+                            target="_blank">
+                                {{ $row->conductor_nombres }}
+                            </a>
+                            <br>
+                            <i class="bi bi-shop text-muted"> {{ $row->trt_nombres ?: 'Sin TRT' }}</i>
+                            <br>
+
+                        </td>
+                        {{---------------metricas------------}}
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-3 mb-1">
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                                    <i class="bi bi-check-circle me-1"></i>{{ $row_metricas->exitosas }}
+                                </span>
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                                    <i class="bi bi-x-circle me-1"></i>{{ $row_metricas->fallidas }}
+                                </span>
+                                <span class="badge bg-primary bg-opacity-10 text-white border border-white">
+                                    <i class="bi bi-phone me-1"></i>{{ $row_metricas->total }}
+                                </span>
+                            </div>
+                            <div class="progress mx-auto exito_progress">
+                                <div class="progress-bar bg-{{ $llamadas::color_porcentaje($row_metricas_porcentaje) }}" role="progressbar"
+                                     style="width: {{ $row_metricas_porcentaje}}%;"
+                                     aria-valuenow="{{ $row_metricas_porcentaje }}"
+                                     aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                                <div class="progress-bar bg-dark" role="progressbar"
+                                     style="width: {{ 100 - $row_metricas_porcentaje }}%;"
+                                     aria-valuenow="{{ 100 - $row_metricas_porcentaje }}"
+                                     aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="d-block fw-bold text-{{ $llamadas::color_porcentaje($row_metricas_porcentaje) }}"
+                                   style="font-size: 0.75rem; margin-top: 2px;">
+                                <i class="bi bi-graph-up-arrow me-1"></i>
+                                {{ number_format($row_metricas_porcentaje, 1) }}% de éxito
+                                @if($row_metricas->errores)
+                                    <span class="text-warning ms-1">(⚠️ {{$row_metricas->errores}} errores)</span>
+                                @endif
+                            </small>
+                        </td>
+                        {{------------ fin metricas----------- --}}
+
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <!-- Positivas -->
+                                <span class="badge bg-success" style="font-size: 0.6rem; cursor: help;"
+                                      data-bs-toggle="tooltip" title="Confirma(12) · Da motivos(5) · Conversación fluida(2)">
+            <i class="bi bi-check-circle me-1"></i>+19
+        </span>
+                                <!-- Negativas -->
+                                <span class="badge bg-danger" style="font-size: 0.6rem; cursor: help;"
+                                      data-bs-toggle="tooltip" title="Buzon voz(8) · No habla(3) · Cuelga(2) · No contesta(1) · Mala señal(1)">
+            <i class="bi bi-x-circle me-1"></i>-15
+        </span>
+                                <!-- Total de etiquetas -->
+                                <span class="badge bg-secondary" style="font-size: 0.55rem;">
+            <i class="bi bi-tags me-1"></i>34
+        </span>
+                            </div>
+                            {!! $llamadas::etiquetas_icon_bi($row_etiquetas_1, '', 1, true, false, $reporte) !!}
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="12" class="text-center text-muted">No se encontraron conductores</td>
+                    </tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+</div>

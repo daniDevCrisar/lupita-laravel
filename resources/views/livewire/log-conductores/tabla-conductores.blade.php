@@ -4,6 +4,7 @@
     {{-- Paginación superior --}}
     <div class="col-12">
         {{ $conductores->links() }}
+
     </div>
 
     {{-- Tabla --}}
@@ -123,6 +124,8 @@
 
     {{-- Paginación inferior --}}
     <div class="col-12">
+
         {{ $conductores->links() }}
     </div>
 </div>
+

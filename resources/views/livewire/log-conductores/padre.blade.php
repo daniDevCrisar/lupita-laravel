@@ -116,6 +116,18 @@
                     ])
                 </div>
 
+                <div class="col-12">
+                    @livewire('log-conductores.tabla-logs-conductores', [
+                        'fecha_inicio' => request('fecha_inicio', ''),
+                        'fecha_fin' => request('fecha_fin', ''),
+                        'llamada_tipo_id' => request('llamada_tipo_id', ''),
+                        'conductor' => request('conductor', ''),
+                        'trt' => request('trt', ''),
+                        'ordenar_por' => request('ordenar_por', ''),
+                        'orden' => request('orden', ''),
+                        'reporte' => request('reporte', false),
+                    ])
+                </div>
 
                 {{-- Modal Nuevo --}}
                 @livewire('log-conductores.nuevo')
