@@ -75,25 +75,21 @@
                             </small>
                         </td>
                         {{------------ fin metricas----------- --}}
-
                         <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <!-- Positivas -->
-                                <span class="badge bg-success" style="font-size: 0.6rem; cursor: help;"
-                                      data-bs-toggle="tooltip" title="Confirma(12) · Da motivos(5) · Conversación fluida(2)">
-            <i class="bi bi-check-circle me-1"></i>+19
+                            <div class="d-flex align-items-center gap-1">
+        <span class="badge bg-success" style="font-size: 0.6rem; cursor: help;"
+              data-bs-toggle="tooltip" title="Positivas: Confirma(12) · Da motivos(5) · Conversación fluida(2)">
+            ✅ 19
         </span>
-                                <!-- Negativas -->
                                 <span class="badge bg-danger" style="font-size: 0.6rem; cursor: help;"
-                                      data-bs-toggle="tooltip" title="Buzon voz(8) · No habla(3) · Cuelga(2) · No contesta(1) · Mala señal(1)">
-            <i class="bi bi-x-circle me-1"></i>-15
+                                      data-bs-toggle="tooltip" title="Negativas: Buzon voz(8) · No habla(3) · Cuelga(2) · No contesta(1) · Mala señal(1)">
+            ❌ 15
         </span>
-                                <!-- Total de etiquetas -->
-                                <span class="badge bg-secondary" style="font-size: 0.55rem;">
-            <i class="bi bi-tags me-1"></i>34
+                                <span class="badge bg-secondary" style="font-size: 0.55rem; cursor: help;"
+                                      data-bs-toggle="tooltip" title="Total de etiquetas: 34">
+            📌 34
         </span>
                             </div>
-                            {!! $llamadas::etiquetas_icon_bi($row_etiquetas_1, '', 1, true, false, $reporte) !!}
                         </td>
                     </tr>
                 @empty
