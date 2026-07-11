@@ -810,38 +810,38 @@
                     txt_audio.value='IA NO ESCUCHA';
                     tecla='';
                 }
-                else if (teclas_capturadas.includes('ya des')){
+                else if (teclas_capturadas.includes('ya des') || tecla==='5'){
                     etiquetaClick('e_conductor_confirma');
                     e_exito.checked=true;
                     txt_audio.value='YA DESCARGO';
                     tecla='';
                 }
-                else if (teclas_capturadas.includes('ya car')){
+                else if (teclas_capturadas.includes('ya car') || tecla==='4'){
                     etiquetaClick('e_conductor_confirma');
                     e_exito.checked=true;
                     txt_audio.value='YA CARGO';
                     tecla='';
                 }
 
-                else if (teclas_capturadas.includes('carg')){
+                else if (teclas_capturadas.includes('carg') || tecla==='1'){
                     etiquetaClick('e_conductor_confirma');
                     e_exito.checked=true;
                     txt_audio.value='CARGANDO';
                     tecla='';
                 }
-                else if (teclas_capturadas.includes('desc')){
+                else if (teclas_capturadas.includes('desc') || tecla==='2'){
                     etiquetaClick('e_conductor_confirma');
                     e_exito.checked=true;
                     txt_audio.value='DESCARGANDO';
                     tecla='';
                 }
-                else if (teclas_capturadas.includes('gui')){
+                else if (teclas_capturadas.includes('gui') || tecla==='7'){
                     etiquetaClick('e_conductor_confirma');
                     e_exito.checked=true;
                     txt_audio.value='ESPERANDO GUIA';
                     tecla='';
                 }
-                else if (teclas_capturadas.includes('esp')){
+                else if (teclas_capturadas.includes('esp') || tecla==='0'){
                     etiquetaClick('e_conductor_confirma');
                     e_exito.checked=true;
                     txt_audio.value='ESPERANDO';
@@ -872,6 +872,10 @@
                         break;
                     case 'e':
                         e_exito.checked =true;
+                        modifico=true;
+                        break;
+                    case '3':
+                        txt_audio.value='CUELGA';
                         modifico=true;
                         break;
                 }
