@@ -95,13 +95,6 @@
 {{--    NUEVO LOG       --}}
 
             <div class="row">
-                {{-- Botón para abrir el modal --}}
-                <div class="col-12 mb-3">
-                    <button class="btn btn-success" wire:click="nuevoLog">
-                        <i class="bi bi-plus-circle me-1"></i> Nuevo Log
-                    </button>
-                </div>
-
                 {{-- TABLA DE CONDUCTORES --}}
                 <div class="col-12">
                     @livewire('log-conductores.tabla-conductores', [

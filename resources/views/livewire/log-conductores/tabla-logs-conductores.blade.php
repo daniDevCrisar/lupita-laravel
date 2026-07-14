@@ -12,6 +12,7 @@
                     <th>Llamadas sin errores</th>
                     <th>Etiquetas Positivas</th>
                     <th>Etiquetas Negativas</th>
+                    <th>Rutas</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -39,6 +40,14 @@
                             <i class="bi bi-shop text-muted"> {{ $row->trt_nombres ?: 'Sin TRT' }}</i>
                             <br>
 
+                            <h5>LOG:</h5>
+                            @forelse($row_telefonos??[] as $item)
+                                <span class="bg-{{$item->activo? 'success' : 'dark' }} text-white">{{ltrim($item->telefono,'51')}}</span>
+                            @empty
+                            @endforelse
+                            <br>
+                            <i class="bi bi-file-earmark-text"></i>
+                            {!!  nl2br($row->analisis) !!}
                         </td>
                         {{---------------metricas------------}}
                         <td class="text-center">
@@ -74,22 +83,24 @@
                                 @endif
                             </small>
                         </td>
-                        {{------------ fin metricas----------- --}}
+                        <td class="text-success">
+                            @forelse($row_etiquetas_1??[] as $item)
+                                {{"$item->nombre($item->cantidad)"  }}
+                            @empty
+                            @endforelse
+                        </td>
+                        <td class="text-danger">
+                            @forelse($row_etiquetas_0??[] as $item)
+                                {{"$item->nombre($item->cantidad)"  }}
+                            @empty
+                            @endforelse
+                        </td>
                         <td>
-                            <div class="d-flex align-items-center gap-1">
-        <span class="badge bg-success" style="font-size: 0.6rem; cursor: help;"
-              data-bs-toggle="tooltip" title="Positivas: Confirma(12) · Da motivos(5) · Conversación fluida(2)">
-            ✅ 19
-        </span>
-                                <span class="badge bg-danger" style="font-size: 0.6rem; cursor: help;"
-                                      data-bs-toggle="tooltip" title="Negativas: Buzon voz(8) · No habla(3) · Cuelga(2) · No contesta(1) · Mala señal(1)">
-            ❌ 15
-        </span>
-                                <span class="badge bg-secondary" style="font-size: 0.55rem; cursor: help;"
-                                      data-bs-toggle="tooltip" title="Total de etiquetas: 34">
-            📌 34
-        </span>
-                            </div>
+
+                            @forelse($row_rutas->lista??[] as $item)
+                                <span class="badge bg-primary"><i class="bi bi-arrow-right me-1"></i>{{"$item->nombre($item->cantidad)"}}</span>
+                            @empty
+                            @endforelse
                         </td>
                     </tr>
                 @empty
@@ -101,6 +112,27 @@
             </table>
         </div>
     </div>
-
-
 </div>
+
+{{--{#1564 ▼ // resources\views/livewire/log-conductores/tabla-logs-conductores.blade.php--}}
+{{--+"id_log_conductor": 1--}}
+{{--+"id_conductor": 954--}}
+{{--+"last_id_trt": 16--}}
+{{--+"fecha_inicio": "2026-02-01 00:00:00"--}}
+{{--+"fecha_fin": "2026-07-13 00:00:00"--}}
+{{--+"metricas": "{"total": 21, "errores": "0", "exitosas": "0", "fallidas": 21}"--}}
+{{--+"etiquetas_1": null--}}
+{{--+"etiquetas_0": "[{"nombre": "No habla", "cantidad": "9"}, {"nombre": "Contesta otra persona", "cantidad": "5"}, {"nombre": "Numero equivocado", "cantidad": "5"}, {"nombre": "Cu ▶"--}}
+{{--+"analisis": "EL USUARIO INDICA QUE NO ES CESAR BRAVO Y SOLICITA ELIMINAR SU NUMERO DE LA BASE DE DATOS."--}}
+{{--+"accion": "No es su numero"--}}
+{{--+"respuesta": null--}}
+{{--+"status": "EN CURSO"--}}
+{{--+"ubicacion": "PROVINCIA"--}}
+{{--+"id_conclusion": 4--}}
+{{--+"telefonos": "[{"activo": 1, "telefono": "51978948191"}]"--}}
+{{--+"rutas": "{"lista": [{"nombre": "PLANTA CHICLAYO - IQUITOS", "cantidad": 6}, {"nombre": "PLANTA TARAPOTO - SALEM JAEN", "cantidad": 3}, {"nombre": "BABEL CHICLAYO - PIURA ▶"--}}
+{{--+"created_at": "2026-07-13 12:28:05"--}}
+{{--+"updated_at": "2026-07-13 12:30:33"--}}
+{{--+"conductor_nombres": "CESAR BRAVO"--}}
+{{--+"trt_nombres": "FESELL DISTRIBUIDORA S.A.C."--}}
+}
