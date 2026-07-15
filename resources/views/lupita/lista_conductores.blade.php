@@ -117,7 +117,25 @@
                                     <label class="btn btn-outline-primary" for="rd_ord_2">Desc</label>
                                 </div>
                             </div>
+                        </div>
 
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="reporte" class="form-label">
+                            Reporte
+                        </label>
+
+                        <div class="form-check">
+                            <input type="checkbox"
+                                   id="reporte"
+                                   name="reporte"
+                                   value="1"
+                                   {{ request('reporte') ? 'checked' : '' }}
+                                   class="form-check-input">
+                            <label class="form-check-label" for="reporte">
+                                Activar reporte
+                            </label>
                         </div>
                     </div>
 

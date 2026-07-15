@@ -112,6 +112,7 @@
             </table>
         </div>
     </div>
+
 </div>
 
 {{--{#1564 ▼ // resources\views/livewire/log-conductores/tabla-logs-conductores.blade.php--}}
