@@ -305,6 +305,7 @@ class procesarTranscripcion{
             'AMARRARON',
             'MONTACARGA',
             'PATO',
+            'PATERO',
 
             'DOCUMENTO',
             'GUIA',
