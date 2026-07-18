@@ -671,3 +671,24 @@ CREATE TABLE log_conductores (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+
+
+select
+        a.created_at,DATE(a.created_at) as solo_fecha , TIME(a.created_at) as solo_hora,e.nombre as etapa_nombre , e.id as etapa_id,
+        a.ref, a.origen, a.destino, a.placa, d.titulo_viaje, d.ruta_id,
+        b.nombres as conductor, COALESCE(c.nombres, '') AS trt ,a.telefono, a.audio_link,
+        a.analisis_transcripcion, a.analisis_audio,
+        a.ia_result_delay_reason_desc, a.ia_result_comments_text,
+        a.conductor_confirma, a.llamada_exitosa
+from `llamadas` as `a` inner join `conductores` as `b` on `b`.`id` = `a`.`conductor_id`
+    left join `trts` as `c` on `c`.`id` = `a`.`trt_id`
+    left join referencias as d on d.ref = a.ref
+    inner join tipos_llamada as e on e.id = a.llamada_tipo_id
+where a.error_origen = 0 and a.buzon_de_voz=0 and a.conductor_contesta_pero_no_habla=0 and
+      a.conductor_no_escucha=0 and a.conductor_mala_senal=0 and
+      a.confusion_en_llamada=0 and a.numero_equivocado=0 and
+      a.error_tecnico_llamada=0 and a.error_audio=0 and a.conductor_no_contesta=0 and
+      a.razon_finalizacion_id in (1,2) and
+      !((a.conductor_confirma+ a.conductor_da_motivos + a.conversacion_fluida + a.llamada_interesante =0) and a.conductor_cuelga and !a.llamada_exitosa)
+order by `a`.`created_at` desc limit 100 offset 0

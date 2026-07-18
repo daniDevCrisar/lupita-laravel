@@ -192,4 +192,12 @@ class LlamadasController extends Controller
         return response()->json($response);
     }
 
+    public static function calls_lista_llamadas(Request $request){
+        $tipos_llamada = DB::table('tipos_llamada')->select('id', 'nombre', 'emoji', 'color')
+            ->where('id', '!=','0')
+            ->where('id', '!=','4')
+            ->get();
+        return view('calls.calls_lista', compact('tipos_llamada'));
+    }
+
 }

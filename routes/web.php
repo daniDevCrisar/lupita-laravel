@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\LlamadasApiController;
+use App\Http\Controllers\API\LlamadasJsonApiController;
 use App\Http\Controllers\LogConductoresController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImportController;
@@ -58,4 +59,7 @@ Route::prefix('api')->group(function () {
 
     Route::get('/lote/{id}/detalle', [LlamadasApiController::class, 'devolver_lista_lote_refs']);
     Route::post('/lote/{id}/detalle/actualizar', [LlamadasApiController::class, 'actualizar_lote_detalle']);
+    Route::get('/llamadas', [LlamadasJsonApiController::class, 'index']);
 });
+
+Route::get('/llamadas', [LlamadasController::class, 'calls_lista_llamadas']);
