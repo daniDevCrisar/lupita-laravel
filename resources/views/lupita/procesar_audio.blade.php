@@ -954,7 +954,7 @@
 
             let lista=[];
             @php
-                $link="http://lupita-laravel.test/lupita/reporte?fecha_inicio=".request('fecha_inicio')."&llamada_tipo_id=";
+                $link=route('lupita.reporte'). "?fecha_inicio=".request('fecha_inicio')."&llamada_tipo_id=";
                     $nombres= [
                         '' => '0-resumen.html',
                         1 => '1-confirmaciones.html',

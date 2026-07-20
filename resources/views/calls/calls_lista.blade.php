@@ -97,9 +97,9 @@
                 <table class="table table-hover table-striped align-middle mb-0" :class="darkMode ? 'table-dark' : ''">
                     <thead :class="darkMode ? 'table-dark' : 'table-light'" class="sticky-header">
                         <tr>
-                            <th class="ps-3">Fecha / Hora</th>
-                            <th>Conductor / Placa</th>
-                            <th>Referencia / Viaje</th>
+                            <th class="ps-3">Fecha</th>
+                            <th>Conductor</th>
+                            <th>Referencia</th>
                             <th>Etapa</th>
                             <th>Estado</th>
                             <th>Comentarios</th>
@@ -169,10 +169,10 @@
                                 </td>
                                 <td class="small">
                                     <div x-show="call.analisis_audio" class="mb-1">
-                                        <span class="text-primary fw-bold">Análisis:</span> <span x-text="call.analisis_audio"></span>
+                                        <span class="text-primary fw-bold"></span><i class="bi bi-person-circle text-info"></i> <span x-text="call.analisis_audio"></span>
                                     </div>
                                     <div x-show="call.ia_result_comments_text">
-                                        <span class="fw-bold" :class="darkMode ? 'text-dark-custom' : 'text-muted'">Obs:</span> <span x-text="call.ia_result_comments_text"></span>
+                                        <span class="fw-bold" :class="darkMode ? 'text-dark-custom' : 'text-muted'"><i class="bi bi-robot text-info"></i></span> <span x-text="call.ia_result_comments_text" class="text-muted"></span>
                                     </div>
                                 </td>
                             </tr>
@@ -243,7 +243,7 @@
                     if (this.filtros.startdate) queryParams.append('startdate', this.filtros.startdate);
                     if (this.filtros.enddate) queryParams.append('enddate', this.filtros.enddate);
 
-                    const response = await fetch(`/api/llamadas?${queryParams.toString()}`);
+                    const response = await fetch(`{{route('end_point.llamadas.api')}}?${queryParams.toString()}`);
                     if (!response.ok) throw new Error('Error al conectar con el API');
 
                     const data = await response.json();

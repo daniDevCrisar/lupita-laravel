@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\LlamadasApiController;
-use App\Http\Controllers\API\LlamadasJsonApiController;
+use App\Http\Controllers\Api\LlamadasJsonApiController;
 use App\Http\Controllers\LogConductoresController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImportController;
@@ -27,7 +27,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas');
         Route::get('/audio', [LlamadasController::class, 'procesar_audio'])->name('lupita.audio')->middleware('permission:etiquetar llamada');
         Route::patch('/audio/guardar', [LlamadasController::class, 'guardar_etiquetas'])->name('lupita.audio.guardar')->middleware('permission:etiquetar llamada');
-        Route::get('/reporte', [LlamadasController::class, 'reporte_todo']);
+        Route::get('/reporte', [LlamadasController::class, 'reporte_todo'])->name('lupita.reporte');
     });
 
     Route::prefix('importar')->group(function () {
@@ -59,7 +59,7 @@ Route::prefix('api')->group(function () {
 
     Route::get('/lote/{id}/detalle', [LlamadasApiController::class, 'devolver_lista_lote_refs']);
     Route::post('/lote/{id}/detalle/actualizar', [LlamadasApiController::class, 'actualizar_lote_detalle']);
-    Route::get('/llamadas', [LlamadasJsonApiController::class, 'index']);
+    Route::get('/llamadas', [LlamadasJsonApiController::class, 'index'])->name('end_point.llamadas.api');
 });
 
 Route::get('/llamadas', [LlamadasController::class, 'calls_lista_llamadas']);
