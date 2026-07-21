@@ -69,7 +69,7 @@
                     <label class="form-label small fw-bold text-uppercase">Fecha Fin</label>
                     <input type="date" class="form-control" x-model="filtros.enddate" @change="fetchCalls()" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label small fw-bold text-uppercase">Etapa Logística</label>
                     <select class="form-select" x-model="filtros.etapa_id" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
                         <option value="">Todas las etapas</option>
@@ -78,6 +78,29 @@
                         </template>
                     </select>
                 </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-uppercase">Origen</label>
+                    <select class="form-select" x-model="filtros.origen" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
+                        <option value="">Todos</option>
+                        <option value="lima">Lima</option>
+                        <option value="provincia">Provincia</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-uppercase">Destino</label>
+                    <select class="form-select" x-model="filtros.destino" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
+                        <option value="">Todos</option>
+                        <option value="lima">Lima</option>
+                        <option value="provincia">Provincia</option>
+                    </select>
+                </div>
+
+
+
+
+
                 <div class="col-md-3">
                     <label class="form-label small fw-bold text-uppercase">Búsqueda rápida</label>
                     <input type="text" class="form-control" x-model="search" placeholder="Conductor, placa o ref..." :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
@@ -215,7 +238,9 @@
             filtros: {
                 startdate: new Date().toISOString().split('T')[0],
                 enddate: '',
-                etapa_id: ''
+                etapa_id: '',
+                origen: '',
+                destino: '',
             },
 
             init() {
@@ -261,6 +286,8 @@
                 this.filtros.startdate = new Date().toISOString().split('T')[0];
                 this.filtros.enddate = '';
                 this.filtros.etapa_id = '';
+                this.filtros.origen = '';
+                this.filtros.destino = '';
                 this.search = '';
                 this.fetchCalls();
             },
@@ -289,8 +316,54 @@
                     filtered = filtered.filter(c => String(c.etapa_id) === String(this.filtros.etapa_id));
                 }
 
+                const ubigeos_lima = ['15','07'];
+
+                const checkLima = (valor, ubigeo) => {
+                    let v = String(valor || '').trim().toLowerCase();
+                    if (v === 'lima' || v === 'callao') return true;
+
+                    let u = String(ubigeo || '').trim();
+                    if (u !== '') {
+                        return ubigeos_lima.includes(u.substring(0, 2));
+                    }
+                    return false;
+                };
+
+                if (this.filtros.origen) {
+                    if (this.filtros.origen === 'lima') {
+                        filtered = filtered.filter(c => checkLima(c.origen, c.ubigeo_origen));
+                    } else if (this.filtros.origen === 'provincia') {
+                        filtered = filtered.filter(c => {
+                            let isLima = checkLima(c.origen, c.ubigeo_origen);
+                            if (isLima) return false;
+
+                            // Si no es Lima, verificar que tenga algún dato de origen
+                            let v = String(c.origen || '').trim();
+                            let u = String(c.ubigeo_origen || '').trim();
+                            return v !== '' || u !== '';
+                        });
+                    }
+                }
+
+                if (this.filtros.destino) {
+                    if (this.filtros.destino === 'lima') {
+                        filtered = filtered.filter(c => checkLima(c.destino, c.ubigeo_destino));
+                    } else if (this.filtros.destino === 'provincia') {
+                        filtered = filtered.filter(c => {
+                            let isLima = checkLima(c.destino, c.ubigeo_destino);
+                            if (isLima) return false;
+
+                            let v = String(c.destino || '').trim();
+                            let u = String(c.ubigeo_destino || '').trim();
+                            return v !== '' || u !== '';
+                        });
+                    }
+                }
+
                 return filtered;
             },
+
+
 
             cleanPhone(phone) {
                 if (!phone) return '';

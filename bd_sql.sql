@@ -692,3 +692,6 @@ where a.error_origen = 0 and a.buzon_de_voz=0 and a.conductor_contesta_pero_no_h
       a.razon_finalizacion_id in (1,2) and
       !((a.conductor_confirma+ a.conductor_da_motivos + a.conversacion_fluida + a.llamada_interesante =0) and a.conductor_cuelga and !a.llamada_exitosa)
 order by `a`.`created_at` desc limit 100 offset 0
+
+
+select * from users

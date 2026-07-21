@@ -63,3 +63,25 @@ Route::prefix('api')->group(function () {
 });
 
 Route::get('/llamadas', [LlamadasController::class, 'calls_lista_llamadas']);
+
+Route::get('/mail-config', function () {
+    echo "<h1>🔧 Configuración de correo</h1>";
+    echo "<pre style='background:#1a1a2e;color:#00ff88;padding:15px;border-radius:8px;'>";
+    echo "MAIL_MAILER: " . config('mail.default') . "\n";
+    echo "MAIL_HOST: " . config('mail.mailers.smtp.host') . "\n";
+    echo "MAIL_PORT: " . config('mail.mailers.smtp.port') . "\n";
+    echo "MAIL_USERNAME: " . config('mail.mailers.smtp.username') . "\n";
+    echo "MAIL_PASSWORD: " . (config('mail.mailers.smtp.password') ? '******** (configurada)' : '⚠️ VACÍA') . "\n";
+    echo "MAIL_ENCRYPTION: " . config('mail.mailers.smtp.encryption') . "\n";
+    echo "MAIL_FROM_ADDRESS: " . config('mail.from.address') . "\n";
+    echo "MAIL_FROM_NAME: " . config('mail.from.name') . "\n";
+    echo "</pre>";
+
+    // Verificar si está usando hello@example.com
+    if (config('mail.from.address') === 'hello@example.com') {
+        echo "⚠️ <strong>El remitente es hello@example.com - NO está usando tu configuración</strong><br>";
+        echo "👉 Elimina <code>bootstrap/cache/config.php</code> manualmente\n";
+    } else {
+        echo "✅ <strong>Configuración correcta!</strong>\n";
+    }
+});

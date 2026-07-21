@@ -10,12 +10,13 @@ use Illuminate\Support\Facades\DB;
 class LlamadasApiController extends Controller
 {
     public function devolver_lista_lote_refs($lote_id){
-
+        $lista_fechas=[];
         //------------DATOS DE LLAMADAS CON REF------------
         $sql="
         select DISTINCT(ref) from tmp_lotes_det where lote_id=? and ref !='' ;
         ";
         $refs= DB::select($sql,[$lote_id]);
+        $lista=[];
         foreach($refs as $ref)
             $lista[]=$ref->ref;
 
@@ -29,6 +30,7 @@ class LlamadasApiController extends Controller
         foreach($fechas_conf as $fecha)
             $lista_fechas[]=$fecha->fecha;
         //--------------------------------------------------------------
+
 
         $json['fechas']=$lista_fechas;
         $json['refs']=$lista;

@@ -12,6 +12,7 @@ class LlamadasJsonApiController {
         select
                 a.created_at,DATE(a.created_at) as solo_fecha , TIME(a.created_at) as solo_hora,e.nombre as etapa_nombre , e.id as etapa_id, e.color as etapa_color, e.emoji as etapa_emoji,
                 a.ref, a.origen, a.destino, a.placa, d.titulo_viaje, d.ruta_id,
+                f.ubigeo_origen, f.ubigeo_destino,
                 b.nombres as conductor, COALESCE(c.nombres, '') AS trt ,a.telefono, lower(a.audio_link) as audio_link,
                 a.analisis_transcripcion, a.analisis_audio,
                 a.ia_result_delay_reason_desc, a.ia_result_comments_text,
@@ -20,6 +21,7 @@ class LlamadasJsonApiController {
             left join `trts` as `c` on `c`.`id` = `a`.`trt_id`
             left join referencias as d on d.ref = a.ref
             inner join tipos_llamada as e on e.id = a.llamada_tipo_id
+            inner join rutas as f on f.id = d.ruta_id
         where a.error_origen = 0 and a.buzon_de_voz=0 and a.conductor_contesta_pero_no_habla=0 and
               a.conductor_no_escucha=0 and a.conductor_mala_senal=0 and
               a.confusion_en_llamada=0 and a.numero_equivocado=0 and
@@ -30,6 +32,8 @@ class LlamadasJsonApiController {
         $sql_2="
         order by `a`.`created_at` desc limit 100 offset 0
         ";
+
+        //-------UBIGEOS LIMA 15 Y CALLAO 07
         $filtro = self::rango_fecha($request->startdate, $request->enddate);
 
         if ($filtro!==false){
