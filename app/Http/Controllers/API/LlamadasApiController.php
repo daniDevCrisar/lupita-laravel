@@ -104,7 +104,7 @@ class LlamadasApiController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $datos
+//            'data' => $datos
         ]);
 
     }

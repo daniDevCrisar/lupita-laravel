@@ -147,7 +147,8 @@ class DBReferencias {
         $fecha = DateTime::createFromFormat($format, $fecha_str);
 
         if ($fecha) {
-            $timestamp = $fecha->getTimestamp() + (5 * 3600); // Restar 5 horas (18000 segundos)
+//            $timestamp = $fecha->getTimestamp() + (5 * 3600); // Restar 5 horas (18000 segundos)
+            $timestamp = $fecha->getTimestamp(); // Restar 5 horas (18000 segundos)
             return $timestamp;
         } else {
             echo $fecha_str . '<br>';

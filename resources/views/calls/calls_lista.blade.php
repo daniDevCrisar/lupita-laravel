@@ -41,16 +41,22 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 </head>
 <body :class="darkMode ? 'text-light' : 'text-dark'" x-cloak>
-
 <div class="container-fluid py-4">
     <div class="row mb-4 align-items-center">
         <div class="col-12 col-md-5">
-            <h2 class="mb-0"><i class="bi bi-telephone-outbound text-primary"></i> Registro de Llamadas</h2>
-            <p class="text-muted small mb-0">Consulta en tiempo real (Auto: 30s)</p>
+            <h2 class="mb-0"><i class="bi bi-telephone-outbound text-primary"></i> Registro de Llamadas IA</h2>
+            <div class="mt-1">
+        <span class="badge bg-info bg-opacity-10 text-info-emphasis fw-normal">
+            <i class="bi bi-funnel me-1"></i> Solo exitosas y confirmación parcial
+        </span>
+                <span class="badge bg-success bg-opacity-10 text-success-emphasis fw-normal ms-1">
+            <i class="bi bi-arrow-repeat me-1"></i> Auto: 30s
+        </span>
+            </div>
         </div>
         <div class="col-12 col-md-7 text-md-end d-flex align-items-center justify-content-md-end gap-3 mt-3 mt-md-0">
             <div x-show="cargando" class="spinner-border spinner-border-sm text-primary" role="status"></div>
-            <span class="badge" :class="darkMode ? 'bg-dark border border-secondary' : 'bg-secondary'" x-text="filteredCalls.length + ' / ' + total + ' registros'"></span>
+            <span class="badge" :class="darkMode ? 'bg-dark border border-secondary' : 'bg-secondary'" x-text="count + ' de ' + total + ' registros'"></span>
 
             <button @click="toggleDarkMode()" class="btn btn-sm border-0 fs-4" :title="darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
                 <i class="bi" :class="darkMode ? 'bi-sun-fill text-warning' : 'bi-moon-stars-fill text-primary'"></i>
@@ -63,11 +69,11 @@
             <div class="row g-3">
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-uppercase">Fecha Inicio</label>
-                    <input type="date" class="form-control" x-model="filtros.startdate" @change="fetchCalls()" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
+                    <input type="date" class="form-control" x-model="filtros.startdate" @change="offset = 0; fetchCalls()" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-uppercase">Fecha Fin</label>
-                    <input type="date" class="form-control" x-model="filtros.enddate" @change="fetchCalls()" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
+                    <input type="date" class="form-control" x-model="filtros.enddate" @change="offset = 0; fetchCalls()" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-uppercase">Etapa Logística</label>
@@ -83,8 +89,8 @@
                     <label class="form-label small fw-bold text-uppercase">Origen</label>
                     <select class="form-select" x-model="filtros.origen" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
                         <option value="">Todos</option>
-                        <option value="lima">Lima</option>
-                        <option value="provincia">Provincia</option>
+                        <option value="lima">🌉 Lima</option>
+                        <option value="provincia">🌄Provincia</option>
                     </select>
                 </div>
 
@@ -92,8 +98,8 @@
                     <label class="form-label small fw-bold text-uppercase">Destino</label>
                     <select class="form-select" x-model="filtros.destino" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
                         <option value="">Todos</option>
-                        <option value="lima">Lima</option>
-                        <option value="provincia">Provincia</option>
+                        <option value="lima">🌉 Lima</option>
+                        <option value="provincia">🌄Provincia</option>
                     </select>
                 </div>
 
@@ -102,9 +108,15 @@
 
 
                 <div class="col-md-3">
+                    <label class="form-label small fw-bold text-uppercase">Título del viaje</label>
+                    <input type="text" class="form-control" x-model="filtros.titulo_viaje" placeholder="Filtrar por título..." :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
+                </div>
+
+                <div class="col-md-3">
                     <label class="form-label small fw-bold text-uppercase">Búsqueda rápida</label>
                     <input type="text" class="form-control" x-model="search" placeholder="Conductor, placa o ref..." :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
                 </div>
+
                 <div class="col-md-2 d-flex align-items-end">
                     <button class="btn w-100" :class="darkMode ? 'btn-outline-light' : 'btn-outline-secondary'" @click="resetFilters()">
                         <i class="bi bi-arrow-counterclockwise"></i> Reiniciar
@@ -112,6 +124,52 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Paginación Superior -->
+    <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+        <div class="d-flex align-items-center gap-3">
+            <select class="form-select form-select-sm" style="width: auto;" x-model="limit" @change="changeLimit()" :class="darkMode ? 'bg-dark text-light border-secondary' : ''">
+                <option value="25">25 reg.</option>
+                <option value="50">50 reg.</option>
+                <option value="100">100 reg.</option>
+            </select>
+            <div class="text-muted small">
+                Pág. <span class="fw-bold" x-text="currentPage"></span> de <span class="fw-bold" x-text="totalPages"></span>
+            </div>
+        </div>
+        <nav x-show="totalPages > 1">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" :class="currentPage === 1 ? 'disabled' : ''">
+                    <button class="page-link" @click="changePage(1)" :class="darkMode ? 'bg-dark border-secondary text-light' : ''" title="Inicio">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </button>
+                </li>
+                <li class="page-item" :class="currentPage === 1 ? 'disabled' : ''">
+                    <button class="page-link" @click="changePage(currentPage - 1)" :class="darkMode ? 'bg-dark border-secondary text-light' : ''">Ant.</button>
+                </li>
+
+                <template x-for="p in Array.from({length: Math.min(5, totalPages)}, (_, i) => {
+                    if (totalPages <= 5) return i + 1;
+                    if (currentPage <= 3) return i + 1;
+                    if (currentPage >= totalPages - 2) return totalPages - 4 + i;
+                    return currentPage - 2 + i;
+                })" :key="p">
+                    <li class="page-item" :class="currentPage === p ? 'active' : ''">
+                        <button class="page-link" x-text="p" @click="changePage(p)" :class="darkMode && currentPage !== p ? 'bg-dark border-secondary text-light' : ''"></button>
+                    </li>
+                </template>
+
+                <li class="page-item" :class="currentPage === totalPages ? 'disabled' : ''">
+                    <button class="page-link" @click="changePage(currentPage + 1)" :class="darkMode ? 'bg-dark border-secondary text-light' : ''">Sig.</button>
+                </li>
+                <li class="page-item" :class="currentPage === totalPages ? 'disabled' : ''">
+                    <button class="page-link" @click="changePage(totalPages)" :class="darkMode ? 'bg-dark border-secondary text-light' : ''" title="Final">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
     </div>
 
     <div class="card shadow-sm border-0" :class="darkMode ? 'bg-dark-subtle text-light' : ''">
@@ -126,6 +184,7 @@
                             <th>Etapa</th>
                             <th>Estado</th>
                             <th>Comentarios</th>
+                            <th>Ultimo Evento</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -165,6 +224,11 @@
                                             <i class="bi bi-whatsapp"></i>
                                         </a>
                                     </div>
+
+                                    <div class="small text-muted">
+                                        <i class="bi bi-building"></i>
+                                        <span x-text="call.trt"></span>
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
@@ -177,10 +241,12 @@
                                     <div class="small text-muted" style="font-size: 0.75rem;" x-text="call.titulo_viaje"></div>
                                 </td>
                                 <td>
+
                                     <span class="badge rounded-pill px-3 py-2"
-                                          :class="'bg-' + (call.etapa_color || 'secondary')"
-                                          style="border: 1px solid rgba(0,0,0,0.1);"
-                                          x-text="(call.etapa_emoji || '') + ' ' + call.etapa_nombre"></span>
+                                          :class="'bg-' + etapasPorId[call.etapa_id].color"
+                                          x-text="etapasPorId[call.etapa_id].emoji + ' ' + etapasPorId[call.etapa_id].nombre">
+                                    </span>
+
                                 </td>
                                 <td>
                                     <template x-if="call.llamada_exitosa">
@@ -198,12 +264,58 @@
                                         <span class="fw-bold" :class="darkMode ? 'text-dark-custom' : 'text-muted'"><i class="bi bi-robot text-info"></i></span> <span x-text="call.ia_result_comments_text" class="text-muted"></span>
                                     </div>
                                 </td>
+
+                                <td>
+
+                                    <div x-show="call.ultimo_evento_fecha">
+                                        <div class="clock-style" :class="darkMode ? 'text-light' : 'text-dark'"
+                                             x-text="call.ultimo_evento_fecha ? call.ultimo_evento_fecha.split(' ')[1].substring(0,5) : ''"></div>
+                                        <div class="small text-muted mt-1"
+                                             x-text="call.ultimo_evento_fecha ? call.ultimo_evento_fecha.split(' ')[0] : ''"></div>
+                                    </div>
+
+                                    <div x-show="call.ultimo_evento_id"  :class="darkMode ? 'text-dark-custom' : 'text-muted'">
+                                        <span class="badge small" :class="darkMode ? 'bg-dark border border-secondary text-light' : 'bg-light text-dark border'">
+                                            <span x-text="eventos[call.ultimo_evento_id].emoji || '📌'"></span>
+                                            <span x-text="eventos[call.ultimo_evento_id].nombre || 'Desconocido'"></span>
+                                        </span>
+                                    </div>
+
+                                </td>
+
                             </tr>
                         </template>
                     </tbody>
                 </table>
             </div>
         </div>
+    </div>
+
+    <!-- Paginación Inferior -->
+    <div class="d-flex justify-content-between align-items-center mt-3 px-1">
+        <div class="text-muted small">
+            Mostrando <span class="fw-bold" x-text="count"></span> de <span class="fw-bold" x-text="total"></span> registros
+        </div>
+        <nav x-show="totalPages > 1">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" :class="currentPage === 1 ? 'disabled' : ''">
+                    <button class="page-link" @click="changePage(1)" :class="darkMode ? 'bg-dark border-secondary text-light' : ''" title="Inicio">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </button>
+                </li>
+                <li class="page-item" :class="currentPage === 1 ? 'disabled' : ''">
+                    <button class="page-link" @click="changePage(currentPage - 1)" :class="darkMode ? 'bg-dark border-secondary text-light' : ''">Ant.</button>
+                </li>
+                <li class="page-item" :class="currentPage === totalPages ? 'disabled' : ''">
+                    <button class="page-link" @click="changePage(currentPage + 1)" :class="darkMode ? 'bg-dark border-secondary text-light' : ''">Sig.</button>
+                </li>
+                <li class="page-item" :class="currentPage === totalPages ? 'disabled' : ''">
+                    <button class="page-link" @click="changePage(totalPages)" :class="darkMode ? 'bg-dark border-secondary text-light' : ''" title="Final">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
     </div>
 </div>
 
@@ -231,7 +343,31 @@
         return {
             calls: [],
             etapas: @json($tipos_llamada ?? []),
+            etapasPorId: {},
+            eventos : {
+                1: { id: 1, nombre: 'Fuera de planta para carga', emoji: '🛻' },
+                2: { id: 2, nombre: 'Dentro de planta para carga', emoji: '🏭' },
+                3: { id: 3, nombre: 'Fin de carga', emoji: '📦' },
+                4: { id: 4, nombre: 'En ruta', emoji: '🛣️' },
+                5: { id: 5, nombre: 'Llegada destino', emoji: '🚩' },
+                6: { id: 6, nombre: 'Dentro de planta para descarga', emoji: '🚛' },
+                7: { id: 7, nombre: 'Fin de descarga', emoji: '🏁' }
+            },
+
+
+            // WHEN d.fin_descargue IS NOT NULL THEN 7
+            // WHEN d.inicio_descargue IS NOT NULL THEN 6
+            // WHEN d.qr_llegada_destino IS NOT NULL THEN 5
+            // WHEN d.inicio_ruta IS NOT NULL THEN 4
+            // WHEN d.fin_de_carga IS NOT NULL THEN 3
+            // WHEN d.inicio_de_carga IS NOT NULL THEN 2
+            // WHEN d.presenta_para_carga IS NOT NULL THEN 1
+
+
             total: 0,
+            count: 0,
+            limit: 25,
+            offset: 0,
             cargando: false,
             search: '',
             darkMode: localStorage.getItem('darkMode') === 'true',
@@ -241,6 +377,7 @@
                 etapa_id: '',
                 origen: '',
                 destino: '',
+                titulo_viaje: '',
             },
 
             init() {
@@ -254,6 +391,13 @@
                 setInterval(() => {
                     this.fetchCalls(true);
                 }, 30000);
+
+                //crear el array de etapas
+                this.etapasPorId = this.etapas.reduce((acc, etapa) => {
+                    acc[etapa.id] = etapa;
+                    return acc;
+                }, {});
+
             },
 
             toggleDarkMode() {
@@ -262,18 +406,39 @@
             },
 
             async fetchCalls(quiet = false) {
+                if (this.cargando) return;
+
+                // Si es una actualización automática (quiet), verificar si estamos viendo el día de hoy
+                if (quiet) {
+                    const hoy = new Date().toISOString().split('T')[0];
+                    const inicio = this.filtros.startdate;
+                    const fin = this.filtros.enddate || inicio; // Si fin está vacío, el backend usa inicio
+
+                    // Si hoy no está en el rango [inicio, fin], no refrescar automáticamente
+                    if (hoy < inicio || hoy > fin) {
+                        return;
+                    }
+                }
+
                 if (!quiet) this.cargando = true;
                 try {
                     const queryParams = new URLSearchParams();
                     if (this.filtros.startdate) queryParams.append('startdate', this.filtros.startdate);
                     if (this.filtros.enddate) queryParams.append('enddate', this.filtros.enddate);
 
+                    // Paginación
+                    queryParams.append('limit', this.limit);
+                    queryParams.append('offset', this.offset);
+
                     const response = await fetch(`{{route('end_point.llamadas.api')}}?${queryParams.toString()}`);
                     if (!response.ok) throw new Error('Error al conectar con el API');
 
                     const data = await response.json();
-                    this.calls = data.calls || [];
-                    this.total = data.total || 0;
+                    if (data.total !== undefined) {
+                        this.calls = data.calls || [];
+                        this.total = data.total || 0;
+                        this.count = data.count || 0;
+                    }
                 } catch (error) {
                     console.error('Fetch error:', error);
                     alert('No se pudieron cargar los datos de las llamadas.');
@@ -288,7 +453,29 @@
                 this.filtros.etapa_id = '';
                 this.filtros.origen = '';
                 this.filtros.destino = '';
+                this.filtros.titulo_viaje = '';
                 this.search = '';
+                this.offset = 0;
+                this.fetchCalls();
+            },
+
+            // Funciones de Paginación
+            get totalPages() {
+                return Math.ceil(this.total / this.limit);
+            },
+
+            get currentPage() {
+                return Math.floor(this.offset / this.limit) + 1;
+            },
+
+            changePage(page) {
+                if (page < 1 || page > this.totalPages) return;
+                this.offset = (page - 1) * this.limit;
+                this.fetchCalls();
+            },
+
+            changeLimit() {
+                this.offset = 0;
                 this.fetchCalls();
             },
 
@@ -311,16 +498,22 @@
                     });
                 }
 
-                // Filtro de Etapa Logística (Frontend)
+                // Filtro de Etapa Logística
                 if (this.filtros.etapa_id) {
                     filtered = filtered.filter(c => String(c.etapa_id) === String(this.filtros.etapa_id));
+                }
+
+                // Filtro por Título de Viaje
+                if (this.filtros.titulo_viaje) {
+                    const tv = this.filtros.titulo_viaje.toLowerCase();
+                    filtered = filtered.filter(c => String(c.titulo_viaje || '').toLowerCase().includes(tv));
                 }
 
                 const ubigeos_lima = ['15','07'];
 
                 const checkLima = (valor, ubigeo) => {
                     let v = String(valor || '').trim().toLowerCase();
-                    if (v === 'lima' || v === 'callao') return true;
+                    if (v.includes('lima') || v.includes('callao')) return true;
 
                     let u = String(ubigeo || '').trim();
                     if (u !== '') {
@@ -362,8 +555,6 @@
 
                 return filtered;
             },
-
-
 
             cleanPhone(phone) {
                 if (!phone) return '';
