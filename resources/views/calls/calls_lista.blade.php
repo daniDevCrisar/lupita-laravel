@@ -64,6 +64,41 @@
         </div>
     </div>
 
+    <!-- Estadísticas de Llamadas -->
+    <div class="mb-3" x-show="Object.keys(etapas_exitosas).length > 0">
+        <h5 class="fw-bold mb-2">
+            <i class="bi bi-graph-up-arrow text-success me-1"></i> Llamadas exitosas: <span class="text-primary" x-text="total_exitosas"></span>
+        </h5>
+        <div class="row g-2">
+            <template x-for="[key, value] in Object.entries(etapas_exitosas)" :key="key">
+                <div class="col-6 col-sm-4 col-md-2">
+                    <div class="card h-100 shadow-sm"
+                         :class="etapasPorId[key.split('_')[1]]
+                            ? (darkMode ? 'bg-dark border border-2 border-' + etapasPorId[key.split('_')[1]].color : 'text-white bg-' + etapasPorId[key.split('_')[1]].color + ' border-0')
+                            : (darkMode ? 'bg-dark border border-secondary text-light' : 'bg-light border-0')"
+                    >
+                        <div class="card-body p-2 text-center">
+                            <div class="small text-uppercase fw-bold mb-1"
+                                 :class="etapasPorId[key.split('_')[1]]
+                                    ? (darkMode ? 'text-light' : 'text-white')
+                                    : 'text-muted'"
+                                 style="font-size: 0.65rem;">
+                                <span x-text="(etapasPorId[key.split('_')[1]]?.emoji || '📞') + ' ' + (etapasPorId[key.split('_')[1]]?.nombre || key)"></span>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <span class="fs-4 fw-bold"
+                                      :class="etapasPorId[key.split('_')[1]]
+                                        ? (darkMode ? 'text-' + etapasPorId[key.split('_')[1]].color : 'text-white')
+                                        : 'text-primary'"
+                                      x-text="value"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
     <div class="card shadow-sm border-0 mb-4" :class="darkMode ? 'bg-dark-subtle text-light' : ''">
         <div class="card-body">
             <div class="row g-3">
@@ -209,8 +244,8 @@
                         <template x-for="call in filteredCalls" :key="call.created_at + call.telefono">
                             <tr :class="{'table-success-light': call.llamada_exitosa, 'table-danger-light': !call.llamada_exitosa}">
                                 <td class="ps-3">
-                                    <div class="clock-style" :class="darkMode ? 'text-light' : 'text-dark'" x-text="call.solo_hora ? call.solo_hora.substring(0,5) : ''"></div>
-                                    <div class="small text-muted mt-1" x-text="call.solo_fecha"></div>
+                                    <div class="clock-style" :class="darkMode ? 'text-light' : 'text-dark'" x-text="call.created_at.split(' ')[1].substring(0,5)"></div>
+                                    <div class="small text-muted mt-1" x-text="call.created_at.split(' ')[0]"></div>
                                 </td>
                                 <td>
                                     <div class="fw-bold text-primary" x-text="call.conductor"></div>
@@ -224,21 +259,23 @@
                                             <i class="bi bi-whatsapp"></i>
                                         </a>
                                     </div>
-
-                                    <div class="small text-muted">
+                                    <div class="small text-muted" x-show="call.trt">
                                         <i class="bi bi-building"></i>
                                         <span x-text="call.trt"></span>
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <a :href="'https://efletexia.com/newmonit/viaje/card/' + call.ref" target="_blank" class="btn btn-sm p-0 border-0" :class="darkMode ? 'text-info' : 'text-primary'" title="Ver Historial / Card">
-                                            <i class="bi bi-clock-history fs-5"></i>
-                                        </a>
-                                        <span class="badge fs-6" :class="darkMode ? 'bg-dark border border-secondary' : 'bg-light text-dark border'" x-text="call.ref"></span>
-                                        <span class="fw-bold" x-text="call.ruta_id"></span>
+                                    <div x-show="call.ref">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <a :href="'https://efletexia.com/newmonit/viaje/card/' + call.ref" target="_blank" class="btn btn-sm p-0 border-0" :class="darkMode ? 'text-info' : 'text-primary'" title="Ver Historial / Card">
+                                                <i class="bi bi-clock-history fs-5"></i>
+                                            </a>
+                                            <span class="badge fs-6" :class="darkMode ? 'bg-dark border border-secondary' : 'bg-light text-dark border'" x-text="call.ref"></span>
+                                            <span class="fw-bold" x-text="call.ruta_id"></span>
+                                        </div>
+                                        <div class="small text-muted" style="font-size: 0.75rem;" x-text="call.titulo_viaje"></div>
                                     </div>
-                                    <div class="small text-muted" style="font-size: 0.75rem;" x-text="call.titulo_viaje"></div>
+
                                 </td>
                                 <td>
 
@@ -267,19 +304,23 @@
 
                                 <td>
 
-                                    <div x-show="call.ultimo_evento_fecha">
-                                        <div class="clock-style" :class="darkMode ? 'text-light' : 'text-dark'"
-                                             x-text="call.ultimo_evento_fecha ? call.ultimo_evento_fecha.split(' ')[1].substring(0,5) : ''"></div>
-                                        <div class="small text-muted mt-1"
-                                             x-text="call.ultimo_evento_fecha ? call.ultimo_evento_fecha.split(' ')[0] : ''"></div>
-                                    </div>
+                                    <template x-if="call.ultimo_evento_fecha">
+                                       <div x-show="call.ultimo_evento_fecha">
+                                            <div class="clock-style" :class="darkMode ? 'text-light' : 'text-dark'"
+                                                 x-text="call.ultimo_evento_fecha.split(' ')[1].substring(0,5)"></div>
+                                            <div class="small text-muted mt-1"
+                                                 x-text="call.ultimo_evento_fecha.split(' ')[0]"></div>
+                                       </div>
+                                    </template>
 
-                                    <div x-show="call.ultimo_evento_id"  :class="darkMode ? 'text-dark-custom' : 'text-muted'">
-                                        <span class="badge small" :class="darkMode ? 'bg-dark border border-secondary text-light' : 'bg-light text-dark border'">
-                                            <span x-text="eventos[call.ultimo_evento_id].emoji || '📌'"></span>
-                                            <span x-text="eventos[call.ultimo_evento_id].nombre || 'Desconocido'"></span>
-                                        </span>
-                                    </div>
+                                    <template x-if="call.ultimo_evento_id">
+                                        <div x-show="call.ultimo_evento_id"  :class="darkMode ? 'text-dark-custom' : 'text-muted'">
+                                            <span class="badge small" :class="darkMode ? 'bg-dark border border-secondary text-light' : 'bg-light text-dark border'">
+                                                <span x-text="eventos[call.ultimo_evento_id].emoji || '📌'"></span>
+                                                <span x-text="eventos[call.ultimo_evento_id].nombre || 'Desconocido'"></span>
+                                            </span>
+                                        </div>
+                                    </template>
 
                                 </td>
 
@@ -344,6 +385,7 @@
             calls: [],
             etapas: @json($tipos_llamada ?? []),
             etapasPorId: {},
+            etapas_exitosas: {},
             eventos : {
                 1: { id: 1, nombre: 'Fuera de planta para carga', emoji: '🛻' },
                 2: { id: 2, nombre: 'Dentro de planta para carga', emoji: '🏭' },
@@ -365,6 +407,7 @@
 
 
             total: 0,
+            total_exitosas: 0,
             count: 0,
             limit: 25,
             offset: 0,
@@ -437,7 +480,9 @@
                     if (data.total !== undefined) {
                         this.calls = data.calls || [];
                         this.total = data.total || 0;
+                        this.total_exitosas = data.total_exitosas || 0;
                         this.count = data.count || 0;
+                        this.etapas_exitosas = data.etapas_exitosas || {};
                     }
                 } catch (error) {
                     console.error('Fetch error:', error);

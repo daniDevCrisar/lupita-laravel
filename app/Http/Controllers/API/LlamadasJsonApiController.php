@@ -1,5 +1,5 @@
 <?php
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers\Api;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -11,7 +11,7 @@ class LlamadasJsonApiController {
         // lower(a.audio_link) as audio_link,
         $sql= "
         select
-                a.created_at,DATE(a.created_at) as solo_fecha , TIME(a.created_at) as solo_hora,
+                a.created_at,
                 e.id as etapa_id,
                 a.ref, a.origen, a.destino, a.placa, d.titulo_viaje, d.ruta_id,
                 f.ubigeo_origen, f.ubigeo_destino,
@@ -44,22 +44,33 @@ class LlamadasJsonApiController {
             left join referencias as d on d.ref = a.ref
             inner join tipos_llamada as e on e.id = a.llamada_tipo_id
             left join rutas as f on f.id = d.ruta_id
-        where a.error_origen = 0 and a.buzon_de_voz=0 and a.conductor_contesta_pero_no_habla=0 and
+        where ((a.error_origen = 0 and a.buzon_de_voz=0 and a.conductor_contesta_pero_no_habla=0 and
               a.conductor_no_escucha=0 and a.conductor_mala_senal=0 and
               a.confusion_en_llamada=0 and a.numero_equivocado=0 and
               a.error_tecnico_llamada=0 and a.error_audio=0 and a.conductor_no_contesta=0 and
-              a.razon_finalizacion_id in (1,2) and a.conductor_confirma =1 and
+              a.razon_finalizacion_id in (1,2)  and
               !((a.conductor_confirma+ a.conductor_da_motivos + a.conversacion_fluida + a.llamada_interesante =0) and a.conductor_cuelga and !a.llamada_exitosa)
+              )
+              or a.conductor_confirma =1 or a.llamada_exitosa =1 )
         ";
         $sql_count = "
-        select count(*) as total
+        select count(*) as total, SUM(IF(llamada_exitosa, 1, 0)) AS total_exitosas,
+            SUM(IF(llamada_tipo_id = 1 AND llamada_exitosa, 1, 0)) AS `etapa_1`,
+            SUM(IF(llamada_tipo_id = 2 AND llamada_exitosa, 1, 0)) AS `etapa_2`,
+            SUM(IF(llamada_tipo_id = 3 AND llamada_exitosa, 1, 0)) AS `etapa_3`,
+            SUM(IF(llamada_tipo_id = 4 AND llamada_exitosa, 1, 0)) AS `etapa_4`,
+            SUM(IF(llamada_tipo_id = 5 AND llamada_exitosa, 1, 0)) AS `etapa_5`,
+            SUM(IF(llamada_tipo_id = 6 AND llamada_exitosa, 1, 0)) AS `etapa_6`
         from `llamadas` as `a`
-        where a.error_origen = 0 and a.buzon_de_voz=0 and a.conductor_contesta_pero_no_habla=0 and
+
+        where ( (a.error_origen = 0 and a.buzon_de_voz=0 and a.conductor_contesta_pero_no_habla=0 and
               a.conductor_no_escucha=0 and a.conductor_mala_senal=0 and
               a.confusion_en_llamada=0 and a.numero_equivocado=0 and
               a.error_tecnico_llamada=0 and a.error_audio=0 and a.conductor_no_contesta=0 and
-              a.razon_finalizacion_id in (1,2)  and a.conductor_confirma =1 and
+              a.razon_finalizacion_id in (1,2)  and
               !((a.conductor_confirma+ a.conductor_da_motivos + a.conversacion_fluida + a.llamada_interesante =0) and a.conductor_cuelga and !a.llamada_exitosa)
+              )
+              or a.conductor_confirma =1 or a.llamada_exitosa =1)
         ";
 
         $limit = $request->input('limit', 100);
@@ -76,21 +87,29 @@ class LlamadasJsonApiController {
 
         if ($filtro!==false){
 //            dd($filtro);
-            $total_count = DB::select($sql_count.$filtro[0], $filtro[1])[0]->total;
+            $data_total = DB::select($sql_count.$filtro[0], $filtro[1]);
             $data = DB::select($sql.$filtro[0].$sql_2, [...$filtro[1], (int)$limit, (int)$offset]);
         }
         else {
-            $total_count = DB::select($sql_count)[0]->total;
+            $data_total = DB::select($sql_count)[0]->total;
             $data = DB::select($sql.$sql_2, [(int)$limit, (int)$offset]);
         }
 
         $json = [
             'startdate' => $request->startdate,
             'enddate' => $request->enddate,
-            'total' => $total_count,
+            'total' => (int) $data_total[0]->total,
+            'total_exitosas' => (int) $data_total[0]->total_exitosas,
+            'etapas_exitosas' => [
+                'etapa_1' => (int) ($data_total[0]->etapa_1 ?? 0),
+                'etapa_2' => (int) ($data_total[0]->etapa_2 ?? 0),
+                'etapa_3' => (int) ($data_total[0]->etapa_3 ?? 0),
+                'etapa_5' => (int) ($data_total[0]->etapa_5 ?? 0),
+                'etapa_6' => (int) ($data_total[0]->etapa_6 ?? 0)
+            ],
             'count' => count($data),
-            'offset' =>$offset,
-            'limit' => $limit,
+            'offset' => (int) $offset,
+            'limit' => (int) $limit,
             'calls'=>(array)$data
         ];
         return response()->json($json);
