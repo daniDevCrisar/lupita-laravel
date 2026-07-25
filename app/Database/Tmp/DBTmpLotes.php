@@ -138,7 +138,7 @@ class DBTmpLotes
         foreach ($tabla as $row){
             $row_tabla=  $tabla[$cont]??false;
             if ($row_tabla){
-                if($row_tabla->$campo_1 == $row->$campo_1){
+                if($row_tabla->$campo_1 == $row->$campo_1 and ($row_tabla->{$campo_2}. $row->$campo_2 != '') ){ //evitar agregar conductores con nombres en blanco
                     $comparar=self::similitud( $row_tabla->{$campo_2}, $row->$campo_2,true,$omitir_penalizacion);
                     if ($comparar >= 80)
                         //echo 'comp:' . $comparar . ' :' . $row_tabla->{$campo_2} . ' * '.  $row->{$campo_2}.  '<br>';

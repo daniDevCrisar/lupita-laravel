@@ -59,11 +59,22 @@ class DBConductores
 
     public static function buscar_duplicados($row){ //solo para import
         $nom=DBTmpLotes::normalizar( $row->conductor,false);
+//        $buscar = DB::select("SELECT *
+//        FROM conductores
+//        WHERE activo=1 and
+//        MATCH(nombres) AGAINST(?)
+//        ORDER BY (nombres = ?) DESC
+//        limit 1;",
+//        [
+//            $nom,$nom
+//        ]);
+//        SELECT * FROM conductores MATCH(nombres) AGAINST('MARCOS CELESTINO') ORDER BY MATCH(nombres) AGAINST('MARCOS CELESTINO') DESC;
+
         $buscar = DB::select("SELECT *
         FROM conductores
         WHERE activo=1 and
         MATCH(nombres) AGAINST(?)
-        ORDER BY (nombres = ?) DESC
+        ORDER BY MATCH(nombres) AGAINST(?) DESC
         limit 1;",
         [
             $nom,$nom

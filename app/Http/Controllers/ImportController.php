@@ -16,6 +16,7 @@ use App\Database\Tmp\DBTmpLlamadas;
 use App\Database\DBConductores;
 use App\Database\DBTrts;
 use App\Database\DBReferencias;
+use Illuminate\Support\Facades\DB;
 
 class ImportController extends Controller
 {
@@ -206,6 +207,31 @@ class ImportController extends Controller
     }
 
     public function lista_lotes(Request $request){
+
+        //ARREGLA EL PROBLEMA DE CONDUCTORES DUPLICADOS Q SE GENERA EN WEB NO EN LOCAL
+//        $prub='';
+//        $nuevos = DB::select("SELECT id, nombres FROM conductores WHERE id > 1541 AND activo = 1");
+//        $count = 0;
+//
+//        $update= "UPDATE llamadas SET conductor_id = ? WHERE conductor_id = ?;";
+//        $update_2= "UPDATE conductores SET activo = 0 WHERE id = ?;";
+//        foreach ($nuevos as $nuevo) {
+//            $match = DB::selectOne("
+//        SELECT * FROM conductores
+//        WHERE activo = 1
+//        AND MATCH(nombres) AGAINST(?)
+//        ORDER BY MATCH(nombres) AGAINST(?) DESC LIMIT 1
+//    ", [$nuevo->nombres, $nuevo->nombres]);
+//            if ($match && $match->id != $nuevo->id) {
+//                $prub.= "{$nuevo->id} - {$nuevo->nombres} → {$match->id} - {$match->nombres} <br>";
+//                $count+=1;
+////                DB::update($update_2, [$nuevo->id]);
+//            }
+//        }
+//        echo "$prub <br> $count" ;
+
+
+
         $lotes = DBTmpLotes::lista(30);
         $llamadas = new DBLlamadas(false);
         return view('import.lista_lotes', [
