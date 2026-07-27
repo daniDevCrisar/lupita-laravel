@@ -10,6 +10,12 @@ function generar_excel_llamadas(json){
     const conversacion = new procesarTranscripcion();
     json.forEach((item, index) => {
 
+        if (item.status ==='in-progress') {
+            console.log(item.status);
+            return;
+        } //ir al siguiente item si funciona terminar iteracion si llamada esta en progreso
+
+
         vapi_entro_llamada=item.analysis?.successEvaluation??''
 
         if (vapi_entro_llamada) vapi_entro_llamada= '1'

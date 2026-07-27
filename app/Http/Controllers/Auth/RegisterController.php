@@ -37,7 +37,19 @@ class RegisterController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('guest');
+        $this->middleware('auth');
+
+        echo('habla con el administrador');
+//        dd([
+//            'check' => auth()->check(),
+//            'user' => auth()->user(),
+//            'id' => auth()->id(),
+//            'session_id' => session()->getId(),
+//            'session_all' => session()->all(),
+//            'cookies' => request()->cookies->all(),
+//            'guard' => auth()->getDefaultDriver(),
+//        ]);
+
     }
 
     /**
