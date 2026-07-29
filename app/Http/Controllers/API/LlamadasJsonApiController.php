@@ -49,7 +49,7 @@ class LlamadasJsonApiController {
               a.confusion_en_llamada=0 and a.numero_equivocado=0 and
               a.error_tecnico_llamada=0 and a.error_audio=0 and a.conductor_no_contesta=0 and
               a.razon_finalizacion_id in (1,2)  and
-              !((a.conductor_confirma+ a.conductor_da_motivos + a.conversacion_fluida + a.llamada_interesante =0) and a.conductor_cuelga and !a.llamada_exitosa)
+              !((a.conductor_confirma+ a.conductor_da_motivos + a.conversacion_fluida =0) and a.conductor_cuelga and !a.llamada_exitosa)
               )
               or a.conductor_confirma =1 or a.llamada_exitosa =1 )
         ";
@@ -68,7 +68,7 @@ class LlamadasJsonApiController {
               a.confusion_en_llamada=0 and a.numero_equivocado=0 and
               a.error_tecnico_llamada=0 and a.error_audio=0 and a.conductor_no_contesta=0 and
               a.razon_finalizacion_id in (1,2)  and
-              !((a.conductor_confirma+ a.conductor_da_motivos + a.conversacion_fluida + a.llamada_interesante =0) and a.conductor_cuelga and !a.llamada_exitosa)
+              !((a.conductor_confirma+ a.conductor_da_motivos + a.conversacion_fluida =0) and a.conductor_cuelga and !a.llamada_exitosa)
               )
               or a.conductor_confirma =1 or a.llamada_exitosa =1)
         ";
