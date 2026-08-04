@@ -85,3 +85,25 @@ Route::get('/mail-config', function () {
         echo "✅ <strong>Configuración correcta!</strong>\n";
     }
 });
+
+
+Route::get('/livewire/discover', function() {
+    try {
+        // ✅ Usar Artisan directamente (Laravel ya está cargado)
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        \Illuminate\Support\Facades\Artisan::call('route:clear');
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+
+        return response()->json([
+            'success' => true,
+            'message' => '✅ Caché limpiado y Livewire descubierto'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => '❌ Error: ' . $e->getMessage()
+        ]);
+    }
+});

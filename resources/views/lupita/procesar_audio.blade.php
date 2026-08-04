@@ -9,7 +9,6 @@
 
 @section('content')
     @include('lupita.resources.input_etiquetas_css')
-    <livewire:mensajes-llamada />
 
     <div class="row">
         <div class="col-12">
@@ -207,57 +206,55 @@
                         <h5 id="card_numero"></h5>
                     </div>
                 </div>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item small" id="card_conductor_html">
-                    </li>
-                    <li class="list-group-item small" id="card_ref_html">
-                    </li>
-                    <li class="list-group-item small" id="card_tipol_html"></li>
-                </ul>
-                <div class="card-body">
-                    <audio id="mainAudio" controls class="w-100">
-                        <source id="audioSource" src="" type="audio/mpeg">
-                        Tu navegador no soporta audio.
-                    </audio>
-                    <div class="d-flex justify-content-center align-items-center gap-3" style="height:40px;">
-                        <button class="btn btn-outline-info btn-circular" id="btn_fila_izquierda"
-                        onclick="cambiarFila(-1)">
-                            <i class="bi bi-skip-backward-fill"></i>
-                        </button>
+                <div class="row">
+                    <!-- Columna izquierda -->
+                    <div class="col-6">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item small" id="card_conductor_html"></li>
+                            <li class="list-group-item small" id="card_ref_html"></li>
+                            <li class="list-group-item small" id="card_tipol_html"></li>
+                        </ul>
+                        <div class="card-body">
+                            <audio id="mainAudio" controls class="w-100">
+                                <source id="audioSource" src="" type="audio/mpeg">
+                                Tu navegador no soporta audio.
+                            </audio>
+                            <div class="d-flex justify-content-center align-items-center gap-3" style="height:40px;">
+                                <button class="btn btn-outline-info btn-circular" id="btn_fila_izquierda" onclick="cambiarFila(-1)">
+                                    <i class="bi bi-skip-backward-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-success btn-circular" onclick="abrirMensajes()">
+                                    <i class="bi bi-chat-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-info btn-circular" id="btn_fila_derecha" onclick="cambiarFila(1)">
+                                    <i class="bi bi-skip-forward-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-light btn-circular" id="btn_guardar" onclick="selLlamada(orden_lista)">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                                <button class="btn btn-outline-light btn-circular" id="btn_guardar" onclick="guardar_etiqueta()">
+                                    <i class="bi bi-floppy-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-info btn-circular">
+                                    <i class="bi bi-gear-fill"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item small">Duracion: <span class="fw-bold text-info" id="card_audio_duracion"></span></li>
+                            <li class="list-group-item text-info small" id="card_razon_f"></li>
+                            <li class="list-group-item small">
+                                <span class="text-info" style="font-size: 0.75rem;" id="card_analisis_ia"></span><br>
+                                Analisis de transcripcion: <span class="text-danger" id="card_analisis_t"></span>
+                            </li>
+                        </ul>
+                    </div>
 
-                        <button class="btn btn-outline-success btn-circular"
-                        onclick="abrirMensajes()">
-                            <i class="bi bi-chat-fill"></i>
-                        </button>
-
-                        <button class="btn btn-outline-info btn-circular" id="btn_fila_derecha"
-                        onclick="cambiarFila(1)">
-                            <i class="bi bi-skip-forward-fill"></i>
-                        </button>
-
-                        {{--   GUARDAR    --}}
-                        <button class="btn btn-outline-light btn-circular" id="btn_guardar" onclick="selLlamada(orden_lista)">
-                            <i class="bi bi-arrow-repeat"></i>
-                        </button>
-
-                        <button class="btn btn-outline-light btn-circular" id="btn_guardar" onclick="guardar_etiqueta()">
-                            <i class="bi bi-floppy-fill"></i>
-                        </button>
-
-                        <button class="btn btn-outline-info btn-circular">
-                            <i class="bi bi-gear-fill"></i>
-                        </button>
-
+                    <!-- Columna derecha -->
+                    <div class="col-6">
+                        <livewire:mensajes-llamada-textbox />
                     </div>
                 </div>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item small">Duracion: <span class="fw-bold text-info" id="card_audio_duracion"></span></li>
-                    <li class="list-group-item text-info small" id="card_razon_f"></li>
-                    <li class="list-group-item small">
-                        <span class="text-info" style="font-size: 0.75rem;" id="card_analisis_ia"></span><br>
-                        Analisis de transcripcion: <span class="text-danger" id="card_analisis_t"></span>
-                    </li>
-                </ul>
 
                 <div class="card-body">
                     <div class="row">
@@ -518,6 +515,7 @@
                 document.getElementById('lista_' + anterior_fila + '_tr').classList.remove('tr-primary')
             }
             anterior_fila=orden;
+            abrirMensajes()
         }
 
         function guardar_etiqueta(){
@@ -707,7 +705,7 @@
                 nombre: document.getElementById('lista_' + orden_lista +'_conductor').value,
                 'vapi_id' : vapi_id
             }
-            Livewire.dispatch('abrirMensaje',parametros);
+            Livewire.dispatch('abrirMensajeTextbox',parametros);
         }
 
         const audio = document.getElementById('mainAudio');
