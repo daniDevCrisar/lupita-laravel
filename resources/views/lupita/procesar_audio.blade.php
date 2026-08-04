@@ -968,6 +968,7 @@
             lista.push(['{{ $item }}','{!! $link . $key !!}']);
             @endforeach
 
+
             let total= lista.length,count=0;
             for (const [nombre, url] of lista) {
                 console.log(nombre,url);
