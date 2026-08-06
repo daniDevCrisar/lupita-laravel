@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reporte de Confirmaciones VAPI - 05/08/2026</title>
@@ -271,7 +271,7 @@
     </div>
 
 
-    
+
                     <div class="progress">
             <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar"
                  style="width: 27%;" aria-valuenow="27">
@@ -282,8 +282,8 @@
                 10 Min y 57 Seg
             </div>
         </div>
-    
-    
+
+
         <div class="col-12">
             <div class="card mb-3 ">
                 <div class="card-body">
@@ -350,7 +350,7 @@
                 </div>
             </div>
         </div>
-    
+
 
         <!-- PEORES CONDUCTORES (múltiples fallos) -->
     <div class="card report-card mb-5">
@@ -466,8 +466,8 @@
             </div>
         </div>
     </div>
-    
-    
+
+
     <div class="col-12 card p-4 report-card border-2 mb-4">
         <div class="card-header bg-white border-0 pt-3 pb-0">
             <h5 class="fw-bold"><i class="bi bi-funnel-fill"></i> Embudo de Conversión</h5>
@@ -567,10 +567,10 @@
 
     </div>
 
-    
-    
 
-    
+
+
+
     <div class="col-12 card p-4 report-card border-2 mb-4">
         <div class="card-header bg-white border-0">
             <h4 class="h5 fw-bold"><i class="fa-solid fa-chart-line"></i> Progreso de exito en llamadas</h4>
@@ -580,7 +580,7 @@
         </div>
     </div>
 
-    
+
 
         <!-- por q el porcentaje de fallo -->
     <div class="col-12">
@@ -603,7 +603,7 @@
 
 
         <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
-        
+
 
 
         <div class="row g-4 mb-5">
@@ -662,7 +662,7 @@
                     <p><strong>0% de los fallos</strong>
                         - errores referentes a la IA no necesariamente con llevan a un fallo.</p>
                     <div class="ms-3">
-                        
+
                         <div class="mb-2">
                             <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>0</strong>
                             <span class="text-muted" style="font-size:0.8rem;">
@@ -673,7 +673,7 @@
                         ia_mala_pronunciacion: 0,
                         ia_cuelga_en_plena_llamada: 0)
                     </span></div>
-                        
+
                         <i class="bi bi-wifi text-danger"></i> Error de red: <strong>0</strong><br>
                         <i class="bi bi-question-circle text-danger"></i> Error desconocido: <strong>0</strong><br>
                         <i class="bi bi-gear text-danger"></i> Error de sistema: <strong>0</strong>
@@ -713,10 +713,10 @@
                 </div>
             </div>
 
-            
+
         </div>
-    
-    
+
+
     <style>
         .circulo-a {
             width: 30vw; /* 30% del ancho de la ventana */
@@ -836,8 +836,8 @@
 
             </div>
         </div>
-    
-    
+
+
     <!-- FOOTER / NOTAS ACLARATORIAS -->
     <div class="footer-note pt-3 d-flex justify-content-between">
         <span><i class="far fa-file-excel me-1"></i> Datos: Reporte Generado con LUPITA</span>
@@ -856,7 +856,7 @@
         new bootstrap.Tooltip(el)
     })
 
-    
+
     const data = [{"total":59,"exitosas":"9","fallidas":"50","total_errores":"1","fecha_text":"Wednesday 29\/07\/26"},{"total":63,"exitosas":"14","fallidas":"49","total_errores":"2","fecha_text":"Thursday 30\/07\/26"},{"total":9,"exitosas":"2","fallidas":"7","total_errores":"0","fecha_text":"Friday 31\/07\/26"},{"total":67,"exitosas":"12","fallidas":"55","total_errores":"2","fecha_text":"Saturday 01\/08\/26"},{"total":37,"exitosas":"7","fallidas":"30","total_errores":"1","fecha_text":"Monday 03\/08\/26"},{"total":19,"exitosas":"1","fallidas":"18","total_errores":"2","fecha_text":"Tuesday 04\/08\/26"},{"total":18,"exitosas":"3","fallidas":"15","total_errores":"0","fecha_text":"Wednesday 05\/08\/26"}];
     const labels = data.map(x => x.fecha_text);
     const exitosas = data.map(x => x.exitosas);
@@ -912,7 +912,7 @@
         },
     });
 
-    
+
     new Chart(document.getElementById('chart_fallidos'), {
         type: 'pie',
         data: {
@@ -949,7 +949,7 @@
         },
     });
 
-    
+
     function playAudio(url, trt, nombres) {
         const audio = document.getElementById('mainAudio');
         const audio_texto = document.getElementById('audio_texto');
