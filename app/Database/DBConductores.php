@@ -57,7 +57,9 @@ class DBConductores
     }
 
 
-    public static function buscar_duplicados($row){ //solo para import
+    public static function buscar_duplicados($row_buscar){ //solo para import
+        $row=unserialize(serialize($row_buscar)); //importante clone para no modificar la var
+
         $nom=DBTmpLotes::normalizar( $row->conductor,false);
 //        $buscar = DB::select("SELECT *
 //        FROM conductores
@@ -82,9 +84,11 @@ class DBConductores
 
         if (!empty($buscar)) {
             $comparar=DBTmpLotes::similitud($row->conductor, $buscar[0]->nombres);
+
+            echo $comparar . ' buscado:'.$row->conductor . ' comparado:' .$buscar[0]->nombres . '<br>';
            //if ($row->conductor=='JORGE DIAZ') dd($buscar);
             // Sí encontró
-            if ($comparar == 100) {
+            if ($comparar > 72) {
                 $nuevo_nombre = $buscar[0]->nombres;
                 $accion = 'duplicado';
                 $row->id=$buscar[0]->id;
@@ -102,15 +106,15 @@ class DBConductores
                 //comparar el string mas grande para actualizar el nombre
                 //$nuevo_nombre = strlen($row->conductor) > strlen($buscar[0]->nombres) ? $row->conductor : $buscar[0]->nombres;
                 $row->conductor = $nuevo_nombre;
-                return ['accion' => $accion, 'id' => $buscar[0]->id , 'row' => $row, 'comparar' => $comparar];
+                return ['accion' => $accion, 'id' => $buscar[0]->id , 'row' => $row, 'comparar' => $comparar, 'buscado' => $row_buscar->conductor , 'comparado'=>$buscar[0]->nombres ];
             }
             else {
                 //echo '2- casi iguales ++'. $row->conductor . ' - ' . $buscar[0]->nombres . '++ similitud: ' . $comparar . '%<br>';
-                return ['accion' => 'nuevo', 'id' => null , 'row' => $row, 'comparar' => 0];
+                return ['accion' => 'nuevo', 'id' => null , 'row' => $row, 'comparar' => $comparar, 'buscado' => $row_buscar->conductor,'comparado'=>$buscar[0]->nombres ];
                 }
         } else {
             // No es un duplicado, insertar nuevo registro
-            return ['accion' => 'nuevo', 'id' => null , 'row' => $row, 'comparar' => 0];
+            return ['accion' => 'nuevo', 'id' => null , 'row' => $row, 'comparar' => 0, 'buscado' => $row_buscar->conductor,'comparado'=>'' ];
         }
     }
 

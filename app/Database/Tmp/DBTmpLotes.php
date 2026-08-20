@@ -199,22 +199,33 @@ class DBTmpLotes
         if ($nombres and $count_palabrasA != $count_palabrasB and !$omitir_penalizacion) {
             if ($count_palabrasA + $count_palabrasB != 7 ){ //si l suma es 7 es el unico caso q quede existir de diferencia entre nombres y apellidos sin penalizar
                 if ($count_palabrasA > $count_palabrasB){
-
-                    if ($palabrasA[$count_palabrasA-2]!= $palabrasB[$count_palabrasB-1]) {
+                    //--------falta comparacion si a es el doble de b
+                    if ($count_palabrasA == $count_palabrasB*2){
+                        if ($palabrasA[$count_palabrasA/2 -1]!= $palabrasB[$count_palabrasB-1]){
+                            $puntaje += 0.5;
+                        }
+                    }
+                    else if ($palabrasA[$count_palabrasA-2]!= $palabrasB[$count_palabrasB-1]) {
+                        echo ' / nom ape != nom nom ape /  penalizacion por apellido '. $palabrasA[$count_palabrasA-2] . ' vs' . $palabrasB[$count_palabrasB-1];
                         //echo 'penalizando por apellido: ' . $palabrasA[$count_palabrasA-2] . ' vs ' . $palabrasB[$count_palabrasB-1] . '<br>';
                         $puntaje -= 0.65; // penalizar si el apellido no coincide
                     }
                 }
                 else{
-                    if ($palabrasB[$count_palabrasB-2]!= $palabrasA[$count_palabrasA-1]) {
-                        //echo 'penalizando por apellido: ' . $palabrasB[$count_palabrasB-2] . ' vs ' . $palabrasA[$count_palabrasA-1] . '<br>';
+                    if ($count_palabrasB == $count_palabrasA*2){
+                        if ($palabrasA[$count_palabrasB/2 -1]!= $palabrasB[$count_palabrasA-1]){
+                            $puntaje += 0.5;
+                        }
+                    }
+                    else if ($palabrasB[$count_palabrasB-2]!= $palabrasA[$count_palabrasA-1]) {
+                        echo '/ nom ape != nom nom ape / penalizando por apellido: ' . $palabrasB[$count_palabrasB-2] . ' vs ' . $palabrasA[$count_palabrasA-1] . '<br>';
                         $puntaje -= 0.65; // penalizar si el apellido no coincide
                     }
                 }
             }
             else{
                 if ($palabrasA[$count_palabrasA-2]!= $palabrasB[$count_palabrasB-2]) {
-                    //echo 'nuevo penalizando por apellido: ' . $palabrasA[$count_palabrasA-2] . ' vs ' . $palabrasB[$count_palabrasB-2] . '<br>';
+                    echo '/ nom ape != nom nom  ape ape / penalizando por apellido: ' . $palabrasA[$count_palabrasA-2] . ' vs ' . $palabrasB[$count_palabrasB-2] . '<br>';
                     $puntaje -= 0.65; // penalizar si el apellido no coincide
                 }
             }

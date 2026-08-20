@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\LlamadasApiController;
 use App\Http\Controllers\Api\LlamadasJsonApiController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LogConductoresController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImportController;
@@ -43,6 +44,8 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/excel/{lote_id}/eliminar', [ImportController::class, 'eliminar_lote'])->name('importar.excel.eliminar')
             ->middleware('role:admin')->middleware('permission:eliminar lote');
     });
+
+    Route::get('/test-c', [HomeController::class, 'test_nombres']);
 
 });
 
