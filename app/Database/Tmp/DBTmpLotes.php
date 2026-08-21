@@ -187,6 +187,7 @@ class DBTmpLotes
         $textoLargo = $count_palabrasA >= $count_palabrasB ? $a : $b;
         $textoCorto = $count_palabrasA < $count_palabrasB ? $a : $b;
         $palabrasCorto = explode(' ', $textoCorto);
+        $palabrasLargo = explode(' ', $textoLargo);
 
         $puntaje = 0;
         foreach ($palabrasCorto as $palabra) {
@@ -197,6 +198,12 @@ class DBTmpLotes
 
         //no ejecutar si la diferia del nombre corto con el nombre largo es mas del doble
         if ($nombres and $count_palabrasA != $count_palabrasB and !$omitir_penalizacion) {
+            if (count($palabrasCorto) == 3 and count($palabrasLargo) == 4) {
+                if ($palabrasCorto[0] . $palabrasCorto[1] . $palabrasCorto[2] === $palabrasLargo[0] . $palabrasLargo[1] . $palabrasLargo[2])
+                    $puntaje += 1;
+            }
+
+
             if ($count_palabrasA + $count_palabrasB != 7 ){ //si l suma es 7 es el unico caso q quede existir de diferencia entre nombres y apellidos sin penalizar
                 if ($count_palabrasA > $count_palabrasB){
                     //--------falta comparacion si a es el doble de b

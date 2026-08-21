@@ -259,6 +259,8 @@ class ImportController extends Controller
            <tbody>$log</tbody></table>";
 
 
+        echo DBTmpLotes::similitud('ROSMEL VICTORIO', 'ROSMEL FREDY OLIVARES CHINCHAY');
+
 
         $lotes = DBTmpLotes::lista(30);
         $llamadas = new DBLlamadas(false);

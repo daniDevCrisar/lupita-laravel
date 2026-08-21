@@ -88,7 +88,7 @@ class DBConductores
             echo $comparar . ' buscado:'.$row->conductor . ' comparado:' .$buscar[0]->nombres . '<br>';
            //if ($row->conductor=='JORGE DIAZ') dd($buscar);
             // Sí encontró
-            if ($comparar > 72) {
+            if ($comparar > 99) {
                 $nuevo_nombre = $buscar[0]->nombres;
                 $accion = 'duplicado';
                 $row->id=$buscar[0]->id;
