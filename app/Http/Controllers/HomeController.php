@@ -56,6 +56,14 @@ class HomeController extends Controller
         echo "<table border='1'><thead><th>accion</th><th>buscar</th><th>encontrado</th><th>asercion</th><th>Identico</th></thead>
            <tbody>$log</tbody></table>";
 
+
+        $comparar=DBTmpLotes::similitud('NICOLAS GARRIDO', 'EDGAR NICOLAS GARRIDO YURIVILCA');
+        echo "Comparar DBTmpLotes::similitud('NICOLAS GARRIDO', 'EDGAR NICOLAS GARRIDO YURIVILCA '); {$comparar} <BR>";
+        $comparar=DBTmpLotes::similitud('GARRIDO YURIVILCA NICOLAS', 'EDGAR NICOLAS GARRIDO YURIVILCA');
+        echo "Comparar DBTmpLotes::similitud('GARRIDO YURIVILCA NICOLAS', 'EDGAR NICOLAS GARRIDO YURIVILCA'); {$comparar}  <BR>";
+        $comparar=DBTmpLotes::similitud('GARRIDO YURIVILCA EDGAR NICOLAS', 'EDGAR NICOLAS GARRIDO YURIVILCA');
+        echo "Comparar DBTmpLotes::similitud('GARRIDO YURIVILCA EDGAR NICOLAS', 'EDGAR NICOLAS GARRIDO YURIVILCA'); {$comparar}  <BR>";
+
         dd($personas);
         return 'sdas';
     }
