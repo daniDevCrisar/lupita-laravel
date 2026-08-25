@@ -48,6 +48,9 @@ class LlamadasController extends Controller
         ]);
 
         $llamadas= new DBLlamadas();
+        //-------------EVITAR DESBORDAMIENTO POR TIEMPO DE ESPERA
+        DB::statement('SET SESSION wait_timeout = 600');
+        //------------------------
         $llamadas::set_filtro($request);
         //$llamadas::listar_principal(30);
 
