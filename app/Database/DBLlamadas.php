@@ -316,6 +316,10 @@ class DBLlamadas {
         return Carbon::parse($fecha)->format($format);
     }
 
+    public static function get_fecha_day_name($fecha){
+        return strtoupper(Carbon::parse($fecha)->dayName);
+    }
+
     public static function etiqueta_totales(){
         $sql="SELECT
 

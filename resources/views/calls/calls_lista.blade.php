@@ -225,7 +225,7 @@
                     <tbody>
                         <template x-if="cargando">
                             <tr>
-                                <td colspan="6" class="text-center py-5">
+                                <td colspan="7" class="text-center py-5">
                                     <div class="spinner-border text-primary mb-2" role="status"></div>
                                     <p class="text-muted">Obteniendo datos del servidor...</p>
                                 </td>
@@ -234,7 +234,7 @@
 
                         <template x-if="!cargando && filteredCalls.length === 0">
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="bi bi-info-circle fs-2"></i>
                                     <p class="mt-2">No se encontraron registros coincidentes.</p>
                                 </td>
@@ -275,6 +275,12 @@
                                         </div>
                                         <div class="small text-muted" style="font-size: 0.75rem;" x-text="call.titulo_viaje"></div>
                                     </div>
+                                    <!-- ESTE ES EL ELSE -->
+                                    <div x-show="!call.ref">
+                                        <span class="fw-bold" x-text="call.origen"></span> -
+                                        <span class="fw-bold" x-text="call.destino"></span>
+                                    </div>
+
 
                                 </td>
                                 <td>
@@ -396,16 +402,6 @@
                 7: { id: 7, nombre: 'Fin de descarga', emoji: '🏁' }
             },
 
-
-            // WHEN d.fin_descargue IS NOT NULL THEN 7
-            // WHEN d.inicio_descargue IS NOT NULL THEN 6
-            // WHEN d.qr_llegada_destino IS NOT NULL THEN 5
-            // WHEN d.inicio_ruta IS NOT NULL THEN 4
-            // WHEN d.fin_de_carga IS NOT NULL THEN 3
-            // WHEN d.inicio_de_carga IS NOT NULL THEN 2
-            // WHEN d.presenta_para_carga IS NOT NULL THEN 1
-
-
             total: 0,
             total_exitosas: 0,
             count: 0,
@@ -436,6 +432,7 @@
                 }, 30000);
 
                 //crear el array de etapas
+                //acc = acumulador despues de la funcion va su valor inicial
                 this.etapasPorId = this.etapas.reduce((acc, etapa) => {
                     acc[etapa.id] = etapa;
                     return acc;
@@ -555,14 +552,13 @@
                 }
 
                 const ubigeos_lima = ['15','07'];
+                const checkLima = (origen, ubigeo) => {
+                    let origen_n = String(origen || '').trim().toLowerCase();
+                    if (origen_n.includes('lima') || origen_n.includes('callao') || origen_n.includes('huaral')) return true;
 
-                const checkLima = (valor, ubigeo) => {
-                    let v = String(valor || '').trim().toLowerCase();
-                    if (v.includes('lima') || v.includes('callao')) return true;
-
-                    let u = String(ubigeo || '').trim();
-                    if (u !== '') {
-                        return ubigeos_lima.includes(u.substring(0, 2));
+                    let ubigeo_n = String(ubigeo || '').trim();
+                    if (ubigeo_n !== '') {
+                        return ubigeos_lima.includes(ubigeo_n.substring(0, 2));
                     }
                     return false;
                 };
@@ -576,9 +572,10 @@
                             if (isLima) return false;
 
                             // Si no es Lima, verificar que tenga algún dato de origen
-                            let v = String(c.origen || '').trim();
-                            let u = String(c.ubigeo_origen || '').trim();
-                            return v !== '' || u !== '';
+                            let origen_n = String(c.origen || '').trim();
+                            let ubigeo_n = String(c.ubigeo_origen || '').trim();
+
+                            return origen_n !== '' || ubigeo_n !== '';
                         });
                     }
                 }
@@ -591,9 +588,9 @@
                             let isLima = checkLima(c.destino, c.ubigeo_destino);
                             if (isLima) return false;
 
-                            let v = String(c.destino || '').trim();
-                            let u = String(c.ubigeo_destino || '').trim();
-                            return v !== '' || u !== '';
+                            let origen_n = String(c.destino || '').trim();
+                            let ubigeo_n = String(c.ubigeo_destino || '').trim();
+                            return origen_n !== '' || ubigeo_n !== '';
                         });
                     }
                 }

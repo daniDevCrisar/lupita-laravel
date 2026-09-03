@@ -8,7 +8,7 @@
             $dias_total= count($reporte->mapa_calor);
         }
         else
-            $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y');
+            $fecha_rango= $llamadas->format_fecha(request('fecha_inicio'),'d/m/Y') . " " . $llamadas->get_fecha_day_name(request('fecha_inicio'));
 
     @endphp
 

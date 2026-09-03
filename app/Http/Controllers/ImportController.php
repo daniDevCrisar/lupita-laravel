@@ -207,61 +207,6 @@ class ImportController extends Controller
     }
 
     public function lista_lotes(Request $request){
-
-        //ARREGLA EL PROBLEMA DE CONDUCTORES DUPLICADOS Q SE GENERA EN WEB NO EN LOCAL
-        $prub='';
-        $nuevos = DB::select("SELECT id, nombres ,concat(nombres,'') as 'conductor' FROM conductores WHERE id > 1541 AND activo = 1");
-        $count = 0;
-        $log='';
-
-//
-        $update= "UPDATE llamadas SET conductor_id = ? WHERE conductor_id = ?;";
-        $update_2= "UPDATE conductores SET activo = 0 WHERE id = ?;";
-        foreach ($nuevos as $nuevo) {
-//                echo "pruebaas 1: $nuevo->id <br>";
-                $accion= DBConductores::buscar_duplicados($nuevo);
-//                echo "pruebaas 2: $nuevo->id <br>";
-
-                $eliminar = ($nuevo->id != $accion['id'] and $accion['accion']!='nuevo') ? 1 : 0;
-
-                $log_data= [$accion['accion'],$accion['buscado'], $accion['comparado'] ,$accion['comparar']  ];
-
-//                if ($log_data[1]!==$log_data[2])  // encontrar solo los q son duplicado de duplicado
-                    $log.= "
-            <tr>
-                <td>$log_data[0]</td>
-                <td>{$nuevo->id} - $log_data[1]</td>
-                <td>{$accion['row']->id } - $log_data[2]</td>
-                <td>$log_data[3]</td>
-                <td>nuevo: {$nuevo->id} comparado: {$accion['id']}</td>
-                <td>$eliminar</td>
-            </tr>";
-
-
-
-
-
-
-//                $prub.= "{$nuevo->id} - {$nuevo->nombres} → {$match->id} - {$match->nombres} ({$accion['comparar']}) <br>";
-                $count+=1;
-
-                //desactivar conductor
-//            if ($eliminar){
-//                DB::update($update_2, [$nuevo->id]);
-//                DB::update($update, [$accion['id'],$nuevo->id]);
-//            }
-
-//            }
-        }
-        echo "$prub <br> $count" ;
-
-        echo "<table border='1'><thead><th>accion</th><th>buscar</th><th>encontrado</th><th>asercion</th><th>Identico</th></thead>
-           <tbody>$log</tbody></table>";
-
-
-        echo DBTmpLotes::similitud('ROSMEL VICTORIO', 'ROSMEL FREDY OLIVARES CHINCHAY');
-
-
         $lotes = DBTmpLotes::lista(30);
         $llamadas = new DBLlamadas(false);
         return view('import.lista_lotes', [
@@ -274,6 +219,57 @@ class ImportController extends Controller
     {
         $result=DBTmpLotes::eliminarLote($id_lote);
         return back()->withInput();
+    }
+
+    public function nombres_verificar_error(){
+
+        //ARREGLA EL PROBLEMA DE CONDUCTORES DUPLICADOS Q SE GENERA EN WEB NO EN LOCAL
+        $prub='';
+        $nuevos = DB::select("SELECT id, nombres ,concat(nombres,'') as 'conductor' FROM conductores WHERE id > 1541 AND activo = 1");
+        $count = 0;
+        $log='';
+
+//
+        $update= "UPDATE llamadas SET conductor_id = ? WHERE conductor_id = ?;";
+        $update_2= "UPDATE conductores SET activo = 0 WHERE id = ?;";
+        foreach ($nuevos as $nuevo) {
+//                echo "pruebaas 1: $nuevo->id <br>";
+            $accion= DBConductores::buscar_duplicados($nuevo);
+//                echo "pruebaas 2: $nuevo->id <br>";
+
+            $eliminar = ($nuevo->id != $accion['id'] and $accion['accion']!='nuevo') ? 1 : 0;
+
+            $log_data= [$accion['accion'],$accion['buscado'], $accion['comparado'] ,$accion['comparar']  ];
+
+//                if ($log_data[1]!==$log_data[2])  // encontrar solo los q son duplicado de duplicado
+            $log.= "
+            <tr>
+                <td>$log_data[0]</td>
+                <td>{$nuevo->id} - $log_data[1]</td>
+                <td>{$accion['row']->id } - $log_data[2]</td>
+                <td>$log_data[3]</td>
+                <td>nuevo: {$nuevo->id} comparado: {$accion['id']}</td>
+                <td>$eliminar</td>
+            </tr>";
+
+//                $prub.= "{$nuevo->id} - {$nuevo->nombres} → {$match->id} - {$match->nombres} ({$accion['comparar']}) <br>";
+            $count+=1;
+
+            //desactivar conductor
+//            if ($eliminar){
+//                DB::update($update_2, [$nuevo->id]);
+//                DB::update($update, [$accion['id'],$nuevo->id]);
+//            }
+
+//            }
+        }
+        echo "$prub <br> $count" ;
+
+        echo "<body style='background: black;color: white;'><table border='1'><thead><th>accion</th><th>buscar</th><th>encontrado</th><th>asercion</th><th>Identico</th></thead>
+           <tbody>$log</tbody></table></body>";
+
+        echo DBTmpLotes::similitud('ROSMEL VICTORIO', 'ROSMEL FREDY OLIVARES CHINCHAY');
+
     }
 
 

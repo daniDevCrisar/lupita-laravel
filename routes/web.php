@@ -46,6 +46,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/test-c', [HomeController::class, 'test_nombres']);
+    Route::get('/test-identificar-error-nombres', [ImportController::class, 'nombres_verificar_error']);
 
 });
 
