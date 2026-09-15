@@ -111,3 +111,5 @@ Route::get('/livewire/discover', function() {
         ]);
     }
 });
+
+Route::get('/tabulator_table_ejm', [HomeController::class, 'tabulator_table_ejm']);

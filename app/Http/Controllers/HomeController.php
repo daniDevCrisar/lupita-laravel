@@ -67,4 +67,10 @@ class HomeController extends Controller
         dd($personas);
         return 'sdas';
     }
+
+    public function tabulator_table_ejm()
+    {
+        return view('tabulator-tables.ejm');
+
+    }
 }
