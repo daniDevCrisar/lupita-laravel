@@ -1,10 +1,340 @@
 @extends('layouts.app')
 
 @section('heads')
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/js/app.js'])
+<style>
+    /* =========================================================================
+       TABULATOR MIDNIGHT — Colores semánticos de Bootstrap 5.3
+       Usa primary, secondary, success, info, warning, danger, light, dark
+       ========================================================================= */
+
+    .tabulator {
+        background-color: var(--bs-dark) !important;
+        border: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-white) !important;
+    }
+
+    /* ---------- HEADER ---------- */
+    .tabulator .tabulator-header {
+        background-color: var(--bs-secondary) !important;
+        border-bottom: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator .tabulator-header .tabulator-col {
+        background-color: var(--bs-primary) !important;
+        border-right: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-white) !important;
+    }
+
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title .tabulator-title-editor {
+        background-color: var(--bs-dark) !important;
+        border: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator .tabulator-header .tabulator-col .tabulator-header-filter input,
+    .tabulator .tabulator-header .tabulator-col .tabulator-header-filter select {
+        background-color: var(--bs-dark) !important;
+        border: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator .tabulator-header .tabulator-col .tabulator-header-filter input:focus,
+    .tabulator .tabulator-header .tabulator-col .tabulator-header-filter select:focus {
+        border-color: var(--bs-primary) !important;
+        box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb), 0.25) !important;
+    }
+
+    /* Flechas de ordenación */
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
+        border-bottom-color: var(--bs-light) !important;
+    }
+    .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort=ascending] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
+        border-bottom-color: var(--bs-primary) !important;
+        border-top: none !important;
+    }
+    .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort=descending] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
+        border-top-color: var(--bs-primary) !important;
+        border-bottom: none !important;
+    }
+
+    /* Hover en columnas ordenables */
+    @media (hover: hover) and (pointer: fine) {
+        .tabulator .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover {
+            background-color: var(--bs-light) !important;
+        }
+    }
+
+    /* ---------- CÁLCULOS ---------- */
+    .tabulator .tabulator-header .tabulator-calcs-holder,
+    .tabulator .tabulator-header .tabulator-calcs-holder .tabulator-row {
+        background-color: var(--bs-dark) !important;
+    }
+    .tabulator .tabulator-footer .tabulator-calcs-holder,
+    .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row {
+        background-color: var(--bs-dark) !important;
+    }
+
+    /* ---------- TABLA / BODY ---------- */
+    .tabulator .tabulator-tableholder .tabulator-table {
+        background-color: var(--bs-dark) !important;
+        color: var(--bs-white) !important;
+    }
+
+    .tabulator .tabulator-tableholder .tabulator-placeholder .tabulator-placeholder-contents {
+        color: var(--bs-white) !important;
+    }
+
+    /* ---------- FILAS ---------- */
+    .tabulator-row {
+        background-color: var(--bs-dark) !important;
+        color: var(--bs-white) !important;
+        border-bottom: 1px solid var(--bs-secondary) !important;
+    }
+
+    .tabulator-row.tabulator-row-even {
+        background-color: var(--bs-secondary) !important;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .tabulator-row.tabulator-selectable:hover {
+            background-color: var(--bs-primary) !important;
+        }
+    }
+
+    .tabulator-row.tabulator-selected {
+        background-color: rgba(var(--bs-primary-rgb), 0.5) !important;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .tabulator-row.tabulator-selected:hover {
+            background-color: rgba(var(--bs-primary-rgb), 0.9) !important;
+        }
+    }
+
+    /* ---------- CELDAS ---------- */
+    .tabulator-row .tabulator-cell {
+        border-right: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-white) !important;
+    }
+
+    .tabulator-row .tabulator-cell.tabulator-row-header {
+        background-color: var(--bs-secondary) !important;
+        border-bottom: 1px solid var(--bs-secondary) !important;
+        border-right: 1px solid var(--bs-secondary) !important;
+    }
+
+    /* Editores inline */
+    .tabulator-row .tabulator-cell.tabulator-editing {
+        border: 1px solid var(--bs-primary) !important;
+    }
+    .tabulator-row .tabulator-cell.tabulator-editing input,
+    .tabulator-row .tabulator-cell.tabulator-editing select {
+        background: var(--bs-dark) !important;
+        color: var(--bs-light) !important;
+    }
+
+    /* ---------- FOOTER / PAGINACIÓN ---------- */
+    .tabulator .tabulator-footer {
+        background-color: var(--bs-secondary) !important;
+        border-top: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator .tabulator-footer .tabulator-page-counter,
+    .tabulator .tabulator-footer .tabulator-paginator label {
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator .tabulator-footer .tabulator-page-size {
+        background-color: var(--bs-dark) !important;
+        border: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+        border-radius: var(--bs-border-radius-sm) !important;
+    }
+
+    .tabulator .tabulator-footer .tabulator-page {
+        background-color: var(--bs-dark) !important;
+        border: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-white) !important;
+        border-radius: var(--bs-border-radius-sm) !important;
+        font-family: inherit !important;
+        font-size: inherit !important;
+        font-weight: inherit !important;
+    }
+
+    .tabulator .tabulator-footer .tabulator-page.active {
+        background-color: var(--bs-primary) !important;
+        border-color: var(--bs-primary) !important;
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator .tabulator-footer .tabulator-page:disabled {
+        opacity: 0.5 !important;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .tabulator .tabulator-footer .tabulator-page:not(disabled):hover {
+            background-color: var(--bs-secondary) !important;
+            color: var(--bs-light) !important;
+        }
+    }
+
+    /* ---------- SPREADSHEET TABS ---------- */
+    .tabulator .tabulator-footer .tabulator-spreadsheet-tabs .tabulator-spreadsheet-tab {
+        background: var(--bs-secondary) !important;
+        border-color: var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+    }
+    .tabulator .tabulator-footer .tabulator-spreadsheet-tabs .tabulator-spreadsheet-tab.tabulator-spreadsheet-tab-active {
+        background: var(--bs-primary) !important;
+        color: var(--bs-light) !important;
+    }
+
+    /* ---------- POPUPS / MENÚS / EDIT LISTS ---------- */
+    .tabulator-popup-container {
+        background: var(--bs-dark) !important;
+        border: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .tabulator-menu .tabulator-menu-item {
+        color: var(--bs-light) !important;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .tabulator-menu .tabulator-menu-item:not(.tabulator-menu-item-disabled):hover {
+            background: var(--bs-secondary) !important;
+        }
+    }
+
+    .tabulator-menu .tabulator-menu-separator {
+        border-top: 1px solid var(--bs-secondary) !important;
+    }
+
+    .tabulator-edit-list {
+        background: var(--bs-dark) !important;
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator-edit-list .tabulator-edit-list-item {
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator-edit-list .tabulator-edit-list-item.active {
+        background: var(--bs-primary) !important;
+        color: var(--bs-light) !important;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .tabulator-edit-list .tabulator-edit-list-item:hover {
+            background: var(--bs-secondary) !important;
+            color: var(--bs-light) !important;
+        }
+    }
+
+    .tabulator-edit-list .tabulator-edit-list-placeholder,
+    .tabulator-edit-list .tabulator-edit-list-group {
+        color: var(--bs-light) !important;
+    }
+
+    .tabulator-edit-list .tabulator-edit-list-group {
+        border-bottom: 1px solid var(--bs-secondary) !important;
+    }
+
+    /* ---------- TOGGLE ---------- */
+    .tabulator-toggle {
+        background: var(--bs-secondary) !important;
+        border-color: var(--bs-secondary) !important;
+    }
+    .tabulator-toggle.tabulator-toggle-on {
+        background: var(--bs-primary) !important;
+    }
+    .tabulator-toggle .tabulator-toggle-switch {
+        background: var(--bs-dark) !important;
+        border-color: var(--bs-secondary) !important;
+    }
+
+    /* ---------- GROUPS ---------- */
+    .tabulator-row.tabulator-group {
+        background: var(--bs-secondary) !important;
+        border-bottom: 1px solid var(--bs-secondary) !important;
+        border-top: 1px solid var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+    }
+    .tabulator-row.tabulator-group span {
+        color: var(--bs-light) !important;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .tabulator-row.tabulator-group:hover {
+            background-color: var(--bs-dark) !important;
+        }
+    }
+
+    /* ---------- TREE / DATA TREE ---------- */
+    .tabulator-row .tabulator-cell .tabulator-data-tree-control {
+        background: rgba(var(--bs-light-rgb), 0.1) !important;
+        border: 1px solid var(--bs-secondary) !important;
+    }
+    .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-collapse:after,
+    .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-expand,
+    .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-expand:after {
+        background: var(--bs-light) !important;
+    }
+
+    .tabulator-row .tabulator-cell .tabulator-data-tree-branch {
+        border-bottom: 2px solid var(--bs-secondary) !important;
+        border-left: 2px solid var(--bs-secondary) !important;
+    }
+
+    /* ---------- ALERT ---------- */
+    .tabulator .tabulator-alert {
+        background: rgba(0, 0, 0, 0.6) !important;
+    }
+    .tabulator .tabulator-alert .tabulator-alert-msg {
+        background: var(--bs-dark) !important;
+        color: var(--bs-light) !important;
+    }
+    .tabulator .tabulator-alert .tabulator-alert-msg.tabulator-alert-state-msg {
+        border: 4px solid var(--bs-secondary) !important;
+        color: var(--bs-light) !important;
+    }
+    .tabulator .tabulator-alert .tabulator-alert-msg.tabulator-alert-state-error {
+        border: 4px solid var(--bs-danger) !important;
+        color: var(--bs-danger) !important;
+    }
+
+    /* ---------- SCROLLBARS ---------- */
+    .tabulator .tabulator-tableholder::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-track {
+        background: var(--bs-secondary);
+    }
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
+        background: var(--bs-dark);
+        border-radius: 5px;
+    }
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+        background: var(--bs-primary);
+    }
+
+    /* ---------- TOOLTIP ---------- */
+    .tabulator-tooltip {
+        background: var(--bs-dark) !important;
+        color: var(--bs-light) !important;
+        border: 1px solid var(--bs-secondary) !important;
+    }
+</style>
+
 @endsection
 
 @section('content')
+
 
     <div class="container-fluid">
 
@@ -314,6 +644,7 @@
             */
 
             const tabla = new Tabulator(elemento, {
+                theme: "midnight",
 
                 height: "550px",
 
