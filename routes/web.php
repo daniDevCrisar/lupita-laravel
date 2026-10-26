@@ -7,6 +7,8 @@ use App\Http\Controllers\LogConductoresController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LlamadasController;
+use App\Http\Controllers\TiemposRutaController;
+use App\Http\Controllers\TiemposHorarioController;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
 
 
@@ -26,6 +28,8 @@ Route::middleware(['auth'])->group(function () {
 
 
         Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas');
+        Route::get('/tiempos', [TiemposRutaController::class, 'index'])->name('lupita.tiempos');
+        Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario');
         Route::get('/audio', [LlamadasController::class, 'procesar_audio'])->name('lupita.audio')->middleware('permission:etiquetar llamada');
         Route::patch('/audio/guardar', [LlamadasController::class, 'guardar_etiquetas'])->name('lupita.audio.guardar')->middleware('permission:etiquetar llamada');
         Route::get('/reporte', [LlamadasController::class, 'reporte_todo'])->name('lupita.reporte');

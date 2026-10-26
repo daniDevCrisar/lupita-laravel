@@ -64,6 +64,12 @@
                     <a class="nav-link" href="{{route('lupita.transportistas')}}">Transportistas</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="{{route('lupita.tiempos')}}">Tiempos</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{route('lupita.tiempos.horario')}}">Horarios</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.audio')}}">Etiquetar</a>
                 </li>
                 <!-- 🔽 MENÚ DESPLEGABLE -->
