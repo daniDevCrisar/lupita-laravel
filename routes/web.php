@@ -9,6 +9,7 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LlamadasController;
 use App\Http\Controllers\TiemposRutaController;
 use App\Http\Controllers\TiemposHorarioController;
+use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
 
 
@@ -25,6 +26,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/conductores/log/nuevo', [LogConductoresController::class, 'nuevo'])->name('lupita.conductores.log.nuevo');
 
         Route::get('/conductores/log', LogConductoresPadre::class)->name('lupita.conductores.log');
+
+        Route::get('/conductores/casos', LogConductoresBandeja::class)->name('lupita.conductores.casos');
 
 
         Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas');

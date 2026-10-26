@@ -61,6 +61,10 @@
                 </li>
 
                 <li class="nav-item">
+                    <a class="nav-link" href="{{route('lupita.conductores.casos')}}">Casos</a>
+                </li>
+
+                <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.transportistas')}}">Transportistas</a>
                 </li>
                 <li class="nav-item">
