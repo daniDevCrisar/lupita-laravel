@@ -4,10 +4,12 @@ use App\Http\Controllers\Api\LlamadasApiController;
 use App\Http\Controllers\Api\LlamadasJsonApiController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LogConductoresController;
+use App\Http\Controllers\VapiController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LlamadasController;
 use App\Http\Controllers\TiemposRutaController;
+use App\Http\Controllers\PalabrasController;
 use App\Http\Controllers\TiemposHorarioController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
@@ -32,6 +34,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas');
         Route::get('/tiempos', [TiemposRutaController::class, 'index'])->name('lupita.tiempos');
+        Route::get('/palabras', [PalabrasController::class, 'index'])->name('lupita.palabras');
         Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario');
         Route::get('/audio', [LlamadasController::class, 'procesar_audio'])->name('lupita.audio')->middleware('permission:etiquetar llamada');
         Route::patch('/audio/guardar', [LlamadasController::class, 'guardar_etiquetas'])->name('lupita.audio.guardar')->middleware('permission:etiquetar llamada');
@@ -50,6 +53,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/excel/{lote_id}/procesar', [ImportController::class, 'procesar_importacion_de_lote'])->name('importar.excel.procesar')->middleware('permission:ver lote');
         Route::delete('/excel/{lote_id}/eliminar', [ImportController::class, 'eliminar_lote'])->name('importar.excel.eliminar')
             ->middleware('role:admin')->middleware('permission:eliminar lote');
+
+        //vicodeado solo vapi correos de dtgroup
+        Route::get('/vapi', [VapiController::class, 'index'])->name('vapi.index');
+
+        // Procesa el link, descarga, extrae el JSON y lo devuelve
+        Route::post('/vapi/procesar', [VapiController::class, 'procesarZip'])->name('vapi.procesar');
+
     });
 
     Route::get('/test-c', [HomeController::class, 'test_nombres']);

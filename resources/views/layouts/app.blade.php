@@ -74,6 +74,9 @@
                     <a class="nav-link" href="{{route('lupita.tiempos.horario')}}">Horarios</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="{{route('lupita.palabras')}}">Palabras</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.audio')}}">Etiquetar</a>
                 </li>
                 <!-- 🔽 MENÚ DESPLEGABLE -->

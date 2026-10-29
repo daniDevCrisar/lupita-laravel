@@ -8,11 +8,21 @@
         <div class="col-12">
             <h1>Tiempos promedio por ruta y conductor</h1>
             <p class="text-muted small mb-2">
-                Minutos calculados con los hitos de la referencia. El <strong>ciclo completo</strong> va de
-                <em>presenta para carga</em> a <em>fin de descargue</em>; la
-                <em>etapa 1</em> (compromiso de carga - presenta) no se usa para calcular el ciclo.
-                La <strong>ruta</strong> es solo el recorrido de origen a destino:
+                Minutos calculados con los hitos de la referencia. El <strong>ciclo completo</strong> es la
+                <strong>suma de los promedios de las etapas E2 a E6</strong>
+                (<em>presenta para carga</em> a <em>fin de descargue</em>), por eso la columna cuadra
+                siempre con lo que se ve en esas columnas; el número pequeño bajo el ciclo indica cuántas
+                de las 5 etapas tienen datos. La <em>etapa 1</em> (compromiso de carga - presenta) no entra
+                en el ciclo, y la <strong>ruta</strong> es solo el recorrido de origen a destino:
                 <em>inicio de ruta</em> - <em>QR llegada a destino</em> (etapa 4).
+            </p>
+            <p class="text-muted small mb-2">
+                Los <strong>mín/máx</strong> del ciclo sí salen solo de viajes que registran toda la cadena
+                de hitos en orden: un hueco entre los hitos extremos inflaría el dato con días enteros.
+            </p>
+            <p class="text-muted small mb-2">
+                El <strong>tope por etapa</strong> descarta todo el viaje cuando alguna etapa registrada
+                (E2 a E6) cae fuera de 0 a ese máximo, para dejar fuera los hitos errados.
             </p>
         </div>
     </div>
@@ -64,6 +74,16 @@
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label" for="max_etapa">Tope por etapa (min)</label>
+                        <input type="number" id="max_etapa" name="max_etapa" min="1" step="1"
+                               value="{{ request('max_etapa') }}" placeholder="Sin tope"
+                               class="form-control">
+                        <div class="form-text">
+                            Descarta el viaje si alguna etapa registrada supera el tope o es negativa.
+                        </div>
                     </div>
 
                     <div class="col-md-3">
@@ -174,6 +194,11 @@
                 <div class="card-body py-2">
                     <div class="text-muted small">Viajes</div>
                     <div class="fs-4 fw-bold">{{ $resumen->viajes }}</div>
+                    @if (!is_null($datos->descartados))
+                        <div class="small text-muted">
+                            {{ $datos->descartados }} descartados por tope
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -210,13 +235,17 @@
         <div class="col-6 col-md">
             <div class="card border-warning h-100">
                 <div class="card-body py-2">
-                    <div class="text-muted small">Ciclo completo prom. (presenta - fin descargue)</div>
+                    <div class="text-muted small">Ciclo completo prom. (suma de E2 - E6)</div>
                     <div class="fs-4 fw-bold">
                         {{ $tiempos::formatear_minutos($resumen->ciclo_promedio) }}
                     </div>
-                    <div class="small text-muted">
+                    <div class="small text-muted" data-bs-toggle="tooltip"
+                         title="Mín y máx observados en los {{ $resumen->ciclo_viajes }} de {{ $resumen->viajes }} viajes que tienen toda la cadena de hitos en orden.">
                         mín {{ $tiempos::formatear_minutos($resumen->ciclo_min) }} ·
                         máx {{ $tiempos::formatear_minutos($resumen->ciclo_max) }}
+                    </div>
+                    <div class="small text-muted">
+                        {{ $resumen->ciclo_etapas }} de {{ count($etapas) - 1 }} etapas con datos
                     </div>
                 </div>
             </div>
@@ -271,7 +300,7 @@
                             </th>
                         @endforeach
                         <th class="text-center" data-bs-toggle="tooltip"
-                            title="Ciclo completo: presenta_para_carga - fin_descargue (no usa la etapa 1)">
+                            title="Suma de los promedios de las etapas E2 a E6: coincide con sumar esas columnas. El índice indica cuántas etapas tienen datos.">
                             Ciclo<br>completo</th>
                     </tr>
                     </thead>
@@ -297,7 +326,14 @@
                                     {{ $tiempos::formatear_minutos($row->$campo ?? null) }}
                                 </td>
                             @endforeach
-                            <td class="text-center">{{ $tiempos::formatear_minutos($row->ciclo_promedio) }}</td>
+                            <td class="text-center">
+                                {{ $tiempos::formatear_minutos($row->ciclo_promedio) }}
+                                @if ($row->ciclo_etapas < count($etapas) - 1)
+                                    <div class="text-muted" style="font-size: .7rem">
+                                        {{ $row->ciclo_etapas }}/{{ count($etapas) - 1 }}
+                                    </div>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
@@ -334,7 +370,7 @@
                             </th>
                         @endforeach
                         <th class="text-center" data-bs-toggle="tooltip"
-                            title="Ciclo completo: presenta_para_carga - fin_descargue (no usa la etapa 1)">
+                            title="Suma de los promedios de las etapas E2 a E6: coincide con sumar esas columnas. El índice indica cuántas etapas tienen datos.">
                             Ciclo<br>completo</th>
                     </tr>
                     </thead>
@@ -365,7 +401,14 @@
                                     {{ $tiempos::formatear_minutos($row->$campo ?? null) }}
                                 </td>
                             @endforeach
-                            <td class="text-center">{{ $tiempos::formatear_minutos($row->ciclo_promedio) }}</td>
+                            <td class="text-center">
+                                {{ $tiempos::formatear_minutos($row->ciclo_promedio) }}
+                                @if ($row->ciclo_etapas < count($etapas) - 1)
+                                    <div class="text-muted" style="font-size: .7rem">
+                                        {{ $row->ciclo_etapas }}/{{ count($etapas) - 1 }}
+                                    </div>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
@@ -403,7 +446,7 @@
                             </th>
                         @endforeach
                         <th class="text-center" data-bs-toggle="tooltip"
-                            title="Ciclo completo: presenta_para_carga - fin_descargue (no usa la etapa 1)">
+                            title="Suma de los promedios de las etapas E2 a E6: coincide con sumar esas columnas. El índice indica cuántas etapas tienen datos.">
                             Ciclo<br>completo</th>
                     </tr>
                     </thead>
@@ -433,7 +476,14 @@
                                     {{ $tiempos::formatear_minutos($row->$campo ?? null) }}
                                 </td>
                             @endforeach
-                            <td class="text-center">{{ $tiempos::formatear_minutos($row->ciclo_promedio) }}</td>
+                            <td class="text-center">
+                                {{ $tiempos::formatear_minutos($row->ciclo_promedio) }}
+                                @if ($row->ciclo_etapas < count($etapas) - 1)
+                                    <div class="text-muted" style="font-size: .7rem">
+                                        {{ $row->ciclo_etapas }}/{{ count($etapas) - 1 }}
+                                    </div>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>

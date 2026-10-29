@@ -17,6 +17,7 @@ class TiemposRutaController extends Controller
             'conductor' => 'nullable|string|max:100',
             'trt' => 'nullable|string|max:100',
             'min_viajes' => 'nullable|numeric',
+            'max_etapa' => 'nullable|numeric|min:1',
             'limit' => 'nullable|numeric',
             'ordenar_por' => 'nullable|string|max:30',
         ]);
@@ -30,6 +31,7 @@ class TiemposRutaController extends Controller
 
         $datos = new stdClass();
         $datos->resumen = $tiempos::resumen();
+        $datos->descartados = $tiempos::viajes_descartados();
         $datos->por_ruta = $tiempos::tiempo_promedio_por_ruta();
         $datos->por_conductor = $tiempos::tiempo_promedio_por_conductor();
         $datos->matriz = $tiempos::matriz_ruta_conductor();
