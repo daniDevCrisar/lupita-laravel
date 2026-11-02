@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Espera fuera de planta para descarga VAPI - 30/10/2026 VIERNES</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .report-card {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(-3px);
+        }
+
+        .bg-exito {
+            background: linear-gradient(145deg, #e6f7e6, #c8e6c9);
+            border-left: 6px solid #2e7d32;
+        }
+
+        .bg-fallo {
+            background: linear-gradient(145deg, #ffebee, #ffcdd2);
+            border-left: 6px solid #c62828;
+        }
+
+        .bg-advertencia {
+            background: linear-gradient(145deg, #fff8e1, #ffecb3);
+            border-left: 6px solid #ff8f00;
+        }
+
+        .estrella {
+            color: #ffc107;
+            font-size: 1.1rem;
+        }
+
+        .peligro {
+            color: #d32f2f;
+            font-size: 1.2rem;
+        }
+
+        .tabla-conductores th {
+            background-color: #2c3e50;
+            color: white;
+            font-weight: 500;
+        }
+
+        .badge-exito {
+            background-color: #2e7d32;
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        .badge-fallo {
+            background-color: #c62828;
+            color: white;
+        }
+
+        .badge-critico {
+            background-color: #b71c1c;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.85;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .footer-note {
+            font-size: 0.85rem;
+            color: #5f6368;
+            border-top: 1px dashed #ccc;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .tooltip-custom {
+            border-bottom: 1px dotted #007bff;
+            cursor: help;
+        }
+
+        .heatmap-cell {
+            text-align: center;
+            font-size: 0.85rem;
+            padding: 8px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <div>
+            <h1 class="display-5 fw-bold" style="color: #1e2a3a;"><i class="fas fa-phone-alt me-3"
+                                                                     style="color: #0d6efd;"></i>Reporte de Espera fuera de planta para descarga VAPI
+            </h1>
+            <p class="lead">Análisis de llamadas totales | Exitosas = <span
+                    class="badge bg-success">4</span></p>
+        </div>
+        <div class="text-end">
+                <span class="badge bg-dark p-3 fs-6">
+                <i class="far fa-calendar-alt me-2"></i>Llamadas analizadas: 30/10/2026 VIERNES</span>
+        </div>
+    </div>
+
+
+    <!-- RESUMEN -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Total llamadas</h6>
+                            <h2 class="fw-bold">24</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-phone-volume fa-2x text-info opacity-75"></i></div>
+                    </div>
+                    <small class="text-muted">$1.5</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Exitosas</h6>
+                            <h2 class="fw-bold text-success">4</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-check-circle fa-2x text-success"></i></div>
+                    </div>
+                                        <small class="text-muted">17% del total ($0.69)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Fallidas</h6>
+                                                        <h2 class="fw-bold text-danger">20</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-times-circle fa-2x text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                        83% del total ($0.81)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-advertencia">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">Conductores únicos</h6>
+                            <h2 class="fw-bold" style="color:#b26a00;">24</h2>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-users fa-2x text-warning"></i></div>
+                    </div>
+                    <small class="text-muted">22 transportistas</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">LLAMADAS CONTESTADAS</h6>
+                            <h2 class="fw-bold text-success">12</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="bi bi-telephone-outbound-fill text-success fs-3"></i></div>
+                    </div>
+                    <small class="text-muted">11 buzon de voz</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-exito">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">CONDUCTORES CONFIRMADOS</h6>
+                            <h2 class="fw-bold text-success">4</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-check-circle fa-2x text-success"></i></div>
+                    </div>
+                                        <small class="text-muted">98s promedio de llamada</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal">LLAMADAS NO CONTESTADAS</h6>
+                            <h2 class="fw-bold text-danger">1</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="bi bi-telephone-x-fill fs-3 text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card report-card h-100 border-0 bg-fallo">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted text-uppercase fw-normal small">LLAMADAS CONTESTADAS SIN
+                                CONFIRMACION</h6>
+                            <h2 class="fw-bold text-danger">8</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle"><i
+                                class="fas fa-times-circle fa-2x text-danger"></i></div>
+                    </div>
+                    <small class="text-muted">
+                                                43s promedio de llamada</small>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    
+                    <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar"
+                 style="width: 42%;" aria-valuenow="42">
+                6 Min y 33 Seg
+            </div>
+            <div class="progress-bar bg-danger" role="progressbar" style="width: 58%;"
+                 aria-valuenow="58">
+                8 Min y 59 Seg
+            </div>
+        </div>
+    
+    
+        <div class="col-12">
+            <div class="card mb-3 ">
+                <div class="card-body">
+                    <p id='audio_texto'>
+                    </p>
+                    <audio id="mainAudio" controls class="w-100">
+                        <source id="audioSource" src="" type="audio/mpeg">
+                        Tu navegador no soporta audio.
+                    </audio>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP 5 MEJORES CONDUCTORES -->
+        <div class="card report-card mb-5">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <h3 class="h4 fw-bold"><i class="fas fa-crown text-warning me-2"></i>Top 5 mejores conductores</h3>
+                <p class="text-muted">Basado en éxito.</p>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Conductor</th>
+                            <th>Transportista</th>
+                            <th>Llamadas exitosas</th>
+                            <th>Estrellas</th>
+                            <th>Comportamiento</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                                                                                    <tr class="table-success"
+                                    onclick="playAudio('HTTPS://94BDB67BB98DA30B06BDD917725C037D.R2.CLOUDFLARESTORAGE.COM/HIPAA-RECORDINGS/01A18DBC-EB24-7000-8039-650315B7D839-1793379489626-A35C5793-73B8-4027-BA2B-DA4CB4240839-STEREO.MP3','CORPORATION LOGISTIC MALVINA SA','DAVID BAYLON SANTOS' )">
+                                    <td>1001</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>DAVID BAYLON SANTOS</strong></td>
+                                    <td>CORPORATION LOGISTIC MALVINA SA</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1),<i class='bi bi-chat-left-text-fill text-info '></i> Da motivos(1)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://94BDB67BB98DA30B06BDD917725C037D.R2.CLOUDFLARESTORAGE.COM/HIPAA-RECORDINGS/01A18F6F-98E7-722C-9FFC-6DB5EB7F43E5-1793407941858-36F80CCD-F7A6-4A48-A7E2-666E190E2690-STEREO.MP3','FESELL DISTRIBUIDORA S.A.C.','HELVER DAVILA' )">
+                                    <td>1879</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>HELVER DAVILA</strong></td>
+                                    <td>FESELL DISTRIBUIDORA S.A.C.</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://94BDB67BB98DA30B06BDD917725C037D.R2.CLOUDFLARESTORAGE.COM/HIPAA-RECORDINGS/01A18E1C-E3EE-744B-88D2-DEFB13177254-1793385720730-EA341CD8-3AAF-4177-93FF-82BD71298E04-STEREO.MP3','VASQUEZ PEREZ HERMELINDA','RICARDO VASQUEZ' )">
+                                    <td>2175</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>RICARDO VASQUEZ</strong></td>
+                                    <td>VASQUEZ PEREZ HERMELINDA</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1)</td>
+                                </tr>
+                                                                                                                <tr class="table-success"
+                                    onclick="playAudio('HTTPS://94BDB67BB98DA30B06BDD917725C037D.R2.CLOUDFLARESTORAGE.COM/HIPAA-RECORDINGS/01A18D53-909F-7332-AF43-2D636C6C095E-1793372514188-13EB2A1F-B934-4FBC-9327-1B1FF3400D9B-STEREO.MP3','INVERSIONES MARITIMAS DEL PACIFICO SUR S.A.C.','WALTER SABINO' )">
+                                    <td>2360</td>
+                                    <td>
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <strong>WALTER SABINO</strong></td>
+                                    <td>INVERSIONES MARITIMAS DEL PACIFICO SUR S.A.C.</td>
+                                    <td><span
+                                            class='text-success fw-bold'>1</span>/1
+                                    </td>
+                                    <td><span class="text-success">⭐⭐⭐⭐⭐ <br> Tasa de exito 100.0 %</span>
+                                    </td>
+                                    <td><i class='bi bi-check-circle-fill text-success '></i> Confirma(1)</td>
+                                </tr>
+                                                                                                                                </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    
+
+        <!-- PEORES CONDUCTORES (múltiples fallos) -->
+    <div class="card report-card mb-5">
+        <div class="card-header bg-white border-0 pt-4 pb-0">
+            <h3 class="h4 fw-bold text-danger"><i class="fas fa-skull-crosswalk me-2"></i>Top 5 peores conductores</h3>
+            <p class="text-muted">Múltiples intentos fallidos y problemas graves</p>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="tabla-conductores">
+                    <tr>
+                        <th>#id</th>
+                        <th>Conductor</th>
+                        <th>Transportista</th>
+                        <th>Intentos fallidos</th>
+                        <th>Nivel de riesgo</th>
+                        <th>Problema principal</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                                                                        <tr class="table-danger">
+                                <td>3</td>
+                                <td><strong>CESAR PANDO</strong></td>
+                                <td>CORPORACION LOGISTICA HAV SAC</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td>Otros(1)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>2466</td>
+                                <td><strong>VICTOR VARGAS</strong></td>
+                                <td>FESELL DISTRIBUIDORA S.A.C.</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-mic-mute-fill text-danger '></i> No habla(1)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>2158</td>
+                                <td><strong>JAIME DIAZ</strong></td>
+                                <td>EMPRESA DE TRANSPORTE VIGSAN EIRL</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-telephone-x-fill text-danger '></i> No contesta(1)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>2352</td>
+                                <td><strong>TEODORO QUISPE</strong></td>
+                                <td>PALOMINO URRUTIA  BERTHA</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td>Otros(1)</td>
+                            </tr>
+                                                                                                <tr class="table-danger">
+                                <td>1118</td>
+                                <td><strong>ORLANDO TORREALBA</strong></td>
+                                <td>DISTRIBUIDORA LOGISTICA Y TRANSPORTES JOHAN SAC</td>
+                                <td><span class='text-danger fw-bold'>1</span>/1
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                                <td><i class='bi bi-voicemail text-warning '></i> Buzon de voz(1)</td>
+                            </tr>
+                                                                </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+
+
+    <!-- PEORES TRANSPORTISTAS -->
+    <div class="card report-card mb-5">
+        <div class="card-header bg-white border-0 pt-4 pb-0">
+            <h3 class="h4 fw-bold text-danger-emphasis"><i class="fas fa-truck-moving me-2" style="color:#b71c1c;"></i>Top
+                5 transportistas con más conductores problemáticos</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="tabla-conductores">
+                    <tr>
+                        <th>Transportista</th>
+                        <th>Conductores únicos</th>
+                        <th>Conductores fallidos (0 exitos) / con un fallo</th>
+                        <th>% problemático</th>
+                        <th>Nivel de riesgo</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                                                                                                    <tr class="table-danger">
+                                <td><strong>TRANSPORTE MARIO Y GIRITO E.I.R.L.</strong></td>
+                                <td>1</td>
+                                <td><span
+                                        class='text-danger fw-bold'>1 </span>/ 1
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>OPERACION LOGISTICA PAUCAR S.A.C</strong></td>
+                                <td>1</td>
+                                <td><span
+                                        class='text-danger fw-bold'>1 </span>/ 1
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>TRANSPORTES LOGISTICOS PERALTA S.A.C.</strong></td>
+                                <td>1</td>
+                                <td><span
+                                        class='text-danger fw-bold'>1 </span>/ 1
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>AGUILAR LUNA S.A.C</strong></td>
+                                <td>1</td>
+                                <td><span
+                                        class='text-danger fw-bold'>1 </span>/ 1
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                                                                            <tr class="table-danger">
+                                <td><strong>ETI COLLANTES E.I.R.L.</strong></td>
+                                <td>1</td>
+                                <td><span
+                                        class='text-danger fw-bold'>1 </span>/ 1
+                                </td>
+                                <td><span class="badge bg-danger">100%</span>
+                                </td>
+                                <td><span class="text-danger">🔴🔴🔴🔴🔴 <br>Tasa de exito 0.0 %</span>
+                                </td>
+                            </tr>
+                                                                </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    
+    <div class="col-12 card p-4 report-card border-2 mb-4">
+        <div class="card-header bg-white border-0 pt-3 pb-0">
+            <h5 class="fw-bold"><i class="bi bi-funnel-fill"></i> Embudo de Conversión</h5>
+            <small class="text-muted">Análisis por etapa</small>
+        </div>
+        <div class="card-body pt-2 pb-3">
+                            <!-- Totales -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success rounded-pill">📞</span>
+                    <span class="small fw-semibold">Totales</span>
+                </div>
+                <div>
+                    <span class="badge bg-success">24</span>
+                    <span class="badge bg-secondary ms-1">100%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-success" style="width: 100%">100%</div>
+            </div>
+
+            <!-- Contestadas -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary rounded-pill">✅</span>
+                    <span class="small fw-semibold">Contestadas</span>
+                </div>
+                <div>
+                    <span class="badge bg-primary">12</span>
+                    <span class="badge bg-secondary ms-1">50%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-primary" style="width: 50%">50%</div>
+            </div>
+
+            <!-- Conversación -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info rounded-pill">💬</span>
+                    <span class="small fw-semibold">Conversación</span>
+                </div>
+                <div>
+                    <span class="badge bg-info">8</span>
+                    <span class="badge bg-secondary ms-1">33%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-info" style="width: 33%">33%</div>
+            </div>
+
+            <!-- Exitosas -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning rounded-pill">🎯</span>
+                    <span class="small fw-semibold">Exitosas</span>
+                </div>
+                <div>
+                    <span class="badge bg-warning text-dark">4</span>
+                    <span class="badge bg-secondary ms-1">17%</span>
+                </div>
+            </div>
+            <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar bg-warning" style="width: 17%">17%</div>
+            </div>
+
+            <!-- da motivos -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger rounded-pill">🧠</span>
+                    <span class="small fw-semibold">Da motivos</span>
+                </div>
+                <div>
+                    <span class="badge bg-danger">1</span>
+                    <span class="badge bg-secondary ms-1">4.2%</span>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-danger" style="width: 4.2%">4.2%</div>
+            </div>
+            <!-- FLUIDA -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light rounded-pill">🗣️</span>
+                    <span class="small fw-semibold">Conversacion fluida</span>
+                </div>
+                <div>
+                    <span class="badge bg-light text-dark">0</span>
+                    <span class="badge bg-secondary ms-1">0%</span>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-light text-dark" style="width: 0%">0%</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    
+    
+
+    
+    <div class="col-12 card p-4 report-card border-2 mb-4">
+        <div class="card-header bg-white border-0">
+            <h4 class="h5 fw-bold"><i class="fa-solid fa-chart-line"></i> Progreso de exito en llamadas</h4>
+        </div>
+        <div style="height: 400px">
+            <canvas id="canvas_semana"></canvas>
+        </div>
+    </div>
+
+    
+
+        <!-- por q el porcentaje de fallo -->
+    <div class="col-12">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="display-5"><i class="bi bi-question-octagon text-danger"></i></span>
+            <h1 class="display-6 fw-semibold" style="color: #12263a;">¿Por qué el 83% de las llamadas
+                son fallidas?</h1>
+        </div>
+        <p class="lead ps-5 text-secondary">Análisis que incorpora las etiquetas de llamada.</p>
+    </div>
+
+    <!-- GraficoPIZZA -->
+    <div class="col-12 mb-3">
+        <div style="height: 500px">
+            <canvas id="chart_fallidos" style=""></canvas>
+        </div>
+
+    </div>
+
+
+
+        <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
+        
+
+
+        <div class="row g-4 mb-5">
+            <!-- FALLO DE CONTACTO -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fs-2 text-warning"><i class="bi bi-mailbox2"></i></span>
+                        <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">12 fallos</span>
+                        </h3>
+                    </div>
+                    <p><strong>60% de los fallos</strong> – el conductor no responde o la llamada va
+                        a buzón.</p>
+                    <div class="ms-3">
+                    <span class="etiqueta"><i
+                            class="bi bi-voicemail me-1"></i> buzón de voz: <strong>11</strong></span>
+                        <br>
+                        <span class="etiqueta"><i
+                                class="bi bi-telephone-x me-1"></i> no contesta: <strong>1</strong></span>
+                        <br>
+                        <span class="etiqueta">
+                        <i class="bi bi-hourglass me-1"></i> ocupado: <strong>0</strong></span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- NO COOPERA -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="fs-2 text-danger"><i class="bi bi-person-fill-slash"></i></span>
+                        <h3 class="h4 mb-0">Conductor no coopera <span
+                                class="badge bg-danger bg-opacity-10 text-danger ms-3">4 fallos</span></h3>
+                    </div>
+                    <p><strong>20% de los fallos</strong> – el conductor contesta pero no facilita el
+                        objetivo.</p>
+                    <div class="ms-3">
+                    <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i
+                            class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>2</strong></span>
+                        <br>
+                        <span class="etiqueta etiqueta-conductor" style="font-size:1rem;">
+                        <i class="bi bi-telephone-x me-1"></i> colgo directamente: <strong>2</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ERRORES TÉCNICOS -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="fs-2 text-info"><i class="bi bi-tools"></i></span>
+                        <h3 class="h4 mb-0">Errores Técnicos
+                            <span class="badge bg-info bg-opacity-10 text-info ms-3">0 fallos</span></h3>
+                    </div>
+                    <p><strong>0% de los fallos</strong>
+                        - errores referentes a la IA no necesariamente con llevan a un fallo.</p>
+                    <div class="ms-3">
+                        
+                        <div class="mb-2">
+                            <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>0</strong>
+                            <span class="text-muted" style="font-size:0.8rem;">
+                        (ia_se_confunde: 0,
+                        ia_no_escucha: 0,
+                        ia_error_interpretacion: 0,
+                        ia_dice_variable: 0,
+                        ia_mala_pronunciacion: 0,
+                        ia_cuelga_en_plena_llamada: 0)
+                    </span></div>
+                        
+                        <i class="bi bi-wifi text-danger"></i> Error de red: <strong>0</strong><br>
+                        <i class="bi bi-question-circle text-danger"></i> Error desconocido: <strong>0</strong><br>
+                        <i class="bi bi-gear text-danger"></i> Error de sistema: <strong>0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTROS -->
+            <div class="col-lg-6">
+                <div class="card p-4 h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
+                        <h3 class="h4 mb-0">Otros
+                                                            <span class="badge bg-primary bg-opacity-15 text-white ms-3">4 fallos</span></h3>
+                                            </div>
+
+                                            <p><strong>20% de los fallos</strong>:</p>
+                                        <div class="ms-3">
+                        <ul class="etiqueta list-unstyled">
+                            <li><i class="bi bi-volume-mute me-2 text-danger"></i>
+                                Conductor no escucha: 0</li>
+                            <li><i class="bi bi-reception-1 me-2 text-warning"></i>
+                                Conductor mala señal: 1</li>
+                            <li>🤬
+                                Conductor conducta inapropiada: 0</li>
+                            <li><i class="bi bi-question-circle me-2 text-info"></i>
+                                Confusión en llamada: 0</li>
+                            <li><i class="bi bi-person-x me-2 text-secondary"></i>
+                                Contesta otra persona: 0</li>
+                            <li><i class="bi bi-check2-square me-2 text-primary"></i>
+                                Confirmacion Parcial: 0</li>
+                            <li><i class="bi bi-telephone-minus me-2 text-dark"></i>
+                                Número equivocado: 0</li>
+                        </ul>
+                        <span class="small">* Una llamada puede tener 1 o multiples etiquetas.</span>
+                    </div>
+                </div>
+            </div>
+
+            
+        </div>
+    
+    
+    <style>
+        .circulo-a {
+            width: 30vw; /* 30% del ancho de la ventana */
+            height: 30vw; /* Mismo ancho que alto (mantiene círculo) */
+            max-width: 400px; /* Límite máximo */
+            min-width: 180px; /* Límite mínimo */
+            max-height: 400px; /* Límite máximo */
+            min-height: 180px; /* Límite mínimo */
+            position: relative;
+            right: -4vw; /* Escala el desplazamiento también */
+        }
+
+        .circulo-b {
+            width: 30vw; /* 30% del ancho de la ventana */
+            height: 30vw; /* Mismo ancho que alto (mantiene círculo) */
+            max-width: 400px; /* Límite máximo */
+            min-width: 180px; /* Límite mínimo */
+            max-height: 400px; /* Límite máximo */
+            min-height: 180px; /* Límite mínimo */
+            position: relative;
+            right: 4vw; /* Escala el desplazamiento también */
+        }
+    </style>
+
+            <div class="col-12 mb-4">
+            <div class="card p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3 fs-2">
+                    <i class="bi bi-bar-chart-fill text-secondary"></i>
+                    <h3 class="h4 mb-0">Analisis de llamadas exitosas segun IA vs Usuario</h3>
+                </div>
+
+
+                <!-- Aquí se dibujará el gráfico -->
+                <div id="diagrama_venn">
+                    <div class="d-flex justify-content-center align-items-center position-relative mb-4"
+                         style="min-height: 200px;">
+
+                        <div
+                            class="bg-danger bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center circulo-a">
+                        <span class="fw-bold text-danger text-center">
+                            <i class="bi bi-robot"></i> IA<br>
+                        <small>12</small></span>
+                        </div>
+                        <div
+                            class="bg-info bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center circulo-b">
+                        <span class="fw-bold text-info text-center">
+                            <i class="bi bi-person"></i>USUARIO<br>
+                        <small>4</small></span>
+                        </div>
+                        <div class="position-absolute bg-white px-3 py-1 rounded-pill shadow-sm"
+                             style="top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1;">
+                            <i class="bi bi-intersect text-success"></i>
+                            <strong class="text-success">4</strong>
+                        </div>
+                        <div class="position-absolute bg-danger px-3 py-1 rounded-pill shadow-sm text-white"
+                             style="top: 25%; left: 35%; transform: translate(-50%, -50%); z-index: 1;">
+                            <i class="bi bi-voicemail"></i> Buzon de Voz
+                            <strong class="">5</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="tabla-conductores">
+                        <tr>
+                            <th>#</th>
+                            <th>Region</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">Porcentaje</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                                                <tr>
+                            <td class="table-danger">1</td>
+                            <td><i class="bi bi-circle text-danger"></i> IA</td>
+                            <td class="text-center">12</td>
+                            <td class="text-danger text-center"><b>100%</b></td>
+                        </tr>
+                        <tr>
+                            <td class="table-danger">2</td>
+                            <td><i class="bi bi-circle-fill text-danger"></i> IA [Buzon de Voz]</td>
+                            <td class="text-center">5</td>
+                            <td class="text-danger text-center"><b>41.7%</b></td>
+                        </tr>
+                        <tr>
+                            <td class="table-danger">3</td>
+                            <td><i class="bi bi-circle-fill text-danger"></i> IA - IA [Buzon de Voz] - (IA ∩ USUARIO)</td>
+                            <td class="text-center">3</td>
+                            <td class="text-danger text-center"><b>25%</b></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><i class="bi bi-intersect text-success"></i> Interseccion</td>
+                            <td class="text-success text-center"><b>4</b></td>
+                            <td class="text-center">
+                                <b class="text-danger"><i class="bi bi-robot"></i> 33.3%</b>
+                                <b class="text-info"><i class="bi bi-person"></i> 100%</b>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="table-info">5</td>
+                            <td><i class="bi bi-circle text-info"></i> USUARIO</td>
+                            <td class="text-center">4</td>
+                            <td class="text-info text-center"><b>100%</b></td>
+                        </tr>
+
+                        <tr>
+                            <td class="table-info">6</td>
+                            <td><i class="bi bi-circle-fill text-info"></i> USUARIO - (IA ∩ USUARIO)</td>
+                            <td class="text-center">0</td>
+                            <td class="text-info text-center"><b>0%</b></td>
+                        </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    
+    
+    <!-- FOOTER / NOTAS ACLARATORIAS -->
+    <div class="footer-note pt-3 d-flex justify-content-between">
+        <span><i class="far fa-file-excel me-1"></i> Datos: Reporte Generado con LUPITA</span>
+        <span><i class="fas fa-database me-1"></i> Indicador único de éxito: <code>llamada_exitosa = 1</code> (se ignora "exitosa_segun_ia").</span>
+    </div>
+</div>
+
+<!-- Bootstrap JS ----------------------------------- -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+    Chart.register(ChartDataLabels);
+
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        new bootstrap.Tooltip(el)
+    })
+
+    
+    const data = [{"total":45,"exitosas":"8","fallidas":"37","total_errores":"0","fecha_text":"Friday 23\/10\/26"},{"total":42,"exitosas":"14","fallidas":"28","total_errores":"1","fecha_text":"Saturday 24\/10\/26"},{"total":10,"exitosas":"2","fallidas":"8","total_errores":"0","fecha_text":"Sunday 25\/10\/26"},{"total":61,"exitosas":"9","fallidas":"52","total_errores":"0","fecha_text":"Monday 26\/10\/26"},{"total":54,"exitosas":"16","fallidas":"38","total_errores":"1","fecha_text":"Tuesday 27\/10\/26"},{"total":70,"exitosas":"16","fallidas":"54","total_errores":"0","fecha_text":"Wednesday 28\/10\/26"},{"total":38,"exitosas":"6","fallidas":"32","total_errores":"0","fecha_text":"Thursday 29\/10\/26"},{"total":24,"exitosas":"4","fallidas":"20","total_errores":"0","fecha_text":"Friday 30\/10\/26"}];
+    const labels = data.map(x => x.fecha_text);
+    const exitosas = data.map(x => x.exitosas);
+    const fallidas = data.map(x => x.fallidas);
+    const errores = data.map(x => x.total_errores);
+
+    const ctx = document.getElementById('canvas_semana');
+
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Exitosas',
+                    data: exitosas,
+                    borderWidth: 2,
+                    tension: 0.5
+                },
+                {
+                    label: 'Fallidas',
+                    data: fallidas,
+                    borderWidth: 2,
+                    tension: 0.5,
+                    hidden: true
+                },
+                {
+                    label: 'Errores',
+                    data: errores,
+                    borderWidth: 2,
+                    tension: 0.5,
+                    hidden: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                datalabels: {
+                    display: false  // ← Oculta las etiquetas
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        },
+    });
+
+    
+    new Chart(document.getElementById('chart_fallidos'), {
+        type: 'pie',
+        data: {
+            labels: ['Fallo de contacto', 'Conductor no coopera', 'Errores tecnicos', 'Otros'],
+            datasets: [{
+                data: [12 , 4, 0 , 4],
+                backgroundColor: ['#F2A007', '#E04B59', '#10CBF0', '#0F71F2'],
+                borderColor: 'transparent',  // ← Borde transparente
+                borderWidth: 0               // ← O usa 0 para eliminarlo
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'left'
+                },
+                datalabels: {
+                    color: '#fff',
+                    font: {
+                        weight: 'white',
+                        size: 18
+                    },
+                    formatter: (value, ctx) => {
+                        if (value===0) return '';
+                        let total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        let pct = ((value / total) * 100).toFixed(1);
+
+                        return pct + '%';
+                    }
+                }
+            }
+        },
+    });
+
+    
+    function playAudio(url, trt, nombres) {
+        const audio = document.getElementById('mainAudio');
+        const audio_texto = document.getElementById('audio_texto');
+        if (!audio.paused) {
+            audio.pause();
+        }
+        audio.src = url.toLowerCase();
+        audio.play().catch(() => {
+        });
+        audio_texto.innerHTML = `
+        <i class="bi bi-person"></i> ${nombres} <i class="bi bi-building"></i> ${trt}
+        `;
+    }
+</script>
+
+<!-- Laravel Debugbar Widget -->
+<link rel="stylesheet" type="text/css" href="https://calls.pedrosotelo.fun/_debugbar/assets?type=css&mtime=1770401378">
+<script type="text/javascript" src="https://calls.pedrosotelo.fun/_debugbar/assets?type=js&hash=1770401378"></script>
+<script> Sfdump = window.Sfdump || (function (doc) { doc.documentElement.classList.add('sf-js-enabled'); var rxEsc = /([.*+?^${}()|\[\]\/\\])/g, idRx = /\bsf-dump-\d+-ref[012]\w+\b/, keyHint = 0 <= navigator.platform.toUpperCase().indexOf('MAC') ? 'Cmd' : 'Ctrl', addEventListener = function (e, n, cb) { e.addEventListener(n, cb, false); }; if (!doc.addEventListener) { addEventListener = function (element, eventName, callback) { element.attachEvent('on' + eventName, function (e) { e.preventDefault = function () {e.returnValue = false;}; e.target = e.srcElement; callback(e); }); }; } function toggle(a, recursive) { var s = a.nextSibling || {}, oldClass = s.className, arrow, newClass; if (/\bsf-dump-compact\b/.test(oldClass)) { arrow = '▼'; newClass = 'sf-dump-expanded'; } else if (/\bsf-dump-expanded\b/.test(oldClass)) { arrow = '▶'; newClass = 'sf-dump-compact'; } else { return false; } if (doc.createEvent && s.dispatchEvent) { var event = doc.createEvent('Event'); event.initEvent('sf-dump-expanded' === newClass ? 'sfbeforedumpexpand' : 'sfbeforedumpcollapse', true, false); s.dispatchEvent(event); } a.lastChild.innerHTML = arrow; s.className = s.className.replace(/\bsf-dump-(compact|expanded)\b/, newClass); if (recursive) { try { a = s.querySelectorAll('.'+oldClass); for (s = 0; s < a.length; ++s) { if (-1 == a[s].className.indexOf(newClass)) { a[s].className = newClass; a[s].previousSibling.lastChild.innerHTML = arrow; } } } catch (e) { } } return true; }; function collapse(a, recursive) { var s = a.nextSibling || {}, oldClass = s.className; if (/\bsf-dump-expanded\b/.test(oldClass)) { toggle(a, recursive); return true; } return false; }; function expand(a, recursive) { var s = a.nextSibling || {}, oldClass = s.className; if (/\bsf-dump-compact\b/.test(oldClass)) { toggle(a, recursive); return true; } return false; }; function collapseAll(root) { var a = root.querySelector('a.sf-dump-toggle'); if (a) { collapse(a, true); expand(a); return true; } return false; } function reveal(node) { var previous, parents = []; while ((node = node.parentNode || {}) && (previous = node.previousSibling) && 'A' === previous.tagName) { parents.push(previous); } if (0 !== parents.length) { parents.forEach(function (parent) { expand(parent); }); return true; } return false; } function highlight(root, activeNode, nodes) { resetHighlightedNodes(root); Array.from(nodes||[]).forEach(function (node) { if (!/\bsf-dump-highlight\b/.test(node.className)) { node.className = node.className + ' sf-dump-highlight'; } }); if (!/\bsf-dump-highlight-active\b/.test(activeNode.className)) { activeNode.className = activeNode.className + ' sf-dump-highlight-active'; } } function resetHighlightedNodes(root) { Array.from(root.querySelectorAll('.sf-dump-str, .sf-dump-key, .sf-dump-public, .sf-dump-protected, .sf-dump-private')).forEach(function (strNode) { strNode.className = strNode.className.replace(/\bsf-dump-highlight\b/, ''); strNode.className = strNode.className.replace(/\bsf-dump-highlight-active\b/, ''); }); } return function (root, x) { root = doc.getElementById(root); var indentRx = new RegExp('^('+(root.getAttribute('data-indent-pad') || ' ').replace(rxEsc, '\\$1')+')+', 'm'), options = {"maxDepth":1,"maxStringLength":160,"fileLinkFormat":false}, elt = root.getElementsByTagName('A'), len = elt.length, i = 0, s, h, t = []; while (i < len) t.push(elt[i++]); for (i in x) { options[i] = x[i]; } function a(e, f) { addEventListener(root, e, function (e, n) { if ('A' == e.target.tagName) { f(e.target, e); } else if ('A' == e.target.parentNode.tagName) { f(e.target.parentNode, e); } else { n = /\bsf-dump-ellipsis\b/.test(e.target.className) ? e.target.parentNode : e.target; if ((n = n.nextElementSibling) && 'A' == n.tagName) { if (!/\bsf-dump-toggle\b/.test(n.className)) { n = n.nextElementSibling || n; } f(n, e, true); } } }); }; function isCtrlKey(e) { return e.ctrlKey || e.metaKey; } function xpathString(str) { var parts = str.match(/[^'"]+|['"]/g).map(function (part) { if ("'" == part) { return '"\'"'; } if ('"' == part) { return "'\"'"; } return "'" + part + "'"; }); return "concat(" + parts.join(",") + ", '')"; } function xpathHasClass(className) { return "contains(concat(' ', normalize-space(@class), ' '), ' " + className +" ')"; } a('mouseover', function (a, e, c) { if (c) { e.target.style.cursor = "pointer"; } }); a('click', function (a, e, c) { if (/\bsf-dump-toggle\b/.test(a.className)) { e.preventDefault(); if (!toggle(a, isCtrlKey(e))) { var r = doc.getElementById(a.getAttribute('href').slice(1)), s = r.previousSibling, f = r.parentNode, t = a.parentNode; t.replaceChild(r, a); f.replaceChild(a, s); t.insertBefore(s, r); f = f.firstChild.nodeValue.match(indentRx); t = t.firstChild.nodeValue.match(indentRx); if (f && t && f[0] !== t[0]) { r.innerHTML = r.innerHTML.replace(new RegExp('^'+f[0].replace(rxEsc, '\\$1'), 'mg'), t[0]); } if (/\bsf-dump-compact\b/.test(r.className)) { toggle(s, isCtrlKey(e)); } } if (c) { } else if (doc.getSelection) { try { doc.getSelection().removeAllRanges(); } catch (e) { doc.getSelection().empty(); } } else { doc.selection.empty(); } } else if (/\bsf-dump-str-toggle\b/.test(a.className)) { e.preventDefault(); e = a.parentNode.parentNode; e.className = e.className.replace(/\bsf-dump-str-(expand|collapse)\b/, a.parentNode.className); } }); elt = root.getElementsByTagName('SAMP'); len = elt.length; i = 0; while (i < len) t.push(elt[i++]); len = t.length; for (i = 0; i < len; ++i) { elt = t[i]; if ('SAMP' == elt.tagName) { a = elt.previousSibling || {}; if ('A' != a.tagName) { a = doc.createElement('A'); a.className = 'sf-dump-ref'; elt.parentNode.insertBefore(a, elt); } else { a.innerHTML += ' '; } a.title = (a.title ? a.title+'\n[' : '[')+keyHint+'+click] Expand all children'; a.innerHTML += elt.className == 'sf-dump-compact' ? '<span>▶</span>' : '<span>▼</span>'; a.className += ' sf-dump-toggle'; x = 1; if ('sf-dump' != elt.parentNode.className) { x += elt.parentNode.getAttribute('data-depth')/1; } } else if (/\bsf-dump-ref\b/.test(elt.className) && (a = elt.getAttribute('href'))) { a = a.slice(1); elt.className += ' sf-dump-hover'; elt.className += ' '+a; if (/[\[{]$/.test(elt.previousSibling.nodeValue)) { a = a != elt.nextSibling.id && doc.getElementById(a); try { s = a.nextSibling; elt.appendChild(a); s.parentNode.insertBefore(a, s); if (/^[@#]/.test(elt.innerHTML)) { elt.innerHTML += ' <span>▶</span>'; } else { elt.innerHTML = '<span>▶</span>'; elt.className = 'sf-dump-ref'; } elt.className += ' sf-dump-toggle'; } catch (e) { if ('&' == elt.innerHTML.charAt(0)) { elt.innerHTML = '…'; elt.className = 'sf-dump-ref'; } } } } } if (doc.evaluate && Array.from && root.children.length > 1) { root.setAttribute('tabindex', 0); SearchState = function () { this.nodes = []; this.idx = 0; }; SearchState.prototype = { next: function () { if (this.isEmpty()) { return this.current(); } this.idx = this.idx < (this.nodes.length - 1) ? this.idx + 1 : 0; return this.current(); }, previous: function () { if (this.isEmpty()) { return this.current(); } this.idx = this.idx > 0 ? this.idx - 1 : (this.nodes.length - 1); return this.current(); }, isEmpty: function () { return 0 === this.count(); }, current: function () { if (this.isEmpty()) { return null; } return this.nodes[this.idx]; }, reset: function () { this.nodes = []; this.idx = 0; }, count: function () { return this.nodes.length; }, }; function showCurrent(state) { var currentNode = state.current(), currentRect, searchRect; if (currentNode) { reveal(currentNode); highlight(root, currentNode, state.nodes); if ('scrollIntoView' in currentNode) { currentNode.scrollIntoView(true); currentRect = currentNode.getBoundingClientRect(); searchRect = search.getBoundingClientRect(); if (currentRect.top < (searchRect.top + searchRect.height)) { window.scrollBy(0, -(searchRect.top + searchRect.height + 5)); } } } counter.textContent = (state.isEmpty() ? 0 : state.idx + 1) + ' of ' + state.count(); } var search = doc.createElement('div'); search.className = 'sf-dump-search-wrapper sf-dump-search-hidden'; search.innerHTML = ' <input type="text" class="sf-dump-search-input"> <span class="sf-dump-search-count">0 of 0<\/span> <button type="button" class="sf-dump-search-input-previous" tabindex="-1"> <svg viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1683 1331l-166 165q-19 19-45 19t-45-19L896 965l-531 531q-19 19-45 19t-45-19l-166-165q-19-19-19-45.5t19-45.5l742-741q19-19 45-19t45 19l742 741q19 19 19 45.5t-19 45.5z"\/><\/svg> <\/button> <button type="button" class="sf-dump-search-input-next" tabindex="-1"> <svg viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1683 808l-742 741q-19 19-45 19t-45-19L109 808q-19-19-19-45.5t19-45.5l166-165q19-19 45-19t45 19l531 531 531-531q19-19 45-19t45 19l166 165q19 19 19 45.5t-19 45.5z"\/><\/svg> <\/button> '; root.insertBefore(search, root.firstChild); var state = new SearchState(); var searchInput = search.querySelector('.sf-dump-search-input'); var counter = search.querySelector('.sf-dump-search-count'); var searchInputTimer = 0; var previousSearchQuery = ''; addEventListener(searchInput, 'keyup', function (e) { var searchQuery = e.target.value; /* Don't perform anything if the pressed key didn't change the query */ if (searchQuery === previousSearchQuery) { return; } previousSearchQuery = searchQuery; clearTimeout(searchInputTimer); searchInputTimer = setTimeout(function () { state.reset(); collapseAll(root); resetHighlightedNodes(root); if ('' === searchQuery) { counter.textContent = '0 of 0'; return; } var classMatches = [ "sf-dump-str", "sf-dump-key", "sf-dump-public", "sf-dump-protected", "sf-dump-private", ].map(xpathHasClass).join(' or '); var xpathResult = doc.evaluate('.//span[' + classMatches + '][contains(translate(child::text(), ' + xpathString(searchQuery.toUpperCase()) + ', ' + xpathString(searchQuery.toLowerCase()) + '), ' + xpathString(searchQuery.toLowerCase()) + ')]', root, null, XPathResult.ORDERED_NODE_ITERATOR_TYPE, null); while (node = xpathResult.iterateNext()) state.nodes.push(node); showCurrent(state); }, 400); }); Array.from(search.querySelectorAll('.sf-dump-search-input-next, .sf-dump-search-input-previous')).forEach(function (btn) { addEventListener(btn, 'click', function (e) { e.preventDefault(); -1 !== e.target.className.indexOf('next') ? state.next() : state.previous(); searchInput.focus(); collapseAll(root); showCurrent(state); }) }); addEventListener(root, 'keydown', function (e) { var isSearchActive = !/\bsf-dump-search-hidden\b/.test(search.className); if ((114 === e.keyCode && !isSearchActive) || (isCtrlKey(e) && 70 === e.keyCode)) { /* F3 or CMD/CTRL + F */ if (70 === e.keyCode && document.activeElement === searchInput) { /* * If CMD/CTRL + F is hit while having focus on search input, * the user probably meant to trigger browser search instead. * Let the browser execute its behavior: */ return; } e.preventDefault(); search.className = search.className.replace(/\bsf-dump-search-hidden\b/, ''); searchInput.focus(); } else if (isSearchActive) { if (27 === e.keyCode) { /* ESC key */ search.className += ' sf-dump-search-hidden'; e.preventDefault(); resetHighlightedNodes(root); searchInput.value = ''; } else if ( (isCtrlKey(e) && 71 === e.keyCode) /* CMD/CTRL + G */ || 13 === e.keyCode /* Enter */ || 114 === e.keyCode /* F3 */ ) { e.preventDefault(); e.shiftKey ? state.previous() : state.next(); collapseAll(root); showCurrent(state); } } }); } if (0 >= options.maxStringLength) { return; } try { elt = root.querySelectorAll('.sf-dump-str'); len = elt.length; i = 0; t = []; while (i < len) t.push(elt[i++]); len = t.length; for (i = 0; i < len; ++i) { elt = t[i]; s = elt.innerText || elt.textContent; x = s.length - options.maxStringLength; if (0 < x) { h = elt.innerHTML; elt[elt.innerText ? 'innerText' : 'textContent'] = s.substring(0, options.maxStringLength); elt.className += ' sf-dump-str-collapse'; elt.innerHTML = '<span class=sf-dump-str-collapse>'+h+'<a class="sf-dump-ref sf-dump-str-toggle" title="Collapse"> ◀</a></span>'+ '<span class=sf-dump-str-expand>'+elt.innerHTML+'<a class="sf-dump-ref sf-dump-str-toggle" title="'+x+' remaining characters"> ▶</a></span>'; } } } catch (e) { } }; })(document); </script><style> .sf-js-enabled .phpdebugbar pre.sf-dump .sf-dump-compact, .sf-js-enabled .sf-dump-str-collapse .sf-dump-str-collapse, .sf-js-enabled .sf-dump-str-expand .sf-dump-str-expand { display: none; } .sf-dump-hover:hover { background-color: #B729D9; color: #FFF !important; border-radius: 2px; } .phpdebugbar pre.sf-dump { display: block; white-space: pre; padding: 5px; overflow: initial !important; } .phpdebugbar pre.sf-dump:after { content: ""; visibility: hidden; display: block; height: 0; clear: both; } .phpdebugbar pre.sf-dump .sf-dump-ellipsization { display: inline-flex; } .phpdebugbar pre.sf-dump a { text-decoration: none; cursor: pointer; border: 0; outline: none; color: inherit; } .phpdebugbar pre.sf-dump img { max-width: 50em; max-height: 50em; margin: .5em 0 0 0; padding: 0; background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAAAAAA6mKC9AAAAHUlEQVQY02O8zAABilCaiQEN0EeA8QuUcX9g3QEAAjcC5piyhyEAAAAASUVORK5CYII=) #D3D3D3; } .phpdebugbar pre.sf-dump .sf-dump-ellipsis { text-overflow: ellipsis; white-space: nowrap; overflow: hidden; } .phpdebugbar pre.sf-dump .sf-dump-ellipsis-tail { flex-shrink: 0; } .phpdebugbar pre.sf-dump code { display:inline; padding:0; background:none; } .sf-dump-public.sf-dump-highlight, .sf-dump-protected.sf-dump-highlight, .sf-dump-private.sf-dump-highlight, .sf-dump-str.sf-dump-highlight, .sf-dump-key.sf-dump-highlight { background: rgba(111, 172, 204, 0.3); border: 1px solid #7DA0B1; border-radius: 3px; } .sf-dump-public.sf-dump-highlight-active, .sf-dump-protected.sf-dump-highlight-active, .sf-dump-private.sf-dump-highlight-active, .sf-dump-str.sf-dump-highlight-active, .sf-dump-key.sf-dump-highlight-active { background: rgba(253, 175, 0, 0.4); border: 1px solid #ffa500; border-radius: 3px; } .phpdebugbar pre.sf-dump .sf-dump-search-hidden { display: none !important; } .phpdebugbar pre.sf-dump .sf-dump-search-wrapper { font-size: 0; white-space: nowrap; margin-bottom: 5px; display: flex; position: -webkit-sticky; position: sticky; top: 5px; } .phpdebugbar pre.sf-dump .sf-dump-search-wrapper > * { vertical-align: top; box-sizing: border-box; height: 21px; font-weight: normal; border-radius: 0; background: #FFF; color: #757575; border: 1px solid #BBB; } .phpdebugbar pre.sf-dump .sf-dump-search-wrapper > input.sf-dump-search-input { padding: 3px; height: 21px; font-size: 12px; border-right: none; border-top-left-radius: 3px; border-bottom-left-radius: 3px; color: #000; min-width: 15px; width: 100%; } .phpdebugbar pre.sf-dump .sf-dump-search-wrapper > .sf-dump-search-input-next, .phpdebugbar pre.sf-dump .sf-dump-search-wrapper > .sf-dump-search-input-previous { background: #F2F2F2; outline: none; border-left: none; font-size: 0; line-height: 0; } .phpdebugbar pre.sf-dump .sf-dump-search-wrapper > .sf-dump-search-input-next { border-top-right-radius: 3px; border-bottom-right-radius: 3px; } .phpdebugbar pre.sf-dump .sf-dump-search-wrapper > .sf-dump-search-input-next > svg, .phpdebugbar pre.sf-dump .sf-dump-search-wrapper > .sf-dump-search-input-previous > svg { pointer-events: none; width: 12px; height: 12px; } .phpdebugbar pre.sf-dump .sf-dump-search-wrapper > .sf-dump-search-count { display: inline-block; padding: 0 5px; margin: 0; border-left: none; line-height: 21px; font-size: 12px; }.phpdebugbar pre.sf-dump, .phpdebugbar pre.sf-dump .sf-dump-default{word-wrap: break-word; white-space: pre-wrap; word-break: normal}.phpdebugbar pre.sf-dump .sf-dump-num{font-weight:bold; color:#1299DA}.phpdebugbar pre.sf-dump .sf-dump-const{font-weight:bold}.phpdebugbar pre.sf-dump .sf-dump-str{font-weight:bold; color:#3A9B26}.phpdebugbar pre.sf-dump .sf-dump-note{color:#1299DA}.phpdebugbar pre.sf-dump .sf-dump-ref{color:#7B7B7B}.phpdebugbar pre.sf-dump .sf-dump-public{color:#000000}.phpdebugbar pre.sf-dump .sf-dump-protected{color:#000000}.phpdebugbar pre.sf-dump .sf-dump-private{color:#000000}.phpdebugbar pre.sf-dump .sf-dump-meta{color:#B729D9}.phpdebugbar pre.sf-dump .sf-dump-key{color:#3A9B26}.phpdebugbar pre.sf-dump .sf-dump-index{color:#1299DA}.phpdebugbar pre.sf-dump .sf-dump-ellipsis{color:#A0A000}.phpdebugbar pre.sf-dump .sf-dump-virtual{font-style:italic}.phpdebugbar pre.sf-dump .sf-dump-ns{user-select:none;}.phpdebugbar pre.sf-dump .sf-dump-ellipsis-note{color:#1299DA}.phpdebugbar[data-theme='dark'] pre.sf-dump, pre.sf-dump .sf-dump-default{background-color:#18171B; color:#FF8400; line-height:1.2em; font:12px Menlo, Monaco, Consolas, monospace; word-wrap: break-word; white-space: pre-wrap; position:relative; z-index:99999; word-break: break-all}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-num{font-weight:bold; color:#1299DA}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-const{font-weight:bold}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-virtual{font-style:italic}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-str{font-weight:bold; color:#56DB3A}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-note{color:#1299DA}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-ref{color:#A0A0A0}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-public{color:#FFFFFF}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-protected{color:#FFFFFF}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-private{color:#FFFFFF}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-meta{color:#B729D9}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-key{color:#56DB3A}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-index{color:#1299DA}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-ellipsis{color:#FF8400}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-ns{user-select:none;}.phpdebugbar[data-theme='dark'] pre.sf-dump .sf-dump-ellipsis-note{color:#1299DA}</style>
+<script type="text/javascript">
+(function () {
+    const renderDebugbar = function () {
+const phpdebugbar = new PhpDebugBar.DebugBar({"theme":"auto","hideEmptyTabs":true});
+phpdebugbar.addTab("request", new PhpDebugBar.DebugBar.Tab({"icon":"arrows-left-right","title":"Request", "widget": new PhpDebugBar.Widgets.HtmlVariableListWidget()}));
+phpdebugbar.addTab("exceptions", new PhpDebugBar.DebugBar.Tab({"icon":"bug","title":"Exceptions", "widget": new PhpDebugBar.Widgets.ExceptionsWidget()}));
+phpdebugbar.addTab("messages", new PhpDebugBar.DebugBar.Tab({"icon":"logs","title":"Messages", "widget": new PhpDebugBar.Widgets.MessagesWidget()}));
+phpdebugbar.addIndicator("time", new PhpDebugBar.DebugBar.Indicator({"icon":"clock","tooltip":"Request Duration","link":"timeline"}), "right");
+phpdebugbar.addTab("timeline", new PhpDebugBar.DebugBar.Tab({"icon":"chart-infographic","title":"Timeline", "widget": new PhpDebugBar.Widgets.TimelineWidget()}));
+phpdebugbar.addIndicator("memory", new PhpDebugBar.DebugBar.Indicator({"icon":"server-cog","tooltip":"Memory Usage"}), "right");
+phpdebugbar.addIndicator("version", new PhpDebugBar.DebugBar.Indicator({"icon":"brand-laravel"}), "right");
+phpdebugbar.addTab("views", new PhpDebugBar.DebugBar.Tab({"icon":"file-code","title":"Views", "widget": new PhpDebugBar.Widgets.TemplatesWidget()}));
+phpdebugbar.addTab("queries", new PhpDebugBar.DebugBar.Tab({"icon":"database","title":"Queries", "widget": new PhpDebugBar.Widgets.LaravelQueriesWidget()}));
+phpdebugbar.addTab("models", new PhpDebugBar.DebugBar.Tab({"icon":"box","title":"Models", "widget": new PhpDebugBar.Widgets.TableVariableListWidget()}));
+phpdebugbar.addTab("livewire", new PhpDebugBar.DebugBar.Tab({"icon":"brand-livewire","title":"Livewire", "widget": new PhpDebugBar.Widgets.TemplatesWidget()}));
+phpdebugbar.addTab("emails", new PhpDebugBar.DebugBar.Tab({"icon":"inbox","title":"Mails", "widget": new PhpDebugBar.Widgets.MailsWidget()}));
+phpdebugbar.addTab("gate", new PhpDebugBar.DebugBar.Tab({"icon":"logs","title":"Gate", "widget": new PhpDebugBar.Widgets.MessagesWidget()}));
+phpdebugbar.addTab("cache", new PhpDebugBar.DebugBar.Tab({"icon":"clipboard-text","title":"Cache", "widget": new PhpDebugBar.Widgets.LaravelCacheWidget()}));
+phpdebugbar.addTab("jobs", new PhpDebugBar.DebugBar.Tab({"icon":"briefcase","title":"Jobs", "widget": new PhpDebugBar.Widgets.TableVariableListWidget()}));
+phpdebugbar.addTab("http_client", new PhpDebugBar.DebugBar.Tab({"icon":"mobiledata","title":"Http client", "widget": new PhpDebugBar.Widgets.HttpWidget()}));
+phpdebugbar.setDataMap({
+"request": ["request.data", {}],
+"request:badge": ["request.badge", null],
+"exceptions": ["exceptions.exceptions", []],
+"exceptions:badge": ["exceptions.count", null],
+"messages": ["messages.messages", []],
+"messages:badge": ["messages.count", null],
+"time": ["time.duration_str", '0ms'],
+"timeline": ["time", {}],
+"memory": ["memory.peak_usage_str", '0B'],
+"version": ["laravel.version", ],
+"version:tooltip": ["laravel.tooltip", {}],
+"views": ["views", []],
+"views:badge": ["views.nb_templates", 0],
+"queries": ["queries", []],
+"queries:badge": ["queries.nb_statements", 0],
+"models": ["models", {}],
+"models:badge": ["models.count", 0],
+"livewire": ["livewire", []],
+"livewire:badge": ["livewire.nb_templates", 0],
+"emails": ["symfonymailer_mails.mails", []],
+"emails:badge": ["symfonymailer_mails.count", null],
+"gate": ["gate.messages", []],
+"gate:badge": ["gate.count", null],
+"cache": ["cache", {}],
+"cache:badge": ["cache.nb_measures", null],
+"jobs": ["jobs", {}],
+"jobs:badge": ["jobs.count", 0],
+"http_client": ["http_client.requests", []],
+"http_client:badge": ["http_client.nb_requests", 0]
+});
+phpdebugbar.restoreState();
+phpdebugbar.enableAjaxHandlerTab();
+phpdebugbar.ajaxHandler = new PhpDebugBar.AjaxHandler(phpdebugbar, undefined, true);
+phpdebugbar.ajaxHandler.bindToFetch();
+phpdebugbar.ajaxHandler.bindToXHR();
+phpdebugbar.setOpenHandler(new PhpDebugBar.OpenHandler({"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/open"}));
+phpdebugbar.addDataSet({"__meta":{"id":"01M6EAYKKY1RQD5HP56D3MWY9R","datetime":"2026-11-02 09:34:57","utime":1793630097.0228760242462158203125,"method":"GET","uri":"\/lupita\/reporte?fecha_inicio=2026-10-30\u0026llamada_tipo_id=5","ip":"38.19.150.195"},"request":{"data":{"uri":"GET lupita\/reporte","controller":{"value":"App\\Http\\Controllers\\LlamadasController@reporte_todo","xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FHttp%2FControllers%2FLlamadasController.php\u0026line=40","ajax":false,"filename":"LlamadasController.php","line":"40"}},"prefix":"\/lupita","file":{"value":"app\/Http\/Controllers\/LlamadasController.php:40-120","xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FHttp%2FControllers%2FLlamadasController.php\u0026line=40","ajax":false,"filename":"LlamadasController.php","line":"40"}},"middleware":"web, auth","method":"GET","format":"html","content_type":"text\/html; charset=utf-8","status_text":"OK","status_code":"\u003Cpre class=sf-dump id=sf-dump-56765598 data-indent-pad=\u0022  \u0022\u003E\u003Cspan class=sf-dump-num\u003E200\u003C\/span\u003E\n\u003C\/pre\u003E","request_query":"\u003Cpre class=sf-dump id=sf-dump-1041766372 data-indent-pad=\u0022  \u0022\u003E\u003Cspan class=sf-dump-note\u003Earray:2\u003C\/span\u003E [\u003Csamp data-depth=1 class=sf-dump-expanded\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003Efecha_inicio\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002210 characters\u0022\u003E2026-10-30\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003Ellamada_tipo_id\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str\u003E5\u003C\/span\u003E\u0022\n\u003C\/samp\u003E]\n\u003C\/pre\u003E","request_request":"\u003Cpre class=sf-dump id=sf-dump-611405411 data-indent-pad=\u0022  \u0022\u003E[]\n\u003C\/pre\u003E","request_files":"\u003Cpre class=sf-dump id=sf-dump-1260328645 data-indent-pad=\u0022  \u0022\u003E[]\n\u003C\/pre\u003E","request_headers":"\u003Cpre class=sf-dump id=sf-dump-308632402 data-indent-pad=\u0022  \u0022\u003E\u003Cspan class=sf-dump-note\u003Earray:14\u003C\/span\u003E [\u003Csamp data-depth=1 class=sf-dump-expanded\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003Eaccept\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003E*\/*\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Eaccept-encoding\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002223 characters\u0022\u003Egzip, deflate, br, zstd\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Eaccept-language\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002215 characters\u0022\u003Ees-419,es;q=0.9\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Ecookie\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022744 characters\u0022\u003EPHPDEBUGBAR_STACK_DATA=%5B%5D; XSRF-TOKEN=eyJpdiI6InFxbkZsbGljY1AxOXZSYlRLT3h5VkE9PSIsInZhbHVlIjoiOE42ZDFkeitzTi9wbDc5Y2dmaWdoNFhGdjBjWVp1K0o0cVFZUnBCdnVwM0VkNm1BenluYW53QkRnSjhKVHpkS3RxYUtZNjZ2blByaXNlMnVkdDR1TFg1c1MwdGpxSnAvMFVKQk9IOEJIVHdKYW8zeFhIWWFlekZKVHpWUzhxUTAiLCJtYWMiOiJlNjYwYzc3NTNhYmU0YzM0N2VhMDUzYjAxZGQyMWEwZjUyZDg0NWExZDI1Zjk0NmJjODEwM2U0ZGM3OWFjNWE1IiwidGFnIjoiIn0%3D; laravel-session=eyJpdiI6ImU1NitmMDZYMlFGZThhZExuYnh2Z1E9PSIsInZhbHVlIjoiV3QxdmFoNmIxby9IeGJaWk56RGt4ZmFIV1NKYi9DbitvOWFEZ3F4MmFUMUtEa3RiZDRXdk5yVlI3UWdETUYvTC9UR2V0RjI2dkwrcGZBT04vWnVYaGZscGVGOXhUcWpkMjArNG5vbm1PSGdOZVZ5L2RnRThEVUQ3dWg2YllyYUIiLCJtYWMiOiI4NThmOWNmNGMyZjkyZjlhZmY0OWMyOGYwZjRhOTQzNzkwOGZkMzFkYTIzYjJkODM4MmNjYTMyMzBjMjJhMjkwIiwidGFnIjoiIn0%3D\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Ehost\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002221 characters\u0022\u003Ecalls.pedrosotelo.fun\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Ereferer\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022136 characters\u0022\u003Ehttps:\/\/calls.pedrosotelo.fun\/lupita\/audio?llamada_tipo_id=\u0026amp;fecha_inicio=2026-10-30\u0026amp;fecha_fin=\u0026amp;conductor=\u0026amp;trt=\u0026amp;exitosa=\u0026amp;e_operador=\u0026amp;ids=\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Euser-agent\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022125 characters\u0022\u003EMozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/154.0.0.0 Safari\/537.36 OPR\/138.0.0.0\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Esec-ch-ua-platform\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00229 characters\u0022\u003E\u0026quot;Windows\u0026quot;\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Esec-ch-ua\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002260 characters\u0022\u003E\u0026quot;Chromium\u0026quot;;v=\u0026quot;154\u0026quot;, \u0026quot;Opera GX\u0026quot;;v=\u0026quot;138\u0026quot;, \u0026quot;Not A(Brand\u0026quot;;v=\u0026quot;99\u0026quot;\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Esec-ch-ua-mobile\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00222 characters\u0022\u003E?0\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Esec-fetch-site\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002211 characters\u0022\u003Esame-origin\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Esec-fetch-mode\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00224 characters\u0022\u003Ecors\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Esec-fetch-dest\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00225 characters\u0022\u003Eempty\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Epriority\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00226 characters\u0022\u003Eu=1, i\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n\u003C\/samp\u003E]\n\u003C\/pre\u003E","request_server":"\u003Cpre class=sf-dump id=sf-dump-984926803 data-indent-pad=\u0022  \u0022\u003E\u003Cspan class=sf-dump-note\u003Earray:48\u003C\/span\u003E [\u003Csamp data-depth=1 class=sf-dump-expanded\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003EPATH\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002228 characters\u0022\u003E\/usr\/local\/bin:\/bin:\/usr\/bin\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EDOCUMENT_ROOT\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002243 characters\u0022\u003E\/home\/pedrosot\/calls.pedrosotelo.fun\/public\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_ACCEPT\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003E*\/*\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_ACCEPT_ENCODING\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002223 characters\u0022\u003Egzip, deflate, br, zstd\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_ACCEPT_LANGUAGE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002215 characters\u0022\u003Ees-419,es;q=0.9\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_COOKIE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022744 characters\u0022\u003EPHPDEBUGBAR_STACK_DATA=%5B%5D; XSRF-TOKEN=eyJpdiI6InFxbkZsbGljY1AxOXZSYlRLT3h5VkE9PSIsInZhbHVlIjoiOE42ZDFkeitzTi9wbDc5Y2dmaWdoNFhGdjBjWVp1K0o0cVFZUnBCdnVwM0VkNm1BenluYW53QkRnSjhKVHpkS3RxYUtZNjZ2blByaXNlMnVkdDR1TFg1c1MwdGpxSnAvMFVKQk9IOEJIVHdKYW8zeFhIWWFlekZKVHpWUzhxUTAiLCJtYWMiOiJlNjYwYzc3NTNhYmU0YzM0N2VhMDUzYjAxZGQyMWEwZjUyZDg0NWExZDI1Zjk0NmJjODEwM2U0ZGM3OWFjNWE1IiwidGFnIjoiIn0%3D; laravel-session=eyJpdiI6ImU1NitmMDZYMlFGZThhZExuYnh2Z1E9PSIsInZhbHVlIjoiV3QxdmFoNmIxby9IeGJaWk56RGt4ZmFIV1NKYi9DbitvOWFEZ3F4MmFUMUtEa3RiZDRXdk5yVlI3UWdETUYvTC9UR2V0RjI2dkwrcGZBT04vWnVYaGZscGVGOXhUcWpkMjArNG5vbm1PSGdOZVZ5L2RnRThEVUQ3dWg2YllyYUIiLCJtYWMiOiI4NThmOWNmNGMyZjkyZjlhZmY0OWMyOGYwZjRhOTQzNzkwOGZkMzFkYTIzYjJkODM4MmNjYTMyMzBjMjJhMjkwIiwidGFnIjoiIn0%3D\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_HOST\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002221 characters\u0022\u003Ecalls.pedrosotelo.fun\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_REFERER\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022136 characters\u0022\u003Ehttps:\/\/calls.pedrosotelo.fun\/lupita\/audio?llamada_tipo_id=\u0026amp;fecha_inicio=2026-10-30\u0026amp;fecha_fin=\u0026amp;conductor=\u0026amp;trt=\u0026amp;exitosa=\u0026amp;e_operador=\u0026amp;ids=\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_USER_AGENT\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022125 characters\u0022\u003EMozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/154.0.0.0 Safari\/537.36 OPR\/138.0.0.0\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_SEC_CH_UA_PLATFORM\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00229 characters\u0022\u003E\u0026quot;Windows\u0026quot;\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_SEC_CH_UA\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002260 characters\u0022\u003E\u0026quot;Chromium\u0026quot;;v=\u0026quot;154\u0026quot;, \u0026quot;Opera GX\u0026quot;;v=\u0026quot;138\u0026quot;, \u0026quot;Not A(Brand\u0026quot;;v=\u0026quot;99\u0026quot;\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_SEC_CH_UA_MOBILE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00222 characters\u0022\u003E?0\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_SEC_FETCH_SITE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002211 characters\u0022\u003Esame-origin\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_SEC_FETCH_MODE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00224 characters\u0022\u003Ecors\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_SEC_FETCH_DEST\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00225 characters\u0022\u003Eempty\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTP_PRIORITY\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00226 characters\u0022\u003Eu=1, i\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREMOTE_ADDR\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002213 characters\u0022\u003E38.19.150.195\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREMOTE_PORT\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00225 characters\u0022\u003E51715\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESERVER_ADDR\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002214 characters\u0022\u003E148.113.206.59\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESERVER_NAME\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002221 characters\u0022\u003Ecalls.pedrosotelo.fun\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESERVER_ADMIN\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002231 characters\u0022\u003Ewebmaster@calls.pedrosotelo.fun\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESERVER_PORT\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003E443\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREQUEST_SCHEME\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00225 characters\u0022\u003Ehttps\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREQUEST_URI\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002257 characters\u0022\u003E\/lupita\/reporte?fecha_inicio=2026-10-30\u0026amp;llamada_tipo_id=5\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREDIRECT_URL\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002215 characters\u0022\u003E\/lupita\/reporte\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREDIRECT_QUERY_STRING\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002241 characters\u0022\u003Efecha_inicio=2026-10-30\u0026amp;llamada_tipo_id=5\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREDIRECT_REQUEST_METHOD\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003EGET\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EHTTPS\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00222 characters\u0022\u003Eon\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREDIRECT_STATUS\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003E200\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EX_SPDY\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00225 characters\u0022\u003EHTTP2\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESSL_PROTOCOL\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00227 characters\u0022\u003ETLSv1.3\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESSL_CIPHER\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002222 characters\u0022\u003ETLS_AES_128_GCM_SHA256\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESSL_CIPHER_USEKEYSIZE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003E128\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESSL_CIPHER_ALGKEYSIZE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003E128\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESCRIPT_FILENAME\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002253 characters\u0022\u003E\/home\/pedrosot\/calls.pedrosotelo.fun\/public\/index.php\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EQUERY_STRING\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002241 characters\u0022\u003Efecha_inicio=2026-10-30\u0026amp;llamada_tipo_id=5\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESCRIPT_URI\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002244 characters\u0022\u003Ehttps:\/\/calls.pedrosotelo.fun\/lupita\/reporte\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESCRIPT_URL\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002215 characters\u0022\u003E\/lupita\/reporte\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESCRIPT_NAME\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002210 characters\u0022\u003E\/index.php\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESERVER_PROTOCOL\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00228 characters\u0022\u003EHTTP\/1.1\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003ESERVER_SOFTWARE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00229 characters\u0022\u003ELiteSpeed\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREQUEST_METHOD\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003EGET\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EX-LSCACHE\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00222 characters\u0022\u003Eon\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EPHP_SELF\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002210 characters\u0022\u003E\/index.php\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EREQUEST_TIME_FLOAT\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-num\u003E1793630096.9914\u003C\/span\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003EREQUEST_TIME\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-num\u003E1793630096\u003C\/span\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003Eargv\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002241 characters\u0022\u003Efecha_inicio=2026-10-30\u0026amp;llamada_tipo_id=5\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Eargc\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-num\u003E1\u003C\/span\u003E\n\u003C\/samp\u003E]\n\u003C\/pre\u003E","request_cookies":"\u003Cpre class=sf-dump id=sf-dump-2058838877 data-indent-pad=\u0022  \u0022\u003E\u003Cspan class=sf-dump-note\u003Earray:3\u003C\/span\u003E [\u003Csamp data-depth=1 class=sf-dump-expanded\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003EPHPDEBUGBAR_STACK_DATA\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00222 characters\u0022\u003E**\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003EXSRF-TOKEN\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00227 characters\u0022\u003EUA***ga\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003Elaravel-session\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002240 characters\u0022\u003EidVSUHJx6jhc76hlx19QltmsKvBMJr27j3vSLPTa\u003C\/span\u003E\u0022\n\u003C\/samp\u003E]\n\u003C\/pre\u003E","request_attributes":"\u003Cpre class=sf-dump id=sf-dump-1810384028 data-indent-pad=\u0022  \u0022\u003E[]\n\u003C\/pre\u003E","route":"","response_headers":"\u003Cpre class=sf-dump id=sf-dump-1068267440 data-indent-pad=\u0022  \u0022\u003E\u003Cspan class=sf-dump-note\u003Earray:4\u003C\/span\u003E [\u003Csamp data-depth=1 class=sf-dump-expanded\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003Econtent-type\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002224 characters\u0022\u003Etext\/html; charset=utf-8\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Ecache-control\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002217 characters\u0022\u003Eno-cache, private\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Edate\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002229 characters\u0022\u003EMon, 02 Nov 2026 14:34:57 GMT\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Eset-cookie\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:2\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022436 characters\u0022\u003EXSRF-TOKEN=eyJpdiI6IkZMcmkvY2NhWFlNT2Z1NzBjd3pRTXc9PSIsInZhbHVlIjoiVFBLbWROeVR0MmFsRHZNVHEwRDBoU05XRHdIOHZMbFlSSkVldFZEM1Z4WTFnNVh4TkZGSFNnZUJIRHM2VE5EQndqR20xcVNFdTBIV255b0FET2xqMzBPSTFTU1JJdTAxUmpEQmlSWm5hZW9Bc2dkaTBneHE4WVZ4RjB1UWhyVWMiLCJtYWMiOiJmMWYxYzQ4Zjg4ZWFlMWMwZjA1NDA4NWFiNmVkZWM2NDBmNzkyYzE5NDkyNTg0MmY2YTYwM2NlYzEyOTBjMTdiIiwidGFnIjoiIn0%3D; expires=Mon, 02 Nov 2026 16:34:57 GMT; Max-Age=7200; path=\/; secure; samesite=lax\u003C\/span\u003E\u0022\n    \u003Cspan class=sf-dump-index\u003E1\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022451 characters\u0022\u003Elaravel-session=eyJpdiI6IkVZT0JRQjVPQUw4TmU2NUZMeTQyWGc9PSIsInZhbHVlIjoiUFY0ZTNjUGYvSUFFRk1kbXk1OFMveHhYVVFYTm9MbDhJMnFWWmZCMnVoMUpzSHlxZUZNL0NCd0I0Z1QzWUtMTXFxM0FFaU5Kby92UXA3L1pNc1prNDdnSlRqTjhrT2pRdlg3RitEdU43VFZuZWtMOFU1ZnB0elpVWlN2OFNiRS8iLCJtYWMiOiI3OTVhODlkZTQyNzVlMWI0ZTRkZDE3MTU4MGI5YTUwOGZkZGI5OTFhNjFkYmExNDYxODRjNTQ4YTk0MTdhM2UwIiwidGFnIjoiIn0%3D; expires=Mon, 02 Nov 2026 16:34:57 GMT; Max-Age=7200; path=\/; secure; httponly; samesite=lax\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n\u003C\/samp\u003E]\n\u003C\/pre\u003E","response_cookies":"\u003Cpre class=sf-dump id=sf-dump-1941769145 data-indent-pad=\u0022  \u0022\u003E\u003Cspan class=sf-dump-note\u003Earray:2\u003C\/span\u003E [\u003Csamp data-depth=1 class=sf-dump-expanded\u003E\n  \u003Cspan class=sf-dump-index\u003E0\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022408 characters\u0022\u003EXSRF-TOKEN=eyJpdiI6IkZMcmkvY2NhWFlNT2Z1NzBjd3pRTXc9PSIsInZhbHVlIjoiVFBLbWROeVR0MmFsRHZNVHEwRDBoU05XRHdIOHZMbFlSSkVldFZEM1Z4WTFnNVh4TkZGSFNnZUJIRHM2VE5EQndqR20xcVNFdTBIV255b0FET2xqMzBPSTFTU1JJdTAxUmpEQmlSWm5hZW9Bc2dkaTBneHE4WVZ4RjB1UWhyVWMiLCJtYWMiOiJmMWYxYzQ4Zjg4ZWFlMWMwZjA1NDA4NWFiNmVkZWM2NDBmNzkyYzE5NDkyNTg0MmY2YTYwM2NlYzEyOTBjMTdiIiwidGFnIjoiIn0%3D; expires=Mon, 02-Nov-2026 16:34:57 GMT; path=\/; secure\u003C\/span\u003E\u0022\n  \u003Cspan class=sf-dump-index\u003E1\u003C\/span\u003E =\u003E \u0022\u003Cspan class=sf-dump-str title=\u0022423 characters\u0022\u003Elaravel-session=eyJpdiI6IkVZT0JRQjVPQUw4TmU2NUZMeTQyWGc9PSIsInZhbHVlIjoiUFY0ZTNjUGYvSUFFRk1kbXk1OFMveHhYVVFYTm9MbDhJMnFWWmZCMnVoMUpzSHlxZUZNL0NCd0I0Z1QzWUtMTXFxM0FFaU5Kby92UXA3L1pNc1prNDdnSlRqTjhrT2pRdlg3RitEdU43VFZuZWtMOFU1ZnB0elpVWlN2OFNiRS8iLCJtYWMiOiI3OTVhODlkZTQyNzVlMWI0ZTRkZDE3MTU4MGI5YTUwOGZkZGI5OTFhNjFkYmExNDYxODRjNTQ4YTk0MTdhM2UwIiwidGFnIjoiIn0%3D; expires=Mon, 02-Nov-2026 16:34:57 GMT; path=\/; secure; httponly\u003C\/span\u003E\u0022\n\u003C\/samp\u003E]\n\u003C\/pre\u003E","session_metadata":"\u003Cpre class=sf-dump id=sf-dump-870765834 data-indent-pad=\u0022  \u0022\u003E[]\n\u003C\/pre\u003E","session_attributes":"\u003Cpre class=sf-dump id=sf-dump-1921523040 data-indent-pad=\u0022  \u0022\u003E\u003Cspan class=sf-dump-note\u003Earray:6\u003C\/span\u003E [\u003Csamp data-depth=1 class=sf-dump-expanded\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003E_token\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00227 characters\u0022\u003EUA***ga\u003C\/span\u003E\u0022\n  \u0022\u003Cspan class=sf-dump-key\u003Eurl\u003C\/span\u003E\u0022 =\u003E []\n  \u0022\u003Cspan class=sf-dump-key\u003E_previous\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:2\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u0022\u003Cspan class=sf-dump-key\u003Eurl\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002286 characters\u0022\u003Ehttps:\/\/calls.pedrosotelo.fun\/lupita\/reporte?fecha_inicio=2026-10-30\u0026amp;llamada_tipo_id=5\u003C\/span\u003E\u0022\n    \u0022\u003Cspan class=sf-dump-key\u003Eroute\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u002214 characters\u0022\u003Elupita.reporte\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003E_flash\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:2\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u0022\u003Cspan class=sf-dump-key\u003Eold\u003C\/span\u003E\u0022 =\u003E []\n    \u0022\u003Cspan class=sf-dump-key\u003Enew\u003C\/span\u003E\u0022 =\u003E []\n  \u003C\/samp\u003E]\n  \u0022\u003Cspan class=sf-dump-key\u003Elogin_web_59ba36addc2b2f9401580f014c7f58ea4e30989d\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-num\u003E1\u003C\/span\u003E\n  \u0022\u003Cspan class=sf-dump-key\u003Eauth\u003C\/span\u003E\u0022 =\u003E \u003Cspan class=sf-dump-note\u003Earray:1\u003C\/span\u003E [\u003Csamp data-depth=2 class=sf-dump-compact\u003E\n    \u0022\u003Cspan class=sf-dump-key\u003Epassword_confirmed_at\u003C\/span\u003E\u0022 =\u003E \u0022\u003Cspan class=sf-dump-str title=\u00223 characters\u0022\u003E***\u003C\/span\u003E\u0022\n  \u003C\/samp\u003E]\n\u003C\/samp\u003E]\n\u003C\/pre\u003E","flashes":"\u003Cpre class=sf-dump id=sf-dump-1279267180 data-indent-pad=\u0022  \u0022\u003E[]\n\u003C\/pre\u003E","path_info":"\/lupita\/reporte","locale":"en"},"tooltip":{"status":"200 OK","full_url":"https:\/\/calls.pedrosotelo.fun\/lupita\/reporte?fecha_inicio=2026-10-30\u0026llamada_tipo_id=5","action_name":"lupita.reporte","controller_action":"App\\Http\\Controllers\\LlamadasController@reporte_todo"},"badge":null},"exceptions":{"count":0,"exceptions":[]},"messages":{"count":0,"messages":[]},"time":{"count":6,"start":1793630096.9915230274200439453125,"end":1793630097.024199008941650390625,"duration":0.0326759815216064453125,"duration_str":"32.68ms","measures":[{"label":"Booting","start":1793630096.9915230274200439453125,"relative_start":0,"end":1793630096.9971940517425537109375,"relative_end":1793630096.9971940517425537109375,"duration":0.005671024322509765625,"duration_str":"5.67ms","memory":0,"memory_str":"0B","params":[],"collector":null,"group":null},{"label":"Application","start":1793630096.9972031116485595703125,"relative_start":0.005680084228515625,"end":1793630097.024199008941650390625,"relative_end":0,"duration":0.0269958972930908203125,"duration_str":"27ms","memory":0,"memory_str":"0B","params":[],"collector":"time","group":null},{"label":"Routing","start":1793630096.9998939037322998046875,"relative_start":0.008370876312255859375,"end":1793630097.000154018402099609375,"relative_end":1793630097.000154018402099609375,"duration":0.0002601146697998046875,"duration_str":"260\u03bcs","memory":0,"memory_str":"0B","params":[],"collector":null,"group":null},{"label":"Preparing Response","start":1793630097.021524906158447265625,"relative_start":0.0300018787384033203125,"end":1793630097.0222370624542236328125,"relative_end":1793630097.0222370624542236328125,"duration":0.0007121562957763671875,"duration_str":"712\u03bcs","memory":0,"memory_str":"0B","params":[],"collector":null,"group":null},{"label":"reporte.todo.todo1","start":1793630097.0216109752655029296875,"relative_start":0.030087947845458984375,"end":1793630097.0216109752655029296875,"relative_end":1793630097.0216109752655029296875,"duration":0,"duration_str":"0\u03bcs","memory":0,"memory_str":"0B","params":[],"collector":"views","group":"views"},{"label":"Preparing Response","start":1793630097.0227119922637939453125,"relative_start":0.03118896484375,"end":1793630097.0227410793304443359375,"relative_end":1793630097.0227410793304443359375,"duration":2.9087066650390625e-5,"duration_str":"29\u03bcs","memory":0,"memory_str":"0B","params":[],"collector":null,"group":null}]},"memory":{"peak_usage":2129352,"peak_usage_str":"2MB"},"laravel":{"version":"12.x","tooltip":{"Laravel Version":"12.50.0","PHP Version":"8.3.36","Environment":"local","Debug Mode":"Enabled","URL":"localhost","Timezone":"America\/Lima","Locale":"es"}},"views":{"count":1,"nb_templates":1,"templates":[{"name":"reporte.todo.todo1","param_count":null,"params":[],"start":1793630097.0216109752655029296875,"type":"blade","hash":"blade\/home\/pedrosot\/calls.pedrosotelo.fun\/resources\/views\/reporte\/todo\/todo1.blade.phpreporte.todo.todo1","xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fresources%2Fviews%2Freporte%2Ftodo%2Ftodo1.blade.php\u0026line=1","ajax":false,"filename":"todo1.blade.php","line":"?"}}]},"queries":{"count":25,"nb_statements":24,"nb_visible_statements":25,"nb_excluded_statements":0,"nb_failed_statements":0,"accumulated_duration":0.0115100000000000028677060726067793439142405986785888671875,"accumulated_duration_str":"11.51ms","memory_usage":0,"memory_usage_str":null,"statements":[{"sql":"Connection Established","type":"transaction","params":[],"backtrace":[{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","line":192},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","line":56},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/SessionGuard.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/SessionGuard.php","line":189},{"index":16,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/GuardHelpers.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/GuardHelpers.php","line":56},{"index":17,"namespace":"middleware","name":"auth","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/Middleware\/Authenticate.php","line":82}],"start":1793630097.0016500949859619140625,"duration":0,"duration_str":"","slow":false,"memory":0,"memory_str":null,"filename":"EloquentUserProvider.php:192","source":{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","line":192},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fvendor%2Flaravel%2Fframework%2Fsrc%2FIlluminate%2FAuth%2FEloquentUserProvider.php\u0026line=192","ajax":false,"filename":"EloquentUserProvider.php","line":"192"},"connection":"pedrosot_calls","explain":null,"start_percent":0,"width_percent":0},{"sql":"select * from `users` where `id` = 1 limit 1","type":"query","params":[1],"backtrace":[{"index":16,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","line":58},{"index":17,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/SessionGuard.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/SessionGuard.php","line":189},{"index":18,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/GuardHelpers.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/GuardHelpers.php","line":56},{"index":19,"namespace":"middleware","name":"auth","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/Middleware\/Authenticate.php","line":82},{"index":20,"namespace":"middleware","name":"auth","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/Middleware\/Authenticate.php","line":61}],"start":1793630097.002070903778076171875,"duration":0.000560000000000000059362237347926338770776055753231048583984375,"duration_str":"560\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"EloquentUserProvider.php:58","source":{"index":16,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Auth\/EloquentUserProvider.php","line":58},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fvendor%2Flaravel%2Fframework%2Fsrc%2FIlluminate%2FAuth%2FEloquentUserProvider.php\u0026line=58","ajax":false,"filename":"EloquentUserProvider.php","line":"58"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"select * from `users` where `id` = ? limit 1","hash":"5dbab933c025bb1b98308e32cea880cf36c4766b25a5ead4a1679ad29878b982"},"start_percent":0,"width_percent":4.8650000000000002131628207280300557613372802734375},{"sql":"SELECT * FROM razones_finalizacion","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":103},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":51},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0033571720123291015625,"duration":8.999999999999999211568180168541175589780323207378387451171875e-5,"duration_str":"90\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:103","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":103},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=103","ajax":false,"filename":"DBLlamadas.php","line":"103"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"SELECT * FROM razones_finalizacion","hash":"4b9b8cf18a350aadbe8e69977827d5ae8f414d15524a0fd34cc380aa89d8f716"},"start_percent":4.8650000000000002131628207280300557613372802734375,"width_percent":0.782000000000000028421709430404007434844970703125},{"sql":"SELECT * FROM tipos_llamada","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":104},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":51},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0037119388580322265625,"duration":8.0000000000000006544244313122504763668985106050968170166015625e-5,"duration_str":"80\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:104","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":104},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=104","ajax":false,"filename":"DBLlamadas.php","line":"104"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"SELECT * FROM tipos_llamada","hash":"5084ce19fcb1c4d0bd12fcd0e1e6a4e69c6ff1d4120c2a59b95418853a99fdcf"},"start_percent":5.6470000000000002415845301584340631961822509765625,"width_percent":0.69499999999999995115018691649311222136020660400390625},{"sql":"SELECT * FROM error_origen","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":105},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":51},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0040378570556640625,"duration":5.99999999999999947437878677902745039318688213825225830078125e-5,"duration_str":"60\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:105","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":105},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=105","ajax":false,"filename":"DBLlamadas.php","line":"105"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"SELECT * FROM error_origen","hash":"d9b1e13a71044d2037cf8670e1284c327b5b72b96cddb4921e6ef9d71af29d48"},"start_percent":6.34199999999999963762320476234890520572662353515625,"width_percent":0.52100000000000001865174681370262987911701202392578125},{"sql":"SET SESSION wait_timeout = 600","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":53},{"index":12,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":211}],"start":1793630097.004334926605224609375,"duration":5.99999999999999947437878677902745039318688213825225830078125e-5,"duration_str":"60\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"LlamadasController.php:53","source":{"index":11,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":53},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FHttp%2FControllers%2FLlamadasController.php\u0026line=53","ajax":false,"filename":"LlamadasController.php","line":"53"},"connection":"pedrosot_calls","explain":null,"start_percent":6.86399999999999987920773492078296840190887451171875,"width_percent":0.52100000000000001865174681370262987911701202392578125},{"sql":"SELECT\nCOUNT(*) AS llamadas,\nCOUNT(DISTINCT conductor_id) AS conductores,\nCOUNT(DISTINCT if(llamada_exitosa,conductor_id,null)) AS conductores_exitosos,\nCOUNT(DISTINCT trt_id) AS trts,\nSUM(razon_finalizacion_id = 3) AS razon_3_no_contesta,\nSUM(razon_finalizacion_id = 5) AS razon_5_ocupado,\nSUM(IF (entro_llamada and !llamada_exitosa and !buzon_de_voz, audio_duracion,0)) as audio_duracion_fallidas_sin_buzon,\nSUM(error_origen = -1) AS error_desconocido,\nSUM(error_origen = 0) AS error_humano,\nSUM(error_origen = 1) AS error_ia,\nSUM(error_origen = 2) AS error_red,\nSUM(error_origen = 3) AS error_sistema,\nSUM(!a.llamada_exitosa and conductor_confirma and error_origen=0) as confirmacion_parcial,\nSUM(\na.conductor_confirma + a.buzon_de_voz + a.conductor_contesta_pero_no_habla +\na.conductor_no_escucha + a.conductor_da_motivos +  a.conductor_mala_senal + a.confusion_en_llamada +\na.contesta_otra_persona + a.numero_equivocado + a.conversacion_fluida + a.llamada_interesante +\n+ a.conductor_conducta_inapropiada + a.error_tecnico_llamada + a.error_audio = 0 and a.conductor_cuelga and !a.llamada_exitosa and a.error_origen=0\n) as solo_cuelga,\nSUM(exitosa_segun_ia) AS exitosa_segun_ia,\n(SUM(entro_llamada) - SUM(buzon_de_voz)) AS contestadas,\nSUM(if (entro_llamada and !llamada_exitosa and !buzon_de_voz,1,0)) as contestadas_fallidas,\nSUM(llamada_exitosa) AS llamada_exitosa,\nSUM(audio_duracion) as audio_duracion_total,\nSUM(audio_duracion * llamada_exitosa) as audio_duracion_exitosas,\nSUM(audio_duracion * !llamada_exitosa) as audio_duracion_fallidas,\nSUM(conductor_confirma) AS conductor_confirma,\nSUM(buzon_de_voz) AS buzon_de_voz,\nSUM(conductor_contesta_pero_no_habla and !llamada_exitosa) AS conductor_contesta_pero_no_habla,\nSUM(conductor_no_escucha and !llamada_exitosa) AS conductor_no_escucha,\nSUM(conductor_da_motivos) AS conductor_da_motivos,\nSUM(conductor_mala_senal and !llamada_exitosa) AS conductor_mala_senal,\nSUM(confusion_en_llamada and !llamada_exitosa) AS confusion_en_llamada,\nSUM(contesta_otra_persona and !llamada_exitosa) AS contesta_otra_persona,\nSUM(numero_equivocado and !llamada_exitosa) AS numero_equivocado,\nSUM(conversacion_fluida) AS conversacion_fluida,\nSUM(llamada_interesante) AS llamada_interesante,\nSUM(ia_se_confunde) AS ia_se_confunde,\nSUM(ia_no_escucha) AS ia_no_escucha,\nSUM(ia_cambio_de_datos) AS ia_cambio_de_datos,\nSUM(ia_error_interpretacion) AS ia_error_interpretacion,\nSUM(ia_dice_variable) AS ia_dice_variable,\nSUM(ia_mala_pronunciacion) AS ia_mala_pronunciacion,\nSUM(ia_cuelga_en_plena_llamada) AS ia_cuelga_en_plena_llamada,\nSUM(conductor_cuelga) AS conductor_cuelga,\nSUM(conductor_no_contesta) AS conductor_no_contesta,\nSUM(conductor_conducta_inapropiada) AS conductor_conducta_inapropiada,\nSUM(error_tecnico_llamada) AS error_tecnico_llamada,\nSUM(error_audio) AS error_audio,\nSUM(costo) as costo,\nsum(if(llamada_exitosa,costo,0) ) as costo_exitosa,\nsum(if(!llamada_exitosa,costo,0) ) as costo_fallida,\nsum(conductor_conducta_inapropiada) AS conductor_conducta_inapropiada\nFROM llamadas a\nwhere 1=1\nand a.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND a.created_at \u003C \u00272026-10-31 00:00:00\u0027  and a.llamada_tipo_id=5","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00"],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":422},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":60},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0047008991241455078125,"duration":0.00075000000000000001561251128379126384970732033252716064453125,"duration_str":"750\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:422","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":422},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=422","ajax":false,"filename":"DBLlamadas.php","line":"422"},"connection":"pedrosot_calls","explain":null,"start_percent":7.3849999999999997868371792719699442386627197265625,"width_percent":6.5160000000000000142108547152020037174224853515625},{"sql":"SELECT\na.conductor_id,\nb.nombres AS conductor,\na.trt_id,\nCOALESCE(c.nombres, \u0027SIN TRT\u0027) AS trt,\nCOUNT(*) AS total,\nSUM(a.llamada_exitosa=1) AS exitosas,\nSUM(a.llamada_exitosa=0) AS fallidas,\nROUND(SUM(a.llamada_exitosa=1)\/COUNT(*)*100,1) AS tasa_exito,\nSUM(a.llamada_exitosa=0) - SUM(a.llamada_exitosa=1) AS diferencia,\nSUM(a.conductor_cuelga * (a.llamada_exitosa = 0))  AS conductor_cuelga,\nSUM(a.buzon_de_voz * (a.llamada_exitosa = 0))  AS buzon_de_voz,\nSUM(a.conductor_contesta_pero_no_habla * (a.llamada_exitosa = 0)) AS conductor_contesta_pero_no_habla,\nSUM(a.conductor_no_escucha * (a.llamada_exitosa = 0)) AS conductor_no_escucha,\nSUM(a.conductor_mala_senal * (a.llamada_exitosa = 0)) AS conductor_mala_senal,\nSUM(a.confusion_en_llamada * (a.llamada_exitosa = 0)) AS confusion_en_llamada,\nSUM(a.contesta_otra_persona * (a.llamada_exitosa = 0)) AS contesta_otra_persona,\nSUM(a.numero_equivocado * (a.llamada_exitosa = 0)) AS numero_equivocado,\nSUM(a.conductor_cuelga * (a.llamada_exitosa = 0)) AS conductor_cuelga,\nSUM(a.conductor_no_contesta * (a.llamada_exitosa = 0)) AS conductor_no_contesta,\nSUM(a.conductor_confirma * (a.llamada_exitosa = 0))  AS confirmacion_parcial,\nSUM(a.conductor_conducta_inapropiada * (a.llamada_exitosa = 0))  AS conductor_conducta_inapropiada\nFROM llamadas a\nINNER JOIN conductores b ON b.id = a.conductor_id\nLEFT JOIN trts c ON c.id = a.trt_id\nWHERE a.error_origen = 0\nand a.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND a.created_at \u003C \u00272026-10-31 00:00:00\u0027  and a.llamada_tipo_id=5\nGROUP BY a.conductor_id, a.trt_id\nORDER BY diferencia DESC , exitosas asc\nlimit 5;","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00",5],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":488},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":79},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.00574398040771484375,"duration":0.000529999999999999980675180477618368968251161277294158935546875,"duration_str":"530\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:488","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":488},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=488","ajax":false,"filename":"DBLlamadas.php","line":"488"},"connection":"pedrosot_calls","explain":null,"start_percent":13.900999999999999801048033987171947956085205078125,"width_percent":4.605000000000000426325641456060111522674560546875},{"sql":"SELECT\na.conductor_id,\nb.nombres AS conductor,\na.trt_id,\nCOALESCE(c.nombres, \u0027SIN TRT\u0027) AS trt,\nCOUNT(*) AS total,\nSUM(a.llamada_exitosa=1) AS exitosas,\nSUM(a.llamada_exitosa=0) AS fallidas,\nROUND(SUM(a.llamada_exitosa=1)\/COUNT(*)*100,1) AS tasa_exito,\nSUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,\nSUM(a.conductor_confirma * a.llamada_exitosa)  AS conductor_confirma,\nSUM(a.conductor_da_motivos * a.llamada_exitosa ) AS conductor_da_motivos,\nSUM(a.conversacion_fluida * a.llamada_exitosa) AS conversacion_fluida,\nSUM(a.llamada_interesante * a.llamada_exitosa ) AS llamada_interesante,\nSUM(a.conductor_da_motivos * a.llamada_exitosa ) + SUM(a.conversacion_fluida * a.llamada_exitosa)+\nSUM(a.llamada_interesante * a.llamada_exitosa) as etiqueta_positiva,\nSUBSTRING_INDEX(\nMAX(CASE\nWHEN a.llamada_exitosa = 1\nTHEN CONCAT(\nLPAD(\na.conductor_da_motivos +\na.conversacion_fluida +\na.llamada_interesante , 2, \u00270\u0027\n),\u0027|\u0027,a.audio_link)\nEND\n),\u0027|\u0027,-1) AS mejor_audio\nFROM llamadas a\nINNER JOIN conductores b ON b.id = a.conductor_id\nLEFT JOIN trts c ON c.id = a.trt_id\nWHERE a.error_origen = 0\nand a.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND a.created_at \u003C \u00272026-10-31 00:00:00\u0027  and a.llamada_tipo_id=5\nGROUP BY a.conductor_id, a.trt_id\nORDER BY diferencia DESC , exitosas desc , etiqueta_positiva desc\nlimit 5;","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00",5],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":534},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":80},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.00656795501708984375,"duration":0.0005100000000000000366373598126301658339798450469970703125,"duration_str":"510\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:534","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":534},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=534","ajax":false,"filename":"DBLlamadas.php","line":"534"},"connection":"pedrosot_calls","explain":null,"start_percent":18.506000000000000227373675443232059478759765625,"width_percent":4.43100000000000004973799150320701301097869873046875},{"sql":"SELECT\nCOUNT(DISTINCT conductor_id) AS conductores,\nCOUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL))  AS conductores_con_exito,\na.trt_id,\nCOALESCE(c.nombres, \u0027SIN TRT\u0027) AS trt,\nCOUNT(*) AS total,\nSUM(a.llamada_exitosa=1) AS exitosas,\nSUM(a.llamada_exitosa=0) AS fallidas,\nROUND(SUM(a.llamada_exitosa=1)\/COUNT(*)*100,1) AS tasa_exito,\nSUM(a.llamada_exitosa=1) - SUM(a.llamada_exitosa=0) AS diferencia,\nSUM(a.conductor_confirma * (a.llamada_exitosa = 1))  AS conductor_confirma,\nSUM(a.conductor_da_motivos * (a.llamada_exitosa = 1)) AS conductor_da_motivos,\nSUM(a.conversacion_fluida * (a.llamada_exitosa = 1)) AS conversacion_fluida,\nSUM(a.llamada_interesante * (a.llamada_exitosa = 1)) AS llamada_interesante\nFROM llamadas a\nLEFT JOIN trts c ON c.id = a.trt_id\nWHERE a.error_origen = 0\nand a.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND a.created_at \u003C \u00272026-10-31 00:00:00\u0027  and a.llamada_tipo_id=5\nGROUP BY a.trt_id\nORDER BY\nconductores_con_exito desc,\ntasa_exito desc,\ntotal DESC\nlimit 5;","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00",5],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":569},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":81},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.007487773895263671875,"duration":0.0004299999999999999894355340313012447950313799083232879638671875,"duration_str":"430\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:569","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":569},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=569","ajax":false,"filename":"DBLlamadas.php","line":"569"},"connection":"pedrosot_calls","explain":null,"start_percent":22.937000000000001165290086646564304828643798828125,"width_percent":3.736000000000000209610107049229554831981658935546875},{"sql":"SELECT\nCOUNT(DISTINCT conductor_id) AS conductores,\nCOUNT(DISTINCT IF(a.llamada_exitosa = 0, a.conductor_id, NULL))  AS conductores_con_fallo,\nCOUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL))  AS conductores_con_exito,\na.trt_id,\nCOALESCE(c.nombres, \u0027SIN TRT\u0027) AS trt,\nCOUNT(*) AS total,\nSUM(a.llamada_exitosa=1) AS exitosas,\nSUM(a.llamada_exitosa=0) AS fallidas,\nROUND(SUM(a.llamada_exitosa=1)\/COUNT(*)*100,1) AS tasa_exito,\nSUM(a.buzon_de_voz * (a.llamada_exitosa = 0))  AS buzon_de_voz,\nSUM(a.conductor_contesta_pero_no_habla * (a.llamada_exitosa = 0)) AS conductor_contesta_pero_no_habla,\nSUM(a.conductor_no_escucha * (a.llamada_exitosa = 0)) AS conductor_no_escucha,\nSUM(a.conductor_mala_senal * (a.llamada_exitosa = 0)) AS conductor_mala_senal,\nSUM(a.confusion_en_llamada * (a.llamada_exitosa = 0)) AS confusion_en_llamada,\nSUM(a.contesta_otra_persona * (a.llamada_exitosa = 0)) AS contesta_otra_persona,\nSUM(a.numero_equivocado * (a.llamada_exitosa = 0)) AS numero_equivocado,\nSUM(a.conductor_cuelga * (a.llamada_exitosa = 0)) AS conductor_cuelga,\nSUM(a.conductor_no_contesta * (a.llamada_exitosa = 0)) AS conductor_no_contesta\nFROM llamadas a\nLEFT JOIN trts c ON c.id = a.trt_id\nWHERE a.error_origen = 0\nand a.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND a.created_at \u003C \u00272026-10-31 00:00:00\u0027  and a.llamada_tipo_id=5\nGROUP BY a.trt_id\nORDER BY\nconductores_con_fallo desc,\ntasa_exito asc,\ntotal DESC\nlimit 5;","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00",5],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":607},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":82},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.008266925811767578125,"duration":0.0004299999999999999894355340313012447950313799083232879638671875,"duration_str":"430\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:607","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":607},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=607","ajax":false,"filename":"DBLlamadas.php","line":"607"},"connection":"pedrosot_calls","explain":null,"start_percent":26.672000000000000596855898038484156131744384765625,"width_percent":3.736000000000000209610107049229554831981658935546875},{"sql":"SELECT\ntotal,\nexitosas,\nfallidas,\ntotal_errores,\nDATE_FORMAT(t.fecha, \u0027%W %d\/%m\/%y\u0027) as fecha_text\nFROM (\nSELECT\nCOUNT(*) AS total,\nCOALESCE(SUM(a.llamada_exitosa=1),0) AS exitosas,\nCOALESCE(SUM(a.llamada_exitosa=0),0) AS fallidas,\nCOALESCE(SUM((a.llamada_exitosa=0) AND (a.error_origen!=0)),0) as total_errores,\nDATE(a.created_at) as fecha\nFROM llamadas a\nWHERE a.created_at \u003E= DATE(\u00272026-10-30\u0027) - INTERVAL 7 DAY\nAND a.created_at \u003C DATE(\u00272026-10-30\u0027) + INTERVAL 1 DAY  AND a.llamada_tipo_id=\u00275\u0027  GROUP BY DATE(a.created_at)\n) t;","type":"query","params":["2026-10-30","2026-10-30","5"],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":719},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":83},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0090119838714599609375,"duration":0.00171999999999999995774213612520497918012551963329315185546875,"duration_str":"1.72ms","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:719","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":719},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=719","ajax":false,"filename":"DBLlamadas.php","line":"719"},"connection":"pedrosot_calls","explain":null,"start_percent":30.4080000000000012505552149377763271331787109375,"width_percent":14.9440000000000008384404281969182193279266357421875},{"sql":"SELECT SUM(exitosa_segun_ia) as ia,\nSUM(llamada_exitosa) as persona,\nSUM(IF(exitosa_segun_ia and llamada_exitosa,1,0)) as \u0027interseccion\u0027,\nsum(if(exitosa_segun_ia and buzon_de_voz,1,0)) as ia_buzon_de_voz\nfrom llamadas a\nwhere 1=1\nand a.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND a.created_at \u003C \u00272026-10-31 00:00:00\u0027  and a.llamada_tipo_id=5","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00"],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":1071},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":84},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0111901760101318359375,"duration":0.0002999999999999999737189393389513725196593441069126129150390625,"duration_str":"300\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBLlamadas.php:1071","source":{"index":11,"namespace":null,"name":"app\/Database\/DBLlamadas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBLlamadas.php","line":1071},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBLlamadas.php\u0026line=1071","ajax":false,"filename":"DBLlamadas.php","line":"1071"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\n        SELECT SUM(exitosa_segun_ia) as ia,\n            SUM(llamada_exitosa) as persona,\n            SUM(IF(exitosa_segun_ia and llamada_exitosa,1,0)) as \u0027interseccion\u0027,\n            sum(if(exitosa_segun_ia and buzon_de_voz,1,0)) as ia_buzon_de_voz\n        from llamadas a\n        where 1=1\n         and a.created_at \u003E= ? AND a.created_at \u003C ?  and a.llamada_tipo_id=5 ","hash":"a7f84b8e2b4e46cb20777eb81848656361b0ecfe616dfca1d2ffbfe1b9cf4a77"},"start_percent":45.35199999999999675992512493394315242767333984375,"width_percent":2.6059999999999998721023075631819665431976318359375},{"sql":"SELECT\nubigeo,\nSUM(CASE WHEN tipo = \u0027origen\u0027 THEN ruta_count ELSE 0 END) AS origen_ruta_count,\nSUM(CASE WHEN tipo = \u0027origen\u0027 THEN veces_usada ELSE 0 END) AS origen_veces_usada,\nSUM(CASE WHEN tipo = \u0027destino\u0027 THEN ruta_count ELSE 0 END) AS destino_ruta_count,\nSUM(CASE WHEN tipo = \u0027destino\u0027 THEN veces_usada ELSE 0 END) AS destino_veces_usada,\nSUM(exito_1+exito_2+exito_3) as origen_exito,\nSUM(exito_5 + exito_6) as destino_exito\nFROM (\nSELECT\nLEFT(a.ubigeo_origen,2) as ubigeo,\n\u0027origen\u0027 as tipo,\nCOUNT(DISTINCT a.id) as ruta_count,           -- Rutas \u00fanicas\nCOUNT(DISTINCT c.ref) as veces_usada,           -- Referencias \u00fanicas\nSUM(IF(d.llamada_tipo_id=1 AND d.llamada_exitosa,1,0)) as exito_1,\nSUM(IF(d.llamada_tipo_id=2 AND d.llamada_exitosa,1,0)) as exito_2,\nSUM(IF(d.llamada_tipo_id=3 AND d.llamada_exitosa,1,0)) as exito_3,\n0 as exito_5,\n0 as exito_6\nFROM rutas a\nINNER JOIN referencias c ON c.ruta_id = a.id\nINNER JOIN llamadas d ON d.ref = c.ref\nwhere 1=1  and d.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND d.created_at \u003C \u00272026-10-31 00:00:00\u0027  and d.llamada_tipo_id=5\ngroup by LEFT(a.ubigeo_origen, 2)\nUNION ALL\nSELECT\nLEFT(a.ubigeo_destino,2) as ubigeo,\n\u0027destino\u0027 as tipo,\nCOUNT(DISTINCT a.id) as ruta_count,           -- Rutas \u00fanicas\nCOUNT(DISTINCT c.ref) as veces_usada,           -- Referencias \u00fanicas\n0 as exito_1,\n0 as exito_2,\n0 as exito_3,\nSUM(IF(d.llamada_tipo_id=5 AND d.llamada_exitosa,1,0)) as exito_5,\nSUM(IF(d.llamada_tipo_id=6 AND d.llamada_exitosa,1,0)) as exito_6\nFROM rutas a\nINNER JOIN referencias c ON c.ruta_id = a.id\nINNER JOIN llamadas d ON d.ref = c.ref\nwhere 1=1  and d.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND d.created_at \u003C \u00272026-10-31 00:00:00\u0027  and d.llamada_tipo_id=5\ngroup by LEFT(a.ubigeo_destino, 2)\n) AS combinado\nGROUP BY ubigeo;","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00","2026-10-30 00:00:00","2026-10-31 00:00:00"],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":222},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":105},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0119609832763671875,"duration":0.000779999999999999985879350905548790251486934721469879150390625,"duration_str":"780\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:222","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":222},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=222","ajax":false,"filename":"DBRutas.php","line":"222"},"connection":"pedrosot_calls","explain":null,"start_percent":47.957999999999998408384271897375583648681640625,"width_percent":6.77700000000000013500311979441903531551361083984375},{"sql":"select\nb.ruta_id as ruta_id , COUNT(b.ruta_id) as veces_usada,\n(select nombre from locales where locales.id = c.origen_id ) as loc_origen_nombre,\n(select nombre from locales where locales.id = c.destino_id ) as loc_destino_nombre,\n(select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_origen ) as ubg_origen_nombre,\n(select distrito from ubigeo_distritos where ubigeo_distritos.ubigeo = c.ubigeo_destino ) as ubg_destino_nombre,\nSUM(a.llamada_exitosa) as total_exito,\nSUM(if (b.compromiso_carga is not null and b.presenta_para_carga is not null , 1,0 ) ) as etapa_1_completadas,\nSUM(ABS(TIMESTAMPDIFF(MINUTE,b.compromiso_carga ,b.presenta_para_carga))) as etapa_1_minutos,\nAVG(ABS(TIMESTAMPDIFF(MINUTE, b.compromiso_carga ,b.presenta_para_carga))) as etapa_1_promedio,\nSUM(if (b.presenta_para_carga is not null and b.inicio_de_carga is not null , 1,0 ) ) as etapa_2_completadas,\nSUM(TIMESTAMPDIFF(MINUTE, b.presenta_para_carga ,b.inicio_de_carga )) as etapa_2_minutos,\nAVG(TIMESTAMPDIFF(MINUTE, b.presenta_para_carga ,b.inicio_de_carga)) as etapa_2_promedio,\nSUM(if (b.inicio_de_carga is not null and b.inicio_ruta is not null , 1,0 ) ) as etapa_3_completadas,\nSUM(TIMESTAMPDIFF(MINUTE,b.inicio_de_carga,b.inicio_ruta )) as etapa_3_minutos,\nAVG(TIMESTAMPDIFF(MINUTE, b.inicio_de_carga,b.inicio_ruta)) as etapa_3_promedio,\nSUM(if (b.inicio_ruta is not null and b.qr_llegada_destino is not null , 1,0 ) ) as etapa_4_completadas,\nSUM(TIMESTAMPDIFF(MINUTE,b.inicio_ruta, b.qr_llegada_destino )) as etapa_4_minutos,\nAVG(TIMESTAMPDIFF(MINUTE, b.inicio_ruta ,b.qr_llegada_destino)) as etapa_4_promedio,\nSUM(if (b.qr_llegada_destino  is not null and b.inicio_descargue is not null , 1,0 ) ) as etapa_5_completadas,\nSUM(ABS(TIMESTAMPDIFF(MINUTE,b.qr_llegada_destino , b.inicio_descargue )) ) as etapa_5_minutos,\nAVG(ABS(TIMESTAMPDIFF(MINUTE, b.qr_llegada_destino ,b.inicio_descargue )) ) as etapa_5_promedio,\nSUM(if (b.inicio_descargue is not null and b.fin_descargue is not null , 1,0 ) ) as etapa_6_completadas,\nSUM(TIMESTAMPDIFF(MINUTE,b.inicio_descargue ,b.fin_descargue )) as etapa_6_minutos,\nAVG(TIMESTAMPDIFF(MINUTE, b.inicio_descargue ,b.fin_descargue )) as etapa_6_promedio\nfrom llamadas a\ninner join referencias b\non b.ref = a.ref\ninner join rutas c\non c.id=b.ruta_id\nwhere 1=1 and a.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND a.created_at \u003C \u00272026-10-31 00:00:00\u0027  and a.llamada_tipo_id=5\ngroup by b.ruta_id\nORDER BY `veces_usada` DESC\nlimit 5;","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00"],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":289},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":109},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0131080150604248046875,"duration":0.0033900000000000002180200464607651156256906688213348388671875,"duration_str":"3.39ms","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:289","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":289},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=289","ajax":false,"filename":"DBRutas.php","line":"289"},"connection":"pedrosot_calls","explain":null,"start_percent":54.7349999999999994315658113919198513031005859375,"width_percent":29.452999999999999403144101961515843868255615234375},{"sql":"select\nSUM(IF(ref IS NOT NULL,1,0)) as ref_total,\nSUM(IF(ref IS NOT NULL and ruta_id IS NOT NULL,1,0)) as ref_total_ruta ,\nSUM(IF(ref IS NOT NULL and ruta_id IS NOT NULL and etapas = 1 ,1,0)) as ref_conf_ruta ,\nCOUNT(DISTINCT CASE WHEN ruta_id IS NOT NULL THEN ruta_id END) as ruta_distintas\nfrom (select\nb.ref as ref,\nb.ruta_id as ruta_id,\nGROUP_CONCAT(DISTINCT a.llamada_tipo_id) as etapas\nfrom referencias b\ninner join llamadas a\non b.ref = a.ref\nwhere 1=1  and a.created_at \u003E= \u00272026-10-30 00:00:00\u0027 AND a.created_at \u003C \u00272026-10-31 00:00:00\u0027  and a.llamada_tipo_id=5\nGROUP by a.ref) a;","type":"query","params":["2026-10-30 00:00:00","2026-10-31 00:00:00"],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":311},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":110},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0168960094451904296875,"duration":0.0006499999999999999701627562131989179761148989200592041015625,"duration_str":"650\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:311","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":311},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=311","ajax":false,"filename":"DBRutas.php","line":"311"},"connection":"pedrosot_calls","explain":null,"start_percent":84.1880000000000023874235921539366245269775390625,"width_percent":5.6470000000000002415845301584340631961822509765625},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_CARAL-BABEL_MAXO\u0027, \u0027RUT_CARAL-HUACHIPA\u0027, \u0027RUT_CARAL-BABEL_AMAZON\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0178859233856201171875,"duration":0.0001900000000000000104603825601401467793039046227931976318359375,"duration_str":"190\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_CARAL-BABEL_MAXO\u0027, \u0027RUT_CARAL-HUACHIPA\u0027, \u0027RUT_CARAL-BABEL_AMAZON\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"29ba0852e512d4994ba23d9a3400980d61e9955c7d8c282a918d0fb076364ee2"},"start_percent":89.8349999999999937472239253111183643341064453125,"width_percent":1.6510000000000000230926389122032560408115386962890625},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_HUACHIPA-CARAL\u0027,\u0027RUT_BABEL_AMAZON-CARAL\u0027,\u0027RUT_BABEL_MAXO-CARAL\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0184001922607421875,"duration":0.000119999999999999989487575735580549007863737642765045166015625,"duration_str":"120\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_HUACHIPA-CARAL\u0027,\u0027RUT_BABEL_AMAZON-CARAL\u0027,\u0027RUT_BABEL_MAXO-CARAL\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"5e3f89564b3b09c0618f3285dfe668e523e026b039886816aadcaa6444cf7120"},"start_percent":91.4860000000000042064129956997931003570556640625,"width_percent":1.0429999999999999271693695845897309482097625732421875},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_CARAL-SALEM_VES\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0188319683074951171875,"duration":0.00016000000000000001308848862624500952733797021210193634033203125,"duration_str":"160\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_CARAL-SALEM_VES\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"1e77e79157c3e7ca661922372c7eb65e64d61473799c719566c1a18f86cc3730"},"start_percent":92.5280000000000057980287238024175167083740234375,"width_percent":1.3899999999999999023003738329862244427204132080078125},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_CALLAO\u0027,\u0027RUT_CARAL-BABEL_CALLAO\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.01924610137939453125,"duration":0.000119999999999999989487575735580549007863737642765045166015625,"duration_str":"120\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_CALLAO\u0027,\u0027RUT_CARAL-BABEL_CALLAO\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"4662b9d4f525029973bed7b9febab130f0823e6701288021009037932bb766b4"},"start_percent":93.9180000000000063664629124104976654052734375,"width_percent":1.0429999999999999271693695845897309482097625732421875},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_PTE_PIEDRA\u0027,\u0027RUT_CARAL-BABEL_PUENTE_PIEDRA\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.019608974456787109375,"duration":0.000119999999999999989487575735580549007863737642765045166015625,"duration_str":"120\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_PTE_PIEDRA\u0027,\u0027RUT_CARAL-BABEL_PUENTE_PIEDRA\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"8c8fc5f3f0d66468029efe1914df2ccd8e5b4c4af00b1ca5ae0805eef3e1ec0d"},"start_percent":94.9609999999999985220711096189916133880615234375,"width_percent":1.0429999999999999271693695845897309482097625732421875},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_HUANCAYO\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0199739933013916015625,"duration":0.000119999999999999989487575735580549007863737642765045166015625,"duration_str":"120\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_HUANCAYO\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"9f028bc961d40fe9d23ce95fb7f3cb573f4584651f6e5833b9bf407208ab3a30"},"start_percent":96.0030000000000001136868377216160297393798828125,"width_percent":1.0429999999999999271693695845897309482097625732421875},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_CHINCHA\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.0203340053558349609375,"duration":0.000110000000000000003916138247017642015634919516742229461669921875,"duration_str":"110\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_CHINCHA\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"6db0a35f4aed1a22822e6ca4a74eabfc66f7795b11554325441d15593d04b54a"},"start_percent":97.0460000000000064801497501321136951446533203125,"width_percent":0.955999999999999960920149533194489777088165283203125},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_ICA\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.020696163177490234375,"duration":0.000119999999999999989487575735580549007863737642765045166015625,"duration_str":"120\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_CARAL-CODISAL_ICA\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"e983e73a334036bbdb7a45e004f88a0ca6f1425ac7826a73bd730dfab00421cf"},"start_percent":98.0019999999999953388396534137427806854248046875,"width_percent":1.0429999999999999271693695845897309482097625732421875},{"sql":"SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\nROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\nFROM (\nSELECT conductor_id, b.nombres,\nAVG(etapa_4_minutos) AS promedio,\nCOUNT(etapa_4_minutos) AS total_viajes\nFROM (\nSELECT a.ref, MAX(b.conductor_id) AS conductor_id,\nSUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\nFROM referencias a\nINNER JOIN llamadas b ON b.ref = a.ref\nWHERE a.ruta_id IN (\u0027RUT_CARAL-ECO_SUAREZ\u0027)\nGROUP BY a.ref\n) a\nINNER JOIN conductores b ON b.id = a.conductor_id\nGROUP BY a.conductor_id, b.nombres\n) t\nWHERE total_viajes \u003E= 5\nORDER BY puntaje_ajustado ASC\nLIMIT 3;","type":"query","params":[],"backtrace":[{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},{"index":12,"namespace":null,"name":"app\/Http\/Controllers\/LlamadasController.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Http\/Controllers\/LlamadasController.php","line":111},{"index":13,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Controller.php","line":54},{"index":14,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/ControllerDispatcher.php","line":43},{"index":15,"namespace":null,"name":"vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/vendor\/laravel\/framework\/src\/Illuminate\/Routing\/Route.php","line":265}],"start":1793630097.021049976348876953125,"duration":0.000110000000000000003916138247017642015634919516742229461669921875,"duration_str":"110\u03bcs","slow":false,"memory":0,"memory_str":null,"filename":"DBRutas.php:354","source":{"index":11,"namespace":null,"name":"app\/Database\/DBRutas.php","file":"\/home\/pedrosot\/calls.pedrosotelo.fun\/app\/Database\/DBRutas.php","line":354},"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FDatabase%2FDBRutas.php\u0026line=354","ajax":false,"filename":"DBRutas.php","line":"354"},"connection":"pedrosot_calls","explain":{"url":"https:\/\/calls.pedrosotelo.fun\/_debugbar\/queries\/explain","driver":"mysql","connection":"mysql","query":"\r\n            SELECT conductor_id, nombres, round(promedio,0) as promedio, total_viajes,\r\n                   ROUND(promedio - (promedio * 0.15 * LOG10(total_viajes)), 2) AS puntaje_ajustado\r\n            FROM (\r\n                SELECT conductor_id, b.nombres,\r\n                       AVG(etapa_4_minutos) AS promedio,\r\n                       COUNT(etapa_4_minutos) AS total_viajes\r\n                FROM (\r\n                    SELECT a.ref, MAX(b.conductor_id) AS conductor_id,\r\n                           SUM(TIMESTAMPDIFF(MINUTE, a.inicio_ruta, a.qr_llegada_destino)) AS etapa_4_minutos\r\n                    FROM referencias a\r\n                    INNER JOIN llamadas b ON b.ref = a.ref\r\n                    WHERE a.ruta_id IN (\u0027RUT_CARAL-ECO_SUAREZ\u0027)\r\n                    GROUP BY a.ref\r\n                ) a\r\n                INNER JOIN conductores b ON b.id = a.conductor_id\r\n                GROUP BY a.conductor_id, b.nombres\r\n            ) t\r\n            WHERE total_viajes \u003E= 5\r\n            ORDER BY puntaje_ajustado ASC\r\n            LIMIT 3;\r\n            ","hash":"c3393ed3dd24d6bdc1cd530fa9d3291b73d58cc5636d897b388d0105ce21b365"},"start_percent":99.0439999999999969304553815163671970367431640625,"width_percent":0.955999999999999960920149533194489777088165283203125}]},"models":{"data":{"App\\Models\\User":{"retrieved":1,"xdebug_link":{"url":"phpstorm:\/\/open?file=%2Fhome%2Fpedrosot%2Fcalls.pedrosotelo.fun%2Fapp%2FModels%2FUser.php\u0026line=1","ajax":false,"filename":"User.php","line":"?"}}},"count":1,"key_map":{"retrieved":"Retrieved","created":"Created","updated":"Updated","deleted":"Deleted"},"is_counter":true,"badges":{"retrieved":1}},"livewire":{"count":0,"nb_templates":0,"templates":[],"sentence":"Livewire components"},"symfonymailer_mails":{"count":0,"mails":[]},"gate":{"count":0,"messages":[]},"cache":{"count":0,"start":1793630096.9914329051971435546875,"end":1793630097.0277559757232666015625,"duration":0.036323070526123046875,"duration_str":"36.32ms","measures":[],"nb_measures":0},"jobs":{"data":[],"count":0,"key_map":{"value":"Count"},"is_counter":true},"http_client":{"nb_requests":0,"requests":[]}}, "01M6EAYKKY1RQD5HP56D3MWY9R", "", true);
+
+    window.PhpDebugBar.instance = phpdebugbar;
+    window.phpdebugbar = phpdebugbar;
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', renderDebugbar, { once: true });
+    } else {
+        renderDebugbar();
+    }
+})();
+</script></body>
+</html>
