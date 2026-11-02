@@ -18,9 +18,9 @@ use stdClass;
  * el ciclo completo inicia en `presenta_para_carga`.
  *
  * `ciclo_promedio` es el ciclo completo: la SUMA DE LOS PROMEDIOS de las
- * etapas E2..E6 que tienen datos (por eso la columna siempre cuadra con lo que
- * se ve en E2..E6, aunque un mismo viaje no tenga toda la cadena de hitos).
- * `ciclo_min`/`ciclo_max`/`ciclo_viajes` si exigen la cadena completa y salen
+ * etapas E2..E6, pero SOLO cuando las cinco etapas tienen promedio; si a alguna
+ * le faltan datos el ciclo no cuadra y queda `NULL`.
+ * `ciclo_min`/`ciclo_max`/`ciclo_viajes` exigen la cadena completa y salen
  * del `ciclo_total` observado viaje por viaje.
  * `ruta_promedio` es solo el recorrido origen -> destino, que corresponde
  * a la etapa 4 (inicio_ruta -> qr_llegada_destino).
@@ -57,6 +57,7 @@ class DBTiemposRuta
         self::$filtro->trt = $request->trt;
         self::$filtro->min_viajes = $request->min_viajes;
         self::$filtro->max_etapa = $request->max_etapa;
+        self::$filtro->tiene_ruta_promedio = $request->tiene_ruta_promedio;
         self::$filtro->ordenar_por = $request->ordenar_por;
         self::$filtro->orden = $request->orden;
         self::$filtro->limit = $request->limit;
@@ -64,22 +65,54 @@ class DBTiemposRuta
 
     //------------------- filtros -------------------
 
+    /**
+     * Rango de fechas por las etapas del ciclo (E2..E6), NO por `llamadas`.
+     *
+     * Un viaje entra al rango si CUALQUIERA de sus hitos de etapa cae entre
+     * `fecha_inicio` y `fecha_fin`. Los hitos `NULL` nunca cumplen la condicion,
+     * asi que un viaje con etapas parciales igual entra si el hito que si tiene
+     * esta dentro del rango. Sin `fecha_inicio` ni `fecha_fin` el filtro no aplica.
+     *
+     * Se evalua sobre las columnas de `referencias r` en el WHERE exterior.
+     */
     private static function filtro_fechas(): array
     {
-        $sql = '';
+        $inicio = (string) (self::$filtro->fecha_inicio ?? '');
+        $fin = (string) (self::$filtro->fecha_fin ?? '');
+
+        if ($inicio === '' && $fin === '') {
+            return ['', []];
+        }
+
+        // Hitos que delimitan las etapas E2..E6 (la etapa 1 queda fuera del ciclo)
+        $hitos = [
+            'r.presenta_para_carga',
+            'r.inicio_de_carga',
+            'r.inicio_ruta',
+            'r.qr_llegada_destino',
+            'r.inicio_descargue',
+            'r.fin_descargue',
+        ];
+
+        $desde = $inicio !== '' ? Carbon::parse($inicio)->startOfDay() : null;
+        $hasta = $fin !== '' ? Carbon::parse($fin)->addDay()->startOfDay() : null;
+
+        $condiciones = [];
         $params = [];
-
-        if (self::$filtro->fecha_inicio ?? '') {
-            $sql .= ' AND lf.created_at >= ? ';
-            $params[] = Carbon::parse(self::$filtro->fecha_inicio)->startOfDay();
+        foreach ($hitos as $hito) {
+            $partes = [];
+            if ($desde !== null) {
+                $partes[] = "$hito >= ?";
+                $params[] = $desde;
+            }
+            if ($hasta !== null) {
+                $partes[] = "$hito < ?";
+                $params[] = $hasta;
+            }
+            $condiciones[] = '(' . implode(' AND ', $partes) . ')';
         }
 
-        if (self::$filtro->fecha_fin ?? '') {
-            $sql .= ' AND lf.created_at < ? ';
-            $params[] = Carbon::parse(self::$filtro->fecha_fin)->addDay()->startOfDay();
-        }
-
-        return [$sql, $params];
+        return [' AND (' . implode(' OR ', $condiciones) . ') ', $params];
     }
 
     private static function filtro_extra(): array
@@ -126,6 +159,24 @@ class DBTiemposRuta
         $tope = (int) (self::$filtro->max_etapa ?? 0);
 
         return $tope > 0 ? $tope : null;
+    }
+
+    /**
+     * Filtro "tiene ruta promedio": deja solo los grupos (ruta/conductor) cuyo
+     * recorrido origen -> destino (etapa 4) tenga promedio.
+     */
+    public static function tiene_ruta_promedio(): bool
+    {
+        return filter_var(self::$filtro->tiene_ruta_promedio ?? null, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Fragmento HAVING del filtro "tiene ruta promedio" (va sobre el alias ya
+     * calculado, igual que `viajes >= ?`).
+     */
+    private static function having_tiene_ruta_promedio(): string
+    {
+        return self::tiene_ruta_promedio() ? ' AND ruta_promedio IS NOT NULL' : '';
     }
 
     /**
@@ -211,8 +262,9 @@ class DBTiemposRuta
      * Vista base: una fila por referencia con el conductor/trt efectivo
      * y los minutos de cada etapa del ciclo.
      *
-     * El filtro de fechas se aplica sobre `llamadas.created_at` (igual que
-     * el resto de listados del sistema), por eso la subconsulta de llamadas.
+     * El filtro de fechas se aplica sobre los hitos de etapa de `referencias`
+     * (E2..E6), no sobre `llamadas.created_at`. Por eso el JOIN con llamadas es
+     * LEFT: un viaje con rutas y hitos pero sin llamada tambien cuenta.
      *
      * `$aplicar_tope = false` devuelve la base sin el tope de duracion, que es
      * lo necesario para contar cuantos viajes descarta dicho filtro.
@@ -236,17 +288,17 @@ class DBTiemposRuta
             -- ciclo observado: solo con toda la cadena de hitos en orden
             " . self::ciclo_total_sql() . "
         FROM referencias r
-        INNER JOIN (
+        LEFT JOIN (
             SELECT lf.ref AS ref,
                    MAX(lf.conductor_id) AS conductor_id,
                    MAX(lf.trt_id) AS trt_id
             FROM llamadas lf
-            WHERE lf.ref IS NOT NULL " . $fechas[0] . "
+            WHERE lf.ref IS NOT NULL
             GROUP BY lf.ref
         ) lr ON lr.ref = r.ref
         LEFT JOIN conductores co ON co.id = COALESCE(r.conductor_id, lr.conductor_id)
         LEFT JOIN trts t ON t.id = COALESCE(r.trt_id, lr.trt_id)
-        WHERE r.ruta_id IS NOT NULL " . $extra[0] . $tope[0];
+        WHERE r.ruta_id IS NOT NULL " . $fechas[0] . $extra[0] . $tope[0];
 
         return [$sql, array_merge($fechas[1], $extra[1], $tope[1])];
     }
@@ -275,10 +327,9 @@ class DBTiemposRuta
     }
 
     /**
-     * Ciclo promedio = suma de los promedios de las etapas del ciclo que si
-     * tienen datos. La columna cuadra siempre con lo que se ve en E2..E6 y no
-     * depende de que un mismo viaje tenga toda la cadena de hitos registrada.
-     * `NULL` solo cuando ninguna etapa tiene datos.
+     * Ciclo promedio = suma de los promedios de las etapas del ciclo (E2..E6).
+     * Solo se calcula si TODAS las etapas del ciclo aportan un promedio; si a
+     * alguna le faltan datos el ciclo no cuadra y queda `NULL`.
      */
     private static function ciclo_promedio_sql(): string
     {
@@ -287,7 +338,10 @@ class DBTiemposRuta
             $suma[] = 'COALESCE(' . self::promedio_etapa_sql($etapa) . ', 0)';
         }
 
-        return 'CASE WHEN ' . self::ciclo_etapas_con_datos_sql() . ' = 0 THEN NULL'
+        // exige los promedios de las 5 etapas del ciclo; con alguna ausente, NULL
+        $total = count(self::$etapas_con_tope);
+
+        return 'CASE WHEN ' . self::ciclo_etapas_con_datos_sql() . ' < ' . $total . ' THEN NULL'
             . ' ELSE (' . implode(' + ', $suma) . ') END';
     }
 
@@ -415,8 +469,14 @@ class DBTiemposRuta
         $sql = "
         SELECT
             g.*,
+            ru.origen_id,
+            ru.destino_id,
+            ru.ubigeo_origen,
+            ru.ubigeo_destino,
             (SELECT nombre FROM locales WHERE locales.id = ru.origen_id) AS loc_origen_nombre,
             (SELECT nombre FROM locales WHERE locales.id = ru.destino_id) AS loc_destino_nombre,
+            (SELECT palabra_clave FROM locales WHERE locales.id = ru.origen_id) AS loc_origen_palabra,
+            (SELECT palabra_clave FROM locales WHERE locales.id = ru.destino_id) AS loc_destino_palabra,
             (SELECT distrito FROM ubigeo_distritos WHERE ubigeo_distritos.ubigeo = ru.ubigeo_origen) AS ubg_origen_nombre,
             (SELECT distrito FROM ubigeo_distritos WHERE ubigeo_distritos.ubigeo = ru.ubigeo_destino) AS ubg_destino_nombre
         FROM (
@@ -426,7 +486,7 @@ class DBTiemposRuta
                 " . self::select_tiempos() . "
             FROM ($base) t
             GROUP BY t.ruta_id
-            HAVING viajes >= ?
+            HAVING viajes >= ?" . self::having_tiene_ruta_promedio() . "
         ) g
         LEFT JOIN rutas ru ON ru.id = g.ruta_id
         " . self::order_by_sql([
@@ -454,7 +514,7 @@ class DBTiemposRuta
             " . self::select_tiempos() . "
         FROM ($base) t
         GROUP BY t.conductor_id
-        HAVING viajes >= ?
+        HAVING viajes >= ?" . self::having_tiene_ruta_promedio() . "
     ) x
     " . self::order_by_sql([
                 'ruta' => 'ruta_promedio',
@@ -489,7 +549,7 @@ class DBTiemposRuta
                 " . self::select_tiempos(false) . "
             FROM ($base) t
             GROUP BY t.ruta_id, t.conductor_id
-            HAVING viajes >= ?
+            HAVING viajes >= ?" . self::having_tiene_ruta_promedio() . "
         ) g
         LEFT JOIN rutas ru ON ru.id = g.ruta_id
         " . self::order_by_sql([

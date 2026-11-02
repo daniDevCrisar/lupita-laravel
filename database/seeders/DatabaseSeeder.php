@@ -21,5 +21,11 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // los permisos de Scoring van aqui porque `RoleAndPermissionSeeder` usa
+        // Permission::create() y re-sembrarlo revienta contra el unico de spatie;
+        // este seeder es idempotente (firstOrCreate) y tambien se puede correr
+        // solo: php artisan db:seed --class=ScoringPermissionSeeder
+        $this->call(ScoringPermissionSeeder::class);
     }
 }

@@ -18,6 +18,7 @@ class TiemposRutaController extends Controller
             'trt' => 'nullable|string|max:100',
             'min_viajes' => 'nullable|numeric',
             'max_etapa' => 'nullable|numeric|min:1',
+            'tiene_ruta_promedio' => 'nullable',
             'limit' => 'nullable|numeric',
             'ordenar_por' => 'nullable|string|max:30',
         ]);

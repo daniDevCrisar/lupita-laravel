@@ -18,7 +18,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-    <link rel="stylesheet" href="{{asset('css/app.css')}}">
+    <link rel="stylesheet" href="{{ asset('css/app.css') . '?v=' . (@filemtime(public_path('css/app.css')) ?: time()) }}">
     <!-- CSS propio opcional -->
     {{-- <link href="{{ asset('css/app.css') }}" rel="stylesheet"> --}}
     @yield('heads')
@@ -67,15 +67,45 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.transportistas')}}">Transportistas</a>
                 </li>
+
                 <li class="nav-item">
-                    <a class="nav-link" href="{{route('lupita.tiempos')}}">Tiempos</a>
+                    <a class="nav-link" href="{{route('lupita.referencias')}}">Referencias</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{route('lupita.tiempos.horario')}}">Horarios</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        Tiempos
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{route('lupita.tiempos')}}"><i class="bi bi-stopwatch"></i> Tiempos de ruta</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.tiempos.horario')}}"><i class="bi bi-clock-history"></i> Horarios</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.tiempos.api')}}"><i class="bi bi-plug"></i> Probar API Tiempos</a></li>
+                    </ul>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{route('lupita.palabras')}}">Palabras</a>
-                </li>
+                {{-- el modulo de scoring solo se muestra si el usuario trae el permiso
+                     de lectura: `can()` devuelve false antes que el seeder corra, y no
+                     revienta como `hasPermissionTo` --}}
+                @can('ver scoring')
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#"
+                           role="button"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false">
+                            Scoring
+                        </a>
+
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{route('lupita.scoring')}}">Modelo vs humano</a></li>
+                            <li><a class="dropdown-item" href="{{route('lupita.palabras')}}"><i class="bi bi-key"></i> Palabras</a></li>
+                            <li><a class="dropdown-item" href="{{route('lupita.scoring.pesos')}}">Palabras y pesos</a></li>
+                            <li><a class="dropdown-item" href="{{route('lupita.scoring.llamadas')}}"><i class="bi bi-list-ul"></i> Llamadas del rango</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{route('lupita.scoring.ayuda')}}"><i class="bi bi-question-circle"></i> Cómo funciona</a></li>
+                        </ul>
+                    </li>
+                @endcan
                 <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.audio')}}">Etiquetar</a>
                 </li>
@@ -91,8 +121,31 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="{{route('importar.json')}}">JSON</a></li>
                         <li><a class="dropdown-item" href="{{route('importar.excel')}}">Excel</a></li>
+                        <li><a class="dropdown-item" href="{{route('vapi.index')}}">Por correo Vapi</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item"  href="{{route('importar.excel.lotes')}}">Lista de Lotes</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.refs.seleccion')}}"><i class="bi bi-arrow-repeat"></i> Actualizar Refs</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.refs.docs')}}"><i class="bi bi-journal-code"></i> Docs API Refs</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        Reportes
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{route('lupita.reportes.dashboard')}}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.reportes.reporte')}}"><i class="bi bi-file-earmark-bar-graph"></i> Reporte en pantalla</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.reportes.seleccion')}}"><i class="bi bi-sliders"></i> Generar reporte</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.reportes.dia')}}"><i class="bi bi-calendar-day"></i> Un día (correo)</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.reportes.rango')}}"><i class="bi bi-calendar-range"></i> Por rango (correo)</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.reporte.seleccion')}}">Para correo (histórico)</a></li>
                     </ul>
                 </li>
 

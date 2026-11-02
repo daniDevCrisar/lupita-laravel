@@ -1,3 +1,30 @@
 .exito_progress{
     height: 6px; max-width: 180px;
 }
+
+/* Cabecera de tablas (tema darkly): fondo con color propio y texto SIEMPRE claro.
+   darkly deja el <th> con texto oscuro via sus variables (--bs-table-color) y por
+   eso no se leia: se fuerzan color/fondo y se pisan las variables de Bootstrap. */
+.table > thead.thead-lupita > tr > th,
+.table > thead.thead-lupita > th,
+.thead-lupita > tr > th,
+.thead-lupita > th {
+    --bs-table-color: #fff;
+    --bs-table-bg: var(--bs-primary);
+    --bs-table-hover-color: #fff;
+    background-color: var(--bs-primary) !important;
+    color: #fff !important;
+    border-bottom: 0;
+    vertical-align: middle;
+}
+
+/* Cuerpo de tablas (tema darkly): el <td> sin clase de color salia negro porque
+   heredaba la variable oscura de Bootstrap. Se pisa --bs-table-color a nivel de
+   .table para que el texto por defecto sea claro. SIN !important: las utilidades
+   text-* y los badges llevan su propio color con !important y siguen ganando, asi
+   que las celdas semanticas (verde/rojo/muted) no se rompen. */
+.table {
+    --bs-table-color: #fff;
+    --bs-table-hover-color: #fff;
+}
+

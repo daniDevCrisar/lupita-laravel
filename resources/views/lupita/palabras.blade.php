@@ -1046,7 +1046,9 @@
                                         <td class="small text-light">
                                             {{ $b->conductor }}
                                             <div class="text-light">{{ $b->trt }}</div>
-                                            <div class="text-info">{{ $b->destino }}</div>
+                                            @if (trim((string) $b->destino) !== '')
+                                                <div class="text-info">{{ $b->origen }} &rarr; {{ $b->destino }}</div>
+                                            @endif
                                         </td>
                                         <td>
                                             <span class="badge bg-{{ $b->llamada_exitosa ? 'success' : 'danger' }}">

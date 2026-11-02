@@ -5,6 +5,7 @@ namespace App\Database\Tmp;
 use Illuminate\Support\Facades\DB;
 use App\Tools\BuscarEnArray;
 use App\Database\DBReferencias;
+use App\Database\DBScoringLlamadas;
 use stdClass;use DateTime;
 
 class DBTmpLlamadas {
@@ -122,6 +123,15 @@ class DBTmpLlamadas {
 
         if ($se_inserto){
             self::guardar_mensajes($item->vapi_id,$item->mensajes_conten);
+
+            // Puntaje del modelo para esa llamada. Ya tiene mensajes y tipo, asi
+            // el veredicto aparece al abrirla en Etiquetar sin esperar el batch.
+            // Si el scoring falla, la importacion no se frena.
+            try {
+                DBScoringLlamadas::puntuar_llamada($item->vapi_id);
+            } catch (\Throwable $e) {
+                // secundario: la llamada ya quedo importada
+            }
         }
 
         return $se_inserto;

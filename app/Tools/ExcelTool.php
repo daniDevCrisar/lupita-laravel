@@ -4,6 +4,8 @@ namespace App\Tools;
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ExcelTool
 {
@@ -112,6 +114,44 @@ class ExcelTool
             $registros_ord[] = $fila_ordenada;// registros$registros
         }
         return $registros_ord;
+    }
+
+    /**
+     * Arma un .xlsx en memoria y devuelve las hojas serializadas.
+     *
+     * No devuelve una Response: la herramienta no conoce el contexto HTTP, y asi
+     * el controlador decide el nombre del archivo y como lo baja.
+     */
+    public static function xlsx(array $cabeceras, array $filas, string $hoja = 'Datos'): string
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        // 31 caracteres es el techo que acepta el nombre de una hoja
+        $sheet->setTitle(mb_substr($hoja, 0, 31));
+
+        $sheet->fromArray(array_values($cabeceras), null, 'A1');
+
+        $fila = 2;
+        foreach ($filas as $registro) {
+            $sheet->fromArray(array_values((array) $registro), null, 'A' . $fila);
+            $fila++;
+        }
+
+        $sheet->getStyle('A1')->getFont()->setBold(true);
+        $sheet->freezePane('A2');
+        $sheet->getDefaultColumnDimension()->setWidth(18);
+        $sheet->getStyle('A')->getNumberFormat()->setFormatCode(
+            \PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+
+        $writer = new Xlsx($spreadsheet);
+
+        ob_start();
+        $writer->save('php://output');
+        $xlsx = (string) ob_get_clean();
+
+        $spreadsheet->disconnectWorksheets();
+
+        return $xlsx;
     }
 
 

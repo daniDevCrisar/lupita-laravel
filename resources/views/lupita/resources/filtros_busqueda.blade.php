@@ -163,6 +163,15 @@
             </div>
 
 
+            <div class="col-12">
+                <label for="ids" class="form-label">
+                    Ids de llamada (uno por línea)
+                </label>
+                <textarea id="ids" name="ids" rows="3" class="form-control"
+                          placeholder="Pega aquí uno o varios vapi_id, uno por línea.&#10;Ej: 01A033E0-13AA-7770-9B2C-113546EFFE96">{{ request('ids') }}</textarea>
+                <small class="text-muted">Sirve para filtrar varias de golpe o para abrir UNA llamada específica vía link <code>?ids=&lt;vapi_id&gt;</code> y reclasificarla.</small>
+            </div>
+
             <div class="col-md-4 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary me-2">
                     <i class="bi bi-search"></i> Filtrar

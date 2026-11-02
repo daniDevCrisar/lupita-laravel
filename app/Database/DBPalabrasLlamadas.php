@@ -159,6 +159,13 @@ class DBPalabrasLlamadas
 
     public static $soportes = [5, 10, 20, 50, 100];
 
+    // Acumulador abierto por tipo de llamada, apagado por defecto
+    private static $acumular_por_tipo = false;
+
+    // El scoring excluye el tipo INDETERMINADA (id 0) de su rango; la pagina de
+    // palabras no. Se activa solo cuando Scoring dirige el analisis.
+    private static $excluir_indeterminada = false;
+
     public static function set_filtro($request): void
     {
         // `?? null` permite probar la clase con un objeto plano, no solo con
@@ -176,6 +183,20 @@ class DBPalabrasLlamadas
         self::$filtro->max_gram = $request->max_gram ?? null;
         self::$filtro->min_llamadas = $request->min_llamadas ?? null;
         self::$filtro->palabra = $request->palabra ?? null;
+
+        // cada filtro nuevo parte con la exclusion apagada: solo el scoring la
+        // enciende, justo despues de set_filtro, para alinear su rango
+        self::$excluir_indeterminada = false;
+    }
+
+    /**
+     * Sacar del analisis las llamadas tipo INDETERMINADA (id 0) y sin tipo.
+     * Lo usa DBScoringLlamadas para que el corpus donde se calculan los pesos
+     * sea el mismo donde se aplican.
+     */
+    public static function set_excluir_indeterminada(bool $valor): void
+    {
+        self::$excluir_indeterminada = $valor;
     }
 
     //------------------- filtros -------------------
@@ -229,6 +250,31 @@ class DBPalabrasLlamadas
     }
 
     /**
+     * Soporte dentro del corte de un solo tipo de llamada: el universo se divide
+     * entre cinco tipos, asi que el minimo de la pagina asfixiaria cualquier
+     * sugerencia en `Confirmacion`. Se baja sin pasar de 3 llamadas.
+     */
+    public static function soporte_por_tipo(): int
+    {
+        return max(3, (int) round(self::soporte_minimo() / 4));
+    }
+
+    /**
+     * Activa el acumulador abierto por tipo de llamada. Lo usa el scoring para
+     * pedir sugerencias de los cinco tipos en una sola pasada por la
+     * transcripcion; la pagina de palabras lo deja apagado y no gasta memoria.
+     */
+    public static function set_acumular_por_tipo(bool $valor): void
+    {
+        self::$acumular_por_tipo = $valor;
+    }
+
+    public static function acumular_por_tipo(): bool
+    {
+        return self::$acumular_por_tipo;
+    }
+
+    /**
      * Palabra a investigar (drill-down). Va normalizada como el texto.
      */
     public static function palabra_buscar(): string
@@ -243,6 +289,11 @@ class DBPalabrasLlamadas
     private static function filtro_llamadas(): array
     {
         $sql = ' AND l.llamada_exitosa IN (0, 1) ';
+
+        // cuando el scoring dirige el analisis, su rango deja fuera INDETERMINADA
+        if (self::$excluir_indeterminada) {
+            $sql .= ' AND l.llamada_tipo_id IS NOT NULL AND l.llamada_tipo_id <> 0 ';
+        }
 
         $universo = self::universo();
         if ($universo !== 'todas') {
@@ -304,9 +355,13 @@ class DBPalabrasLlamadas
     //------------------- texto -------------------
 
     /**
-     * Minusculas y sin acentos, para que "SEÑOR" y "senor" cuenten igual.
+     * Minusculas y sin acentos, para que "SENOR" y "senor" cuenten igual.
+     *
+     * Es publico porque DBScoringLlamadas necesita normalizar el texto de la
+     * misma manera: si las dos clases separan el texto distinto, los pesos se
+     * calculan sobre un corpus y se aplican sobre otro.
      */
-    private static function normalizar(string $texto): string
+    public static function normalizar(string $texto): string
     {
         $texto = mb_strtolower(trim($texto), 'UTF-8');
 
@@ -347,8 +402,12 @@ class DBPalabrasLlamadas
 
     /**
      * Listas de palabras sin repetirse. Se arma una sola vez por request.
+     *
+     * Publica porque el scoring necesita excluirlas al sugerir pesos: una
+     * stopwords puede salir "significativa" en el ranking y no por eso sirve
+     * como senal.
      */
-    private static function es_stopword(string $palabra): bool
+    public static function es_stopword(string $palabra): bool
     {
         static $set = null;
 
@@ -374,6 +433,7 @@ class DBPalabrasLlamadas
             l.audio_duracion,
             l.analisis_audio,
             l.buzon_de_voz,
+            l.llamada_tipo_id,
             l.created_at,
             l.conductor_id,
             COALESCE(co.nombres, 'SIN CONDUCTOR') AS conductor,
@@ -478,6 +538,21 @@ class DBPalabrasLlamadas
         $resultado->mensajes_buzon_campo = $acumulado['buzon_campo'];
         $resultado->llamadas_buzon_campo = $acumulado['buzon_campo_llamadas'];
         $resultado->palabras = $medidas;
+
+        // ranking abierto por tipo de llamada: solo existe si se activo el
+        // acumulador antes de la pasada; sale del mismo acumulado, sin otra
+        // lectura de `mensajes`
+        $resultado->por_tipo = [];
+        foreach ($acumulado['palabras_tipo'] as $tipo => $palabras_tipo) {
+            $t_e = max(1, (int) $acumulado['tot_tipo'][$tipo]['e']);
+            $t_f = max(1, (int) $acumulado['tot_tipo'][$tipo]['f']);
+
+            $resultado->por_tipo[(int) $tipo] = (object) [
+                'tot_e' => $t_e,
+                'tot_f' => $t_f,
+                'palabras' => self::finalizar($palabras_tipo, $t_e, $t_f, self::soporte_por_tipo()),
+            ];
+        }
         $resultado->palabras_totales = count($acumulado['palabras']);
         $resultado->ejemplos = $acumulado['ejemplos'];
         $resultado->max_ejemplos = self::MAX_EJEMPLOS;
@@ -535,6 +610,9 @@ class DBPalabrasLlamadas
         $buzon_campo_llamadas = 0;
         $sin_marca = [];
         $sin_marca_vistas = [];
+        $palabras_tipo = [];
+        $tot_tipo = [];
+        $acumular = self::acumular_por_tipo();
 
         foreach (array_chunk($llamadas, self::LOTE_LLAMADAS) as $chunk) {
             $mensajes = self::mensajes_de(array_column($chunk, 'vapi_id'));
@@ -657,16 +735,23 @@ class DBPalabrasLlamadas
                 $lado = $l->llamada_exitosa ? 'e' : 'f';
                 $con_texto[$lado]++;
 
-                foreach ($base as $grama => $true) {
-                    if (!isset($palabras[$grama])) {
-                        $palabras[$grama] = ['e' => 0, 'f' => 0, 'u' => 0, 'n' => 0, 'b' => 0];
+                self::acumular_palabras($palabras, $base, $set_u, $nota, $set_b, $lado);
+
+                // el mismo conteo abierto por tipo, solo cuando se pidio antes de
+                // la pasada: duplicar el mapa cuesta memoria y el ranking de la
+                // pagina no lo usa
+                if ($acumular) {
+                    $tipo = (int) ($l->llamada_tipo_id ?? 0);
+
+                    if (!isset($tot_tipo[$tipo])) {
+                        $tot_tipo[$tipo] = ['e' => 0, 'f' => 0];
+                        $palabras_tipo[$tipo] = [];
                     }
 
-                    $palabras[$grama][$lado]++;
+                    $tot_tipo[$tipo][$lado]++;
 
-                    if (isset($set_u[$grama])) $palabras[$grama]['u']++;
-                    if (isset($nota[$grama])) $palabras[$grama]['n']++;
-                    if (isset($set_b[$grama])) $palabras[$grama]['b']++;
+                    self::acumular_palabras(
+                        $palabras_tipo[$tipo], $base, $set_u, $nota, $set_b, $lado);
                 }
             }
 
@@ -693,7 +778,32 @@ class DBPalabrasLlamadas
             'buzon_campo_llamadas' => $buzon_campo_llamadas,
             'sin_marca' => array_values($sin_marca),
             'sin_marca_llamadas' => count($sin_marca_vistas),
+            'palabras_tipo' => $palabras_tipo,
+            'tot_tipo' => $tot_tipo,
         ];
+    }
+
+    /**
+     * Suma una llamada al mapa de palabras, una sola vez por grama.
+     *
+     * Se llama dos veces por llamada cuando el acumulador por tipo esta activo:
+     * la misma evidencia alimenta el mapa global y el del tipo, asi no hay dos
+     * criterios de conteo que puedan discrepar.
+     */
+    private static function acumular_palabras(
+        array &$palabras, array $base, array $set_u, array $nota, array $set_b, string $lado): void
+    {
+        foreach ($base as $grama => $true) {
+            if (!isset($palabras[$grama])) {
+                $palabras[$grama] = ['e' => 0, 'f' => 0, 'u' => 0, 'n' => 0, 'b' => 0];
+            }
+
+            $palabras[$grama][$lado]++;
+
+            if (isset($set_u[$grama])) $palabras[$grama]['u']++;
+            if (isset($nota[$grama])) $palabras[$grama]['n']++;
+            if (isset($set_b[$grama])) $palabras[$grama]['b']++;
+        }
     }
 
     private static function ejemplo(stdClass $llamada, array $fragmentos): stdClass
@@ -708,6 +818,10 @@ class DBPalabrasLlamadas
      * Convierte los conteos crudos en las metricas de las tres pestanas y deja
      * fuera lo que no alcanza el soporte minimo.
      *
+     * Es publico porque el scoring reusa las mismas metricas sobre el corte de un
+     * solo tipo de llamada, donde el universo es chico y el `soporte` minima hay
+     * que bajarlo a mano.
+     *
      * `$tot_e`/`$tot_f` son las llamadas con texto de cada grupo (el divisor de
      * las proporciones) y `$suma_e`/`$suma_f` la suma de conteos del grupo, que
      * es el divisor del termino tf del tf-idf.
@@ -716,7 +830,7 @@ class DBPalabrasLlamadas
      * supera a tfidf_f solo cuando la palabra pesa mas en ese grupo: las
      * palabras presentes en los dos lados caen por idf bajo.
      */
-    private static function finalizar(array $palabras, int $tot_e, int $tot_f): array
+    public static function finalizar(array $palabras, int $tot_e, int $tot_f, ?int $soporte = null): array
     {
         $suma_e = 0;
         $suma_f = 0;
@@ -727,7 +841,7 @@ class DBPalabrasLlamadas
 
         // 2 grupos: el idf clasico castiga las palabras que estan en muchas
         // llamadas de ambos lados
-        $soporte = self::soporte_minimo();
+        $soporte = $soporte ?? self::soporte_minimo();
         $lista = [];
         $n_corpus = max(1, $suma_e + $suma_f);
 

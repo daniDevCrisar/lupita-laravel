@@ -87,6 +87,21 @@
                     </div>
 
                     <div class="col-md-3">
+                        <label class="form-label d-block">Solo ruta promedio</label>
+                        <div class="form-check mt-1">
+                            <input class="form-check-input" type="checkbox" value="1"
+                                   id="tiene_ruta_promedio" name="tiene_ruta_promedio"
+                                   @checked(request('tiene_ruta_promedio'))>
+                            <label class="form-check-label" for="tiene_ruta_promedio">
+                                Solo con ruta promedio
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            Oculta las rutas sin promedio de recorrido origen &rarr; destino.
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
                         <label for="conductor" class="form-label">Conductor</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-person"></i></span>

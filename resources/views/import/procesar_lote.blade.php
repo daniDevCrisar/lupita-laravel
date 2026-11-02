@@ -87,6 +87,10 @@ $total_trts = count($trts);
                             <a href="https://efletexia.com/opl/confirmacion-ingreso-carga?vapi_lote={{$cabecera->lote_id}}"
                                class="text-info" target="_blank">Obtener datos de Referencia en Efletexia<i class="bi bi-box-arrow-in-right me-1"></i></a>
                         </div>
+                        <div class="col-md-3">
+                            <a href="https://tceflexia.com/generalMilestonesRoute?api=LUPITA&lote={{$cabecera->lote_id}}"
+                               class="text-info" target="_blank">Nuevo Sistema TCEflexia<i class="bi bi-box-arrow-in-right me-1"></i></a>
+                        </div>
                     </div>
 
                 </div>

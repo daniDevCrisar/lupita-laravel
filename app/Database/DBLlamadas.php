@@ -117,7 +117,30 @@ class DBLlamadas {
         self::$filtro->exitosa= $request->exitosa;
         self::$filtro->etiquetas= $request->etiquetas;
         self::$filtro->e_operador= $request->e_operador;
+        // lista de vapi_id pegada por el usuario (salto de linea o coma); sirve
+        // tanto para filtrar muchas como para abrir UNA via link ?ids=<vapi_id>
+        self::$filtro->ids= self::parsear_ids($request->ids ?? null);
     }
+
+    /** Convierte el texto de la caja `ids` en un array limpio de vapi_id. */
+    public static function parsear_ids($crudo): array
+    {
+        if (is_array($crudo)) {
+            $trozos = $crudo;
+        } else {
+            // separa por salto de linea (Windows/Unix) y por coma
+            $trozos = preg_split('/\R|,/', (string) $crudo);
+        }
+
+        $ids = [];
+        foreach ($trozos as $id) {
+            $id = trim((string) $id);
+            if ($id !== '') $ids[] = $id;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
 
 
     public static function listar_principal($mostrar){
@@ -129,6 +152,7 @@ class DBLlamadas {
         $exitosa=self::$filtro->exitosa??'';
         $etiquetas=self::$filtro->etiquetas??'';
         $e_operador=self::$filtro->e_operador??'';
+        $ids=self::$filtro->ids??[];
 
         $llamadas = DB::table('llamadas as a')
         ->join('conductores as b', 'b.id', '=', 'a.conductor_id')
@@ -222,6 +246,10 @@ class DBLlamadas {
         ->when(is_numeric($exitosa), function ($query) use($exitosa) {
             $query->where('a.error_origen', '=', $exitosa);
             $query->where('a.llamada_exitosa', '=', 0);
+        })
+        // ========== FILTRO POR LISTA DE vapi_id (pegados o via link ?ids=) ==========
+        ->when(!empty($ids), function ($query) use ($ids) {
+            $query->whereIn('a.vapi_id', $ids);
         })
         // ========== EN EL MEDIO - ETIQUETAS ==========
         ->when(!empty($etiquetas), function ($query) use ($etiquetas, $e_operador) {

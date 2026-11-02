@@ -206,9 +206,19 @@
                         <h5 id="card_numero"></h5>
                     </div>
                 </div>
+
+
                 <div class="row">
                     <!-- Columna izquierda -->
                     <div class="col-6">
+                        <div class="text-center">
+                            {{-- VEREDICTO DEL MODELO (badge Livewire). Fila completa arriba del
+                            analisis de transcripcion. Se refresca solo al escuchar el evento
+                            `abrirMensajeTextbox` que ya dispara selLlamada(); no requiere
+                            tocar el JS ni el controlador de esta vista. --}}
+                            <livewire:scoring-llamada-badge />
+                            {{-- FIN DEL VIBECODING --}}
+                        </div>
                         <ul class="list-group list-group-flush">
                             <li class="list-group-item small" id="card_conductor_html"></li>
                             <li class="list-group-item small" id="card_ref_html"></li>
@@ -979,5 +989,15 @@
         }
 
         //-------------------------------------------------
+
+        // ===== AUTO-SELECCIÓN POR FILTRO DE IDS (link de reclasificación) =====
+        // LUGAR: al final del script de esta vista, tras definir selLlamada() y
+        // total_filas(). Si la URL trae ?ids=... (link "Reclasificar" del módulo
+        // Scoring), abre la primera llamada al cargar para no tener que clicar.
+        @if(request('ids'))
+        document.addEventListener('livewire:initialized', () => {
+            if (total_filas > 0) selLlamada(0);
+        });
+        @endif
     </script>
 @endsection
