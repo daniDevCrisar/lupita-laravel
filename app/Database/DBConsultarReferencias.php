@@ -125,22 +125,39 @@ class DBConsultarReferencias
     }
 
     /**
-     * Detecta si el texto del buscador es una LISTA de refs ("REF1, REF2" o una por
-     * linea) y devuelve sus tokens. Si no viene separada por coma/salto de linea o
-     * algun token no parece una ref, devuelve [] y se busca como texto normal.
+     * Detecta si el texto del buscador es una LISTA de refs y devuelve sus tokens.
+     *
+     * Se considera lista cuando viene separada por coma o salto de linea (intencion
+     * explicita) o cuando son 2+ numeros separados por espacios ("1154501 1154503").
+     * Asi "Juan Perez" (nombre del conductor) se sigue buscando como texto normal.
+     * Si no es lista devuelve [] y se aplica el LIKE de siempre.
      */
     public static function lista_de_refs($texto): array
     {
         $texto = trim((string) $texto);
-        if (!preg_match('/[,\r\n]/', $texto)) {
+        if ($texto === '') {
             return [];
         }
 
+        $explicita = (bool) preg_match('/[,\r\n]/', $texto);
         $tokens = preg_split('/[,\s]+/', $texto, -1, PREG_SPLIT_NO_EMPTY);
+        if (empty($tokens)) {
+            return [];
+        }
+
+        $soloDigitos = true;
         foreach ($tokens as $t) {
             if (!preg_match('/^[A-Za-z0-9\-]{3,12}$/', $t)) {
                 return [];
             }
+            if (!ctype_digit($t)) {
+                $soloDigitos = false;
+            }
+        }
+
+        // sin coma/salto de linea solo se asume lista si son numeros (refs del viaje)
+        if (!$explicita && (count($tokens) < 2 || !$soloDigitos)) {
+            return [];
         }
 
         // tope defensivo: una lista pegada a mano no deberia pasar de aqui

@@ -52,7 +52,7 @@
                             <textarea id="q" name="q" rows="2" class="form-control"
                                       placeholder="ref, placa o conductor; o pegue una lista de refs">{{ request('q') }}</textarea>
                         </div>
-                        <small class="text-white-50">Varias refs: separadas por coma o una por linea.</small>
+                        <small class="text-white-50">Varias refs: separadas por coma, espacio o una por linea.</small>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label" for="ruta">Ruta</label>
@@ -104,14 +104,20 @@
         </div>
     @else
     @if(!empty($noEncontradas))
-        <div class="alert alert-warning">
-            <div class="fw-bold mb-2">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                {{ count($noEncontradas) }} ref(s) de la lista no existen en referencias:
+        <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div>
+                <div class="fw-bold mb-2">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    {{ count($noEncontradas) }} ref(s) de la lista no existen en referencias:
+                </div>
+                @foreach($noEncontradas as $nf)
+                    <span class="badge bg-dark border border-warning me-1 mb-1">{{ $nf }}</span>
+                @endforeach
             </div>
-            @foreach($noEncontradas as $nf)
-                <span class="badge bg-dark border border-warning me-1">{{ $nf }}</span>
-            @endforeach
+            <button type="button" class="btn btn-sm btn-dark text-nowrap" id="btn_copiar_no_enc"
+                    title="Copiar las refs no encontradas, una por linea">
+                <i class="bi bi-clipboard"></i> Copiar
+            </button>
         </div>
     @endif
 
@@ -341,5 +347,47 @@
         </div>
         <div class="col-12">{{ $referencias->links() }}</div>
     </div>
+    @endif
+@endsection
+
+@section('scripts')
+    @if(!empty($noEncontradas))
+        <script>
+            (function () {
+                // refs no encontradas: se copian una por linea (listo para pegar en Excel/tceflexia)
+                const refs = @json(array_values($noEncontradas));
+                const btn = document.getElementById('btn_copiar_no_enc');
+                if (!btn) return;
+
+                const texto = refs.join('\n');
+
+                const avisar = () => {
+                    const original = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check2"></i> Copiado';
+                    setTimeout(() => { btn.innerHTML = original; }, 1500);
+                };
+
+                // respaldo para navegadores sin clipboard API (http sin TLS)
+                const copiarClasico = () => {
+                    const ta = document.createElement('textarea');
+                    ta.value = texto;
+                    ta.style.position = 'fixed';
+                    ta.style.top = '-1000px';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand('copy'); avisar(); } catch (e) {}
+                    document.body.removeChild(ta);
+                };
+
+                btn.addEventListener('click', () => {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(texto).then(avisar).catch(copiarClasico);
+                    } else {
+                        copiarClasico();
+                    }
+                });
+            })();
+        </script>
     @endif
 @endsection

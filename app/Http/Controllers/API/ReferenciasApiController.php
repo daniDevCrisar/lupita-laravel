@@ -48,10 +48,12 @@ class ReferenciasApiController extends Controller
             return response()->json(['exito' => false, 'error' => 'refs requerido (array o lista separada por coma)'], 422);
         }
 
-        // Tope defensivo para no explotar la consulta.
-        $max = 200;
-        $avisado = count($refs) > $max;
-        if ($avisado) {
+        // Tope defensivo para no explotar la consulta: mismo orden que la escritura
+        // de referencias (ActualizarRefsController::MAX_REFS_POR_ENVIO).
+        $max = 1000;
+        $solicitados = count($refs);
+        $truncado = $solicitados > $max;
+        if ($truncado) {
             $refs = array_slice($refs, 0, $max);
         }
 
@@ -80,8 +82,9 @@ class ReferenciasApiController extends Controller
 
         return response()->json([
             'exito'     => true,
-            'solicitados' => count($refs),
-            'truncado'  => $avisado,
+            'solicitados' => $solicitados,   // total recibido, antes del recorte
+            'procesados' => count($refs),
+            'truncado'  => $truncado,
             'encontradas' => count($refs) - count($noEncontradas),
             'no_encontradas' => $noEncontradas,
             'sin_llamadas' => $sinLlamadas,
