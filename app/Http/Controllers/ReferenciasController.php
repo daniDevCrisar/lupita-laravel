@@ -24,12 +24,14 @@ class ReferenciasController extends Controller
                 'depas'         => DBRutas::$depas,
                 'filtrando'     => false,
                 'noEncontradas' => [],
+                'etapas'        => DBConsultarReferencias::ETAPAS_LABELS,
             ]);
         }
 
         $request->validate([
             'fecha_inicio' => 'nullable|date',
             'fecha_fin'    => 'nullable|date',
+            'etapa'        => 'nullable|in:' . implode(',', array_keys(DBConsultarReferencias::ETAPAS_LABELS)),
             'q'            => 'nullable|string',
             'ruta'         => 'nullable|string',
             'conductor_id' => 'nullable|numeric',
@@ -58,6 +60,7 @@ class ReferenciasController extends Controller
             'depas'         => DBRutas::$depas,
             'filtrando'     => true,
             'noEncontradas' => $noEncontradas,
+            'etapas'        => DBConsultarReferencias::ETAPAS_LABELS,
         ]);
     }
 
@@ -67,6 +70,7 @@ class ReferenciasController extends Controller
         $request->validate([
             'fecha_inicio' => 'nullable|date',
             'fecha_fin'    => 'nullable|date',
+            'etapa'        => 'nullable|in:' . implode(',', array_keys(DBConsultarReferencias::ETAPAS_LABELS)),
             'q'            => 'nullable|string',
             'ruta'         => 'nullable|string',
             'conductor_id' => 'nullable|numeric',
@@ -84,6 +88,7 @@ class ReferenciasController extends Controller
             'movimientos' => $movimientos,
             'depas'       => DBRutas::$depas,
             'limite'      => $limite,
+            'etapas'      => DBConsultarReferencias::ETAPAS_LABELS,
         ]);
     }
 }

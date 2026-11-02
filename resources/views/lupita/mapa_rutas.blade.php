@@ -54,19 +54,30 @@
             <fieldset class="border p-3 rounded">
                 <legend class="float-none w-auto px-2 fs-6">Filtros</legend>
                 <div class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label" for="fecha_inicio">Fecha inicio</label>
                         <input type="date" id="fecha_inicio" name="fecha_inicio" value="{{ request('fecha_inicio') }}" class="form-control">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label" for="fecha_fin">Fecha fin</label>
                         <input type="date" id="fecha_fin" name="fecha_fin" value="{{ request('fecha_fin') }}" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="etapa">Etapa del rango</label>
+                        <select id="etapa" name="etapa" class="form-select">
+                            <option value="">Llamadas (cualquier etapa)</option>
+                            @foreach($etapas as $cod => $etiqueta)
+                                <option value="{{ $cod }}" {{ request('etapa') === $cod ? 'selected' : '' }}>
+                                    {{ $etiqueta }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label" for="q">Buscar</label>
                         <input type="text" id="q" name="q" value="{{ request('q') }}" class="form-control" placeholder="ref, placa, conductor, titulo...">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label" for="ruta">Ruta</label>
                         <input type="text" id="ruta" name="ruta" value="{{ request('ruta') }}" class="form-control" placeholder="origen o destino...">
                     </div>

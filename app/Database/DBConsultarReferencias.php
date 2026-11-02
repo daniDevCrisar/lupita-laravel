@@ -49,18 +49,41 @@ class DBConsultarReferencias
         'r.fin_descargue',
     ];
 
+    /**
+     * Etapas con su etiqueta, en el orden del ciclo. Alimenta el selector
+     * "Etapa del rango": si se elige una, el rango de fechas se aplica a su columna.
+     */
+    public const ETAPAS_LABELS = [
+        'presenta_para_carga' => 'Presenta para carga',
+        'inicio_de_carga'     => 'Inicio de carga',
+        'fin_de_carga'        => 'Fin de carga',
+        'inicio_ruta'         => 'Inicio de ruta',
+        'qr_llegada_destino'  => 'Llegada a destino',
+        'inicio_descargue'    => 'Inicio de descargue',
+        'fin_descargue'       => 'Fin de descargue',
+    ];
+
     private static function aplicar_filtros($q, Request $request)
     {
-        // Rango de fechas sobre las llamadas del ref (referencias no tiene created_at).
+        // Rango de fechas. Sin etapa elegida filtra por las llamadas del ref (como antes);
+        // con etapa elegida filtra por la fecha de esa etapa en `referencias`.
         [$fi, $ff] = self::rango($request->input('fecha_inicio'), $request->input('fecha_fin'));
         if ($fi !== null) {
-            $q->whereExists(function ($sub) use ($fi, $ff) {
-                $sub->select(DB::raw(1))
-                    ->from('llamadas as l')
-                    ->whereColumn('l.ref', 'r.ref')
-                    ->where('l.created_at', '>=', $fi)
-                    ->where('l.created_at', '<', $ff);
-            });
+            $etapa = (string) $request->input('etapa');
+            if (isset(self::ETAPAS_LABELS[$etapa])) {
+                $col = 'r.' . $etapa;
+                $q->whereNotNull($col)
+                    ->where($col, '>=', $fi)
+                    ->where($col, '<', $ff);
+            } else {
+                $q->whereExists(function ($sub) use ($fi, $ff) {
+                    $sub->select(DB::raw(1))
+                        ->from('llamadas as l')
+                        ->whereColumn('l.ref', 'r.ref')
+                        ->where('l.created_at', '>=', $fi)
+                        ->where('l.created_at', '<', $ff);
+                });
+            }
         }
 
         if ($txt = trim((string) $request->input('q'))) {
