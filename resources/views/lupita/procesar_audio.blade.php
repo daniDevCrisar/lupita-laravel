@@ -972,9 +972,13 @@
                         6 => '6-dentro-de-planta-para-descarga.html',
                     ]
             @endphp
+            @can('ver reportes')
             @foreach($nombres as $key => $item)
             lista.push(['{{ $item }}','{!! $link . $key !!}']);
             @endforeach
+            @else
+            console.warn('sin permiso `ver reportes`: no se descargan los reportes');
+            @endcan
 
 
             let total= lista.length,count=0;

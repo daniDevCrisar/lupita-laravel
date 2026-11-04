@@ -174,10 +174,12 @@
 
                                 {{-- reclasificar: abre procesar_audio filtrado a ESTA llamada --}}
                                 <div class="mt-3">
+                                    @can('etiquetar llamada')
                                     <a href="{{ route('lupita.audio', ['ids' => $f->vapi_id]) }}"
                                        target="_blank" rel="noopener" class="btn btn-sm btn-warning">
                                         <i class="bi bi-tags-fill"></i> Reclasificar esta llamada
                                     </a>
+                                    @endcan
                                 </div>
                             @endif
                         </div>

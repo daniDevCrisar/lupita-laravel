@@ -289,6 +289,7 @@
                         @endif
                     </div>
 
+                    @can('editar palabras clave')
                     <button type="button" class="btn btn-sm btn-outline-success ms-auto"
                             data-agregar="{{ $clave }}">
                         <i class="bi bi-plus-lg"></i> Agregar palabra
@@ -302,6 +303,12 @@
                     <button type="button" class="btn btn-sm btn-warning" data-guardar="1">
                         <i class="bi bi-save"></i> Guardar cambios
                     </button>
+                    @else
+                    <span class="small text-muted ms-auto">
+                        <i class="bi bi-lock"></i> Solo lectura: falta el permiso
+                        <code>editar palabras clave</code>
+                    </span>
+                    @endcan
                     <span class="small text-muted contador-sucias">sin cambios pendientes</span>
                 </div>
 
@@ -339,17 +346,20 @@
                                     <div class="d-flex align-items-center gap-2">
                                         <input type="number" class="form-control form-control-sm peso-num"
                                                style="width: 90px" step="0.05" min="-4" max="4"
-                                               value="{{ $p->peso }}">
+                                               value="{{ $p->peso }}"
+                                               @disabled(!auth()->user()->can('editar palabras clave'))>
                                         <input type="range" class="form-range peso-slider"
                                                style="width: 80px" step="0.05" min="-4" max="4"
-                                               value="{{ $p->peso }}">
+                                               value="{{ $p->peso }}"
+                                               @disabled(!auth()->user()->can('editar palabras clave'))>
                                     </div>
                                     <div class="small text-muted">{{ Scoring::factor($p->peso) }} posibilidad</div>
                                 </td>
                                 <td>
                                     <div class="form-check">
                                         <input class="form-check-input peso-activa" type="checkbox"
-                                               value="1" @checked($p->activa)>
+                                               value="1" @checked($p->activa)
+                                               @disabled(!auth()->user()->can('editar palabras clave'))>
                                     </div>
                                 </td>
                                 <td>
@@ -389,16 +399,19 @@
                                 </td>
                                 <td><input type="text" class="form-control form-control-sm peso-nota"
                                            style="max-width: 180px" maxlength="190"
-                                           value="{{ $p->nota }}" placeholder="por qué existe"></td>
+                                           value="{{ $p->nota }}" placeholder="por qué existe"
+                                           @disabled(!auth()->user()->can('editar palabras clave'))></td>
                                 <td class="small text-muted">
                                     {{ $p->editada_por ?? '—' }}<br>
                                     {{ $p->updated_at ? \Carbon\Carbon::parse($p->updated_at)->format('d/m/Y H:i') : '' }}
                                 </td>
                                 <td class="text-end">
+                                    @can('editar palabras clave')
                                     <button type="button" class="btn btn-sm btn-outline-danger"
                                             data-borrar="{{ $p->id }}" title="Eliminar del vocabulario">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                    @endcan
                                 </td>
                             </tr>
                         @empty
@@ -437,10 +450,12 @@
                         <strong class="text-white">No escribe nada</strong>: primero sale una vista previa con casillas
                         y usted elige qué entra. Se descartan el eco de la IA y las stopwords.
                     </p>
+                    @can('editar palabras clave')
                     <button type="button" class="btn btn-sm btn-primary" id="btn-sugerir"
                             data-bs-toggle="modal" data-bs-target="#modal-sugerir">
                         <i class="bi bi-magic"></i> Sugerir desde Palabras clave
                     </button>
+                    @endcan
                     <span class="small text-muted ms-2" id="estado-sugerir"></span>
                 </div>
             </div>
@@ -503,18 +518,22 @@
                         <div>
                             <label class="form-label small mb-1" for="nota_min">Fuerza mínima de apoyo</label>
                             <input type="number" id="nota_min" name="nota_min" min="1" max="50" step="1"
-                                   value="{{ $params['nota_min'] }}" class="form-control form-control-sm" style="width: 110px">
+                                   value="{{ $params['nota_min'] }}" class="form-control form-control-sm" style="width: 110px"
+                                   @disabled(!auth()->user()->can('editar palabras clave'))>
                         </div>
 
                         <div>
                             <label class="form-label small mb-1" for="nota_top">Notas top del corpus</label>
                             <input type="number" id="nota_top" name="nota_top" min="20" max="1000" step="10"
-                                   value="{{ $params['nota_top'] }}" class="form-control form-control-sm" style="width: 120px">
+                                   value="{{ $params['nota_top'] }}" class="form-control form-control-sm" style="width: 120px"
+                                   @disabled(!auth()->user()->can('editar palabras clave'))>
                         </div>
 
+                        @can('editar palabras clave')
                         <button type="submit" class="btn btn-sm btn-warning">
                             <i class="bi bi-save"></i> Guardar parámetros
                         </button>
+                        @endcan
                     </form>
 
                     <div class="small text-muted mt-2">
@@ -547,9 +566,11 @@
                 <div class="modal-footer py-2">
                     <span class="small text-muted me-auto" id="sugerir-nota"></span>
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    @can('editar palabras clave')
                     <button type="button" class="btn btn-primary btn-sm" id="btn-aplicar-sugeridas">
                         <i class="bi bi-check2"></i> Aplicar las marcadas
                     </button>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -597,7 +618,9 @@
                 </div>
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                    @can('editar palabras clave')
                     <button type="button" class="btn btn-primary btn-sm" id="btn-copiar">Copiar</button>
+                    @endcan
                 </div>
             </div>
         </div>

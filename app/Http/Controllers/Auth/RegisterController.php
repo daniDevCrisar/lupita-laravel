@@ -33,23 +33,14 @@ class RegisterController extends Controller
     /**
      * Create a new controller instance.
      *
+     * El alta de usuarios es una tarea del administrador: el permiso
+     * `administrar usuarios` solo lo tiene el rol `admin`.
+     *
      * @return void
      */
     public function __construct()
     {
-        $this->middleware('auth');
-
-        echo('habla con el administrador');
-//        dd([
-//            'check' => auth()->check(),
-//            'user' => auth()->user(),
-//            'id' => auth()->id(),
-//            'session_id' => session()->getId(),
-//            'session_all' => session()->all(),
-//            'cookies' => request()->cookies->all(),
-//            'guard' => auth()->getDefaultDriver(),
-//        ]);
-
+        $this->middleware('permission:administrar usuarios');
     }
 
     /**

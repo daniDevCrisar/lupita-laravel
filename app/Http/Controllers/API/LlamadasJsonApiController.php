@@ -91,7 +91,10 @@ class LlamadasJsonApiController {
             $data = DB::select($sql.$filtro[0].$sql_2, [...$filtro[1], (int)$limit, (int)$offset]);
         }
         else {
-            $data_total = DB::select($sql_count)[0]->total;
+            // sin filtro de fechas la consulta devuelve la misma forma (array de
+            // filas): antes se tomaba solo la primera y el JSON reventaba con
+            // "Trying to access array offset on int".
+            $data_total = DB::select($sql_count);
             $data = DB::select($sql.$sql_2, [(int)$limit, (int)$offset]);
         }
 

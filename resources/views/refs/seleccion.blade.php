@@ -78,7 +78,11 @@
                                     <td><input type="checkbox" name="lote_sel" value="{{ $row->lote_id }}" class="form-check-input chk_lote"></td>
                                     <td>{{ $loop->index + 1 }}</td>
                                     <td>
+                                        @can('ver lote')
                                         <a href="{{ route('importar.excel.lote', [$row->lote_id]) }}" target="_blank" class="text-info">{{ $row->lote_id }}</a>
+                                        @else
+                                        {{ $row->lote_id }}
+                                        @endcan
                                     </td>
                                     <td>{{ $row->created_at }}</td>
                                     <td>{{ $row->nombre }}</td>

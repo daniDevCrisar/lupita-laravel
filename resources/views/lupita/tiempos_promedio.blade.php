@@ -281,6 +281,8 @@
         <fieldset class="border p-3 rounded">
             <legend class="float-none w-auto px-2 fs-6">Compilar y guardar</legend>
 
+            @can('compilar promedios')
+
             <p class="small text-muted mb-2">
                 Se guarda con tope <strong>{{ $datos->tope }} min</strong>
                 ({{ $etiqueta_modo }}). El botón usa el tope que está
@@ -320,6 +322,12 @@
                 "todas" y "las que faltan" sí se limitan al filtro de departamento. Ninguna opción borra promedios
                 de rutas sin datos.
             </div>
+            @else
+            <p class="small text-warning mb-0">
+                <i class="bi bi-lock"></i> No tienes el permiso <code>compilar promedios</code>: solo puedes
+                consultar los promedios, no guardarlos.
+            </p>
+            @endcan
         </fieldset>
     </form>
 
@@ -419,6 +427,7 @@
                         {{ $fmt($fila->prom_sin_tope_min) }}
                     </td>
                     <td class="text-end">
+                        @can('compilar promedios')
                         <form method="POST" action="{{ route('lupita.tiempos.promedio.ruta') }}"
                               class="d-flex gap-1 justify-content-end"
                               onsubmit="return confirm('¿Compilar solo esta ruta con el tope escrito?');">
@@ -433,6 +442,9 @@
                                 <i class="bi bi-check2"></i>
                             </button>
                         </form>
+                        @else
+                        <span class="small text-muted">tope {{ $fila->tope_min }} min</span>
+                        @endcan
                         <div class="mt-1" style="font-size: .7rem">
                             @if($fila->p97_min === null)
                                 <span class="text-muted">p97: —</span>

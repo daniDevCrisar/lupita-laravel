@@ -206,16 +206,4 @@ class TiemposApiController extends Controller
     {
         return ($v === null || $v === '') ? null : (float) $v;
     }
-
-    /**
-     * Pantalla interna para probar el endpoint GET /api/tiempos/ruta.
-     * Solo arma el formulario y el datalist de rutas; la llamada la hace el JS.
-     */
-    public function probar()
-    {
-        return view('tiempos.api', [
-            'endpoint' => url('/api/tiempos/ruta'),
-            'rutas' => DBTiemposRuta::rutas_lista(),
-        ]);
-    }
 }

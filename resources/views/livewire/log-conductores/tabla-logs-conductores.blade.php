@@ -32,10 +32,14 @@
                         </td>
                         <td>
                             <i class="bi bi-person"></i>
+                            @can('ver llamadas')
                             <a href="{{ route('lupita.llamadas') . '?' . http_build_query(array_merge(request()->all(), ['conductor' => $row->id_conductor, 'page' => 1])) }}"
                             target="_blank">
                                 {{ $row->conductor_nombres }}
                             </a>
+                            @else
+                            {{ $row->conductor_nombres }}
+                            @endcan
                             <br>
                             <i class="bi bi-shop text-muted"> {{ $row->trt_nombres ?: 'Sin TRT' }}</i>
                             <br>

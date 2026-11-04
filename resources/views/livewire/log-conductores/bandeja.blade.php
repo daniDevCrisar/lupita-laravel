@@ -193,10 +193,14 @@
                                 </span>
                             </td>
                             <td>
+                                @can('ver llamadas')
                                 <a href="{{ route('lupita.llamadas') . '?' . http_build_query(['conductor' => $c->conductor_id]) }}"
                                    target="_blank" class="text-decoration-none">
                                     <i class="bi bi-person me-1"></i>{{ $c->conductor }}
                                 </a>
+                                @else
+                                <span><i class="bi bi-person me-1"></i>{{ $c->conductor }}</span>
+                                @endcan
                                 <small class="text-muted d-block">#{{ $c->conductor_id }}</small>
                             </td>
                             <td>

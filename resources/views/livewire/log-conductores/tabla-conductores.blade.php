@@ -48,9 +48,13 @@
                         </td>
                         <td>
                             <i class="bi bi-person"></i>
+                            @can('ver llamadas')
                             <a href="{{ route('lupita.llamadas') . '?' . http_build_query(array_merge(request()->all(), ['conductor' => $row->conductor_id, 'page' => 1])) }}">
                                 {{ $row->conductor }}
                             </a>
+                            @else
+                            {{ $row->conductor }}
+                            @endcan
                             <a href="https://wa.me/+{{ $row->ultimo_tlf }}?text=Buen%20dia%20sr%20{{ $row->conductor }}" target="_blank">
                                 <i class="fab fa-whatsapp"></i>
                             </a>

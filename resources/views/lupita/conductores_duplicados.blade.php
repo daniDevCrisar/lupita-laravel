@@ -141,9 +141,15 @@
                     <input class="form-check-input" type="checkbox" name="mover_logs" value="1" id="mover_logs" checked>
                     <label class="form-check-label small" for="mover_logs">Mover también el historial (log)</label>
                 </div>
+                @can('fusionar conductores')
                 <button type="submit" class="btn btn-danger btn-sm" :disabled="totalAbsorber === 0">
                     <i class="bi bi-arrow-down-up"></i> Fusionar seleccionados
                 </button>
+                @else
+                <span class="small text-warning">
+                    <i class="bi bi-lock"></i> Solo el administrador puede fusionar conductores duplicados.
+                </span>
+                @endcan
             </div>
 
             @forelse($grupos as $gi => $grupo)

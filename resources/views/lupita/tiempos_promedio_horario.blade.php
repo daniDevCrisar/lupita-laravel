@@ -208,6 +208,8 @@
         <fieldset class="border p-3 rounded">
             <legend class="float-none w-auto px-2 fs-6">Compilar y guardar celdas</legend>
 
+            @can('compilar promedios')
+
             <p class="small text-muted mb-2">
                 Se guardan las celdas con tope <strong>{{ $datos->tope }} min</strong>
                 ({{ $datos->modo === 'ruta' ? 'p97 de cada ruta' : 'global' }}). Solo se reescriben las celdas de las
@@ -225,6 +227,12 @@
                     Compilar solo {{ $datos->ruta_id ? \App\Database\DBTiemposPromedio::nombre($datos->ruta_id) : 'la ruta elegida' }}
                 </button>
             </div>
+            @else
+            <p class="small text-warning mb-0">
+                <i class="bi bi-lock"></i> No tienes el permiso <code>compilar promedios</code>: solo puedes
+                consultar las celdas, no guardarlas.
+            </p>
+            @endcan
         </fieldset>
     </form>
 

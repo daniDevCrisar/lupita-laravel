@@ -284,7 +284,15 @@
     (function () {
         const MOV   = @json($movimientos);
         const DEPAS = @json($depasLista);
-        const LLAMADAS_URL = '{{ route('lupita.llamadas') }}';
+        // la pantalla de llamadas exige el permiso `ver llamadas`: sin el se usa
+        // el API publico de referencias para abrir el viaje
+        // OJO: el cierre del if va en su propia linea: pegado a un caracter de
+        // palabra Blade no lo reconoce y la vista queda con error de sintaxis.
+        const LLAMADAS_URL = @if(auth()->user()->can('ver llamadas'))
+            '{{ route('lupita.llamadas') }}'
+        @else
+            null
+        @endif;
         const API_REF = '{{ route('api.referencias.llamadas', ['ref' => '__REF__']) }}';
         // Estados en planta: cada viaje aporta intervalos (espera/carga/espera/descarga)
         const ESTADOS = @json($estadosPlanta);
@@ -1104,7 +1112,7 @@
                     return;
                 }
                 // lupita.llamadas?ids= espera vapi_id separados por salto de linea
-                const url = m.vids
+                const url = (m.vids && LLAMADAS_URL)
                     ? LLAMADAS_URL + '?ids=' + encodeURIComponent(m.vids.split(',').join('\n'))
                     : API_REF.replace('__REF__', encodeURIComponent(m.ref));
                 window.open(url, '_blank');

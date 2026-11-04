@@ -393,11 +393,15 @@
                     @forelse($datos->por_conductor as $row)
                         <tr>
                             <td>
+                                @can('ver conductores')
                                 <a href="{{ route('lupita.conductores', [
                                     'fecha_inicio' => request('fecha_inicio'),
                                     'fecha_fin' => request('fecha_fin'),
                                     'conductor' => $row->conductor_id,
                                 ]) }}" target="_blank">{{ $row->conductor }}</a>
+                                @else
+                                {{ $row->conductor }}
+                                @endcan
                                 <div class="text-muted small">{{ $row->conductor_id }}</div>
                             </td>
                             <td>{{ $row->trt ?? 'SIN TRT' }}</td>

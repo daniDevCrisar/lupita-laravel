@@ -49,8 +49,13 @@
                         @endphp
                         <td class="table-{{$procesado_color}}">{{$loop->index+1}} </td>
                         <td>
+                            @can('ver lote')
                             <a href="{{ route('importar.excel.lote',[$row->lote_id]) }}" target="_blank">
-                                {{$row->lote_id}} </a></td>
+                                {{$row->lote_id}} </a>
+                            @else
+                                {{$row->lote_id}}
+                            @endcan
+                        </td>
 
                         <td>{{$llamadas::format_fecha($row->created_at)}}</td>
                         <td>{{$row->nombre}}</td>
@@ -58,11 +63,13 @@
                         <td>{{$row->user_nombres}}</td>
                         <td>
                             @if($row->procesado!==2)
+                            @can('eliminar lote')
                             <form method="POST" action="{{ route('importar.excel.eliminar', $row->lote_id) }}">
                                 @csrf
                                 @method('DELETE')
                                 <a href="#" class="@role('admin') text-danger @else text-muted  @endrole" onclick="@role('admin') return confirm('¿Deseas eliminar este lote {{$row->lote_id}}?') && this.closest('form').submit(); @endrole"><i class="bi bi-trash-fill me-1"></i></a>
                             </form>
+                            @endcan
                                 <a href="https://efletexia.com/opl/confirmacion-ingreso-carga?vapi_lote={{$row->lote_id}}"
                                    class="text-info" target="_blank"><i class="bi bi-box-arrow-in-right me-1"></i></a>
                             @endif

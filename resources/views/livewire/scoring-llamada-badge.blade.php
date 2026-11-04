@@ -7,9 +7,11 @@
         <span class="badge bg-secondary">selecciona una llamada</span>
     @elseif(!$this->puntuada)
         <span class="badge bg-secondary">sin puntuar</span>
+        @can('ver scoring')
         <a href="{{ route('lupita.scoring') }}" target="_blank" rel="noopener" class="small text-info">
             recalcula el rango <i class="bi bi-box-arrow-up-right"></i>
         </a>
+        @endcan
     @else
         <span class="badge bg-{{ $this->color() }} fs-6">
             {{ number_format($this->puntaje, 0, ',', '.') }}%

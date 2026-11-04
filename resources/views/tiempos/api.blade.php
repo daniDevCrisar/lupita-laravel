@@ -11,7 +11,9 @@
                 Arma la query, llama al endpoint público y revisa la respuesta. Los tiempos salen en
                 <span class="badge bg-info text-dark">minutos</span>. El rango de fechas usa las
                 <b class="text-warning">fechas de las etapas E2–E6</b> (no la fecha de llamada).
+                @can('ver tiempos')
                 <a href="{{ route('lupita.tiempos') }}" class="text-info">Ver pantalla de tiempos <i class="bi bi-stopwatch"></i></a>
+                @endcan
             </p>
         </div>
     </div>
