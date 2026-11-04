@@ -234,6 +234,9 @@
                         <th class="text-center">¿Coincide?</th>
                         <th>Motivo</th>
                         <th>Palabras que dispararon</th>
+                        <th title="Nota que los humanos suelen escribir en una llamada con estas mismas palabras. Es solo una sugerencia en pantalla: no se guarda en el análisis de audio de la llamada.">
+                            Análisis sugerido <i class="bi bi-lightbulb"></i>
+                        </th>
                         <th>Análisis audio</th>
                         <th>Ver</th>
                     </tr>
@@ -293,6 +296,28 @@
                             <td class="small text-muted" style="max-width: 260px;">
                                 {{ $f->disparos_texto !== '' ? $f->disparos_texto : '—' }}
                             </td>
+                            @php
+                                // la sugerencia es lectura nada mas: vive en scoring_llamadas y
+                                // el analisis de audio lo sigue escribiendo el revisor
+                                $sugerida = trim((string) ($f->nota_sugerida ?? ''));
+                                $nota_humana = trim((string) $f->analisis_audio);
+                                $coincide_nota = $sugerida !== '' && $nota_humana !== ''
+                                    && mb_strtoupper($sugerida) === mb_strtoupper($nota_humana);
+                            @endphp
+                            <td class="small" style="max-width: 170px;">
+                                @if($sugerida !== '')
+                                    <span class="text-info">{{ $sugerida }}</span>
+                                    <div class="text-muted">
+                                        {{ number_format((int) $f->nota_sugerida_n) }} de
+                                        {{ number_format((int) $f->nota_sugerida_total) }}
+                                        @if($coincide_nota)
+                                            <span class="text-success">· coincide ✓</span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td class="small text-muted" style="max-width: 160px;">
                                 {{ trim((string) $f->analisis_audio) !== '' ? $f->analisis_audio : '—' }}
                             </td>
@@ -312,7 +337,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="text-center text-muted py-4">
+                            <td colspan="12" class="text-center text-muted py-4">
                                 No hay llamadas puntuadas con estos filtros.
                                 Puede que falte correr <strong class="text-light">Calcular rango</strong> en
                                 <a href="{{ route('lupita.scoring.pesos', request()->query()) }}" class="text-info">Palabras y pesos</a>.

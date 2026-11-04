@@ -483,6 +483,56 @@
         </div>
     </div>
 
+    {{-- ============ parametros de la sugerencia de analisis ============ --}}
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card border-secondary">
+                <div class="card-header py-2 d-flex flex-wrap align-items-center gap-2">
+                    <span class="small fw-bold text-white">
+                        <i class="bi bi-lightbulb"></i> Parámetros de la sugerencia de análisis
+                    </span>
+                    <span class="small text-muted ms-auto">
+                        no tocan el puntaje: solo cambian qué nota se sugiere
+                    </span>
+                </div>
+                <div class="card-body py-2">
+                    <form method="POST" action="{{ route('lupita.scoring.sugerencia.guardar', $query) }}"
+                          class="d-flex flex-wrap align-items-end gap-3">
+                        @csrf @method('PATCH')
+
+                        <div>
+                            <label class="form-label small mb-1" for="nota_min">Fuerza mínima de apoyo</label>
+                            <input type="number" id="nota_min" name="nota_min" min="1" max="50" step="1"
+                                   value="{{ $params['nota_min'] }}" class="form-control form-control-sm" style="width: 110px">
+                        </div>
+
+                        <div>
+                            <label class="form-label small mb-1" for="nota_top">Notas top del corpus</label>
+                            <input type="number" id="nota_top" name="nota_top" min="20" max="1000" step="10"
+                                   value="{{ $params['nota_top'] }}" class="form-control form-control-sm" style="width: 120px">
+                        </div>
+
+                        <button type="submit" class="btn btn-sm btn-warning">
+                            <i class="bi bi-save"></i> Guardar parámetros
+                        </button>
+                    </form>
+
+                    <div class="small text-muted mt-2">
+                        Cada palabra que disparó vota la nota con la fuerza de su
+                        <strong class="text-white">|peso|</strong>: <strong class="text-white">fuerza mínima</strong>
+                        es la suma de esos votos que una nota humana necesita para ser
+                        sugerible — subirla da sugerencias más finas pero menos (baja la
+                        cobertura), bajarla sugiere más pero con más ruido.
+                        <strong class="text-white">Notas top</strong> acota cuántas notas
+                        distintas del revisor entran a la co-ocurrencia (las más usadas).
+                        Se aplican en la próxima pasada de
+                        <strong class="text-white">Calcular rango</strong>.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- ============ modal de preview de sugerencias ============ --}}
     <div class="modal fade" id="modal-sugerir" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">

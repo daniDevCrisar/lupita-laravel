@@ -187,12 +187,16 @@ class LlamadasController extends Controller
         }
         DBLlamadas::$filtro->llamada_tipo_id = $request->llamada_tipo_id; // restaurar
 
+
+
         return [
             'llamadas' => $llamadas,
             'resumen' => $resumen,
             'rutas' => $rutas,
             'tipos' => $tipos,
             'fecha_str' => $fecha_str,
+            'folder' => $folder,
+            'fecha' => $request->fecha_inicio,
         ];
     }
 
@@ -314,12 +318,41 @@ class LlamadasController extends Controller
         return response()->json($response);
     }
 
+    /**
+     * Lista de llamadas del dia. Acepta ?fecha=YYYY-MM-DD (dia a consultar) y
+     * ?enddate=YYYY-MM-DD (opcional, para abrir un rango). Sin parametro abre hoy.
+     */
     public static function calls_lista_llamadas(Request $request){
         $tipos_llamada = DB::table('tipos_llamada')->select('id', 'nombre', 'emoji', 'color')
             ->where('id', '!=','0')
             ->where('id', '!=','4')
             ->get();
-        return view('calls.calls_lista', compact('tipos_llamada'));
+        return view('calls.calls_lista', [
+            'tipos_llamada' => $tipos_llamada,
+            'fecha'         => self::fecha_url($request->query('fecha')),
+            'fecha_fin'     => self::fecha_url($request->query('enddate')),
+        ]);
+    }
+
+    /**
+     * Normaliza una fecha recibida por la URL y la devuelve siempre como Y-m-d
+     * (formato que exige el input type=date). Acepta 2026-08-10, 10/08/2026 y
+     * 10-08-2026; cualquier otra cosa devuelve null y la pantalla abre hoy, en
+     * lugar de romper con un error de validacion en un GET.
+     */
+    private static function fecha_url($valor){
+        if (!is_string($valor)) return null;
+        $valor = trim($valor);
+
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $valor, $m)) {
+            [$anio, $mes, $dia] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+        } elseif (preg_match('#^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$#', $valor, $m)) {
+            [$dia, $mes, $anio] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+        } else {
+            return null;
+        }
+
+        return checkdate($mes, $dia, $anio) ? sprintf('%04d-%02d-%02d', $anio, $mes, $dia) : null;
     }
 
 }

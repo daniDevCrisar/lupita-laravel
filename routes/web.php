@@ -5,7 +5,10 @@ use App\Http\Controllers\Api\LlamadasApiController;
 use App\Http\Controllers\Api\LlamadasJsonApiController;
 use App\Http\Controllers\Api\ReferenciasApiController;
 use App\Http\Controllers\Api\TiemposApiController;
+use App\Http\Controllers\Api\TiemposPromedioApiController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ConductoresDuplicadosController;
+use App\Http\Controllers\ComportamientoController;
 use App\Http\Controllers\LogConductoresController;
 use App\Http\Controllers\VapiController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +20,8 @@ use App\Http\Controllers\TiemposRutaController;
 use App\Http\Controllers\PalabrasController;
 use App\Http\Controllers\ScoringController;
 use App\Http\Controllers\TiemposHorarioController;
+use App\Http\Controllers\TiemposPromedioController;
+use App\Http\Controllers\TiemposPromedioVerController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
 
@@ -31,6 +36,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/llamadas', [LlamadasController::class, 'listar_llamadas'])->name('lupita.llamadas');
         Route::get('/conductores', [LlamadasController::class, 'listar_conductores'])->name('lupita.conductores');
 
+        //--- Fusion de conductores duplicados (mismo nombre) ---
+        // lectura: la pantalla solo agrupa y cuenta
+        Route::get('/conductores/duplicados', [ConductoresDuplicadosController::class, 'index'])->name('lupita.conductores.duplicados');
+        // escritura: reapunta llamadas, referencias, telefonos y log al id elegido
+        Route::post('/conductores/duplicados/fusionar', [ConductoresDuplicadosController::class, 'fusionar'])->name('lupita.conductores.duplicados.fusionar');
+
         Route::get('/conductores/log/nuevo', [LogConductoresController::class, 'nuevo'])->name('lupita.conductores.log.nuevo');
 
         Route::get('/conductores/log', LogConductoresPadre::class)->name('lupita.conductores.log');
@@ -42,6 +53,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/referencias', [ReferenciasController::class, 'index'])->name('lupita.referencias');
         Route::get('/referencias/mapa', [ReferenciasController::class, 'mapa'])->name('lupita.referencias.mapa');
         Route::get('/tiempos', [TiemposRutaController::class, 'index'])->name('lupita.tiempos');
+
+        //--- Comportamiento por placa / conductor (habitos, puntualidad y tiempos) ---
+        Route::get('/comportamiento', [ComportamientoController::class, 'index'])->name('lupita.comportamiento');
+        Route::get('/comportamiento/ficha', [ComportamientoController::class, 'ficha'])->name('lupita.comportamiento.ficha');
         Route::get('/palabras', [PalabrasController::class, 'index'])->name('lupita.palabras');
 
         //--- Scoring de exito por palabras (pesos por tipo de llamada) ---
@@ -71,11 +86,34 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:editar palabras clave');
         Route::post('/scoring/pesos/copiar', [ScoringController::class, 'copiar_pesos'])->name('lupita.scoring.pesos.copiar')
             ->middleware('permission:editar palabras clave');
+        // los dos parametros de la sugerencia de analisis (fuerza minima y techo
+        // de notas): configuran la sugerencia, nunca el puntaje
+        Route::patch('/scoring/sugerencia', [ScoringController::class, 'guardar_sugerencia'])->name('lupita.scoring.sugerencia.guardar')
+            ->middleware('permission:editar palabras clave');
 
         Route::get('/refs/actualizar', [ActualizarRefsController::class, 'seleccion'])->name('lupita.refs.seleccion');
         Route::get('/refs/docs', [ActualizarRefsController::class, 'documentacion'])->name('lupita.refs.docs');
 
         Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario');
+
+        //--- Compilacion de promedios de ruta (inicio_ruta -> llegada destino) por tope en minutos ---
+        // lectura: previsualiza cuanto se pierde con el tope elegido
+        Route::get('/tiempos/promedio', [TiemposPromedioController::class, 'index'])->name('lupita.tiempos.promedio');
+        // escritura: guarda los promedios por partes (todas, una ruta o solo las que faltan)
+        Route::post('/tiempos/promedio/compilar', [TiemposPromedioController::class, 'compilar'])->name('lupita.tiempos.promedio.compilar');
+        // escritura: compila una sola ruta con el tope propio escrito en la tabla
+        Route::post('/tiempos/promedio/ruta', [TiemposPromedioController::class, 'compilar_ruta'])->name('lupita.tiempos.promedio.ruta');
+
+        //--- Promedios por dia de la semana y hora de inicio de ruta (matriz ruta x dia x hora) ---
+        // lectura: previsualiza cuantos viajes arrancan en cada celda y cuantos pasan el tope
+        Route::get('/tiempos/promedio/horario', [TiemposPromedioController::class, 'horario'])->name('lupita.tiempos.promedio.horario');
+        // escritura: recompila solo las celdas dia/hora, sin tocar los promedios de ruta
+        Route::post('/tiempos/promedio/horario/compilar', [TiemposPromedioController::class, 'compilar_horario'])->name('lupita.tiempos.promedio.horario.compilar');
+
+        //--- Consulta de lo ya compilado (solo lectura, consume /api/tiempos/promedio) ---
+        Route::get('/tiempos/promedio/ver', [TiemposPromedioVerController::class, 'rutas'])->name('lupita.tiempos.promedio.ver');
+        Route::get('/tiempos/promedio/horario/ver', [TiemposPromedioVerController::class, 'horario'])->name('lupita.tiempos.promedio.horario.ver');
+
         Route::get('/tiempos/api', [TiemposApiController::class, 'probar'])->name('lupita.tiempos.api');
         Route::get('/audio', [LlamadasController::class, 'procesar_audio'])->name('lupita.audio')->middleware('permission:etiquetar llamada');
         Route::patch('/audio/guardar', [LlamadasController::class, 'guardar_etiquetas'])->name('lupita.audio.guardar')->middleware('permission:etiquetar llamada');
@@ -146,6 +184,10 @@ Route::prefix('api')->group(function () {
 
     //--- Tiempos promedio por ruta (misma logica que /lupita/tiempos, en JSON) ---
     Route::get('/tiempos/ruta', [TiemposApiController::class, 'por_ruta'])->name('api.tiempos.ruta');
+
+    //--- Promedios YA compilados (tiempos_ruta_promedio y tiempos_ruta_horario, en JSON) ---
+    Route::get('/tiempos/promedio', [TiemposPromedioApiController::class, 'por_ruta'])->name('api.tiempos.promedio');
+    Route::get('/tiempos/promedio/horario', [TiemposPromedioApiController::class, 'horario'])->name('api.tiempos.promedio.horario');
 });
 
 Route::get('/llamadas', [LlamadasController::class, 'calls_lista_llamadas']);

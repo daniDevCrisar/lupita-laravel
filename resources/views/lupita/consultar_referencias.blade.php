@@ -14,6 +14,19 @@
         // radio entre 8 y 26 px proporcional al maximo
         return (int) round(8 + ($veces / $maxDep) * 18);
     };
+
+    // Escala de los marcadores del modo "camiones en planta" (cargando / descargando).
+    $maxPlanta = 1;
+    foreach (['cargando', 'descargando'] as $estadoPlanta) {
+        foreach ($enPlanta['estados'][$estadoPlanta]['por_dep'] ?? [] as $v) {
+            $maxPlanta = max($maxPlanta, (int) $v);
+        }
+    }
+    $tamanoPlanta = function ($n) use ($maxPlanta) {
+        $n = (int) $n;
+        if ($n <= 0) return 0;
+        return (int) round(18 + ($n / $maxPlanta) * 22);
+    };
 @endphp
 
 @section('title', 'Consulta de Referencias')
@@ -70,6 +83,17 @@
                         <label class="form-label" for="ruta">Ruta</label>
                         <input type="text" id="ruta" name="ruta" value="{{ request('ruta') }}"
                                class="form-control" placeholder="origen o destino...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="ventana">Ventana "en planta"</label>
+                        <select id="ventana" name="ventana" class="form-select">
+                            @foreach($ventanas as $v)
+                                <option value="{{ $v }}" {{ (string) request('ventana', '72') === (string) $v ? 'selected' : '' }}>
+                                    {{ $v === 0 ? 'Todo el histórico' : 'Últimas ' . $v . ' h' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-white-50">Antigüedad máxima del evento que abrió el estado.</small>
                     </div>
                     <div class="col-12 d-flex flex-wrap gap-3">
                         <div class="form-check">
@@ -176,13 +200,20 @@
     <div class="row g-3 mb-4">
         <div class="col-lg-7">
             <div class="card h-100">
-                <div class="card-header">
-                    <i class="bi bi-geo-alt"></i> Mapa por ruta · Origen y Destino
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <span><i class="bi bi-geo-alt"></i> Mapa por ruta · Origen y Destino</span>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Modo del mapa">
+                        <input type="radio" class="btn-check" name="modo_mapa" id="modo_mapa_viajes" checked>
+                        <label class="btn btn-outline-info" for="modo_mapa_viajes">Viajes</label>
+                        <input type="radio" class="btn-check" name="modo_mapa" id="modo_mapa_planta">
+                        <label class="btn btn-outline-warning" for="modo_mapa_planta">Camiones en planta</label>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="position-relative" style="max-width:520px;margin:0 auto;">
                         <img src="{{ asset('images/peru.png') }}" alt="Mapa Perú" class="w-100 rounded">
 
+                        <div id="mapaViajes" style="position:absolute;inset:0;">
                         @foreach($depas as $cod => $dep)
                             @php
                                 $o = $mapa['origen'][$cod] ?? 0;
@@ -215,11 +246,53 @@
                                 </span>
                             @endif
                         @endforeach
+                        </div>{{-- /#mapaViajes --}}
+
+                        {{-- Modo "camiones en planta": solo cargando (verde) y descargando (rojo) --}}
+                        <div id="mapaPlanta" class="d-none" style="position:absolute;inset:0;">
+                        @foreach($depas as $cod => $dep)
+                            @php
+                                $cargando    = $enPlanta['estados']['cargando']['por_dep'][$cod] ?? 0;
+                                $descargando = $enPlanta['estados']['descargando']['por_dep'][$cod] ?? 0;
+                                $sc  = $tamanoPlanta($cargando);
+                                $sds = $tamanoPlanta($descargando);
+                                $bajadaPlanta = (int) round(max($sc, $sds) / 2) + 3;
+                            @endphp
+                            @if($cargando > 0)
+                                <span title="{{ $dep['nombre'] }} · Cargando: {{ $cargando }} camion(es)"
+                                      style="position:absolute;left:{{ $dep['x'] }}%;top:{{ $dep['y'] }}%;
+                                             width:{{ $sc }}px;height:{{ $sc }}px;border-radius:50%;
+                                             background:rgba(40,167,69,.85);border:1px solid #fff;
+                                             transform:translate(-50%,-50%);display:flex;align-items:center;
+                                             justify-content:center;font-size:10px;font-weight:700;color:#fff;">{{ $cargando }}</span>
+                            @endif
+                            @if($descargando > 0)
+                                <span title="{{ $dep['nombre'] }} · Descargando: {{ $descargando }} camion(es)"
+                                      style="position:absolute;left:calc({{ $dep['x'] }}% + {{ round($sds/2) }}px);
+                                             top:{{ $dep['y'] }}%;width:{{ $sds }}px;height:{{ $sds }}px;border-radius:50%;
+                                             background:rgba(220,53,69,.85);border:1px solid #fff;
+                                             transform:translate(-50%,-50%);display:flex;align-items:center;
+                                             justify-content:center;font-size:10px;font-weight:700;color:#fff;">{{ $descargando }}</span>
+                            @endif
+                            @if($cargando > 0 || $descargando > 0)
+                                <span style="position:absolute;left:{{ $dep['x'] }}%;top:calc({{ $dep['y'] }}% + {{ $bajadaPlanta }}px);
+                                             transform:translate(-50%,0);font-size:9px;line-height:1;color:#fff;
+                                             text-shadow:0 1px 2px #000,0 0 2px #000;white-space:nowrap;pointer-events:none;">
+                                    {{ $dep['nombre'] }}
+                                </span>
+                            @endif
+                        @endforeach
+                        </div>{{-- /#mapaPlanta --}}
                     </div>
-                    <div class="text-center mt-2 small text-white-50">
+                    <div class="text-center mt-2 small text-white-50" id="leyendaViajes">
                         <span class="badge" style="background:rgba(40,167,69,.75)">Origen</span>
                         <span class="badge" style="background:rgba(23,162,184,.75)">Destino</span>
                         · el tamano del punto indica volumen de viajes · pasa el cursor para ver cantidades
+                    </div>
+                    <div class="text-center mt-2 small text-white-50 d-none" id="leyendaPlanta">
+                        <span class="badge" style="background:rgba(40,167,69,.85)">Cargando</span>
+                        <span class="badge" style="background:rgba(220,53,69,.85)">Descargando</span>
+                        · camiones (placas distintas) dentro de planta · espera y fuera de planta en la tabla
                     </div>
                 </div>
             </div>
@@ -255,6 +328,9 @@
             </div>
         </div>
     </div>
+
+    {{-- ===================== CAMIONES EN PLANTA ===================== --}}
+    @include('lupita.partials.en_planta', ['enPlanta' => $enPlanta, 'depas' => $depas])
 
     {{-- ===================== LISTADO ===================== --}}
     @php
@@ -402,4 +478,26 @@
             })();
         </script>
     @endif
+    <script>
+        (function () {
+            // alterna el mapa entre viajes (origen/destino) y camiones dentro de planta
+            const viajes = document.getElementById('mapaViajes');
+            const planta = document.getElementById('mapaPlanta');
+            const leyViajes = document.getElementById('leyendaViajes');
+            const leyPlanta = document.getElementById('leyendaPlanta');
+            const rViajes = document.getElementById('modo_mapa_viajes');
+            const rPlanta = document.getElementById('modo_mapa_planta');
+            if (!viajes || !planta || !rViajes || !rPlanta) return;
+
+            const pintar = (verPlanta) => {
+                viajes.classList.toggle('d-none', verPlanta);
+                planta.classList.toggle('d-none', !verPlanta);
+                leyViajes?.classList.toggle('d-none', verPlanta);
+                leyPlanta?.classList.toggle('d-none', !verPlanta);
+            };
+
+            rViajes.addEventListener('change', () => pintar(false));
+            rPlanta.addEventListener('change', () => pintar(true));
+        })();
+    </script>
 @endsection

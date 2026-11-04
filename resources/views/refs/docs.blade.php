@@ -70,6 +70,7 @@
     "26100345": {
       "titulo_viaje": "LIMA - HUARAZ / CARGA 03-10",
       "placa": "S1AB954",
+      "conductor": "BALDON SEGUNDO GUTIERREZ LUZARDO",
       "compromiso_carga":  "03/10/2026 12:00",
       "presenta_para_carga": "03/10/2026 14:05",
       "inicio_de_carga":   "03/10/2026 15:20",
@@ -86,6 +87,13 @@
                     También se acepta <code>"refs": [ {"ref":"26100345", ...}, ... ]</code> (lista de objetos con campo <code>ref</code>).
                     Los campos que no llegan, o llegan como <code>""</code> / <code>null</code>, se tratan como <b>"no enviado"</b>: conservan el valor actual, nunca se pisa a NULL.
                     <b class="text-warning">fecha_despachador está obsoleta</b>: aunque llegue, se ignora.
+                </p>
+                <p class="text-secondary small">
+                    <b class="text-light">conductor</b>: se puede mandar el <b>nombre</b> del conductor y su id se resuelve por
+                    <b>similitud</b> con <code>DBConductoresResolver</code> (la misma lógica de la importación). Se escribe en
+                    <code>referencias.conductor_id</code> <b>solo si la ref todavía no tiene uno</b> (backfill); si ya tiene, se respeta.
+                    También se acepta <code>conductor_id</code> numérico para fijarlo directo.
+                    Si el nombre no alcanza una coincidencia segura, <b>no se escribe</b> y se informa en <code>resultados[].conductor</code>.
                 </p>
 
                 <h5 class="text-light">Formatos de fecha aceptados</h5>
@@ -111,6 +119,7 @@
                     <tr><td>titulo_viaje</td><td>solo si <b>no tenia</b> (estaba vacío)</td><td>reemplaza si viene distinto</td></tr>
                     <tr><td>ruta_id</td><td colspan="2">se reprocesa (SP <code>sp_actualizar_ruta_id</code>) <b>solo</b> si se escribió un título nuevo; el resultado lo dice <code>ruta_reprocesada</code></td></tr>
                     <tr><td>placa</td><td colspan="2">se <b>remplaza</b> siempre que venga data nueva (máx. 10 chars, se recorta antes de "/")</td></tr>
+                    <tr><td>conductor</td><td colspan="2">si llega el <b>nombre</b>, se resuelve su id por similitud y se escribe en <code>conductor_id</code> <b>solo cuando la ref aún no tiene uno</b>; si ya tiene, no se sobrescribe (<code>estado: ya_definido</code>); sin coincidencia segura no se escribe (queda en <code>resultados[].conductor</code>)</td></tr>
                     <tr><td>eventos (8 fechas)</td><td colspan="2">se <b>remplazan</b> siempre con los nuevos; vacío/null = no enviado</td></tr>
                     <tr><td>fecha_despachador</td><td colspan="2">obsoleta — se ignora siempre</td></tr>
                     </tbody>
@@ -127,8 +136,9 @@
   },
   "resultados": [
     { "ref": "26100345", "estado": "actualizada",
-      "campos": ["placa", "inicio_ruta", "qr_llegada_destino"],
-      "ruta_reprocesada": false },
+      "campos": ["placa", "inicio_ruta", "qr_llegada_destino", "conductor_id"],
+      "ruta_reprocesada": false,
+      "conductor": { "id": 1, "nombre": "BALDON SEGUNDO GUTIERREZ LUZARDO", "sim": 100, "accion": "duplicado", "motivo": "exacto", "escrito": true } },
     { "ref": "26100401", "estado": "actualizada",
       "campos": ["titulo_viaje", "placa"],
       "ruta_reprocesada": true },

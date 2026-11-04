@@ -49,8 +49,9 @@
         <span class="badge bg-info bg-opacity-10 text-info-emphasis fw-normal">
             <i class="bi bi-funnel me-1"></i> Solo exitosas y confirmación parcial
         </span>
-                <span class="badge bg-success bg-opacity-10 text-success-emphasis fw-normal ms-1">
-            <i class="bi bi-arrow-repeat me-1"></i> Auto: 30s
+                <span class="badge bg-primary bg-opacity-10 text-primary-emphasis fw-normal ms-1"
+                      title="Día consultado · se puede fijar en la URL con ?fecha=YYYY-MM-DD">
+            <i class="bi bi-calendar-event me-1"></i> <span x-text="filtros.startdate || 'hoy'"></span><span x-show="filtros.enddate"> &rarr; <span x-text="filtros.enddate"></span></span>
         </span>
             </div>
         </div>
@@ -387,6 +388,12 @@
 
 <script>
     function callsApp() {
+        // Dia a consultar: viene de ?fecha=YYYY-MM-DD (ya validado en el controlador).
+        // Sin parametro la pantalla abre en el dia de hoy, como antes.
+        const FECHA_URL = @json($fecha ?? null);
+        const FECHA_FIN_URL = @json($fecha_fin ?? null);
+        const hoy = () => new Date().toISOString().split('T')[0];
+
         return {
             calls: [],
             etapas: @json($tipos_llamada ?? []),
@@ -410,9 +417,10 @@
             cargando: false,
             search: '',
             darkMode: localStorage.getItem('darkMode') === 'true',
+            fechaInicial: FECHA_URL || hoy(),
             filtros: {
-                startdate: new Date().toISOString().split('T')[0],
-                enddate: '',
+                startdate: FECHA_URL || hoy(),
+                enddate: FECHA_FIN_URL || '',
                 etapa_id: '',
                 origen: '',
                 destino: '',
@@ -461,6 +469,7 @@
                 }
 
                 if (!quiet) this.cargando = true;
+                this.sincronizarUrl();      // el enlace siempre refleja el dia consultado
                 try {
                     const queryParams = new URLSearchParams();
                     if (this.filtros.startdate) queryParams.append('startdate', this.filtros.startdate);
@@ -490,7 +499,7 @@
             },
 
             resetFilters() {
-                this.filtros.startdate = new Date().toISOString().split('T')[0];
+                this.filtros.startdate = this.fechaInicial;
                 this.filtros.enddate = '';
                 this.filtros.etapa_id = '';
                 this.filtros.origen = '';
@@ -499,6 +508,17 @@
                 this.search = '';
                 this.offset = 0;
                 this.fetchCalls();
+            },
+
+            // Mantiene la URL en el formato que entiende la pantalla (?fecha=...) para
+            // que recargar o compartir el enlace abra el mismo dia, con un rango
+            // opcional en ?enddate=. El auto-refresco de 30 s no altera la historia.
+            sincronizarUrl() {
+                const p = new URLSearchParams(window.location.search);
+                if (this.filtros.startdate) p.set('fecha', this.filtros.startdate); else p.delete('fecha');
+                if (this.filtros.enddate) p.set('enddate', this.filtros.enddate); else p.delete('enddate');
+                const qs = p.toString();
+                history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
             },
 
             // Funciones de Paginación

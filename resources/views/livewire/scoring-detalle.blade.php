@@ -126,6 +126,37 @@
                                     </table>
                                 @endif
 
+                                {{-- analisis sugerido: sale de las notas que el equipo ya
+                                     escribio en llamadas con estas mismas palabras. Solo se
+                                     muestra: no se copia a ninguna parte --}}
+                                @php
+                                    $sugerida = trim((string) ($f->nota_sugerida ?? ''));
+                                    $nota_humana = trim((string) $f->analisis_audio);
+                                    $coincide_nota = $sugerida !== '' && $nota_humana !== ''
+                                        && mb_strtoupper($sugerida) === mb_strtoupper($nota_humana);
+                                @endphp
+                                @if($sugerida !== '')
+                                    <h6 class="mt-3">
+                                        Análisis sugerido
+                                        <span class="badge border border-info text-info fw-normal bg-transparent">solo sugerencia</span>
+                                    </h6>
+                                    <div class="small text-info">
+                                        <i class="bi bi-lightbulb"></i> {{ $sugerida }}
+                                        <span class="text-muted">
+                                            · {{ number_format((int) $f->nota_sugerida_n) }} de
+                                            {{ number_format((int) $f->nota_sugerida_total) }} llamadas
+                                            con estas mismas palabras
+                                        </span>
+                                    </div>
+                                    @if($coincide_nota)
+                                        <div class="small text-success">Coincide con la nota del revisor.</div>
+                                    @elseif($nota_humana !== '')
+                                        <div class="small text-muted">
+                                            El revisor escribió «{{ $nota_humana }}», que es otra nota válida.
+                                        </div>
+                                    @endif
+                                @endif
+
                                 {{-- nota del revisor + audio --}}
                                 @if(trim((string) $f->analisis_audio) !== '')
                                     <h6 class="mt-3">Nota del revisor (análisis de audio)</h6>

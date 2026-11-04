@@ -14,6 +14,7 @@ use App\Database\Tmp\DBTmpLotes;
 use App\Database\Tmp\DBTmpLlamadas;
 
 use App\Database\DBConductores;
+use App\Database\DBConductoresResolver;
 use App\Database\DBTrts;
 use App\Database\DBReferencias;
 use Illuminate\Support\Facades\DB;
@@ -127,7 +128,8 @@ class ImportController extends Controller
         $personas=DBTmpLotes::compararNombres($conductores,'telefono','conductor');//comparar datos parecidos
         $count=0;
         foreach ($personas as $item){
-            $accion= DBConductores::buscar_duplicados($item);
+            //$accion= DBConductores::buscar_duplicados($item);
+            $accion= DBConductoresResolver::resolver($item); //mismo contrato: nuevo / duplicado / actualizar / invalido
 
             //$log.= $accion['accion'] . ': <br> Buscado ' . $item->conductor . ' '. $item->telefono.' - Encontrado '. $accion['row']->conductor.' ('. $accion['comparar'] .'%)<br>';
             if ($accion['accion']=='nuevo') {

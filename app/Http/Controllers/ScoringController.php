@@ -87,6 +87,7 @@ class ScoringController extends Controller
             . $res->segundos . ' s · con texto ' . number_format($res->por_motivo['ok'])
             . ' · sin texto ' . number_format($res->por_motivo['sin_texto'])
             . ' · buzón ' . number_format($res->por_motivo['buzon'])
+            . ' · análisis sugerido ' . number_format($res->sugerencias)
             . ($res->obsoletas > 0
                 ? ' · quedan ' . number_format($res->obsoletas) . ' de otros rangos por recalcular'
                 : '');
@@ -165,6 +166,7 @@ class ScoringController extends Controller
             'efectos' => $scoring::auditar_pesos($filas),
             'concordancia' => $scoring::concordancia($filas),
             'bases' => $scoring::base_por_tipo(),
+            'params' => $scoring::parametros_sugerencia(),
             'version' => $scoring::pesos_version(),
             'obsoletas' => $scoring::llamadas_obsoletas(),
             'rutas' => DBTiemposRuta::rutas_lista(),
@@ -359,5 +361,29 @@ class ScoringController extends Controller
         $scoring = new Scoring();
 
         return response()->json($scoring::detalle($request->input('vapi_id')));
+    }
+
+    /**
+     * PATCH de los dos parametros de la sugerencia de analisis (tarjeta propia de
+     * la pantalla de Pesos). No mueve el puntaje: solo cambia que se sugiere en la
+     * proxima pasada de `calcular()`, asi que el aviso empuja a recalcular.
+     */
+    public static function guardar_sugerencia(Request $request)
+    {
+        $request->validate([
+            'nota_min' => 'required|integer|between:1,50',
+            'nota_top' => 'required|integer|between:20,1000',
+        ]);
+
+        $scoring = new Scoring();
+
+        $res = $scoring::guardar_parametros_sugerencia(
+            (int) $request->input('nota_min'),
+            (int) $request->input('nota_top')
+        );
+
+        return redirect()->route('lupita.scoring.pesos', $request->query())
+            ->with('exito', 'Parámetros de la sugerencia guardados (fuerza mínima ' . $res['nota_min']
+                . ', notas top ' . $res['nota_top'] . ') · corra «Calcular rango» para aplicarlos a las filas guardadas');
     }
 }

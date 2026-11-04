@@ -38,6 +38,11 @@ use stdClass;
  * Esta clase NUNCA escribe en `llamadas`. Guarda una foto de `llamada_exitosa`
  * del humano para poder comparar, y el desacuerdo solo se senala: decide quien
  * escucha el audio en la pantalla de Etiquetar.
+ *
+ * Junto al puntaje guarda una SUGERENCIA de analisis de audio (`nota_sugerida`),
+ * sacada de las notas que los humanos ya escribieron en llamadas parecidas. Es
+ * solo lectura en pantalla: no se copia a `llamadas.analisis_audio` y no reemplaza
+ * a nadie. Ver `sugerir_nota()`.
  */
 class DBScoringLlamadas
 {
@@ -60,6 +65,24 @@ class DBScoringLlamadas
 
     // techo del peso editable, para que un desliz no convierta la base en ruido
     const PESO_MAX = 4;
+
+    // apoyo minimo de una nota del humano para que sea siquiera sugerible: con una
+    // sola llamada la sugerencia es anecdótica (el criterio de
+    // `analisis_audio_mas_usado()` pide > 3 por lo mismo). Es el DEFECTO: desde la
+    // pantalla de Pesos se ajusta en `scoring_config.nota_min`. Con el voto
+    // ponderado (B) la unidad es la fuerza, no la cuenta: suma de |peso|.
+    const NOTA_MIN = 3;
+
+    // techo de notas distintas que entran a la co-ocurrencia: las mas usadas. El
+    // vocabulario del revisor es chico (11.671 notas dan ~1.750 unicas), asi que
+    // con 200 se cubre casi todo el corpus y el mapa no crece solo. Es el DEFECTO:
+    // se ajusta en `scoring_config.nota_top`.
+    const NOTA_TOP = 200;
+
+    // cuantas sugerencias se recuerdan por request por conjunto de disparos: miles
+    // de llamadas comparten el mismo vocabulario, y repetir el merge en cada una
+    // seria el costo real de la pasada completa
+    const SUGERENCIAS_CACHE = 20000;
 
     public static $motivos = [
         'ok' => 'Con texto del conductor',
@@ -90,6 +113,21 @@ class DBScoringLlamadas
     // si la base no se pudo medir, no se reintenta en cada llamada de la importacion
     private static $bases_error = false;
 
+    // mapa palabra => nota, armado una vez por request
+    private static $notas = null;
+
+    // mismo criterio que $notas_error: si el mapa fallo, no se reintenta por fila
+    private static $notas_error = false;
+
+    // sugerencias ya resueltas, indexadas por conjunto de palabras que dispararon
+    private static $sugerencias_cache = [];
+
+    // parametros de la sugerencia (`scoring_config`), leidos una vez por request;
+    // si la tabla no existe aun, quedan los defectos de las constantes
+    private static $params = null;
+
+    private static $params_error = false;
+
     //------------------- filtro -------------------
 
     public static function set_filtro($request): void
@@ -119,6 +157,11 @@ class DBScoringLlamadas
         self::$compilados = [];
         self::$bases_cache = null;
         self::$bases_error = false;
+        self::$notas = null;
+        self::$notas_error = false;
+        self::$sugerencias_cache = [];
+        self::$params = null;
+        self::$params_error = false;
     }
 
     public static function filtro(): stdClass
@@ -508,6 +551,7 @@ class DBScoringLlamadas
 
         $out = new stdClass();
         $out->guardadas = 0;
+        $out->sugerencias = 0;
         $out->por_motivo = ['ok' => 0, 'buzon' => 0, 'sin_texto' => 0];
         $out->bases = $bases;
         $out->version = $version;
@@ -575,6 +619,12 @@ class DBScoringLlamadas
 
             self::guardar($filas);
             $out->guardadas += count($filas);
+
+            // cuantas filas salen con una sugerencia de analisis al lado del
+            // puntaje: en la primera pasada del rango suelen ser las menos, porque
+            // la senal por palabra todavia no existe
+            $out->sugerencias += count(array_filter(array_column($filas, 'nota_sugerida')));
+
             unset($llamadas, $textos, $filas);
         }
 
@@ -732,19 +782,334 @@ class DBScoringLlamadas
         return $disparos;
     }
 
+    //------------------- sugerencia de analisis -------------------
+
+    /**
+     * Parametros de la sugerencia, leidos de `scoring_config` una vez por request.
+     *
+     * Si la tabla no existe todavia (en el servidor final el CREATE TABLE se
+     * aplica a mano) o un valor llega sucio, se usan las constantes de la clase:
+     * la pasada de calculo nunca puede reventar por un parametro.
+     */
+    public static function parametros_sugerencia(): array
+    {
+        if (self::$params !== null) {
+            return self::$params;
+        }
+
+        self::$params = ['nota_min' => self::NOTA_MIN, 'nota_top' => self::NOTA_TOP];
+
+        if (!self::$params_error) {
+            try {
+                $valores = DB::table('scoring_config')->pluck('valor', 'clave');
+
+                if (isset($valores['nota_min'])) {
+                    self::$params['nota_min'] = max(1, min(50, (int) $valores['nota_min']));
+                }
+                if (isset($valores['nota_top'])) {
+                    self::$params['nota_top'] = max(20, min(1000, (int) $valores['nota_top']));
+                }
+            } catch (\Throwable $e) {
+                self::$params_error = true;
+            }
+        }
+
+        return self::$params;
+    }
+
+    /** Fuerza minima de apoyo (suma de |peso| de los disparos) para sugerir. */
+    public static function nota_min(): int
+    {
+        return self::parametros_sugerencia()['nota_min'];
+    }
+
+    /** Techo de notas distintas del humano que entran a la co-ocurrencia. */
+    public static function nota_top(): int
+    {
+        return self::parametros_sugerencia()['nota_top'];
+    }
+
+    /**
+     * Escribe los dos parametros desde la pantalla de Pesos y corta la cache para
+     * que la misma request los vea aplicados. No toca el puntaje: solo la
+     * sugerencia, y surte efecto en la siguiente pasada de `calcular()`.
+     */
+    public static function guardar_parametros_sugerencia(int $nota_min, int $nota_top): array
+    {
+        $nota_min = max(1, min(50, $nota_min));
+        $nota_top = max(20, min(1000, $nota_top));
+
+        $ahora = now();
+
+        DB::table('scoring_config')->upsert([
+            ['clave' => 'nota_min', 'valor' => (string) $nota_min, 'updated_at' => $ahora],
+            ['clave' => 'nota_top', 'valor' => (string) $nota_top, 'updated_at' => $ahora],
+        ], 'clave', ['valor', 'updated_at']);
+
+        self::$params = null;
+        self::$params_error = false;
+
+        return ['nota_min' => $nota_min, 'nota_top' => $nota_top];
+    }
+
+    /**
+     * Mapa de las notas que el humano ya escribio en `llamadas.analisis_audio`.
+     *
+     * Unica fuente de la sugerencia: la clase no redacta nada, solo busca la nota
+     * que la gente usa en llamadas que se parecen a esta. Se arma una vez por
+     * request, igual que los pesos.
+     *
+     * La co-ocurrencia palabra => nota sale de `scoring_llamadas.disparos`, o sea
+     * de llamadas YA puntuadas: la primera pasada de un rango todavia no tiene
+     * con que comparar y no sugiere, y desde la segunda entra la senal por
+     * palabra. No hay que hacer nada extra, se aprovecha lo que la pasada
+     * anterior dejo guardado.
+     *
+     * Cada voto se pesa con el |peso| con que la palabra movio el puntaje de esa
+     * llamada (las fuertes ordenan la sugerencia, las debiles apenas suman), y la
+     * fuerza minima para sugerir se puede ajustar desde Pesos: `nota_min()`.
+     *
+     * Tres canastas, indexadas por la nota en mayusculas y sin acentos (el
+     * mismo normalizador del ranking: 'NO ATIENDE' y 'No atiende' son una sola
+     * nota y no hay que partir su conteo): `palabra` (nota => ['n' => llamadas
+     * que la tienen y dispararon esa palabra, 'f' => su fuerza ponderada]),
+     * `total` (nota => llamadas) y `mostrar` (nota => la grafia mas usada para
+     * mostrarla).
+     */
+    public static function mapa_notas(): array
+    {
+        if (self::$notas !== null) {
+            return self::$notas;
+        }
+
+        if (self::$notas_error) {
+            return self::mapa_notas_vacio();
+        }
+
+        try {
+            self::$notas = self::construir_mapa_notas();
+        } catch (\Throwable $e) {
+            // secundario: una sugerencia jamas puede frenar un calculo ni una
+            // importacion, y no se reintenta fila por fila
+            self::$notas_error = true;
+            self::$notas = self::mapa_notas_vacio();
+        }
+
+        return self::$notas;
+    }
+
+    private static function mapa_notas_vacio(): array
+    {
+        return ['palabra' => [], 'total' => [], 'mostrar' => []];
+    }
+
+    private static function construir_mapa_notas(): array
+    {
+        $total = [];
+        $mostrar = [];
+
+        // 1) cuantas veces el humano escribio cada nota: un GROUP BY de ~2.000
+        // filas sobre todo el corpus (23 ms medidos), no un escaneo por
+        // llamada, asi que sale gratis en cualquier request
+        $filas = DB::select("
+        SELECT TRIM(l.analisis_audio) AS nota, COUNT(*) AS n
+        FROM llamadas l
+        WHERE l.analisis_audio IS NOT NULL AND TRIM(l.analisis_audio) <> ''
+        GROUP BY TRIM(l.analisis_audio)");
+
+        foreach ($filas as $f) {
+            $cruda = (string) $f->nota;
+            $n = (int) $f->n;
+
+            $clave = mb_strtoupper(Palabras::normalizar($cruda));
+            if ($clave === '' || mb_strlen($clave) > 120) continue;
+
+            $total[$clave] = ($total[$clave] ?? 0) + $n;
+
+            // se devuelve la grafia mas usada, no la primera que aparecio
+            if (!isset($mostrar[$clave]) || $n > (int) ($mostrar[$clave]->n ?? 0)) {
+                $mostrar[$clave] = (object) ['nota' => $cruda, 'n' => $n];
+            }
+        }
+
+        // 2) co-ocurrencia con los disparos, solo sobre las notas con apoyo y las
+        //    top del corpus: el IN acota las filas leidas y el mapa se queda en
+        //    unos pocos miles de claves aunque el historial crezca
+        $candidatas = [];
+        $piso = self::nota_min();
+        foreach ($total as $clave => $n) {
+            if ($n >= $piso) $candidatas[$clave] = (int) $n;
+        }
+        arsort($candidatas);
+        $candidatas = array_slice(array_keys($candidatas), 0, self::nota_top());
+
+        $palabra = [];
+
+        if ($candidatas) {
+            $cooc = DB::select("SELECT s.disparos, TRIM(l.analisis_audio) AS nota
+            FROM scoring_llamadas s
+            JOIN llamadas l ON l.vapi_id = s.vapi_id
+            WHERE TRIM(l.analisis_audio) IN ("
+                . implode(',', array_fill(0, count($candidatas), '?')) . ')',
+                array_map(fn($c) => $mostrar[$c]->nota, $candidatas));
+
+            // el IN de MySQL compara sin distinguir mayusculas, asi que la fila
+            // puede volver con otra grafia: se la reconvierte a la clave del mapa
+            $aceptadas = array_flip($candidatas);
+
+            foreach ($cooc as $f) {
+                $clave = mb_strtoupper(Palabras::normalizar((string) $f->nota));
+                if (!isset($aceptadas[$clave])) continue;
+
+                foreach (json_decode((string) $f->disparos) ?: [] as $d) {
+                    $p = (string) ($d->palabra ?? '');
+                    if ($p === '') continue;
+
+                    // el voto se pesa con el |peso| con que la palabra movio el puntaje:
+                    // las fuertes mandan en la sugerencia y las debiles apenas suman;
+                    // el piso 0.25 evita que un peso casi nulo vote como si no existiera
+                    $fuerza = max(0.25, abs((float) ($d->peso ?? 1)));
+
+                    $palabra[$p][$clave]['n'] = ($palabra[$p][$clave]['n'] ?? 0) + 1;
+                    $palabra[$p][$clave]['f'] = ($palabra[$p][$clave]['f'] ?? 0.0) + $fuerza;
+                }
+            }
+        }
+
+        return [
+            'palabra' => $palabra,
+            'total' => $total,
+            'mostrar' => array_map(fn($m) => $m->nota, $mostrar),
+        ];
+    }
+
+    /**
+     * Nota que el humano suele escribir en una llamada con estas mismas palabras.
+     *
+     * Unica evidencia: los disparos, o sea las palabras con peso que movieron el
+     * puntaje. Si la llamada no tiene texto del conductor, o el texto no disparo
+     * ninguna palabra con peso, NO hay sugerencia: es mejor callar que apoyarce
+     * en el tipo a ciegas.
+     *
+     * Tambien devuelve null cuando la co-ocurrencia no alcanza el apoyo minimo
+     * (rango aun sin puntuar, notas anecdoticas). No escribe en ninguna parte de
+     * `llamadas`: es un borrador en pantalla y decide el revisor.
+     */
+    public static function sugerir_nota(array $disparos): ?stdClass
+    {
+        $palabras = [];
+
+        foreach ($disparos as $d) {
+            $p = (string) ($d->palabra ?? '');
+            if ($p !== '') $palabras[$p] = true;
+        }
+
+        if (!$palabras) return null;
+
+        // la clave es el CONJUNTO de palabras, ordenado: dos llamadas que
+        // dispararon las mismas palabras reciben la misma sugerencia
+        ksort($palabras);
+        $clave = implode('|', array_keys($palabras));
+
+        if (array_key_exists($clave, self::$sugerencias_cache)) {
+            return self::$sugerencias_cache[$clave];
+        }
+
+        $sugerida = self::calcular_sugerencia(array_keys($palabras));
+
+        if (count(self::$sugerencias_cache) < self::SUGERENCIAS_CACHE) {
+            self::$sugerencias_cache[$clave] = $sugerida;
+        }
+
+        return $sugerida;
+    }
+
+    private static function calcular_sugerencia(array $palabras): ?stdClass
+    {
+        $mapa = self::mapa_notas();
+
+        $apoyos = [];
+
+        foreach ($palabras as $p) {
+            foreach ($mapa['palabra'][$p] ?? [] as $clave => $v) {
+                $apoyos[$clave]['n'] = ($apoyos[$clave]['n'] ?? 0) + $v['n'];
+                $apoyos[$clave]['f'] = ($apoyos[$clave]['f'] ?? 0.0) + $v['f'];
+            }
+        }
+
+        $elegida = self::mejor_nota($apoyos, $mapa['total']);
+
+        if ($elegida === null) return null;
+
+        $out = new stdClass();
+        $out->nota = mb_substr((string) ($mapa['mostrar'][$elegida->clave] ?? $elegida->clave), 0, 120);
+        $out->n = $elegida->n;
+        $out->total = $elegida->total;
+
+        return $out;
+    }
+
+    /**
+     * La mejor nota de una canasta de apoyos, o null si ninguna llega a la fuerza
+     * minima (`nota_min`, configurable desde Pesos).
+     *
+     * Ordena por observado contra esperado (`f * f / total`, un chi-cuadrado
+     * simplificado sobre la fuerza PONDERADA con el |peso| de las palabras):
+     * gana la nota que se repite mucho ENTRE las llamadas parecidas y por palabras
+     * fuertes, no la que simplemente es frecuente en todo el corpus. El conteo `n`
+     * queda para la vista ("5 de 42"), pero quien decide es la fuerza.
+     */
+    private static function mejor_nota(array $apoyos, array $totales): ?stdClass
+    {
+        $mejor = null;
+        $score = 0.0;
+        $piso = self::nota_min();
+
+        foreach ($apoyos as $clave => $v) {
+            $f = (float) ($v['f'] ?? 0);
+            if ($f < $piso) continue;
+
+            $n = (int) ($v['n'] ?? 0);
+            $total = max(1, (int) ($totales[$clave] ?? $n));
+            $s = $f * $f / $total;
+
+            if ($s > $score) {
+                $score = $s;
+                $mejor = (object) ['clave' => $clave, 'n' => $n, 'f' => $f, 'total' => $total];
+            }
+        }
+
+        return $mejor;
+    }
+
+    //------------------- fila guardada -------------------
+
     private static function fila(
         stdClass $l, float $base_pct, ?float $puntaje, ?float $logit,
         array $disparos, string $motivo, string $version, string $rango, $ahora
     ): array {
+        $tipo = $l->llamada_tipo_id === null ? null : (int) $l->llamada_tipo_id;
+
+        // la sugerencia usa la MISMA evidencia que el puntaje: solo las palabras
+        // con peso que dispararon. Buzon y sin texto del conductor no sugieren
+        $sugerida = ($motivo !== 'ok' || !self::tiene_nota_sugerida())
+            ? null
+            : self::sugerir_nota($disparos);
+
         return [
             'vapi_id' => $l->vapi_id,
-            'llamada_tipo_id' => $l->llamada_tipo_id === null ? null : (int) $l->llamada_tipo_id,
+            'llamada_tipo_id' => $tipo,
             'humano_exitosa' => (int) $l->llamada_exitosa === 1,
             'base_pct' => round($base_pct, 2),
             'puntaje' => $puntaje === null ? null : round($puntaje, 2),
             'logit' => $logit === null ? null : round($logit, 4),
             'disparos' => json_encode($disparos, JSON_UNESCAPED_UNICODE),
             'motivo' => $motivo,
+            // sugerencia de analisis: se guarda al lado del puntaje y SOLO se lee
+            // en pantalla; `llamadas.analisis_audio` sigue siendo del humano
+            'nota_sugerida' => $sugerida->nota ?? null,
+            'nota_sugerida_n' => $sugerida->n ?? null,
+            'nota_sugerida_total' => $sugerida->total ?? null,
             'pesos_version' => $version,
             'rango' => $rango,
             'created_at' => $ahora,
@@ -752,17 +1117,63 @@ class DBScoringLlamadas
         ];
     }
 
+    /**
+     * Columnas propias de la sugerencia, para escribir y para comparar contra el
+     * esquema real.
+     */
+    private const NOTAS_COLUMNAS = [
+        'nota_sugerida', 'nota_sugerida_n', 'nota_sugerida_total',
+    ];
+
+    /**
+     * Si el esquema ya tiene las cuatro columnas de la sugerencia.
+     *
+     * En el servidor final no hay consola y las migraciones se aplican a mano: si
+     * alguien sube este codigo antes del ALTER, `calcular()` no puede reventar. Se
+     * comprueba una sola vez por request y, si faltan, el puntaje se guarda igual
+     * y la sugerencia simplemente no existe.
+     */
+    private static function tiene_nota_sugerida(): bool
+    {
+        static $ok = null;
+
+        if ($ok !== null) return $ok;
+
+        try {
+            $cols = DB::select("
+            SELECT COLUMN_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scoring_llamadas'
+              AND COLUMN_NAME LIKE 'nota\\_sugerida%'");
+
+            $ok = count($cols) >= count(self::NOTAS_COLUMNAS);
+        } catch (\Throwable $e) {
+            $ok = false;
+        }
+
+        return $ok;
+    }
+
     private static function guardar(array $filas): void
     {
         if (!$filas) return;
 
+        $columnas = ['llamada_tipo_id', 'humano_exitosa', 'base_pct', 'puntaje',
+            'logit', 'disparos', 'motivo',
+            'nota_sugerida', 'nota_sugerida_n', 'nota_sugerida_total',
+            'pesos_version', 'rango', 'updated_at'];
+
+        if (!self::tiene_nota_sugerida()) {
+            // el alter pendiente: se quitan las claves del arreglo y del upsert
+            foreach ($filas as $i => $fila) {
+                foreach (self::NOTAS_COLUMNAS as $c) unset($filas[$i][$c]);
+            }
+
+            $columnas = array_values(array_diff($columnas, self::NOTAS_COLUMNAS));
+        }
+
         foreach (array_chunk($filas, self::LOTE_GUARDADO) as $lote) {
-            DB::table('scoring_llamadas')->upsert(
-                $lote,
-                'vapi_id',
-                ['llamada_tipo_id', 'humano_exitosa', 'base_pct', 'puntaje',
-                    'logit', 'disparos', 'motivo', 'pesos_version', 'rango', 'updated_at']
-            );
+            DB::table('scoring_llamadas')->upsert($lote, 'vapi_id', $columnas);
         }
     }
 
@@ -833,10 +1244,57 @@ class DBScoringLlamadas
         $out->auc = self::auc($ok);
         $out->deciles = self::deciles($ok);
         $out->por_tipo = self::kpis_por_tipo($ok);
+        $out->sugerencia = self::metricas_sugerencia($filas);
         $out->obsoletas = self::obsoletas($filas, $out->version_actual);
         $out->obsoletas_totales = self::llamadas_obsoletas();
         $out->ultima = self::ultima_ejecucion($filas);
         $out->lista = self::ordenar($filas, self::vista(), self::offset());
+
+        return $out;
+    }
+
+    /**
+     * Metrica de la sugerencia de analisis de audio en el rango de la pagina:
+     * cobertura (cuantas de las ok tienen sugerencia) y coincidencia exacta con
+     * la nota que escribio el humano, normalizada con la misma funcion del mapa
+     * ('NO ATIENDE' y 'No atiende' cuentan como una sola nota).
+     *
+     * `human_sin_sugerencia` cuenta las ok que si tienen nota del humano pero la
+     * sugerencia callo (no alcanzaron el apoyo minimo): es el techo real de la
+     * cobertura, no un error. Si el ALTER aun no esta aplicado, todo sale en cero
+     * y la vista lo muestra como pendiente, no como fallo.
+     */
+    private static function metricas_sugerencia(array $filas): stdClass
+    {
+        $sugeridas = 0;
+        $comparables = 0;
+        $coinciden = 0;
+        $human_sin_sugerencia = 0;
+
+        foreach ($filas as $f) {
+            $sug = trim((string) ($f->nota_sugerida ?? ''));
+            $hum = trim((string) ($f->analisis_audio ?? ''));
+
+            if ($sug !== '') {
+                $sugeridas++;
+
+                if ($hum !== '') {
+                    $comparables++;
+
+                    if (mb_strtoupper(Palabras::normalizar($sug))
+                        === mb_strtoupper(Palabras::normalizar($hum))) $coinciden++;
+                }
+            } elseif ($hum !== '' && $f->motivo === 'ok') {
+                $human_sin_sugerencia++;
+            }
+        }
+
+        $out = new stdClass();
+        $out->sugeridas = $sugeridas;
+        $out->comparables = $comparables;
+        $out->coinciden = $coinciden;
+        $out->pct = $comparables > 0 ? $coinciden * 100 / $comparables : null;
+        $out->human_sin_sugerencia = $human_sin_sugerencia;
 
         return $out;
     }

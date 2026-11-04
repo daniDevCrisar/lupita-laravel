@@ -24,7 +24,7 @@ class DBConsultarReferencias
      * Se reutiliza en listar/kpis/top_rutas/mapa. Alias de columnas pensados para
      * pasar el resultado directo a DBTiemposRuta::nombre_ruta().
      */
-    private static function base(Request $request)
+    private static function base(Request $request, bool $porEtapas = false)
     {
         $q = DB::table('referencias as r')
             ->leftJoin('conductores as con', 'con.id', '=', 'r.conductor_id')
@@ -35,7 +35,7 @@ class DBConsultarReferencias
             ->leftJoin('ubigeo_distritos as ug_orig', 'ug_orig.ubigeo', '=', 'ru.ubigeo_origen')
             ->leftJoin('ubigeo_distritos as ug_dest', 'ug_dest.ubigeo', '=', 'ru.ubigeo_destino');
 
-        return self::aplicar_filtros($q, $request);
+        return self::aplicar_filtros($q, $request, $porEtapas);
     }
 
     /** Expresion 0/1 por etapa completada (no nula). */
@@ -63,7 +63,39 @@ class DBConsultarReferencias
         'fin_descargue'       => 'Fin de descargue',
     ];
 
-    private static function aplicar_filtros($q, Request $request)
+    /**
+     * Estados "en planta": cada uno es el intervalo ABIERTO entre un evento del ciclo
+     * y el siguiente. Si el evento de cierre no llego, el camion sigue en ese estado.
+     *  - entra: columna que abre el intervalo
+     *  - sale:  columna que lo cierra
+     *  - lado:  origen|destino (de donde salen departamento y planta)
+     */
+    private const ESTADOS_PLANTA = [
+        'esperando_carga'    => ['entra' => 'presenta_para_carga', 'sale' => 'inicio_de_carga',  'lado' => 'origen'],
+        'cargando'           => ['entra' => 'inicio_de_carga',     'sale' => 'inicio_ruta',      'lado' => 'origen'],
+        'esperando_descarga' => ['entra' => 'qr_llegada_destino',  'sale' => 'inicio_descargue', 'lado' => 'destino'],
+        'descargando'        => ['entra' => 'inicio_descargue',    'sale' => 'fin_descargue',    'lado' => 'destino'],
+    ];
+
+    /** Etiquetas de los estados en planta, en el orden del ciclo. */
+    public const ESTADOS_PLANTA_LABELS = [
+        'esperando_carga'    => 'Esperando carga (fuera)',
+        'cargando'           => 'Cargando (dentro)',
+        'esperando_descarga' => 'Esperando descarga (fuera)',
+        'descargando'        => 'Descargando (dentro)',
+    ];
+
+    /** Ventanas validas para acotar la antiguedad de un estado abierto (0 = todo). */
+    public const VENTANAS_PLANTA = [0, 24, 48, 72, 168];
+
+    /**
+     * Tope de viajes que se cargan en el mapa animado (movimientos y estados en planta).
+     * Se puede subir o bajar sin tocar el resto: cada viaje pesa en el JSON y en el
+     * dibujado por frame.
+     */
+    public const LIMITE_MAPA = 1200;
+
+    private static function aplicar_filtros($q, Request $request, bool $porEtapas = false)
     {
         // Rango de fechas. Sin etapa elegida filtra por las llamadas del ref (como antes);
         // con etapa elegida filtra por la fecha de esa etapa en `referencias`.
@@ -75,14 +107,33 @@ class DBConsultarReferencias
                 $q->whereNotNull($col)
                     ->where($col, '>=', $fi)
                     ->where($col, '<', $ff);
-            } else {
-                $q->whereExists(function ($sub) use ($fi, $ff) {
-                    $sub->select(DB::raw(1))
-                        ->from('llamadas as l')
-                        ->whereColumn('l.ref', 'r.ref')
-                        ->where('l.created_at', '>=', $fi)
-                        ->where('l.created_at', '<', $ff);
+            } elseif ($porEtapas) {
+                // Mapa animado: el viaje entra si CUALQUIERA de sus 7 marcas cae en el
+                // rango. Usa las fechas del propio viaje, no las llamadas, para no
+                // perder referencias que nunca fueron contactadas.
+                $q->where(function ($w) use ($fi, $ff) {
+                    foreach (self::ETAPAS as $col) {
+                        $w->orWhere(function ($x) use ($col, $fi, $ff) {
+                            $x->whereNotNull($col)
+                                ->where($col, '>=', $fi)
+                                ->where($col, '<', $ff);
+                        });
+                    }
                 });
+            } else {
+                // Join contra las refs con llamadas en el rango. Equivale al EXISTS, pero
+                // MySQL elige un plan mucho mejor: con EXISTS + los 7 joins el filtro pasaba
+                // de 50 ms a mas de 2 s por consulta.
+                $q->joinSub(
+                    DB::table('llamadas')
+                        ->select('ref')
+                        ->whereNotNull('ref')
+                        ->where('created_at', '>=', $fi)
+                        ->where('created_at', '<', $ff)
+                        ->distinct(),
+                    'refs_rango',
+                    fn($j) => $j->on('refs_rango.ref', '=', 'r.ref')
+                );
             }
         }
 
@@ -316,6 +367,89 @@ class DBConsultarReferencias
         return ['origen' => $origen, 'destino' => $destino];
     }
 
+    /**
+     * Camiones (placas distintas) por estado, departamento y planta: cuantos estan
+     * esperando o dentro de una planta, segun el intervalo de eventos en que quedaron.
+     *
+     * $horas acota la antiguedad del evento que ABRE el estado (0 = todo el historico),
+     * tomando como referencia el fin del rango filtrado o, si no hay rango, ahora:
+     * sin esa ventana los viajes viejos nunca cerrados inflan el conteo.
+     */
+    public static function en_planta(Request $request, int $horas = 72): array
+    {
+        [$fi, $ff] = self::rango($request->input('fecha_inicio'), $request->input('fecha_fin'));
+        $corte = $ff ?: Carbon::now();
+        $desde = $horas > 0 ? $corte->copy()->subHours($horas) : null;
+
+        $estados = [];
+        foreach (self::ESTADOS_PLANTA_LABELS as $estado => $etiqueta) {
+            $def    = self::ESTADOS_PLANTA[$estado];
+            $lado   = $def['lado'];
+            $depCol = $lado === 'origen' ? 'ru.ubigeo_origen' : 'ru.ubigeo_destino';
+            $locId  = $lado === 'origen' ? 'lo_orig.id' : 'lo_dest.id';
+            $locNom = $lado === 'origen' ? 'lo_orig.nombre' : 'lo_dest.nombre';
+            $entra  = 'r.' . $def['entra'];
+            $sale   = 'r.' . $def['sale'];
+
+            $q = self::base($request)
+                ->whereNotNull($entra)
+                ->whereNull($sale)
+                ->whereNotNull($depCol);
+
+            if ($desde) {
+                $q->where($entra, '>=', $desde->toDateTimeString());
+            }
+
+            $filas = $q->selectRaw("r.ref, r.placa, LEFT($depCol,2) as dep,
+                    $locId as local_id, $locNom as planta")
+                ->get();
+
+            // dedupe por placa (un camion con 2 refs abiertas cuenta una vez)
+            $totales = [];
+            $porDep  = [];
+            $plantas = [];
+            foreach ($filas as $f) {
+                $clave = ($f->placa !== null && $f->placa !== '') ? 'p:' . $f->placa : 'r:' . $f->ref;
+                $dep   = (string) $f->dep;
+                $lid   = (string) $f->local_id;
+
+                $totales[$clave] = true;
+                $porDep[$dep][$clave] = true;
+
+                $plantas[$lid] ??= [
+                    'planta'   => $f->planta ?: 'Sin planta',
+                    'dep'      => $dep,
+                    'camiones' => [],
+                ];
+                $plantas[$lid]['camiones'][$clave] = true;
+            }
+
+            $lista = [];
+            foreach ($plantas as $p) {
+                $lista[] = [
+                    'planta'   => $p['planta'],
+                    'dep'      => $p['dep'],
+                    'camiones' => count($p['camiones']),
+                ];
+            }
+            usort($lista, fn($a, $b) => $b['camiones'] <=> $a['camiones'] ?: strcmp($a['planta'], $b['planta']));
+
+            $estados[$estado] = [
+                'etiqueta'       => $etiqueta,
+                'lado'           => $lado,
+                'total_camiones' => count($totales),
+                'por_dep'        => array_map('count', $porDep),
+                'plantas'        => $lista,
+            ];
+        }
+
+        return [
+            'estados'    => $estados,
+            'horas'      => $horas,
+            'referencia' => $corte->toDateTimeString(),
+        ];
+    }
+
     /** Movimientos del tramo ruta (inicio_ruta -> qr_llegada_destino) para el mapa animado.
      *
      * Reutiliza base() (mismos filtros). Cada viaje se reduce a coordenadas x/y de los
@@ -324,9 +458,10 @@ class DBConsultarReferencias
      * Incluye conductor, placa y TRT (colores del mapa) y los vapi_id del ref para que
      * el clic en un camion abra sus llamadas. Se limita a $limite viajes.
      */
-    public static function movimientos(Request $request, int $limite = 600): array
+    public static function movimientos(Request $request, int $limite = self::LIMITE_MAPA): array
     {
-        $filas = self::base($request)
+        // base($request, true): el rango se acota por las etapas del viaje, no por llamadas
+        $filas = self::base($request, true)
             ->whereNotNull('r.inicio_ruta')
             ->whereNotNull('r.qr_llegada_destino')
             ->whereNotNull('ru.ubigeo_origen')
@@ -388,6 +523,95 @@ class DBConsultarReferencias
         unset($mov);
 
         return $movs;
+    }
+
+    /**
+     * Intervalos de los estados "en planta" para animarlos en el mapa de rutas.
+     *
+     * Cada viaje aporta un intervalo por estado: desde el evento que lo abre hasta el
+     * que lo cierra (null si aun no cerro, y el mapa lo mantiene hasta el final). Las
+     * coordenadas son las del departamento de origen (carga) o destino (descarga), en
+     * porcentaje del mapa, reutilizando DBRutas::$depas como movimientos().
+     */
+    public static function estados_planta_anim(Request $request, int $limite = self::LIMITE_MAPA): array
+    {
+        $filas = self::base($request, true)
+            ->where(function ($w) {
+                $w->whereNotNull('r.presenta_para_carga')
+                    ->orWhereNotNull('r.inicio_de_carga')
+                    ->orWhereNotNull('r.qr_llegada_destino')
+                    ->orWhereNotNull('r.inicio_descargue');
+            })
+            ->whereNotNull('ru.ubigeo_origen')
+            // el primero de los eventos del ciclo define el orden (presenta puede ser nulo)
+            ->orderByRaw('COALESCE(r.presenta_para_carga, r.inicio_de_carga, r.qr_llegada_destino, r.inicio_descargue)')
+            ->limit($limite)
+            ->selectRaw("r.ref, r.placa, r.presenta_para_carga, r.inicio_de_carga, r.inicio_ruta,
+                r.qr_llegada_destino, r.inicio_descargue, r.fin_descargue,
+                con.nombres as conductor_nombre, trt.nombres as trt_nombre,
+                LEFT(ru.ubigeo_origen,2) as dep0, LEFT(ru.ubigeo_destino,2) as dep1,
+                COALESCE(NULLIF(lo_orig.nombre,''), ug_orig.distrito) as origen_nombre,
+                COALESCE(NULLIF(lo_dest.nombre,''), ug_dest.distrito) as destino_nombre")
+            ->get();
+
+        $eventos = [];
+        foreach ($filas as $f) {
+            $lados = [
+                'origen'  => ['dep' => $f->dep0, 'planta' => $f->origen_nombre],
+                'destino' => ['dep' => $f->dep1, 'planta' => $f->destino_nombre],
+            ];
+
+            foreach (self::ESTADOS_PLANTA as $estado => $def) {
+                $desde = $f->{$def['entra']};
+                $hasta = $f->{$def['sale']};
+                if ($desde === null || $desde === '') {
+                    continue;
+                }
+
+                $lado = $lados[$def['lado']];
+                $dep  = DBRutas::$depas[$lado['dep']] ?? null;
+                if (!$dep) {
+                    continue;
+                }
+
+                $ini = strtotime($desde . ' UTC');
+                $fin = ($hasta === null || $hasta === '') ? null : strtotime($hasta . ' UTC');
+                if ($ini === false || ($fin !== null && $fin < $ini)) {
+                    continue;
+                }
+
+                $eventos[] = [
+                    'ref'       => $f->ref,
+                    'placa'     => $f->placa,
+                    'conductor' => $f->conductor_nombre,
+                    'trt'       => $f->trt_nombre,
+                    'estado'    => $estado,
+                    'lado'      => $def['lado'],
+                    'planta'    => $lado['planta'] ?: 'Sin planta',
+                    'dep'       => $lado['dep'],
+                    'x'         => $dep['x'],
+                    'y'         => $dep['y'],
+                    'ini'       => $ini * 1000,
+                    'fin'       => $fin === null ? null : $fin * 1000,
+                ];
+            }
+        }
+
+        // vapi_id por ref: el clic en un punto abre las llamadas del viaje
+        $vids = [];
+        if ($eventos) {
+            $filasV = DB::table('llamadas')
+                ->selectRaw('ref, GROUP_CONCAT(vapi_id ORDER BY created_at SEPARATOR ",") as vids')
+                ->whereIn('ref', array_values(array_unique(array_column($eventos, 'ref'))))
+                ->whereNotNull('vapi_id')
+                ->groupBy('ref')
+                ->get();
+            foreach ($filasV as $v) {
+                $vids[$v->ref] = $v->vids;
+            }
+        }
+
+        return ['eventos' => $eventos, 'vids' => $vids];
     }
 
     /** Top rutas (origen - destino) por numero de viajes. */

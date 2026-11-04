@@ -56,8 +56,18 @@
                     <a class="nav-link" href="{{route('lupita.llamadas')}}">Llamadas</a>
                 </li>
 
-                <li class="nav-item">
-                    <a class="nav-link" href="{{route('lupita.conductores')}}">Conductores</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        Conductores
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{route('lupita.conductores')}}"><i class="bi bi-list-ul"></i> Lista</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.conductores.duplicados')}}"><i class="bi bi-people"></i> Duplicados</a></li>
+                    </ul>
                 </li>
 
                 <li class="nav-item">
@@ -81,6 +91,11 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos')}}"><i class="bi bi-stopwatch"></i> Tiempos de ruta</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.horario')}}"><i class="bi bi-clock-history"></i> Horarios</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio')}}"><i class="bi bi-calculator"></i> Compilar promedios</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio.horario')}}"><i class="bi bi-calendar3"></i> Compilar horarios</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio.ver')}}"><i class="bi bi-table"></i> Promedios compilados</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio.horario.ver')}}"><i class="bi bi-grid-3x3-gap"></i> Horarios compilados</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.comportamiento')}}"><i class="bi bi-person-lines-fill"></i> Comportamiento</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.api')}}"><i class="bi bi-plug"></i> Probar API Tiempos</a></li>
                     </ul>
                 </li>

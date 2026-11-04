@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Database\DBConductoresResolver;
 use App\Http\Controllers\Controller;
 use App\Tools\ExcelTool;
 use Illuminate\Http\Request;
@@ -36,6 +37,10 @@ use Illuminate\Support\Facades\DB;
  * fecha_despachador esta obsoleta: se ignora si llega.
  * Fechas aceptadas: d/m/Y H:i[:s] | d/m/Y | Y-m-d H:i[:s] | Y-m-d.
  * Vacio / null / '' = "no enviado" -> conserva el valor actual, nunca pisa a NULL.
+ * conductor: se acepta el NOMBRE del conductor ("conductor" o "nombres") y se
+ *   resuelve su id por similitud con DBConductoresResolver; tambien se acepta
+ *   "conductor_id" numerico directo. Se escribe en referencias.conductor_id
+ *   SOLO si la ref todavia no tiene uno (backfill); si ya tiene, no se toca.
  */
 class ActualizarRefsController extends Controller
 {
@@ -138,7 +143,7 @@ class ActualizarRefsController extends Controller
         //------------------precargar el estado actual de todas las refs------------------
         $in = implode(',', array_fill(0, count($mapa), '?'));
         $existentes = DB::select("
-            SELECT ref, titulo_viaje, placa, fin_descargue
+            SELECT ref, titulo_viaje, placa, conductor_id, fin_descargue
             FROM referencias
             WHERE ref IN ($in)
         ", array_keys($mapa));
@@ -225,6 +230,48 @@ class ActualizarRefsController extends Controller
                     }
                 }
 
+                // conductor: se RELLENA solo cuando la ref todavia NO tiene
+                // conductor_id (backfill). Si ya tiene uno, no se sobrescribe.
+                $conductor_info = null;
+                $conductor_enviado = ($datos['conductor'] !== '' || $datos['conductor_id'] !== null);
+                if ($conductor_enviado) {
+                    $actual_cid = $existente ? (int) ($existente->conductor_id ?? 0) : 0;
+
+                    if ($actual_cid === 0) {
+                        $conductor_id = $datos['conductor_id'];
+                        if ($conductor_id === null && $datos['conductor'] !== '') {
+                            $res = self::resolver_conductor($datos['conductor']);
+                            if (!empty($res['id'])) {
+                                $conductor_id = (int) $res['id'];
+                                $conductor_info = [
+                                    'id'      => $conductor_id,
+                                    'nombre'  => (string) ($res['row']->conductor ?? ''),
+                                    'sim'     => $res['comparar'],
+                                    'accion'  => $res['accion'],
+                                    'motivo'  => $res['motivo'],
+                                    'escrito' => true,
+                                ];
+                            } else {
+                                $conductor_info = [
+                                    'id'      => null,
+                                    'estado'  => 'no_encontrado',
+                                    'accion'  => $res['accion'],
+                                    'sim'     => $res['comparar'],
+                                    'cercano' => $res['candidatos'][0] ?? null,
+                                ];
+                            }
+                        }
+                        if ($conductor_id !== null) {
+                            $set['conductor_id'] = $conductor_id;
+                            $campos[] = 'conductor_id';
+                            $conductor_info = $conductor_info ?? ['id' => $conductor_id, 'via' => 'conductor_id', 'escrito' => true];
+                        }
+                    } else {
+                        // La ref ya tenia conductor_id: se respeta el existente.
+                        $conductor_info = ['id' => $actual_cid, 'estado' => 'ya_definido'];
+                    }
+                }
+
                 try {
                     if (!$existente) {
                         // INSERT libre (solo modo sin lotes): se crea la referencia nueva
@@ -234,7 +281,11 @@ class ActualizarRefsController extends Controller
                     } else {
                         if (empty($set)) {
                             $resumen['sin_cambios']++;
-                            $resultados[] = ['ref' => $ref, 'estado' => 'sin_cambios'];
+                            $resultados[] = array_filter([
+                                'ref' => $ref,
+                                'estado' => 'sin_cambios',
+                                'conductor' => $conductor_info,
+                            ], fn($v) => $v !== null);
                             continue;
                         }
                         self::update_referencia($ref, $set);
@@ -247,12 +298,13 @@ class ActualizarRefsController extends Controller
                     if (isset($set['titulo_viaje']))
                         $ruta_reprocesada = self::reprocesar_ruta($ref);
 
-                    $resultados[] = [
+                    $resultados[] = array_filter([
                         'ref' => $ref,
                         'estado' => $estado,
                         'campos' => $campos,
                         'ruta_reprocesada' => $ruta_reprocesada,
-                    ];
+                        'conductor' => $conductor_info,
+                    ], fn($v) => $v !== null);
                 } catch (\Throwable $e) {
                     $resumen['invalidas']++;
                     $resultados[] = [
@@ -336,6 +388,24 @@ class ActualizarRefsController extends Controller
         return array_values($lotes);
     }
 
+    /** Cache nombre->resolucion para no repetir la busqueda por similitud por ref. */
+    private static $conductor_cache = [];
+
+    /**
+     * Resuelve el nombre de un conductor a su id con DBConductoresResolver
+     * (misma logica de similitud que la importacion). Se memoiza por request:
+     * muchas refs suelen venir con el mismo conductor.
+     */
+    private static function resolver_conductor(string $nombre): array
+    {
+        $clave = mb_strtoupper(trim($nombre));
+        if (array_key_exists($clave, self::$conductor_cache))
+            return self::$conductor_cache[$clave];
+
+        return self::$conductor_cache[$clave] =
+            DBConductoresResolver::resolver((object) ['conductor' => $nombre]);
+    }
+
     /** acepta dict {ref:{campos}} o lista [{ref:"X",...}]; devuelve ref=>item */
     private static function normalizar_refs(array $refs): array
     {
@@ -379,6 +449,24 @@ class ActualizarRefsController extends Controller
             $errores[] = 'placa: excede 10 caracteres tras normalizar';
 
         $datos = ['titulo_viaje' => $titulo, 'placa' => $placa];
+
+        // conductor: nombre a resolver por similitud; conductor_id directo opcional
+        $conductor_raw = $item['conductor'] ?? $item['nombres'] ?? '';
+        $conductor = is_string($conductor_raw) ? ExcelTool::normalizarTexto($conductor_raw) : '';
+        if (mb_strlen($conductor) > 200)
+            $errores[] = 'conductor: excede 200 caracteres';
+
+        $conductor_id = null;
+        $cid_raw = $item['conductor_id'] ?? null;
+        if ($cid_raw !== null && $cid_raw !== '' && is_numeric($cid_raw)) {
+            $conductor_id = (int) $cid_raw;
+            if ($conductor_id <= 0) {
+                $errores[] = 'conductor_id: debe ser un entero positivo';
+                $conductor_id = null;
+            }
+        }
+        $datos['conductor'] = $conductor;
+        $datos['conductor_id'] = $conductor_id;
 
         // fecha_despachador: OBSOLETA, se ignora deliberadamente
         foreach (self::EVENTOS as $evento) {
@@ -439,11 +527,15 @@ class ActualizarRefsController extends Controller
         DB::update("UPDATE referencias SET " . implode(', ', $cols) . " WHERE ref=?", $binds);
     }
 
-    /** INSERT de referencia nueva (modo libre): sin trt/conductor, sin fecha_despachador */
+    /** INSERT de referencia nueva (modo libre): sin trt ni fecha_despachador; incluye conductor_id si vino */
     private static function insertar_referencia(string $ref, array $set): void
     {
         $cols = ['ref', 'titulo_viaje', 'placa'];
         $binds = [$ref, $set['titulo_viaje'] ?? '', $set['placa'] ?? ''];
+        if (isset($set['conductor_id'])) {
+            $cols[] = 'conductor_id';
+            $binds[] = $set['conductor_id'];
+        }
         foreach (self::EVENTOS as $evento) {
             if (($set[$evento] ?? '') !== '') {
                 $cols[] = $evento;

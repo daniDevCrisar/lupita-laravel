@@ -35,8 +35,16 @@
 
             <!-- ============ RESUMEN (todas las llamadas) ============ -->
             <tr><td style="padding:0 0 4px 0;">
-                <h2 style="margin:0;font-size:22px;font-weight:bold;color:#1e2a3a;">📊 Resumen</h2>
-                <p style="margin:4px 0 12px 0;color:#6c757d;font-size:14px;">Todas las llamadas del día (sin filtrar por tipo).</p>
+                <h2 style="margin:0;font-size:22px;font-weight:bold;color:#1e2a3a;">📊 Resumen
+                    <a href="https://danidevcrisar.github.io/lupita-laravel/reportes/{{ $folder }}/0-resumen.html" target="_blank"
+                       style="display:inline-block;background:#0d6efd;color:#ffffff;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:bold;">📄 Reporte</a>
+                    <a href="https://calls.pedrosotelo.fun/llamadas?fecha={{ $fecha }}" target="_blank"
+                       style="display:inline-block;background:#0d6efd;color:#ffffff;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:bold;">✅ Detalle</a>
+
+
+
+                </h2>
+                <p style="margin:4px 0 12px 0;color:#6c757d;font-size:14px;">Todas las llamadas del día.</p>
             </td></tr>
             <tr><td style="padding:0 0 8px 0;">
                 @include('reporte.todo.partials.kpi-cards', ['t' => $resumen_total])

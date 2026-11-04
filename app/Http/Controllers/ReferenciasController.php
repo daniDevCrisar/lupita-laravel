@@ -25,6 +25,8 @@ class ReferenciasController extends Controller
                 'filtrando'     => false,
                 'noEncontradas' => [],
                 'etapas'        => DBConsultarReferencias::ETAPAS_LABELS,
+                'enPlanta'      => null,
+                'ventanas'      => DBConsultarReferencias::VENTANAS_PLANTA,
             ]);
         }
 
@@ -32,6 +34,7 @@ class ReferenciasController extends Controller
             'fecha_inicio' => 'nullable|date',
             'fecha_fin'    => 'nullable|date',
             'etapa'        => 'nullable|in:' . implode(',', array_keys(DBConsultarReferencias::ETAPAS_LABELS)),
+            'ventana'      => 'nullable|integer|in:' . implode(',', DBConsultarReferencias::VENTANAS_PLANTA),
             'q'            => 'nullable|string',
             'ruta'         => 'nullable|string',
             'conductor_id' => 'nullable|numeric',
@@ -61,7 +64,16 @@ class ReferenciasController extends Controller
             'filtrando'     => true,
             'noEncontradas' => $noEncontradas,
             'etapas'        => DBConsultarReferencias::ETAPAS_LABELS,
+            'enPlanta'      => DBConsultarReferencias::en_planta($request, self::ventana($request)),
+            'ventanas'      => DBConsultarReferencias::VENTANAS_PLANTA,
         ]);
+    }
+
+    /** Ventana (horas) elegida para acotar los estados "en planta"; 72 h por defecto. */
+    private static function ventana(Request $request): int
+    {
+        $horas = (int) $request->input('ventana', 72);
+        return in_array($horas, DBConsultarReferencias::VENTANAS_PLANTA, true) ? $horas : 72;
     }
 
     /** Mapa animado de movimientos por ruta, con los mismos filtros de la consulta. */
@@ -81,7 +93,7 @@ class ReferenciasController extends Controller
 
         \Illuminate\Support\Facades\DB::statement('SET SESSION wait_timeout = 600');
 
-        $limite = 600;
+        $limite = DBConsultarReferencias::LIMITE_MAPA;
         $movimientos = DBConsultarReferencias::movimientos($request, $limite);
 
         return view('lupita.mapa_rutas', [
@@ -89,6 +101,8 @@ class ReferenciasController extends Controller
             'depas'       => DBRutas::$depas,
             'limite'      => $limite,
             'etapas'      => DBConsultarReferencias::ETAPAS_LABELS,
+            // estados en planta (espera/carga/espera/descarga) animados en el mapa
+            'estadosPlanta' => DBConsultarReferencias::estados_planta_anim($request, $limite),
         ]);
     }
 }

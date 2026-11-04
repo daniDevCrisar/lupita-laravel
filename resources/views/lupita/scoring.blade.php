@@ -392,6 +392,95 @@
     </div>
 
     <div class="row g-3 mb-4">
+        <div class="col-12">
+            @php
+                $sg = $datos->sugerencia;
+                $ok_con_texto = (int) ($datos->por_motivo['ok'] ?? 0);
+                $cobertura = $ok_con_texto > 0 ? $sg->sugeridas * 100 / $ok_con_texto : null;
+                $color_coinciden = $sg->pct === null ? 'secondary' : ($sg->pct >= 60 ? 'success' : ($sg->pct >= 30 ? 'warning text-white' : 'danger'));
+            @endphp
+            <div class="card border-info h-100">
+                <div class="card-header py-2 d-flex flex-wrap align-items-center gap-2">
+                    <span class="small fw-bold text-white">
+                        <i class="bi bi-lightbulb"></i> Análisis sugerido vs nota del humano
+                    </span>
+                    <span class="small text-muted">
+                        solo lectura: cada palabra que disparó vota con la fuerza de su |peso| y la
+                        sugerencia nunca se copia al análisis de audio de la llamada
+                        · <a href="{{ route('lupita.scoring.pesos', $query) }}" class="text-info">ajustar parámetros</a>
+                    </span>
+                </div>
+                <div class="card-body py-2">
+                    @if($sg->sugeridas === 0 && $ok_con_texto > 0)
+                        <div class="small text-muted">
+                            Todavía no hay sugerencias en este rango. La primera pasada de
+                            <strong class="text-light">Calcular rango</strong> guarda los disparos y desde la segunda
+                            la sugerencia ya tiene con que comparar; si el rango está calculado, puede que falte el
+                            ALTER de <code class="text-white">scoring_llamadas</code> o que ninguna nota alcance la
+                            fuerza mínima actual ({{ Scoring::nota_min() }}): se ajusta en
+                            <a href="{{ route('lupita.scoring.pesos', $query) }}" class="text-info">Palabras y pesos</a>.
+                        </div>
+                    @else
+                        <div class="row g-2 text-center">
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="small text-light">Con sugerencia</div>
+                                    <div class="fs-4 fw-bold text-info">{{ number_format($sg->sugeridas) }}</div>
+                                    <div class="small text-muted">
+                                        de {{ number_format($ok_con_texto) }} con texto
+                                        @if($cobertura !== null)
+                                            ({{ number_format($cobertura, 1) }} %)
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="small text-light">Coincidencia exacta</div>
+                                    <div class="fs-4 fw-bold">
+                                        <span class="badge bg-{{ $color_coinciden }}">
+                                            {{ $sg->pct === null ? '—' : number_format($sg->pct, 1) . ' %' }}
+                                        </span>
+                                    </div>
+                                    <div class="small text-muted">
+                                        {{ number_format($sg->coinciden) }} de
+                                        {{ number_format($sg->comparables) }} comparables
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="small text-light">Comparables</div>
+                                    <div class="fs-4 fw-bold text-white">{{ number_format($sg->comparables) }}</div>
+                                    <div class="small text-muted">el humano también escribió nota</div>
+                                </div>
+                            </div>
+
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 h-100">
+                                    <div class="small text-light">El modelo calló</div>
+                                    <div class="fs-4 fw-bold text-white">{{ number_format($sg->human_sin_sugerencia) }}</div>
+                                    <div class="small text-muted">
+                                        con nota del humano pero sin la fuerza mínima ({{ Scoring::nota_min() }}):
+                                        no se sugiere a la fuerza
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            «Coincidencia exacta» compara nota sugerida y nota del humano normalizadas
+                            (mayúsculas sin acentos): mide cuántas veces el modelo habría escrito lo mismo que
+                            el revisor. No es un veredicto de éxito, es la calidad del borrador.
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
         <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-header py-2">
