@@ -9,6 +9,9 @@
     $p = $periodo;
     $v = $variacion;
 
+    // la descarga .html usa el layout claro estilo todo1: remapea el tema oscuro
+    $es_export = ($layout ?? null) === 'layouts.export';
+
     $titulo_periodo = $p->dias === 1
         ? $llamadas->format_fecha($p->desde, 'd/m/Y') . ' ' . $llamadas->get_fecha_day_name($p->desde)
         : 'Del ' . $llamadas->format_fecha($p->desde, 'd/m/Y') . ' al ' . $llamadas->format_fecha($p->hasta, 'd/m/Y');
@@ -83,7 +86,7 @@
         $dow_valores[] = $d->total ? $d->tasa_exito : null;
         $dow_totales[] = $d->total;
         $dow_colores[] = !$d->total
-            ? 'rgba(255,255,255,.12)'
+            ? ($es_export ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.12)')
             : ($d->tasa_exito >= 70 ? '#2e7d32' : ($d->tasa_exito >= 45 ? '#ff8f00' : '#c62828'));
     }
 
@@ -106,6 +109,12 @@
     $trts_cpc = array_values(array_filter($trts, fn($x) => $x->exitosas > 0));
     usort($trts_cpc, fn($a, $b) => $a->costo_confirmacion <=> $b->costo_confirmacion);
     $trts_cpc = array_slice($trts_cpc, 0, 8);
+
+    // pizza "por qué fallan" con la clasificacion exclusiva estilo todo1
+    $fallos_pct = $t->total ? round($fallos->fallidas / $t->total * 100) : 0;
+    $pizza_labels = ['Fallo de contacto', 'Conductor no coopera', 'Errores técnicos', 'Otros'];
+    $pizza_fallos = [$fallos->f_contacto, $fallos->f_no_coopera, $fallos->f_tecnicos, $fallos->f_otros];
+    $pizza_colores = ['#F2A007', '#E04B59', '#10CBF0', '#0F71F2'];
 @endphp
 
 @section('content')
@@ -127,6 +136,9 @@
         <div class="d-flex gap-2 flex-wrap no-print">
             <a href="{{ route('lupita.reportes.reporte', $params_base) }}" class="btn btn-outline-info btn-sm">
                 <i class="bi bi-file-earmark-bar-graph"></i> Reporte completo
+            </a>
+            <a href="{{ route('lupita.reportes.progreso', $params_base) }}" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-graph-up-arrow"></i> Progreso semana/mes
             </a>
             <a href="{{ route('lupita.reportes.dashboard.html', $params_descarga) }}" class="btn btn-success btn-sm">
                 <i class="bi bi-download"></i> Descargar HTML
@@ -353,7 +365,7 @@
         </div>
 
         {{-- ============ HEATMAP ============ --}}
-        @include('reporte.v2.partials.heatmap', ['heatmap' => $heatmap])
+        @include('reporte.v2.partials.heatmap', ['heatmap' => $heatmap, 'claro' => $es_export])
 
         {{-- ============ TIPO + COSTO POR CONFIRMACION ============ --}}
         <div class="row g-3 mb-3">
@@ -520,25 +532,25 @@
         {{-- ============ ETIQUETAS ============ --}}
         <div class="row g-3 mb-3 align-items-start">
             <div class="col-lg-6">
-                <div class="card bg-dark border-secondary">
+                <div class="card bg-dark border-secondary h-100">
                     <div class="card-body">
-                        <h6 class="fw-bold text-danger mb-3"><i class="bi bi-tags"></i> Por qué fallan (etiquetas)</h6>
-                        @forelse($etiquetas_negativas as $e)
-                            <div class="mb-2">
-                                <div class="d-flex justify-content-between small">
-                                    <span class="text-light">{{ $e->texto }}</span>
-                                    <span class="text-white-50">{{ $e->total }}</span>
-                                </div>
-                                <div class="progress" style="height:6px;">
-                                    <div class="progress-bar bg-danger" style="width:{{ max(2, round($e->total / $max_negativa * 100)) }}%"></div>
-                                </div>
+                        <h6 class="fw-bold text-danger mb-1">
+                            <i class="bi bi-question-octagon me-1"></i>¿Por qué el {{ $fallos_pct }}% de las llamadas son fallidas?
+                        </h6>
+                        <p class="text-white-50 small mb-3">Análisis que incorpora las etiquetas de llamada: cada fallida cae en un solo cubo, por prioridad.</p>
+                        @if($fallos->fallidas > 0)
+                            <div style="height:300px;">
+                                <canvas id="chart_fallidos"></canvas>
                             </div>
-                        @empty
-                            <p class="text-white-50 small mb-0">Sin etiquetas en el periodo.</p>
-                        @endforelse
-                        <p class="text-white-50 small mb-0 mt-3 border-top border-secondary pt-2">
-                            {{ number_format($total_negativas) }} señales negativas registradas en el periodo.
-                        </p>
+                            <div class="d-flex flex-wrap gap-3 small mt-2">
+                                <span><i class="bi bi-circle-fill" style="color:#F2A007;"></i> Fallo de contacto: <strong>{{ number_format($fallos->f_contacto) }}</strong></span>
+                                <span><i class="bi bi-circle-fill" style="color:#E04B59;"></i> No coopera: <strong>{{ number_format($fallos->f_no_coopera) }}</strong></span>
+                                <span><i class="bi bi-circle-fill" style="color:#10CBF0;"></i> Errores técnicos: <strong>{{ number_format($fallos->f_tecnicos) }}</strong></span>
+                                <span><i class="bi bi-circle-fill" style="color:#0F71F2;"></i> Otros: <strong>{{ number_format($fallos->f_otros) }}</strong></span>
+                            </div>
+                        @else
+                            <p class="text-white-50 small mb-0">Sin llamadas fallidas en el periodo.</p>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -611,10 +623,40 @@
             </div>
         </div>
 
+        {{-- ============ RUTAS (al final: esperas por ubicacion + tiempo de ruta) ============ --}}
+        @include('reporte.v2.partials.bloque-rutas')
+
         <div class="d-flex justify-content-between flex-wrap gap-2 text-white-50 small border-top border-secondary pt-3">
             <span><i class="bi bi-database"></i> Criterio de éxito: <code>llamada_exitosa = 1</code></span>
             <span>Comparado con {{ $llamadas->format_fecha($periodo_anterior->desde, 'd/m/Y') }} - {{ $llamadas->format_fecha($periodo_anterior->hasta, 'd/m/Y') }}</span>
         </div>
+    @endif
+@endsection
+
+@section('heads')
+    @if($es_export)
+    {{-- el dashboard se construyo con tarjetas oscuras del CRM: en la descarga
+         adoptan el lienzo claro y los estilos personalizados de todo1
+         (report-card redondeada con sombra) sin tocar la vista web --}}
+    <style>
+        .card.bg-dark {
+            background-color: #fff !important;
+            color: #212529 !important;
+            border: none !important;
+            border-radius: 20px !important;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, .05) !important;
+        }
+        .border-secondary { border-color: #dee2e6 !important; }
+        .text-light { color: #212529 !important; }
+        .text-white { color: #212529 !important; }
+        .text-white-50 { color: #6c757d !important; }
+        .badge.bg-dark { background-color: #2c3e50 !important; color: #fff !important; }
+        .table { --bs-table-color: #212529; --bs-table-hover-color: #212529; }
+        .table-primary { --bs-table-bg: rgba(13,110,253,.09); --bs-table-color: #212529; }
+        .table-hover tbody tr:hover { background-color: rgba(0, 0, 0, .02); }
+        .progress { background-color: #e9ecef; }
+        .form-control, .form-select { background-color: #fff; color: #212529; }
+    </style>
     @endif
 @endsection
 
@@ -623,8 +665,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script>
         Chart.register(ChartDataLabels);
-        Chart.defaults.color = '#dee2e6';
-        Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
+        Chart.defaults.color = '{{ $es_export ? '#495057' : '#dee2e6' }}';
+        Chart.defaults.borderColor = '{{ $es_export ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.08)' }}';
 
         const serie = document.getElementById('chart_serie');
         if (serie) {
@@ -790,6 +832,44 @@
                         }
                     },
                     scales: { x: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        // pizza de fallidas: mismo criterio y colores que el reporte todo1
+        const fallidos = document.getElementById('chart_fallidos');
+        if (fallidos) {
+            new Chart(fallidos, {
+                type: 'pie',
+                data: {
+                    labels: @json($pizza_labels),
+                    datasets: [{
+                        data: @json($pizza_fallos),
+                        backgroundColor: @json($pizza_colores),
+                        borderColor: 'transparent',
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'left', labels: { boxWidth: 12 } },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ctx.parsed + ' (' + (ctx.parsed / ctx.dataset.data.reduce((a, b) => a + b, 0) * 100).toFixed(1) + '%)'
+                            }
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            font: { weight: 'bold', size: 13 },
+                            formatter: (value, ctx) => {
+                                if (!value) return '';
+                                const totalV = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                return ((value / totalV) * 100).toFixed(1) + '%';
+                            }
+                        }
+                    }
                 }
             });
         }

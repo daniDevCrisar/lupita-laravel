@@ -156,15 +156,16 @@
         ['Conversación fluida', '🗣️', $t->conversacion_fluida, $fluida_100, 'secondary'],
     ];
 
-    // motivos de fallo (mismo criterio que todo1)
-    $fallo_contacto_total = (int) $t->buzon_de_voz + (int) $t->razon_3_no_contesta + (int) $t->razon_5_ocupado;
-    $fallo_contacto_100 = $fallidas ? round($fallo_contacto_total / $fallidas * 100, 1) : 0;
-    $fallo_no_coopera_total = (int) $t->conductor_contesta_pero_no_habla + (int) $t->solo_cuelga;
-    $fallo_no_coopera_100 = $fallidas ? round($fallo_no_coopera_total / $fallidas * 100, 1) : 0;
-    $errores_tecnicos = (int) $t->error_desconocido + (int) $t->error_red + (int) $t->error_sistema + (int) $t->error_ia;
-    $errores_tecnicos_100 = $fallidas ? round($errores_tecnicos / $fallidas * 100, 1) : 0;
-    $fallo_otros_total = max(0, $fallidas - $fallo_contacto_total - $fallo_no_coopera_total - $errores_tecnicos);
-    $fallo_otros_100 = $fallidas ? round($fallo_otros_total / $fallidas * 100, 1) : 0;
+    // motivos de fallo: clasificacion EXCLUSIVA estilo todo1 (cada fallida en un solo cubo)
+    $fallo_contacto_total = (int) $fallos->f_contacto;
+    $fallo_no_coopera_total = (int) $fallos->f_no_coopera;
+    $errores_tecnicos = (int) $fallos->f_tecnicos;
+    $fallo_otros_total = (int) $fallos->f_otros;
+    $fallo_base = max(1, (int) $fallos->fallidas);
+    $fallo_contacto_100 = round($fallo_contacto_total / $fallo_base * 100, 1);
+    $fallo_no_coopera_100 = round($fallo_no_coopera_total / $fallo_base * 100, 1);
+    $errores_tecnicos_100 = round($errores_tecnicos / $fallo_base * 100, 1);
+    $fallo_otros_100 = round($fallo_otros_total / $fallo_base * 100, 1);
     $datos_fallidos = [$fallo_contacto_total, $fallo_no_coopera_total, $errores_tecnicos, $fallo_otros_total];
 
     // serie temporal (el controller ya la agrupa por dia, semana o mes)
@@ -233,6 +234,9 @@
         <div class="d-flex gap-2 flex-wrap">
             <a href="{{ route('lupita.reportes.dashboard', $params_base) }}" class="btn btn-primary btn-sm">
                 <i class="bi bi-speedometer2"></i> Abrir dashboard
+            </a>
+            <a href="{{ route('lupita.reportes.progreso', $params_base) }}" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-graph-up-arrow"></i> Progreso semana/mes
             </a>
             <a href="{{ route('lupita.reportes.reporte.html', $params_descarga) }}" class="btn btn-success btn-sm">
                 <i class="bi bi-download"></i> Descargar HTML
@@ -680,9 +684,10 @@
                             </div>
                             <p class="mt-2"><strong>{{ $fallo_contacto_100 }}% de los fallos</strong> – el conductor no responde o la llamada va a buzón.</p>
                             <div class="ms-3 small">
-                                <div><i class="bi bi-voicemail me-1"></i> buzón de voz: <strong>{{ number_format($t->buzon_de_voz) }}</strong></div>
-                                <div><i class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ number_format($t->razon_3_no_contesta) }}</strong></div>
-                                <div><i class="bi bi-hourglass me-1"></i> ocupado: <strong>{{ number_format($t->razon_5_ocupado) }}</strong></div>
+                                <div><i class="bi bi-voicemail me-1"></i> buzón de voz: <strong>{{ number_format($fallos->buzon_f) }}</strong></div>
+                                <div><i class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ number_format($fallos->no_contesta_f) }}</strong></div>
+                                <div><i class="bi bi-telephone-minus me-1"></i> colgó directamente: <strong>{{ number_format($fallos->cuelga_f) }}</strong></div>
+                                <div><i class="bi bi-hourglass me-1"></i> ocupado: <strong>{{ number_format($fallos->ocupado_f) }}</strong></div>
                             </div>
                         </div>
                     </div>
@@ -700,8 +705,9 @@
                             </div>
                             <p class="mt-2"><strong>{{ $fallo_no_coopera_100 }}% de los fallos</strong> – el conductor contesta pero no facilita el objetivo.</p>
                             <div class="ms-3 small">
-                                <div><i class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>{{ number_format($t->conductor_contesta_pero_no_habla) }}</strong></div>
-                                <div><i class="bi bi-telephone-x me-1"></i> colgó directamente: <strong>{{ number_format($t->solo_cuelga) }}</strong></div>
+                                <div><i class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>{{ number_format($fallos->no_habla_f) }}</strong></div>
+                                <div><i class="bi bi-volume-mute me-1"></i> no escucha: <strong>{{ number_format($fallos->no_escucha_f) }}</strong></div>
+                                <div><i class="bi bi-emoji-frown me-1"></i> conducta inapropiada: <strong>{{ number_format($fallos->inapropiada_f) }}</strong></div>
                             </div>
                         </div>
                     </div>
@@ -719,20 +725,10 @@
                             </div>
                             <p class="mt-2"><strong>{{ $errores_tecnicos_100 }}% de los fallos</strong> – errores referentes a la IA que no necesariamente conllevan a un fallo.</p>
                             <div class="ms-3 small">
-                                <div class="mb-1">
-                                    <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>{{ number_format($t->error_ia) }}</strong>
-                                    <div class="text-muted" style="font-size:.78rem;">
-                                        se confunde: {{ $t->ia_se_confunde }},
-                                        no escucha: {{ $t->ia_no_escucha }},
-                                        interpretación: {{ $t->ia_error_interpretacion }},
-                                        dice variable: {{ $t->ia_dice_variable }},
-                                        mala pronunciación: {{ $t->ia_mala_pronunciacion }},
-                                        cuelga en plena llamada: {{ $t->ia_cuelga_en_plena_llamada }}
-                                    </div>
-                                </div>
-                                <div><i class="bi bi-wifi me-1"></i> Error de red: <strong>{{ number_format($t->error_red) }}</strong></div>
-                                <div><i class="bi bi-question-circle me-1"></i> Error desconocido: <strong>{{ number_format($t->error_desconocido) }}</strong></div>
-                                <div><i class="bi bi-hdd me-1"></i> Error de sistema: <strong>{{ number_format($t->error_sistema) }}</strong></div>
+                                <div><i class="bi bi-robot me-1"></i> Error de IA: <strong>{{ number_format($fallos->err_ia_f) }}</strong></div>
+                                <div><i class="bi bi-wifi me-1"></i> Error de red: <strong>{{ number_format($fallos->err_red_f) }}</strong></div>
+                                <div><i class="bi bi-hdd me-1"></i> Error de sistema: <strong>{{ number_format($fallos->err_sistema_f) }}</strong></div>
+                                <div><i class="bi bi-question-circle me-1"></i> Error desconocido: <strong>{{ number_format($fallos->err_desconocido_f) }}</strong></div>
                             </div>
                         </div>
                     </div>
@@ -750,13 +746,13 @@
                             </div>
                             <p class="mt-2"><strong>{{ $fallo_otros_100 }}% de los fallos</strong>:</p>
                             <ul class="list-unstyled ms-3 small mb-2">
-                                <li><i class="bi bi-volume-mute me-2 text-danger"></i> Conductor no escucha: {{ number_format($t->conductor_no_escucha) }}</li>
-                                <li><i class="bi bi-reception-1 me-2 text-warning"></i> Conductor mala señal: {{ number_format($t->conductor_mala_senal) }}</li>
-                                <li><i class="bi bi-emoji-frown me-2 text-secondary"></i> Conducta inapropiada: {{ number_format($t->conductor_conducta_inapropiada) }}</li>
-                                <li><i class="bi bi-question-circle me-2 text-info"></i> Confusión en llamada: {{ number_format($t->confusion_en_llamada) }}</li>
-                                <li><i class="bi bi-person-x me-2 text-secondary"></i> Contesta otra persona: {{ number_format($t->contesta_otra_persona) }}</li>
-                                <li><i class="bi bi-check2-square me-2 text-primary"></i> Confirmación parcial: {{ number_format($t->confirmacion_parcial) }}</li>
-                                <li><i class="bi bi-telephone-minus me-2 text-dark"></i> Número equivocado: {{ number_format($t->numero_equivocado) }}</li>
+                                <li><i class="bi bi-reception-1 me-2 text-warning"></i> Conductor mala señal: {{ number_format($fallos->senal_f) }}</li>
+                                <li><i class="bi bi-question-circle me-2 text-info"></i> Confusión en llamada: {{ number_format($fallos->confusion_f) }}</li>
+                                <li><i class="bi bi-person-x me-2 text-secondary"></i> Contesta otra persona: {{ number_format($fallos->otra_persona_f) }}</li>
+                                <li><i class="bi bi-telephone-minus me-2 text-dark"></i> Número equivocado: {{ number_format($fallos->numero_equivocado_f) }}</li>
+                                <li><i class="bi bi-check2-square me-2 text-primary"></i> Confirmación parcial: {{ number_format($fallos->parcial_f) }}</li>
+                                <li><i class="bi bi-lightbulb me-2 text-success"></i> Da motivos (fallida): {{ number_format($fallos->motivos_f) }}</li>
+                                <li><i class="bi bi-slash-circle me-2 text-muted"></i> Sin ninguna etiqueta: {{ number_format($fallos->sin_etiqueta_f) }}</li>
                             </ul>
                             <span class="small text-muted">* Una llamada puede tener 1 o múltiples etiquetas.</span>
                         </div>
@@ -914,6 +910,139 @@
             </div>
         @endif
 
+        {{-- ============ TIEMPOS DE RUTA (esperas + recorrido) ============ --}}
+        @if(!empty($espera))
+            @if(!empty($mapa) && (!empty($mapa['origen']) || !empty($mapa['destino'])))
+                <div class="card report-card mb-4">
+                    <div class="card-body">
+                        <h3 class="h5 fw-bold mb-1"><i class="bi bi-geo-alt text-primary me-2"></i>Mapa por volumen (origen y destino)</h3>
+                        <p class="text-muted small mb-3">Viajes cerrados (fin de descargue) del periodo por departamento. El tamaño del punto es el volumen.</p>
+                        @include('reporte.partials.mapa-volumen', ['mapa' => $mapa, 'depas' => $depas, 'texto_class' => 'text-muted'])
+                    </div>
+                </div>
+            @endif
+
+                <div class="card report-card mb-4">
+                    <div class="card-body">
+                        <h3 class="h5 fw-bold mb-1"><i class="bi bi-film text-primary me-2"></i>Animación de movimientos por día</h3>
+                        <p class="text-muted small mb-3">Elige un día y ábrelo en una pestaña nueva para ver la animación del mapa de movimientos.</p>
+                        <div class="d-flex align-items-end gap-2 flex-wrap">
+                            <div>
+                                <label class="form-label small text-muted mb-1" for="calendario_dia">Día</label>
+                                <input type="date" id="calendario_dia" class="form-control form-control-sm"
+                                       min="{{ $p->desde }}" max="{{ $p->hasta }}" value="{{ $p->desde }}">
+                            </div>
+                            <a id="link_mapa_anim" href="#" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-box-arrow-up-right"></i> Abrir en pestaña nueva
+                            </a>
+                        </div>
+                        <div class="text-muted small mt-2"><i class="bi bi-info-circle me-1"></i> Solo referencias con etapa fin de descargue.</div>
+                    </div>
+                </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-lg-6">
+                    <div class="card report-card h-100">
+                        <div class="card-body">
+                            <h3 class="h5 fw-bold mb-1"><i class="bi bi-box-seam text-warning me-2"></i>Espera promedio de carga por ubicacion</h3>
+                            <p class="text-muted small mb-3">E2: desde que la unidad se presenta para cargar hasta el inicio de carga. Top 10 por viajes.</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead class="tabla-conductores">
+                                    <tr>
+                                        <th>Ubicacion (origen)</th>
+                                        <th class="text-center">Viajes</th>
+                                        <th class="text-end">Espera prom.</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @forelse($espera->carga as $e)
+                                        <tr>
+                                            <td>
+                                                {{ $e->ubicacion }}
+                                                @if(str_starts_with($e->clave, 'UBG:'))
+                                                    <span class="badge bg-secondary ms-1" title="No existe un local registrado; se muestra su ubigeo">ubigeo</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-center">{{ number_format($e->viajes) }}</td>
+                                            <td class="text-end fw-bold">{{ \App\Database\DBReportes::min_a_hhmm($e->espera_min) }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="3" class="text-muted text-center">Sin viajes con hitos de carga en el periodo.</td></tr>
+                                    @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card report-card h-100">
+                        <div class="card-body">
+                            <h3 class="h5 fw-bold mb-1"><i class="bi bi-box-arrow-in-down text-warning me-2"></i>Espera promedio de descarga por ubicacion</h3>
+                            <p class="text-muted small mb-3">E5: desde la llegada a destino (QR) hasta el inicio de descarga. Top 10 por viajes.</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead class="tabla-conductores">
+                                    <tr>
+                                        <th>Ubicacion (destino)</th>
+                                        <th class="text-center">Viajes</th>
+                                        <th class="text-end">Espera prom.</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @forelse($espera->descarga as $e)
+                                        <tr>
+                                            <td>
+                                                {{ $e->ubicacion }}
+                                                @if(str_starts_with($e->clave, 'UBG:'))
+                                                    <span class="badge bg-secondary ms-1" title="No existe un local registrado; se muestra su ubigeo">ubigeo</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-center">{{ number_format($e->viajes) }}</td>
+                                            <td class="text-end fw-bold">{{ \App\Database\DBReportes::min_a_hhmm($e->espera_min) }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="3" class="text-muted text-center">Sin viajes con hitos de descarga en el periodo.</td></tr>
+                                    @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card report-card mb-4">
+                <div class="card-body">
+                    <h3 class="h5 fw-bold mb-1"><i class="bi bi-signpost-2-split text-primary me-2"></i>Tiempo promedio de ruta (recorrido origen → destino)</h3>
+                    <p class="text-muted small mb-3">E4: desde el inicio de ruta hasta la llegada a destino (QR). Top 10 por viajes.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="tabla-conductores">
+                            <tr>
+                                <th>Recorrido (origen → destino)</th>
+                                <th class="text-center">Viajes</th>
+                                <th class="text-end">Tiempo prom.</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @forelse($espera->ruta as $e)
+                                <tr>
+                                    <td>{{ $e->recorrido }}</td>
+                                    <td class="text-center">{{ number_format($e->viajes) }}</td>
+                                    <td class="text-end fw-bold">{{ \App\Database\DBReportes::min_a_hhmm($e->ruta_min) }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="3" class="text-muted text-center">Sin viajes con recorrido completo en el periodo.</td></tr>
+                            @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- ============ FOOTER ============ --}}
         <div class="footer-note pt-3 d-flex justify-content-between flex-wrap gap-2">
             <span><i class="bi bi-database me-1"></i> Datos: Reporte generado con LUPITA</span>
@@ -927,6 +1056,20 @@
 @section('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script>
+        (function () {
+            // calendario -> url de la animacion para el dia elegido (se abre en pestana nueva)
+            const inp = document.getElementById('calendario_dia');
+            const link = document.getElementById('link_mapa_anim');
+            if (!inp || !link) return;
+            const base = @json(route('lupita.referencias.mapa'));
+            const url = (dia) => base + '?' + new URLSearchParams({
+                fecha_inicio: dia, fecha_fin: dia, etapa: 'fin_descargue', q: '', ruta: ''
+            }).toString();
+            link.href = url(inp.value);
+            inp.addEventListener('change', () => { link.href = url(inp.value); });
+        })();
+    </script>
     <script>
         Chart.register(ChartDataLabels);
         Chart.defaults.color = '#495057';

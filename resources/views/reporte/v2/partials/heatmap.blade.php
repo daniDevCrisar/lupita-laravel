@@ -1,9 +1,11 @@
 {{-- Mapa de calor dia x hora. Recibe $heatmap (matriz + maximo) y nada mas.
-     Compartido por el dashboard y el reporte web. --}}
+     Compartido por el dashboard y el reporte web. $claro=true en la descarga
+     .html (lienzo claro estilo todo1) aclara el texto de las celdas tenues. --}}
 @php
     $dias_nombre = [1 => 'Domingo', 2 => 'Lunes', 3 => 'Martes', 4 => 'Miércoles', 5 => 'Jueves', 6 => 'Viernes', 7 => 'Sábado'];
     $heat = $heatmap['matriz'];
     $heat_max = max(1, $heatmap['maximo']);
+    $claro = $claro ?? false;
 @endphp
 
 <div class="card bg-dark border-secondary mb-3">
@@ -30,7 +32,7 @@
                                 $valor = $celda['total'] ?? 0;
                                 $alfa = $valor ? max(0.18, round($valor / $heat_max, 2)) : 0.04;
                             @endphp
-                            <td style="background:rgba(13,110,253,{{ $alfa }});color:{{ $alfa >= 0.45 ? '#fff' : '#dee2e6' }};font-size:.75rem;"
+                            <td style="background:rgba(13,110,253,{{ $alfa }});color:{{ $alfa >= 0.45 ? '#fff' : ($claro ? '#212529' : '#dee2e6') }};font-size:.75rem;"
                                 title="{{ $valor }} llamadas">
                                 {{ $valor ?: '' }}
                             </td>

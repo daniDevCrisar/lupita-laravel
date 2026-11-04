@@ -3,6 +3,7 @@
 namespace App\Database;
 
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
@@ -91,6 +92,194 @@ class DBReportes
         $ultima = DB::selectOne('SELECT DATE(MAX(created_at)) AS ultima FROM llamadas')->ultima;
 
         return $ultima ?: date('Y-m-d');
+    }
+
+    /**
+     * Espera promedio por ubicacion (minutos) para el dashboard, medida con
+     * los hitos de `referencias` y el mismo saneo del modulo de tiempos
+     * (etapa dentro de [0, tope]). El rango se ancla a `fin_descargue`: entran
+     * todos los viajes CERRADOS dentro del periodo (cohortes de cierre).
+     *   carga     = E2, presentarse para cargar -> inicio de carga, por ORIGEN
+     *   descarga  = E5, llegada a destino -> inicio de descargue, por DESTINO
+     *   ruta      = E4, inicio de ruta -> llegada a destino (recorrido), por RUTA
+     * Si el extremo de la ruta no es un local conocido se muestra el ubigeo de
+     * la ruta con su distrito (clave UBG:<ubigeo>, mismo contrato que /api/tiempos).
+     */
+    public static function espera_por_ubicacion(stdClass $periodo, int $limit = 10): stdClass
+    {
+        $salida = new stdClass();
+        $salida->carga = self::espera_ubicacion_sql('carga', $periodo, $limit);
+        $salida->descarga = self::espera_ubicacion_sql('descarga', $periodo, $limit);
+        $salida->ruta = self::ruta_promedio_sql($periodo, $limit);
+
+        return $salida;
+    }
+
+    private static function espera_ubicacion_sql(string $lado, stdClass $periodo, int $limit): array
+    {
+        // hito que inicia la etapa + columnas del extremo segun el lado
+        [$hito_ini, $hito_fin, $col_local, $col_ubg] = $lado === 'carga'
+            ? ['r.presenta_para_carga', 'r.inicio_de_carga', 'ru.origen_id', 'ru.ubigeo_origen']
+            : ['r.qr_llegada_destino', 'r.inicio_descargue', 'ru.destino_id', 'ru.ubigeo_destino'];
+
+        $etapa = "TIMESTAMPDIFF(MINUTE, $hito_ini, $hito_fin)";
+
+        $sql = "SELECT
+                COALESCE(lo.id, CONCAT('UBG:', $col_ubg)) AS clave,
+                COALESCE(lo.nombre, CONCAT($col_ubg, ' · ', IFNULL(ud.distrito, 'sin distrito'))) AS ubicacion,
+                COUNT(*) AS viajes,
+                ROUND(AVG($etapa), 1) AS espera_min
+            FROM referencias r
+            INNER JOIN rutas ru ON ru.id = r.ruta_id
+            LEFT JOIN locales lo ON lo.id = $col_local
+            LEFT JOIN ubigeo_distritos ud ON ud.ubigeo = $col_ubg
+            WHERE $hito_ini IS NOT NULL AND $hito_fin IS NOT NULL AND r.fin_descargue IS NOT NULL
+              AND $etapa BETWEEN 0 AND ?
+              AND r.fin_descargue >= ? AND r.fin_descargue < ?";
+        $params = [DBTiemposPromedio::TOPE_DEFECTO, $periodo->inicio->toDateTimeString(), $periodo->fin_exclusivo->toDateTimeString()];
+
+        // el filtro de transportista del dashboard tambien aplica a los viajes
+        if (self::$filtro !== null && self::$filtro->trt_id !== null) {
+            $sql .= ' AND r.trt_id = ? ';
+            $params[] = self::$filtro->trt_id;
+        }
+
+        $sql .= ' GROUP BY clave, ubicacion ORDER BY viajes DESC LIMIT ' . max(1, $limit);
+
+        return DB::select($sql, $params);
+    }
+
+    /**
+     * Tiempo promedio de ruta (minutos): el recorrido origen -> destino
+     * (etapa 4, `inicio_ruta -> qr_llegada_destino`), agrupado por ruta y con
+     * el mismo saneo [0, tope] del modulo de tiempos. Cada extremo se nombra
+     * con su local o, si no existe, con el ubigeo y distrito de la ruta.
+     */
+    private static function ruta_promedio_sql(stdClass $periodo, int $limit): array
+    {
+        $etapa = 'TIMESTAMPDIFF(MINUTE, r.inicio_ruta, r.qr_llegada_destino)';
+
+        $sql = "SELECT
+                CONCAT(
+                    COALESCE(lo_o.nombre, CONCAT(ru.ubigeo_origen, ' · ', IFNULL(ud_o.distrito, 'sin distrito'))),
+                    ' → ',
+                    COALESCE(lo_d.nombre, CONCAT(ru.ubigeo_destino, ' · ', IFNULL(ud_d.distrito, 'sin distrito')))
+                ) AS recorrido,
+                COUNT(*) AS viajes,
+                ROUND(AVG($etapa), 1) AS ruta_min
+            FROM referencias r
+            INNER JOIN rutas ru ON ru.id = r.ruta_id
+            LEFT JOIN locales lo_o ON lo_o.id = ru.origen_id
+            LEFT JOIN locales lo_d ON lo_d.id = ru.destino_id
+            LEFT JOIN ubigeo_distritos ud_o ON ud_o.ubigeo = ru.ubigeo_origen
+            LEFT JOIN ubigeo_distritos ud_d ON ud_d.ubigeo = ru.ubigeo_destino
+            WHERE r.inicio_ruta IS NOT NULL AND r.qr_llegada_destino IS NOT NULL AND r.fin_descargue IS NOT NULL
+              AND $etapa BETWEEN 0 AND ?
+              AND r.fin_descargue >= ? AND r.fin_descargue < ?";
+        $params = [DBTiemposPromedio::TOPE_DEFECTO, $periodo->inicio->toDateTimeString(), $periodo->fin_exclusivo->toDateTimeString()];
+
+        // el filtro de transportista del dashboard tambien aplica a los viajes
+        if (self::$filtro !== null && self::$filtro->trt_id !== null) {
+            $sql .= ' AND r.trt_id = ? ';
+            $params[] = self::$filtro->trt_id;
+        }
+
+        $sql .= ' GROUP BY recorrido ORDER BY viajes DESC LIMIT ' . max(1, $limit);
+
+        return DB::select($sql, $params);
+    }
+
+    /**
+     * Minutos a formato hh:mm (p. ej. 363.4 -> 06:03). Las horas pueden superar
+     * 24 si el promedio de una etapa es mayor a un dia; no se modulan.
+     */
+    public static function min_a_hhmm($min): string
+    {
+        $total = (int) round((float) $min);
+        if ($total < 0) $total = 0;
+
+        return sprintf('%02d:%02d', intdiv($total, 60), $total % 60);
+    }
+
+    /**
+     * Mapa por volumen de viajes (origen/destino por departamento). Reutiliza la
+     * misma funcion de lupita/referencias (DBConsultarReferencias::mapa): el rango
+     * se ancla a `fin_descargue` (viajes cerrados del periodo) y viaja el filtro
+     * de transportista del reporte.
+     */
+    public static function mapa_volumen(stdClass $periodo): array
+    {
+        $params = [
+            'fecha_inicio' => $periodo->desde,
+            'fecha_fin' => $periodo->hasta,
+            'etapa' => 'fin_descargue',
+        ];
+        if (self::$filtro !== null && self::$filtro->trt_id !== null) {
+            $params['trt_id'] = self::$filtro->trt_id;
+        }
+
+        return DBConsultarReferencias::mapa(Request::create('/', 'GET', $params));
+    }
+
+    /**
+     * Clasificacion EXCLUSIVA de las fallidas por etiquetas actuales (mismo
+     * criterio y formula que DBLlamadas::clasificacion_fallos, pero con el
+     * filtro del reporte VAPI: rango + tipo + transportista). Cada fallida cae
+     * en UN solo cubo por prioridad: contacto > no coopera > tecnico > otros,
+     * asi la suma de los 4 cubos SIEMPRE cuadra contra `fallidas`.
+     * Los sub-contadores son crudos: una llamada puede sumar en dos de ellos.
+     */
+    public static function clasificacion_fallos(): stdClass
+    {
+        $p = self::periodo();
+        [$where, $params] = self::where('a', $p->inicio, $p->fin_exclusivo);
+
+        $contacto = '(IFNULL(a.buzon_de_voz,0)=1 OR IFNULL(a.conductor_no_contesta,0)=1 OR IFNULL(a.conductor_cuelga,0)=1)';
+        $nocoop = '(IFNULL(a.conductor_contesta_pero_no_habla,0)=1 OR IFNULL(a.conductor_no_escucha,0)=1 OR IFNULL(a.conductor_conducta_inapropiada,0)=1)';
+        $tec = '(IFNULL(a.error_origen,0) IN (-1,1,2,3) OR IFNULL(a.error_tecnico_llamada,0)=1 OR IFNULL(a.error_audio,0)=1)';
+
+        $sql = "SELECT
+            SUM(a.llamada_exitosa = 0) AS fallidas,
+            SUM(a.llamada_exitosa = 0 AND $contacto) AS f_contacto,
+            SUM(a.llamada_exitosa = 0 AND NOT $contacto AND $nocoop) AS f_no_coopera,
+            SUM(a.llamada_exitosa = 0 AND NOT $contacto AND NOT $nocoop AND $tec) AS f_tecnicos,
+            SUM(a.llamada_exitosa = 0 AND NOT $contacto AND NOT $nocoop AND NOT $tec) AS f_otros,
+
+            SUM(IFNULL(a.buzon_de_voz,0)=1 AND a.llamada_exitosa=0) AS buzon_f,
+            SUM(IFNULL(a.conductor_no_contesta,0)=1 AND a.llamada_exitosa=0) AS no_contesta_f,
+            SUM(IFNULL(a.conductor_cuelga,0)=1 AND a.llamada_exitosa=0) AS cuelga_f,
+            SUM(a.razon_finalizacion_id=5 AND a.llamada_exitosa=0) AS ocupado_f,
+
+            SUM(IFNULL(a.conductor_contesta_pero_no_habla,0)=1 AND a.llamada_exitosa=0) AS no_habla_f,
+            SUM(IFNULL(a.conductor_no_escucha,0)=1 AND a.llamada_exitosa=0) AS no_escucha_f,
+            SUM(IFNULL(a.conductor_conducta_inapropiada,0)=1 AND a.llamada_exitosa=0) AS inapropiada_f,
+
+            SUM(a.error_origen=1 AND a.llamada_exitosa=0) AS err_ia_f,
+            SUM(a.error_origen=2 AND a.llamada_exitosa=0) AS err_red_f,
+            SUM(a.error_origen=3 AND a.llamada_exitosa=0) AS err_sistema_f,
+            SUM(a.error_origen=-1 AND a.llamada_exitosa=0) AS err_desconocido_f,
+
+            SUM(IFNULL(a.conductor_mala_senal,0)=1 AND a.llamada_exitosa=0) AS senal_f,
+            SUM(IFNULL(a.confusion_en_llamada,0)=1 AND a.llamada_exitosa=0) AS confusion_f,
+            SUM(IFNULL(a.contesta_otra_persona,0)=1 AND a.llamada_exitosa=0) AS otra_persona_f,
+            SUM(IFNULL(a.numero_equivocado,0)=1 AND a.llamada_exitosa=0) AS numero_equivocado_f,
+            SUM(IFNULL(a.conductor_da_motivos,0)=1 AND a.llamada_exitosa=0) AS motivos_f,
+            SUM(IFNULL(a.conductor_confirma,0)=1 AND a.llamada_exitosa=0 AND IFNULL(a.error_origen,0)=0) AS parcial_f,
+
+            SUM(a.llamada_exitosa=0 AND NOT $contacto AND NOT $nocoop AND NOT $tec
+                AND IFNULL(a.conductor_mala_senal,0)=0 AND IFNULL(a.confusion_en_llamada,0)=0 AND
+                IFNULL(a.contesta_otra_persona,0)=0 AND IFNULL(a.numero_equivocado,0)=0 AND
+                IFNULL(a.conductor_da_motivos,0)=0 AND IFNULL(a.conductor_confirma,0)=0) AS sin_etiqueta_f
+
+            FROM llamadas a
+            WHERE 1 = 1 " . $where;
+
+        $f = DB::select($sql, $params)[0];
+        foreach (get_object_vars($f) as $k => $v) {
+            $f->$k = (int) $v;
+        }
+
+        return $f;
     }
 
     /** WHERE comun (rango + tipo + transportista) con sus bindings. */
@@ -295,6 +484,149 @@ class DBReportes
         $d->fecha_carbon = Carbon::parse($fecha);
 
         return $d;
+    }
+
+    /** Etiquetas cortas de mes para las filas de la progresion mensual. */
+    public const MESES_CORTOS = [
+        1 => 'Ene', 2 => 'Feb', 3 => 'Mar', 4 => 'Abr', 5 => 'May', 6 => 'Jun',
+        7 => 'Jul', 8 => 'Ago', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dic',
+    ];
+
+    /**
+     * Rango del agrupamiento mensual: el periodo elegido, pero nunca menos de
+     * $meses meses hacia atras (anclado al primer dia del mes del ultimo dia
+     * del rango). Un rango de 30 dias seguiria mostrando 6 cubos mensuales.
+     */
+    public static function periodo_meses(int $meses = 6): stdClass
+    {
+        $p = self::periodo();
+
+        $min = $p->fin->copy()->startOfMonth()->subMonths($meses - 1)->startOfDay();
+        if ($p->inicio->gt($min)) {
+            $p->inicio = $min;
+            $p->desde = $min->toDateString();
+        }
+
+        return $p;
+    }
+
+    /**
+     * Progresion del periodo agrupada por semana o por mes.
+     *
+     * Diferencia con la serie del dashboard (`serie_agrupada`, que parte de
+     * `por_dia()` y suma en PHP): aqui el GROUP BY se corre en SQL, asi el
+     * conteo de conductores es DISTINCT dentro de cada cubo y no la suma de
+     * conductores diarios (que duplicaria al conductor que aparece varios dias).
+     *
+     * Semana = YEARWEEK modo 1 (ISO, lunes a domingo). Mes = anio-calendario.
+     * Cada fila lleva tasa, tasa de contestacion, duracion y costo por
+     * confirmacion, mas lo que se calcula en PHP (`enriquecer_progreso`):
+     * etiqueta, variacion contra el cubo anterior y acumulado del rango.
+     */
+    public static function progreso(string $granularidad = 'semana'): array
+    {
+        $mes = $granularidad === 'mes';
+
+        // la vista mensual nunca muestra menos de 6 meses hacia atras
+        $p = $mes ? self::periodo_meses() : self::periodo();
+        [$where, $params] = self::where('a', $p->inicio, $p->fin_exclusivo);
+
+        // la expresion de agrupamiento es fija del codigo, nunca viene del usuario
+        $expr = $mes ? "DATE_FORMAT(a.created_at, '%Y-%m')" : 'YEARWEEK(a.created_at, 1)';
+
+        $sql = "SELECT
+            $expr AS periodo,
+            MIN(DATE(a.created_at)) AS inicio,
+            MAX(DATE(a.created_at)) AS fin,
+            COUNT(*) AS total,
+            SUM(a.llamada_exitosa = 1) AS exitosas,
+            SUM(a.llamada_exitosa = 0) AS fallidas,
+            SUM(a.llamada_exitosa = -1) AS indeterminadas,
+            COUNT(DISTINCT a.conductor_id) AS conductores,
+            COUNT(DISTINCT IF(a.llamada_exitosa = 1, a.conductor_id, NULL)) AS conductores_exitosos,
+            SUM(a.entro_llamada) - SUM(a.buzon_de_voz) AS contestadas,
+            SUM(a.buzon_de_voz) AS buzon_de_voz,
+            SUM(a.error_origen = -1) AS error_desconocido,
+            SUM(a.error_origen = 1) AS error_ia,
+            SUM(a.error_origen = 2) AS error_red,
+            SUM(a.error_origen = 3) AS error_sistema,
+            SUM(a.audio_duracion) AS duracion,
+            SUM(a.costo) AS costo
+        FROM llamadas a
+        WHERE 1 = 1 " . $where . "
+        GROUP BY periodo
+        ORDER BY periodo";
+
+        $filas = [];
+        foreach (DB::select($sql, $params) as $f) {
+            $o = new stdClass();
+            $o->clave = (string) $f->periodo;
+            $o->inicio = (string) $f->inicio;
+            $o->fin = (string) $f->fin;
+            $o->total = (int) $f->total;
+            $o->exitosas = (int) $f->exitosas;
+            $o->fallidas = (int) $f->fallidas;
+            $o->indeterminadas = (int) $f->indeterminadas;
+            $o->conductores = (int) $f->conductores;
+            $o->conductores_exitosos = (int) $f->conductores_exitosos;
+            $o->contestadas = (int) $f->contestadas;
+            $o->buzon_de_voz = (int) $f->buzon_de_voz;
+            // los 4 tipos de error tecnico (error_origen); el 0 es humano y no cuenta
+            $o->error_desconocido = (int) $f->error_desconocido;
+            $o->error_ia = (int) $f->error_ia;
+            $o->error_red = (int) $f->error_red;
+            $o->error_sistema = (int) $f->error_sistema;
+            $o->errores_tecnicos = $o->error_desconocido + $o->error_ia + $o->error_red + $o->error_sistema;
+            $o->duracion = (int) $f->duracion;
+            $o->costo = (float) $f->costo;
+
+            $o->tasa_exito = $o->total ? round($o->exitosas / $o->total * 100, 1) : 0;
+            $o->tasa_contestacion = $o->total ? round($o->contestadas / $o->total * 100, 1) : 0;
+            $o->duracion_prom = $o->total ? (int) round($o->duracion / $o->total) : 0;
+            $o->costo_confirmacion = $o->exitosas ? round($o->costo / $o->exitosas, 3) : 0;
+            $o->carbon = Carbon::parse($o->inicio);
+
+            $filas[] = $o;
+        }
+
+        self::enriquecer_progreso($filas, $mes);
+
+        return $filas;
+    }
+
+    /**
+     * Derivados de la progresion que necesitan el cubo anterior: etiqueta
+     * legible, variacion de llamadas (%) y de tasa de exito (puntos), y el
+     * acumulado de llamadas y exitosas a lo largo del rango. Se recorre en
+     * orden cronologico, el primer cubo no tiene variacion (null).
+     */
+    private static function enriquecer_progreso(array &$filas, bool $mes): void
+    {
+        $acum_total = 0;
+        $acum_exitosas = 0;
+        $prev = null;
+
+        foreach ($filas as $o) {
+            if ($mes) {
+                $o->etiqueta = self::MESES_CORTOS[(int) $o->carbon->format('n')]
+                    . ' ' . $o->carbon->format('Y');
+            } else {
+                $lunes = $o->carbon->copy()->startOfWeek(Carbon::MONDAY);
+                $o->etiqueta = 'Sem ' . $lunes->format('d/m');
+            }
+            $o->rango = $o->carbon->format('d/m') . ' - '
+                . Carbon::parse($o->fin)->format('d/m');
+
+            $o->var_total = ($prev && $prev->total) ? round((($o->total - $prev->total) / $prev->total) * 100, 1) : null;
+            $o->var_tasa = $prev ? round($o->tasa_exito - $prev->tasa_exito, 1) : null;
+
+            $acum_total += $o->total;
+            $acum_exitosas += $o->exitosas;
+            $o->acum_total = $acum_total;
+            $o->acum_exitosas = $acum_exitosas;
+
+            $prev = $o;
+        }
     }
 
     /** KPIs por tipo de llamada, indexados por id. */

@@ -17,7 +17,8 @@
                 Esta pantalla no calcula: consulta el endpoint público
                 <code class="text-warning">GET /api/tiempos/promedio</code> y pinta la respuesta.
                 El <strong>tiempo a usar</strong> es el promedio fusionado (ida &harr; vuelta) cuando existe;
-                si no, el promedio del sentido.
+                si no, el promedio del sentido. Las casillas <em>Respuesta resumida</em> y
+                <em>Palabras clave</em> agregan <code>?resumir=1</code> y <code>?palabras_claves=1</code>.
             </p>
         </div>
         <div class="text-end small">
@@ -103,10 +104,22 @@
                     </select>
                 </div>
 
-                <div class="col-md-3">
-                    <div class="form-check mt-4">
+                <div class="col-md-6">
+                    <div class="form-check">
                         <input class="form-check-input" type="checkbox" value="1" id="f_fusion" name="con_fusion">
                         <label class="form-check-label small text-light" for="f_fusion">Solo con fusión ida/vuelta</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="1" id="f_resumir" name="resumir">
+                        <label class="form-check-label small text-light" for="f_resumir">
+                            Respuesta resumida <span class="text-white-50">(sin resumen y con menos campos)</span>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="1" id="f_palabras_claves" name="palabras_claves">
+                        <label class="form-check-label small text-light" for="f_palabras_claves">
+                            Incluir palabras clave <span class="text-white-50">(mapa de ubicaciones)</span>
+                        </label>
                     </div>
                 </div>
 
@@ -211,6 +224,32 @@
         </div>
     </div>
 
+    {{-- ================= UBICACIONES (palabras_claves=1) ================= --}}
+    <div id="bloque_ubicaciones" class="mt-4" style="display: none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
+            <h2 class="fs-5 text-light mb-0">
+                Ubicaciones únicas <span class="badge bg-secondary" id="ub_count">0</span>
+            </h2>
+            <div class="small text-white-50">
+                Se listan una sola vez; las rutas las referencian por <code class="text-info">origen_id</code> y
+                <code class="text-info">destino_id</code>
+            </div>
+        </div>
+
+        <div class="table-responsive mt-2" style="max-height: 40vh; overflow: auto">
+            <table class="table table-sm table-bordered align-middle mb-0">
+                <thead class="thead-lupita">
+                <tr>
+                    <th style="width: 220px">Clave</th>
+                    <th style="width: 260px">Nombre</th>
+                    <th>Palabras clave</th>
+                </tr>
+                </thead>
+                <tbody id="tbody_ubicaciones"></tbody>
+            </table>
+        </div>
+    </div>
+
     <div id="sin_datos" class="text-center text-white-50 py-5" style="display: none;">
         <i class="bi bi-inbox fs-1 d-block mb-2"></i>
         No hay promedios compilados con estos filtros.
@@ -230,7 +269,8 @@
 @section('scripts')
     <script>
         const ENDPOINT = @json($endpoint);
-        const CAMPOS = ['buscar', 'ruta_id', 'dep_origen', 'dep_destino', 'min_viajes', 'con_fusion', 'orden', 'limit'];
+        const CAMPOS = ['buscar', 'ruta_id', 'dep_origen', 'dep_destino', 'min_viajes', 'con_fusion',
+            'resumir', 'palabras_claves', 'orden', 'limit'];
         const DIAS_MODO = {global: 'global', ruta: 'p97', propio: 'tope propio'};
 
         function build_url() {
@@ -272,37 +312,48 @@
         }
 
         function render(data) {
-            const r = data.resumen || {};
+            const r = data.resumen || null;
 
-            document.getElementById('rs_rutas').textContent = num(r.rutas);
-            document.getElementById('rs_rutas_nota').textContent = (data.mostradas ?? 0) + ' en la tabla';
-            document.getElementById('rs_viajes').textContent = num(r.viajes);
-            document.getElementById('rs_viajes_nota').textContent = 'de ' + num(r.viajes_total) + ' medibles';
-            document.getElementById('rs_prom').textContent = min(r.prom_ponderado);
-            document.getElementById('rs_sin_tope').textContent = min(r.prom_sin_tope);
-            document.getElementById('rs_perdido').textContent = num(r.descartados);
-            document.getElementById('rs_perdido').className = 'fs-4 text-' + color_perdido(r.pct_perdido);
-            document.getElementById('rs_perdido_nota').textContent = (r.pct_perdido === null ? '—' : r.pct_perdido + ' %') +
-                ' · ' + (r.topes ?? 0) + ' tope(s)';
-            document.getElementById('rs_fusion').textContent = num(r.fusionadas);
-            document.getElementById('rs_ultima').textContent = r.ultima ? 'Última: ' + r.ultima : 'Sin compilaciones';
-            document.getElementById('bloque_resumen').style.display = '';
+            // con resumir=1 el endpoint no devuelve `resumen`: se ocultan las tarjetas
+            if (r) {
+                document.getElementById('rs_rutas').textContent = num(r.rutas);
+                document.getElementById('rs_rutas_nota').textContent = (data.mostradas ?? 0) + ' en la tabla';
+                document.getElementById('rs_viajes').textContent = num(r.viajes);
+                document.getElementById('rs_viajes_nota').textContent = 'de ' + num(r.viajes_total) + ' medibles';
+                document.getElementById('rs_prom').textContent = min(r.prom_ponderado);
+                document.getElementById('rs_sin_tope').textContent = min(r.prom_sin_tope);
+                document.getElementById('rs_perdido').textContent = num(r.descartados);
+                document.getElementById('rs_perdido').className = 'fs-4 text-' + color_perdido(r.pct_perdido);
+                document.getElementById('rs_perdido_nota').textContent = (r.pct_perdido === null ? '—' : r.pct_perdido + ' %') +
+                    ' · ' + (r.topes ?? 0) + ' tope(s)';
+                document.getElementById('rs_fusion').textContent = num(r.fusionadas);
+                document.getElementById('rs_ultima').textContent = r.ultima ? 'Última: ' + r.ultima : 'Sin compilaciones';
+            }
+            document.getElementById('bloque_resumen').style.display = r ? '' : 'none';
 
             const filas = data.rutas || [];
             const tbody = document.getElementById('tbody_rutas');
             tbody.innerHTML = filas.map(f => {
-                const fusion = f.prom_fusion_min !== null && f.prom_fusion_min !== undefined;
+                // con resumir=1 faltan ruta_id, prom_fusion_min, tope, totales y fecha
+                const fusion = f.prom_fusion_min != null || f.viajes_fusion != null;
                 const rango = (f.p25_min === null && f.p75_min === null)
                     ? '—'
                     : min(f.p25_min) + ' – ' + min(f.mediana_min) + ' – ' + min(f.p75_min);
+                const referencia = [
+                    f.ruta_id ? esc(f.ruta_id) : '',
+                    esc(f.dep_origen ?? '—') + ' &rarr; ' + esc(f.dep_destino ?? '—'),
+                ].filter(Boolean).join(' · ');
+                const nota_viajes = f.viajes_total == null ? '' :
+                    `<div class="text-white-50" style="font-size: .72rem">de ${num(f.viajes_total)}</div>`;
+                const tope = f.tope_min == null
+                    ? '<span class="text-white-50">—</span>'
+                    : `<span class="badge bg-secondary">${num(f.tope_min)} min</span>
+                       <div class="text-white-50" style="font-size: .68rem">${DIAS_MODO[f.modo] ?? esc(f.modo)}</div>`;
 
                 return `<tr>
                     <td>
                         <div class="text-nowrap text-light">${esc(f.nombre)}</div>
-                        <div class="text-white-50" style="font-size: .72rem">
-                            ${esc(f.ruta_id)} ·
-                            ${esc(f.dep_origen ?? '—')} &rarr; ${esc(f.dep_destino ?? '—')}
-                        </div>
+                        <div class="text-white-50" style="font-size: .72rem">${referencia}</div>
                     </td>
                     <td class="text-end text-nowrap">
                         <span class="fs-6 text-info">${min(f.prom_efectivo)}</span>
@@ -316,25 +367,48 @@
                     <td class="text-end text-nowrap text-white-50">${min(f.desv_min)}</td>
                     <td class="text-end text-nowrap">
                         ${num(f.viajes)}
-                        <div class="text-white-50" style="font-size: .72rem">de ${num(f.viajes_total)}</div>
+                        ${nota_viajes}
                     </td>
                     <td class="text-end text-nowrap">${num(f.descartados)}</td>
                     <td class="text-end text-nowrap">
                         <span class="badge bg-${color_perdido(f.pct_perdido)}">
-                            ${f.pct_perdido === null ? '—' : f.pct_perdido + ' %'}
+                            ${f.pct_perdido == null ? '—' : f.pct_perdido + ' %'}
                         </span>
                     </td>
-                    <td class="text-end text-nowrap">
-                        <span class="badge bg-secondary">${num(f.tope_min)} min</span>
-                        <div class="text-white-50" style="font-size: .68rem">${DIAS_MODO[f.modo] ?? esc(f.modo)}</div>
-                    </td>
+                    <td class="text-end text-nowrap">${tope}</td>
                     <td class="text-nowrap text-white-50" style="font-size: .75rem">${esc(f.actualizado_en ?? '—')}</td>
                 </tr>`;
             }).join('');
 
             document.getElementById('bloque_tabla').style.display = filas.length ? '' : 'none';
             document.getElementById('sin_datos').style.display = filas.length ? 'none' : '';
-            document.getElementById('tabla_nota').textContent = (data.mostradas ?? 0) + ' de ' + (data.total ?? 0) + ' ruta(s)';
+            document.getElementById('tabla_nota').textContent = (data.mostradas ?? 0) + ' de ' + (data.total ?? 0) + ' ruta(s)'
+                + (data.filtros && data.filtros.resumir ? ' · respuesta resumida' : '');
+
+            render_ubicaciones(data.ubicaciones);
+        }
+
+        function render_ubicaciones(ubs) {
+            const bloque = document.getElementById('bloque_ubicaciones');
+            if (!ubs) {
+                bloque.style.display = 'none';
+                return;
+            }
+
+            const claves = Object.keys(ubs).sort();
+            document.getElementById('tbody_ubicaciones').innerHTML = claves.map(k => {
+                const u = ubs[k] || {};
+                const pks = (u.palabras_claves || [])
+                    .map(p => `<code class="text-warning">${esc(p)}</code>`).join(' ');
+                return `<tr>
+                    <td><code class="text-info">${esc(k)}</code></td>
+                    <td>${esc(u.nombre ?? '')}</td>
+                    <td>${pks || '—'}</td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('ub_count').textContent = claves.length;
+            bloque.style.display = '';
         }
 
         async function consultar() {
@@ -359,6 +433,7 @@
                     estado.innerHTML = `<span class="badge bg-danger">HTTP ${res.status} · ${ms} ms</span>`;
                     document.getElementById('bloque_resumen').style.display = 'none';
                     document.getElementById('bloque_tabla').style.display = 'none';
+                    document.getElementById('bloque_ubicaciones').style.display = 'none';
                     document.getElementById('sin_datos').style.display = 'none';
                 } else {
                     estado.innerHTML = `<span class="badge bg-success text-dark">HTTP ${res.status} · ${ms} ms ·
@@ -384,6 +459,7 @@
             document.getElementById('json_raw').textContent = '';
             document.getElementById('bloque_resumen').style.display = 'none';
             document.getElementById('bloque_tabla').style.display = 'none';
+            document.getElementById('bloque_ubicaciones').style.display = 'none';
             document.getElementById('sin_datos').style.display = 'none';
             consultar();
         });

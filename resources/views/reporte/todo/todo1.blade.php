@@ -804,20 +804,17 @@
 
         <!-- ===== ANÁLISIS POR ETIQUETA ===== -->
         @php
-            $fallo_contacto_total=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $reporte->total->razon_5_ocupado;
-            $fallo_contacto_100= round(($fallo_contacto_total/$fallidas)*100,1);
-
-            $solo_cuelga=$reporte->total->solo_cuelga;
-            $fallo_no_copera_total=$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga;
-            $fallo_no_copera_100= round(($fallo_no_copera_total/$fallidas)*100,1);
-
-            $errores_tecnicos=$reporte->total->error_desconocido + $reporte->total->error_red + $reporte->total->error_sistema + $reporte->total->error_ia;
-            $errores_tecnicos= [$errores_tecnicos,round(($errores_tecnicos/$fallidas)*100,1)];
-
-            $total_3=$reporte->total->buzon_de_voz + $reporte->total->razon_3_no_contesta + $errores_tecnicos[0]
-            +$reporte->total->conductor_contesta_pero_no_habla+ $solo_cuelga +$reporte->total->razon_5_ocupado;
-            $fallo_otros_total=$fallidas-$total_3;
-            $fallo_otros_100= round(($fallo_otros_total/$fallidas)*100,1);
+            // clasificacion exclusiva por etiquetas actuales: cada fallida cae en UN solo
+            // cubo por prioridad contacto > no coopera > tecnico > otros (DBLlamadas::clasificacion_fallos)
+            $f = $reporte->fallos;
+            $fallo_contacto_total = (int) $f->f_contacto;
+            $fallo_no_copera_total = (int) $f->f_no_coopera;
+            $fallo_otros_total = (int) $f->f_otros;
+            $errores_tecnicos = [(int) $f->f_tecnicos, 0];
+            $fallo_contacto_100 = $fallidas ? round(($fallo_contacto_total / $fallidas) * 100, 1) : 0;
+            $fallo_no_copera_100 = $fallidas ? round(($fallo_no_copera_total / $fallidas) * 100, 1) : 0;
+            $errores_tecnicos[1] = $fallidas ? round(($errores_tecnicos[0] / $fallidas) * 100, 1) : 0;
+            $fallo_otros_100 = $fallidas ? round(($fallo_otros_total / $fallidas) * 100, 1) : 0;
         @endphp
 
 
@@ -831,17 +828,19 @@
                         <h3 class="h4 mb-0">Fallo de contacto <span class="badge bg-warning bg-opacity-15 text-dark ms-3">{{ $fallo_contacto_total }} fallos</span>
                         </h3>
                     </div>
-                    <p><strong>{{  $fallo_contacto_100 }}% de los fallos</strong> – el conductor no responde o la llamada va
-                        a buzón.</p>
+                    <p><strong>{{  $fallo_contacto_total }} · {{ $fallo_contacto_100 }}% de los fallos</strong> – la llamada no llega a hablar con el conductor: buzón, no contesta o cuelga.</p>
                     <div class="ms-3">
                     <span class="etiqueta"><i
-                            class="bi bi-voicemail me-1"></i> buzón de voz: <strong>{{ $reporte->total->buzon_de_voz }}</strong></span>
+                            class="bi bi-voicemail me-1"></i> buzón de voz: <strong>{{ $f->buzon_f }}</strong></span>
                         <br>
                         <span class="etiqueta"><i
-                                class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ $reporte->total->razon_3_no_contesta }}</strong></span>
+                                class="bi bi-telephone-x me-1"></i> no contesta: <strong>{{ $f->no_contesta_f }}</strong></span>
+                        <br>
+                        <span class="etiqueta"><i
+                                class="bi bi-x-circle me-1"></i> colgó directamente: <strong>{{ $f->cuelga_f }}</strong></span>
                         <br>
                         <span class="etiqueta">
-                        <i class="bi bi-hourglass me-1"></i> ocupado: <strong>{{ $reporte->total->razon_5_ocupado}}</strong></span>
+                        <i class="bi bi-hourglass me-1"></i> ocupado: <strong>{{ $f->ocupado_f }}</strong></span>
                     </div>
 
                 </div>
@@ -855,14 +854,17 @@
                         <h3 class="h4 mb-0">Conductor no coopera <span
                                 class="badge bg-danger bg-opacity-10 text-danger ms-3">{{ $fallo_no_copera_total }} fallos</span></h3>
                     </div>
-                    <p><strong>{{$fallo_no_copera_100}}% de los fallos</strong> – el conductor contesta pero no facilita el
+                    <p><strong>{{$fallo_no_copera_total}} · {{$fallo_no_copera_100}}% de los fallos</strong> – el conductor contesta pero no facilita el
                         objetivo.</p>
                     <div class="ms-3">
                     <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i
-                            class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>{{ $reporte->total->conductor_contesta_pero_no_habla}}</strong></span>
+                            class="bi bi-mic-mute me-1"></i> contesta pero no habla: <strong>{{ $f->no_habla_f }}</strong></span>
+                        <br>
+                        <span class="etiqueta etiqueta-conductor" style="font-size:1rem;"><i
+                            class="bi bi-volume-mute me-1"></i> no escucha a la IA: <strong>{{ $f->no_escucha_f }}</strong></span>
                         <br>
                         <span class="etiqueta etiqueta-conductor" style="font-size:1rem;">
-                        <i class="bi bi-telephone-x me-1"></i> colgo directamente: <strong>{{ $solo_cuelga }}</strong></span>
+                        <i class="bi bi-person-slash me-1"></i> conducta inapropiada: <strong>{{ $f->inapropiada_f }}</strong></span>
                     </div>
                 </div>
             </div>
@@ -875,24 +877,14 @@
                         <h3 class="h4 mb-0">Errores Técnicos
                             <span class="badge bg-info bg-opacity-10 text-info ms-3">{{ $errores_tecnicos[0] }} fallos</span></h3>
                     </div>
-                    <p><strong>{{ $errores_tecnicos[1] }}% de los fallos</strong>
-                        - errores referentes a la IA no necesariamente con llevan a un fallo.</p>
+                    <p><strong>{{ $errores_tecnicos[0] }} · {{ $errores_tecnicos[1] }}% de los fallos</strong>
+                        – la llamada fallo por un problema técnico antes de poder gestionar el objetivo.</p>
                     <div class="ms-3">
-                        {{-- Errores de IA --}}
-                        <div class="mb-2">
-                            <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>{{ $reporte->total->error_ia }}</strong>
-                            <span class="text-muted" style="font-size:0.8rem;">
-                        (ia_se_confunde: {{ $reporte->total->ia_se_confunde }},
-                        ia_no_escucha: {{ $reporte->total->ia_no_escucha }},
-                        ia_error_interpretacion: {{ $reporte->total->ia_error_interpretacion }},
-                        ia_dice_variable: {{ $reporte->total->ia_dice_variable }},
-                        ia_mala_pronunciacion: {{ $reporte->total->ia_mala_pronunciacion }},
-                        ia_cuelga_en_plena_llamada: {{ $reporte->total->ia_cuelga_en_plena_llamada }})
-                    </span></div>
-                        {{-- Otros errores técnicos --}}
-                        <i class="{{ $llamadas::icon_exito(2,true) }}"></i> Error de red: <strong>{{$reporte->total->error_red}}</strong><br>
-                        <i class="{{ $llamadas::icon_exito(-1,true) }}"></i> Error desconocido: <strong>{{$reporte->total->error_desconocido}}</strong><br>
-                        <i class="{{ $llamadas::icon_exito(3,true) }}"></i> Error de sistema: <strong>{{$reporte->total->error_sistema}}</strong>
+                        {{-- Los 4 origenes de error tecnico sobre llamadas fallidas --}}
+                        <i class="bi bi-robot me-1 text-info"></i> Error de IA: <strong>{{ $f->err_ia_f }}</strong><br>
+                        <i class="{{ $llamadas::icon_exito(2,true) }}"></i> Error de red: <strong>{{$f->err_red_f}}</strong><br>
+                        <i class="{{ $llamadas::icon_exito(3,true) }}"></i> Error de sistema: <strong>{{$f->err_sistema_f}}</strong><br>
+                        <i class="{{ $llamadas::icon_exito(-1,true) }}"></i> Error desconocido: <strong>{{$f->err_desconocido_f}}</strong>
                     </div>
                 </div>
             </div>
@@ -903,32 +895,32 @@
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <i class="bi bi-hdd-stack-fill text-secondary me-1"></i></span>
                         <h3 class="h4 mb-0">Otros
-                            @if($total>=0)
+                            @if($fallo_otros_total>=0)
                                 <span class="badge bg-primary bg-opacity-15 text-white ms-3">{{ $fallo_otros_total }} fallos</span></h3>
                         @endif
                     </div>
 
-                    @if($total>=0)
-                        <p><strong>{{  $fallo_otros_100 }}% de los fallos</strong>:</p>
+                    @if($fallo_otros_total>=0)
+                        <p><strong>{{ $fallo_otros_total }} · {{  $fallo_otros_100 }}% de los fallos</strong>: fallos sin etiqueta de contacto, no cooperación o error técnico:</p>
                     @endif
                     <div class="ms-3">
                         <ul class="etiqueta list-unstyled">
-                            <li><i class="bi bi-volume-mute me-2 text-danger"></i>
-                                Conductor no escucha: {{ $reporte->total->conductor_no_escucha }}</li>
                             <li><i class="bi bi-reception-1 me-2 text-warning"></i>
-                                Conductor mala señal: {{ $reporte->total->conductor_mala_senal }}</li>
-                            <li>🤬
-                                Conductor conducta inapropiada: {{ $reporte->total->conductor_conducta_inapropiada }}</li>
+                                Conductor mala señal: {{ $f->senal_f }}</li>
                             <li><i class="bi bi-question-circle me-2 text-info"></i>
-                                Confusión en llamada: {{ $reporte->total->confusion_en_llamada }}</li>
+                                Confusión en llamada: {{ $f->confusion_f }}</li>
                             <li><i class="bi bi-person-x me-2 text-secondary"></i>
-                                Contesta otra persona: {{ $reporte->total->contesta_otra_persona }}</li>
-                            <li><i class="bi bi-check2-square me-2 text-primary"></i>
-                                Confirmacion Parcial: {{ $reporte->total->confirmacion_parcial }}</li>
+                                Contesta otra persona: {{ $f->otra_persona_f }}</li>
                             <li><i class="bi bi-telephone-minus me-2 text-dark"></i>
-                                Número equivocado: {{ $reporte->total->numero_equivocado }}</li>
+                                Número equivocado: {{ $f->numero_equivocado_f }}</li>
+                            <li><i class="bi bi-chat-left-text me-2 text-success"></i>
+                                Da motivos: {{ $f->motivos_f }}</li>
+                            <li><i class="bi bi-check2-square me-2 text-primary"></i>
+                                Confirmación parcial: {{ $f->parcial_f }}</li>
+                            <li><i class="bi bi-question me-2 text-muted"></i>
+                                Sin ninguna etiqueta: {{ $f->sin_etiqueta_f }}</li>
                         </ul>
-                        <span class="small">* Una llamada puede tener 1 o multiples etiquetas.</span>
+                        <span class="small">* Una llamada puede tener 1 o multiples etiquetas; el cubo la asigna por prioridad.</span>
                     </div>
                 </div>
             </div>

@@ -43,7 +43,7 @@ class ReportesController extends Controller
      * en el reporte de un dia: el bloque de rutas es el mas costoso y no se
      * necesita en el dashboard ni en el rango.
      */
-    private static function recolectar(Request $request, bool $con_rutas = false): array
+    private static function recolectar(Request $request, bool $con_rutas = false, bool $con_espera = false): array
     {
         $request->validate([
             'fecha_inicio' => 'nullable|date',
@@ -87,6 +87,9 @@ class ReportesController extends Controller
         return [
             'llamadas' => $llamadas,
             'periodo' => $periodo,
+            'espera' => $con_espera ? DBReportes::espera_por_ubicacion($periodo) : null,
+            'mapa' => $con_espera ? DBReportes::mapa_volumen($periodo) : null,
+            'depas' => DBRutas::$depas,
             'filtros' => DBReportes::$filtro,
             'kpis' => $kpis,
             'anterior' => $anterior,
@@ -110,6 +113,7 @@ class ReportesController extends Controller
             'trts' => DBReportes::por_trt(12),
             'ia' => DBReportes::concordancia_ia(),
             'etiquetas' => DBReportes::etiquetas($kpis),
+            'fallos' => DBReportes::clasificacion_fallos(),
             'ventana' => DBReportes::ventana_horaria($por_hora, 3, 5),
             'rutas' => $rutas,
             'min_llamadas' => $min_llamadas,
@@ -201,7 +205,7 @@ class ReportesController extends Controller
     {
         self::dias_por_defecto($request);
 
-        return view('reporte.v2.dashboard', self::recolectar($request, false));
+        return view('reporte.v2.dashboard', self::recolectar($request, false, true));
     }
 
     /** El mismo dashboard como archivo .html independiente. */
@@ -209,7 +213,7 @@ class ReportesController extends Controller
     {
         self::dias_por_defecto($request);
 
-        return self::descargar('reporte.v2.dashboard', $request, false, 'dashboard_vapi_');
+        return self::descargar('reporte.v2.dashboard', $request, false, 'dashboard_vapi_', true);
     }
 
     /**
@@ -222,7 +226,7 @@ class ReportesController extends Controller
     {
         self::dias_por_defecto($request);
 
-        return view('reporte.v2.reporte', self::recolectar($request, self::es_un_dia($request)));
+        return view('reporte.v2.reporte', self::recolectar($request, self::es_un_dia($request), true));
     }
 
     /** El reporte web como archivo .html independiente. */
@@ -230,7 +234,71 @@ class ReportesController extends Controller
     {
         self::dias_por_defecto($request);
 
-        return self::descargar('reporte.v2.reporte', $request, self::es_un_dia($request), 'reporte_vapi_');
+        return self::descargar('reporte.v2.reporte', $request, self::es_un_dia($request), 'reporte_vapi_', true);
+    }
+
+    /**
+     * Reporte de progreso por semana y por mes.
+     *
+     * Mismas metricas agregadas de DBReportes que el dashboard (totales,
+     * exitosas, tasa de exito, contestadas, buzon, duracion y costo por
+     * confirmacion), pero presentadas como evolucion temporal: una tabla con
+     * su grafico por semana y otra por mes, cada cubo con su variacion contra
+     * el anterior y el acumulado del rango. Va en el formato reporte clasico
+     * (reporte/todo/todo1), no como el dashboard interactivo.
+     *
+     * Sin fechas abre el ano en curso hasta el ultimo dia con datos: un rango
+     * de 7 dias no tiene meses que mostrar y la progresion pierde el sentido.
+     */
+    public static function progreso(Request $request)
+    {
+        self::rango_progreso($request);
+
+        $datos = self::recolectar($request, false);
+        $datos['semanas'] = DBReportes::progreso('semana');
+        $datos['meses'] = DBReportes::progreso('mes');
+
+        // el pie de la tabla mensual cubre su propio rango ampliado (min. 6 meses)
+        $pm = DBReportes::periodo_meses();
+        $datos['meses_kpis'] = DBReportes::kpis($pm->inicio, $pm->fin_exclusivo);
+
+        return view('reporte.v2.progreso', $datos);
+    }
+
+    /** El reporte de progreso como archivo .html independiente. */
+    public static function progreso_html(Request $request)
+    {
+        self::rango_progreso($request);
+
+        $datos = self::recolectar($request, false);
+        $datos['semanas'] = DBReportes::progreso('semana');
+        $datos['meses'] = DBReportes::progreso('mes');
+
+        // el pie de la tabla mensual cubre su propio rango ampliado (min. 6 meses)
+        $pm = DBReportes::periodo_meses();
+        $datos['meses_kpis'] = DBReportes::kpis($pm->inicio, $pm->fin_exclusivo);
+        $datos['layout'] = 'layouts.export';
+
+        $html = view('reporte.v2.progreso', $datos)->render();
+
+        $nombre = 'progreso_vapi_' . $datos['periodo']->desde . '_al_' . $datos['periodo']->hasta;
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $nombre . '.html"',
+        ]);
+    }
+
+    /** Sin fechas: ano en curso anclado al ultimo dia con llamadas. */
+    private static function rango_progreso(Request $request): void
+    {
+        if (!$request->fecha_inicio && !$request->fecha_fin) {
+            $ultima = DBReportes::ultima_fecha_con_datos();
+            $request->merge([
+                'fecha_inicio' => date('Y-01-01', strtotime($ultima)),
+                'fecha_fin' => $ultima,
+            ]);
+        }
     }
 
     /** Sin fechas: ultimos 7 dias anclados al ultimo dia con llamadas. */
@@ -258,9 +326,9 @@ class ReportesController extends Controller
      * Renderiza la vista con el layout de exportacion y la entrega como
      * descarga .html: el archivo no depende de la app, solo de los CDN.
      */
-    private static function descargar(string $vista, Request $request, bool $con_rutas, string $prefijo)
+    private static function descargar(string $vista, Request $request, bool $con_rutas, string $prefijo, bool $con_espera = false)
     {
-        $datos = self::recolectar($request, $con_rutas);
+        $datos = self::recolectar($request, $con_rutas, $con_espera);
         $datos['layout'] = 'layouts.export';
 
         $html = view($vista, $datos)->render();

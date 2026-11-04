@@ -45,6 +45,21 @@ class LoginController extends Controller
         return 'name';
     }
 
+    /**
+     * Solo pueden entrar los usuarios activos: los desactivados desde la
+     * pantalla de usuarios (users.activo = 0) no pasan la validacion.
+     *
+     * OJO: el metodo `credentials` viene del trait AuthenticatesUsers, no de
+     * la clase padre, asi que no se puede llamar con `parent::`.
+     */
+    protected function credentials(Request $request)
+    {
+        return array_merge(
+            $request->only($this->username(), 'password'),
+            ['activo' => 1]
+        );
+    }
+
     //-----------------GENERAR TROFEOS PARA CADA CHOFER--------------
     protected function authenticated(Request $request, $user){
         // Verificar si ya se ejecutó hoy

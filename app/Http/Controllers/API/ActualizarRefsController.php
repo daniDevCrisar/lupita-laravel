@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\DB;
  *    lotes que aun NO tienen fin_descargue (viajes completos = no se envian).
  *  - actualizar_refs():          POST /api/refs/actualizar -> escritura directa
  *    en referencias segun el flag referencias_de_lotes.
- *  - seleccion():        pantalla interna para elegir lotes por rango y armar
- *    el link de tceflexia.
- *  - documentacion():  contrato interna del API (que recibe / que devuelve).
+ *
+ * Este controlador es SOLO API: los endpoints son publicos (sin `auth` y sin
+ * middleware `permission`). Las pantallas del modulo viven en RefsController.
  *
  * Reglas de negocio (confirmadas):
  *  referencias_de_lotes = true  -> SOLO data de los lotes enviados en el GET:
@@ -32,7 +32,8 @@ use Illuminate\Support\Facades\DB;
  *      refs con fin_descargue : se ignoran (estado completa)
  *  referencias_de_lotes = false -> upsert libre para incrementar data:
  *      existe  : reemplaza todo lo recibido
- *      no existe: INSERT nuevo (trt_id/conductor_id/fecha_despachador en NULL)
+ *      no existe: INSERT nuevo (fecha_despachador en NULL; trt_id/conductor_id
+ *                solo si vinieron en el payload)
  *
  * fecha_despachador esta obsoleta: se ignora si llega.
  * Fechas aceptadas: d/m/Y H:i[:s] | d/m/Y | Y-m-d H:i[:s] | Y-m-d.
@@ -41,6 +42,12 @@ use Illuminate\Support\Facades\DB;
  *   resuelve su id por similitud con DBConductoresResolver; tambien se acepta
  *   "conductor_id" numerico directo. Se escribe en referencias.conductor_id
  *   SOLO si la ref todavia no tiene uno (backfill); si ya tiene, no se toca.
+ * trt: se acepta SOLO el NOMBRE del transportista ("trt" o "transportista"), nunca
+ *   RUC; tambien se acepta "trt_id" numerico directo. El nombre se busca en la tabla
+ *   trts (exacto normalizado, y LIKE solo si hay un unico candidato) y, SI NO SE
+ *   ENCUENTRA, se CREA un trts nuevo con ese nombre. Se escribe en
+ *   referencias.trt_id SOLO si la ref todavia no tiene uno (backfill); si ya tiene,
+ *   no se toca.
  */
 class ActualizarRefsController extends Controller
 {
@@ -143,7 +150,7 @@ class ActualizarRefsController extends Controller
         //------------------precargar el estado actual de todas las refs------------------
         $in = implode(',', array_fill(0, count($mapa), '?'));
         $existentes = DB::select("
-            SELECT ref, titulo_viaje, placa, conductor_id, fin_descargue
+            SELECT ref, titulo_viaje, placa, conductor_id, trt_id, fin_descargue
             FROM referencias
             WHERE ref IN ($in)
         ", array_keys($mapa));
@@ -272,6 +279,44 @@ class ActualizarRefsController extends Controller
                     }
                 }
 
+                // trt: se RELLENA solo cuando la ref todavia NO tiene trt_id
+                // (backfill, misma regla que conductor). Si ya tiene, no se toca.
+                $trt_info = null;
+                $trt_enviado = ($datos['trt'] !== '' || $datos['trt_id'] !== null);
+                if ($trt_enviado) {
+                    $actual_tid = $existente ? (int) ($existente->trt_id ?? 0) : 0;
+
+                    if ($actual_tid === 0) {
+                        $trt_id = $datos['trt_id'];
+                        if ($trt_id === null && $datos['trt'] !== '') {
+                            $res = self::resolver_trt($datos['trt']);
+                            if (!empty($res['id'])) {
+                                $trt_id = (int) $res['id'];
+                                $trt_info = [
+                                    'id'      => $trt_id,
+                                    'nombre'  => (string) ($res['nombre'] ?? ''),
+                                    'via'     => $res['via'],
+                                    'escrito' => true,
+                                ];
+                            } else {
+                                $trt_info = [
+                                    'id'      => null,
+                                    'estado'  => 'no_encontrado',
+                                    'cercano' => $res['candidatos'][0] ?? null,
+                                ];
+                            }
+                        }
+                        if ($trt_id !== null) {
+                            $set['trt_id'] = $trt_id;
+                            $campos[] = 'trt_id';
+                            $trt_info = $trt_info ?? ['id' => $trt_id, 'via' => 'trt_id', 'escrito' => true];
+                        }
+                    } else {
+                        // La ref ya tenia trt_id: se respeta el existente.
+                        $trt_info = ['id' => $actual_tid, 'estado' => 'ya_definido'];
+                    }
+                }
+
                 try {
                     if (!$existente) {
                         // INSERT libre (solo modo sin lotes): se crea la referencia nueva
@@ -285,6 +330,7 @@ class ActualizarRefsController extends Controller
                                 'ref' => $ref,
                                 'estado' => 'sin_cambios',
                                 'conductor' => $conductor_info,
+                                'trt' => $trt_info,
                             ], fn($v) => $v !== null);
                             continue;
                         }
@@ -304,6 +350,7 @@ class ActualizarRefsController extends Controller
                         'campos' => $campos,
                         'ruta_reprocesada' => $ruta_reprocesada,
                         'conductor' => $conductor_info,
+                        'trt' => $trt_info,
                     ], fn($v) => $v !== null);
                 } catch (\Throwable $e) {
                     $resumen['invalidas']++;
@@ -322,53 +369,6 @@ class ActualizarRefsController extends Controller
             'resumen' => $resumen,
             'resultados' => $resultados,
         ]);
-    }
-
-    //=====================================================================
-    // PANTALLAS INTERNAS (grupo auth /lupita)
-    //=====================================================================
-
-    /**
-     * GET /lupita/refs/actualizar : seleccion de lotes por rango + link a tceflexia
-     */
-    public function seleccion(Request $request)
-    {
-        $fecha_inicio = $request->query('fecha_inicio', date('Y-m-d', strtotime('-30 days')));
-        $fecha_fin = $request->query('fecha_fin', date('Y-m-d'));
-
-        // lote_id es BIGINT; se filtra por fecha de importacion del lote
-        $lotes = DB::select("
-            SELECT l.lote_id, l.nombre, l.comentario, l.created_at, u.nombres AS user_nombres,
-                   COALESCE(rc.refs, 0) AS refs,
-                   COALESCE(rc.pendientes, 0) AS pendientes
-            FROM tmp_lotes l
-            INNER JOIN users u ON u.id = l.usuario_id
-            LEFT JOIN (
-                SELECT a.lote_id,
-                       COUNT(DISTINCT IF(a.ref <> '', a.ref, NULL)) AS refs,
-                       COUNT(DISTINCT IF(a.ref <> '' AND r.fin_descargue IS NULL, a.ref, NULL)) AS pendientes
-                FROM llamadas a
-                LEFT JOIN referencias r ON r.ref = a.ref
-                WHERE a.lote_id IN (
-                    SELECT lote_id FROM tmp_lotes
-                    WHERE procesado = 1 AND DATE(created_at) BETWEEN ? AND ?
-                )
-                GROUP BY a.lote_id
-            ) rc ON rc.lote_id = l.lote_id
-            WHERE l.procesado = 1 AND DATE(l.created_at) BETWEEN ? AND ?
-            ORDER BY l.created_at DESC
-            LIMIT 300
-        ", [$fecha_inicio, $fecha_fin, $fecha_inicio, $fecha_fin]);
-
-        return view('refs.seleccion', compact('lotes', 'fecha_inicio', 'fecha_fin'));
-    }
-
-    /**
-     * GET /lupita/refs/docs : documentacion del contrato del API
-     */
-    public function documentacion()
-    {
-        return view('refs.docs');
     }
 
     //=====================================================================
@@ -391,6 +391,9 @@ class ActualizarRefsController extends Controller
     /** Cache nombre->resolucion para no repetir la busqueda por similitud por ref. */
     private static $conductor_cache = [];
 
+    /** Cache trt->id para no repetir la busqueda en trts por cada ref. */
+    private static $trt_cache = [];
+
     /**
      * Resuelve el nombre de un conductor a su id con DBConductoresResolver
      * (misma logica de similitud que la importacion). Se memoiza por request:
@@ -404,6 +407,72 @@ class ActualizarRefsController extends Controller
 
         return self::$conductor_cache[$clave] =
             DBConductoresResolver::resolver((object) ['conductor' => $nombre]);
+    }
+
+    /** normaliza un trt para comparar: mayusculas, sin espacios sobrantes */
+    private static function normalizar_trt(string $trt): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', mb_strtoupper($trt)));
+    }
+
+    /**
+     * Busca el trt (nombre del transportista, NUNCA RUC) en la tabla trts.
+     *
+     * Orden: nombre exacto normalizado (preferendo activos), LIKE '%...%' solo si
+     * hay un UNICO candidato, y si no se encuentra se CREA un trts nuevo con ese
+     * nombre (via nombre_nuevo). Se memoiza por request como el conductor.
+     *
+     * @return array{id: ?int, nombre: string, via: string, candidatos: array}
+     */
+    private static function resolver_trt(string $trt): array
+    {
+        $clave = self::normalizar_trt($trt);
+        if (array_key_exists($clave, self::$trt_cache))
+            return self::$trt_cache[$clave];
+
+        $res = ['id' => null, 'nombre' => $clave, 'via' => '', 'candidatos' => []];
+        if ($clave === '')
+            return self::$trt_cache[$clave] = $res;
+
+        // 1) nombre exacto normalizado: primero activos, luego tambien inactivos
+        foreach ([true, false] as $solo_activos) {
+            $row = DB::selectOne("
+                SELECT id, nombres FROM trts
+                WHERE REGEXP_REPLACE(UPPER(TRIM(nombres)), '[[:space:]]+', ' ') = ?
+                  " . ($solo_activos ? 'AND activo = 1' : '') . "
+                ORDER BY id LIMIT 1
+            ", [$clave]);
+            if ($row) {
+                $res = ['id' => (int)$row->id, 'nombre' => (string)$row->nombres, 'via' => 'nombre_exacto', 'candidatos' => []];
+                return self::$trt_cache[$clave] = $res;
+            }
+        }
+
+        // 2) LIKE solo entre activos y con UNICO candidato: evita asignar un id dudoso
+        $filas = DB::select("
+            SELECT id, nombres FROM trts
+            WHERE activo = 1 AND nombres LIKE ?
+            ORDER BY id LIMIT 3
+        ", ['%' . str_replace(['%', '_'], ['\%', '\_'], $clave) . '%']);
+        if (count($filas) === 1) {
+            $res = ['id' => (int)$filas[0]->id, 'nombre' => (string)$filas[0]->nombres, 'via' => 'unico_parecido', 'candidatos' => []];
+            return self::$trt_cache[$clave] = $res;
+        }
+        if (count($filas) > 1) {
+            // ambiguo: no se crea un duplicado de un nombre ya registrado
+            $res['candidatos'] = array_map(fn($f) => ['id' => (int)$f->id, 'nombre' => (string)$f->nombres], $filas);
+            return self::$trt_cache[$clave] = $res;
+        }
+
+        // 3) no existe en trts: se ALTA uno nuevo con ese nombre (sis_id/vapi_id/ruc NULL)
+        try {
+            $id = DB::table('trts')->insertGetId(['nombres' => $clave, 'activo' => 1]);
+            $res = ['id' => (int)$id, 'nombre' => $clave, 'via' => 'nombre_nuevo', 'candidatos' => []];
+        } catch (\Throwable $e) {
+            // sin alta (p.ej. fallo de conexion): se reporta como no encontrado
+        }
+
+        return self::$trt_cache[$clave] = $res;
     }
 
     /** acepta dict {ref:{campos}} o lista [{ref:"X",...}]; devuelve ref=>item */
@@ -468,6 +537,25 @@ class ActualizarRefsController extends Controller
         $datos['conductor'] = $conductor;
         $datos['conductor_id'] = $conductor_id;
 
+        // trt: SOLO el nombre del transportista (nunca RUC); trt_id numerico directo opcional
+        $trt_raw = $item['trt'] ?? $item['transportista'] ?? '';
+        if (!is_string($trt_raw)) $trt_raw = is_numeric($trt_raw ?? null) ? (string)$trt_raw : '';
+        $trt = ExcelTool::normalizarTexto($trt_raw);
+        if (mb_strlen($trt) > 150)
+            $errores[] = 'trt: excede 150 caracteres';
+
+        $trt_id = null;
+        $tid_raw = $item['trt_id'] ?? null;
+        if ($tid_raw !== null && $tid_raw !== '' && is_numeric($tid_raw)) {
+            $trt_id = (int) $tid_raw;
+            if ($trt_id <= 0) {
+                $errores[] = 'trt_id: debe ser un entero positivo';
+                $trt_id = null;
+            }
+        }
+        $datos['trt'] = $trt;
+        $datos['trt_id'] = $trt_id;
+
         // fecha_despachador: OBSOLETA, se ignora deliberadamente
         foreach (self::EVENTOS as $evento) {
             $valor = $item[$evento] ?? null;
@@ -527,7 +615,7 @@ class ActualizarRefsController extends Controller
         DB::update("UPDATE referencias SET " . implode(', ', $cols) . " WHERE ref=?", $binds);
     }
 
-    /** INSERT de referencia nueva (modo libre): sin trt ni fecha_despachador; incluye conductor_id si vino */
+    /** INSERT de referencia nueva (modo libre): sin fecha_despachador; incluye conductor_id y trt_id si vinieron */
     private static function insertar_referencia(string $ref, array $set): void
     {
         $cols = ['ref', 'titulo_viaje', 'placa'];
@@ -535,6 +623,10 @@ class ActualizarRefsController extends Controller
         if (isset($set['conductor_id'])) {
             $cols[] = 'conductor_id';
             $binds[] = $set['conductor_id'];
+        }
+        if (isset($set['trt_id'])) {
+            $cols[] = 'trt_id';
+            $binds[] = $set['trt_id'];
         }
         foreach (self::EVENTOS as $evento) {
             if (($set[$evento] ?? '') !== '') {

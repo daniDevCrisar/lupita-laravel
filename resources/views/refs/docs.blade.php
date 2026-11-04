@@ -35,6 +35,7 @@
             <div class="docs-card p-3">
                 <h4 class="text-light"><span class="badge bg-success metodo">GET</span> {{ $url_get }}</h4>
                 <p class="text-light mb-1">Devuelve las <b>refs únicas</b> de los lotes indicados que <b>aún no tienen <code>fin_descargue</code></b> (los viajes completos nunca se envían).</p>
+                <p class="text-secondary small mb-1"><b>Solo lectura</b>: este endpoint no escribe nada; el <code>trt</code> y el <code>conductor</code> solo se resuelven en el POST.</p>
                 <table class="table table-sm table-bordered docs-tabla mt-3">
                     <thead><tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr></thead>
                     <tbody>
@@ -71,6 +72,7 @@
       "titulo_viaje": "LIMA - HUARAZ / CARGA 03-10",
       "placa": "S1AB954",
       "conductor": "BALDON SEGUNDO GUTIERREZ LUZARDO",
+      "trt": "TRANSPORTES SAN PEDRO DE MARANON S.A.C.",
       "compromiso_carga":  "03/10/2026 12:00",
       "presenta_para_carga": "03/10/2026 14:05",
       "inicio_de_carga":   "03/10/2026 15:20",
@@ -95,6 +97,18 @@
                     También se acepta <code>conductor_id</code> numérico para fijarlo directo.
                     Si el nombre no alcanza una coincidencia segura, <b>no se escribe</b> y se informa en <code>resultados[].conductor</code>.
                 </p>
+                <p class="text-secondary small">
+                    <b class="text-light">trt</b>: se manda el <b>nombre</b> del transportista (o <code>transportista</code>) — nunca el RUC —
+                    y su id se busca en la tabla <code>trts</code>: primero <b>exacto</b> (normalizado, priorizando activos) y luego
+                    <b>LIKE</b> solo si hay un <b>único candidato</b>. <b>Si no se encuentra, se crea un trt nuevo</b> en <code>trts</code>
+                    con ese nombre. Se escribe en
+                    <code>referencias.trt_id</code> <b>solo si la ref todavía no tiene uno</b> (backfill); si ya tiene, se respeta.
+                    También se acepta <code>trt_id</code> numérico para fijarlo directo.
+                    Solo se informa <code>no_encontrado</code> (sin escribir) si el LIKE da <b>varios</b> parecidos, y se lista el
+                    <code>cercano</code> en <code>resultados[].trt</code>.
+                    El campo <code>trt.via</code> dice cómo se resolvió: <code>nombre_exacto</code>, <code>unico_parecido</code>,
+                    <code>nombre_nuevo</code> (creado al no existir) o <code>trt_id</code> (cuando llegó el id directo).
+                </p>
 
                 <h5 class="text-light">Formatos de fecha aceptados</h5>
                 <table class="table table-sm table-bordered docs-tabla">
@@ -114,12 +128,13 @@
                     <tr><th>Campo</th><th>referencias_de_lotes = true</th><th>referencias_de_lotes = false</th></tr>
                     </thead>
                     <tbody>
-                    <tr><td>Ref inexistente</td><td><b>NO se inserta</b> → estado <code>no_encontrada</code></td><td>se crea con <code>INSERT</code> → estado <code>nueva</code> (trt/conductor quedan NULL)</td></tr>
+                    <tr><td>Ref inexistente</td><td><b>NO se inserta</b> → estado <code>no_encontrada</code></td><td>se crea con <code>INSERT</code> → estado <code>nueva</code> (lleva trt_id/conductor_id si llegaron)</td></tr>
                     <tr><td>Ref con fin_descargue</td><td>se ignora → estado <code>completa</code></td><td>se actualiza normal</td></tr>
                     <tr><td>titulo_viaje</td><td>solo si <b>no tenia</b> (estaba vacío)</td><td>reemplaza si viene distinto</td></tr>
                     <tr><td>ruta_id</td><td colspan="2">se reprocesa (SP <code>sp_actualizar_ruta_id</code>) <b>solo</b> si se escribió un título nuevo; el resultado lo dice <code>ruta_reprocesada</code></td></tr>
                     <tr><td>placa</td><td colspan="2">se <b>remplaza</b> siempre que venga data nueva (máx. 10 chars, se recorta antes de "/")</td></tr>
                     <tr><td>conductor</td><td colspan="2">si llega el <b>nombre</b>, se resuelve su id por similitud y se escribe en <code>conductor_id</code> <b>solo cuando la ref aún no tiene uno</b>; si ya tiene, no se sobrescribe (<code>estado: ya_definido</code>); sin coincidencia segura no se escribe (queda en <code>resultados[].conductor</code>)</td></tr>
+                    <tr><td>trt</td><td colspan="2">si llega el <b>nombre</b> (nunca RUC), se busca su id en <code>trts</code> (exacto → LIKE único → <b>alta nueva</b> si no existe) y se escribe en <code>trt_id</code> <b>solo cuando la ref aún no tiene uno</b>; si ya tiene, no se sobrescribe (<code>estado: ya_definido</code>); con varios parecidos LIKE no se escribe (queda en <code>resultados[].trt</code>)</td></tr>
                     <tr><td>eventos (8 fechas)</td><td colspan="2">se <b>remplazan</b> siempre con los nuevos; vacío/null = no enviado</td></tr>
                     <tr><td>fecha_despachador</td><td colspan="2">obsoleta — se ignora siempre</td></tr>
                     </tbody>
@@ -136,15 +151,22 @@
   },
   "resultados": [
     { "ref": "26100345", "estado": "actualizada",
-      "campos": ["placa", "inicio_ruta", "qr_llegada_destino", "conductor_id"],
+      "campos": ["placa", "inicio_ruta", "qr_llegada_destino", "conductor_id", "trt_id"],
       "ruta_reprocesada": false,
-      "conductor": { "id": 1, "nombre": "BALDON SEGUNDO GUTIERREZ LUZARDO", "sim": 100, "accion": "duplicado", "motivo": "exacto", "escrito": true } },
+      "conductor": { "id": 1, "nombre": "BALDON SEGUNDO GUTIERREZ LUZARDO", "sim": 100, "accion": "duplicado", "motivo": "exacto", "escrito": true },
+      "trt": { "id": 2, "nombre": "TRANSPORTES SAN PEDRO DE MARANON S.A.C.", "via": "nombre_exacto", "escrito": true } },
     { "ref": "26100401", "estado": "actualizada",
       "campos": ["titulo_viaje", "placa"],
       "ruta_reprocesada": true },
     { "ref": "26109999", "estado": "completa" },
     { "ref": "26108888", "estado": "no_encontrada" },
-    { "ref": "26107777", "estado": "sin_cambios" },
+    { "ref": "26107777", "estado": "sin_cambios",
+      "trt": { "id": 2, "estado": "ya_definido" } },
+    { "ref": "26106555", "estado": "sin_cambios",
+      "trt": { "id": null, "estado": "no_encontrado", "cercano": { "id": 9, "nombre": "TRANSPORTE AGUERO EIRL" } } },
+    { "ref": "26106444", "estado": "actualizada",
+      "campos": ["trt_id"], "ruta_reprocesada": false,
+      "trt": { "id": 349, "nombre": "TRANSPORTISTA NUEVO S.A.C.", "via": "nombre_nuevo", "escrito": true } },
     { "ref": "MALA-REF-XX", "estado": "invalida",
       "errores": ["ref: formato invalido (3-10 caracteres alfanumericos)"] },
     { "ref": "26106666", "estado": "invalida",
@@ -186,14 +208,21 @@ console.log(json.resumen);</pre>
             <div class="docs-card p-3">
                 <h5 class="text-light">Flujo completo</h5>
                 <ol class="text-light">
-                    <li>En <a href="{{ route('lupita.refs.seleccion') }}" class="text-info">Actualizar Refs</a> se eligen los lotes por rango y se abre
-                        <code>tceflexia.com/generalMilestonesRoute?api=lupita_lotes&lotes=ID1,ID2</code>.</li>
+                    <li>
+                        En <a href="{{ route('lupita.refs.seleccion') }}" class="text-info">Actualizar Refs</a> se eligen los lotes por rango y se abre
+                        <code>tceflexia.com/generalMilestonesRoute?api=lupita_lotes&lotes=ID1,ID2</code>.
                     <li>La página pide <b>GET /api/refs?lotes=...</b> → recibe solo refs pendientes y únicas.</li>
                     <li>Con esa lista levanta la data fresca del despachador (milestones).</li>
                     <li>Envía <b>POST /api/refs/actualizar</b> con <code>referencias_de_lotes: true</code> → se escribe directo en <code>referencias</code>.</li>
                     <li>Para refs nuevas que no pertenecen a lotes (aumentar data), mismo POST con <code>referencias_de_lotes: false</code>.</li>
                     <li>La respuesta trae el resumen y el estado por ref para mostrarlo al usuario.</li>
                 </ol>
+                <p class="text-secondary small mb-0">
+                    Coherencia con la <b>importación por lote</b> (Excel): allí el trt ya se resolvía con
+                    <code>sp_insertar_o_obtener_trts</code> (obtener por nombre o crearlo) y el conductor con
+                    <code>DBConductoresResolver</code>. El POST de esta API usa la misma semántica: nombre → id,
+                    y si el nombre no existe en <code>trts</code> se crea (nunca se acepta RUC).
+                </p>
             </div>
         </div>
     </div>

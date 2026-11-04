@@ -52,10 +52,16 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
 
+                {{-- Cada link del menu se muestra solo si el usuario tiene el
+                     permiso del modulo: el servidor igual lo exige con el
+                     middleware `permission:` de cada ruta. --}}
+                @can('ver llamadas')
                 <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.llamadas')}}">Llamadas</a>
                 </li>
+                @endcan
 
+                @if(auth()->user()->canAny(['ver conductores', 'gestionar duplicados conductores']))
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
                        role="button"
@@ -65,22 +71,34 @@
                     </a>
 
                     <ul class="dropdown-menu dropdown-menu-end">
+                        @can('ver conductores')
                         <li><a class="dropdown-item" href="{{route('lupita.conductores')}}"><i class="bi bi-list-ul"></i> Lista</a></li>
+                        @endcan
+                        @can('gestionar duplicados conductores')
                         <li><a class="dropdown-item" href="{{route('lupita.conductores.duplicados')}}"><i class="bi bi-people"></i> Duplicados</a></li>
+                        @endcan
                     </ul>
                 </li>
+                @endif
 
+                @can('gestionar casos conductores')
                 <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.conductores.casos')}}">Casos</a>
                 </li>
+                @endcan
 
+                @can('ver transportistas')
                 <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.transportistas')}}">Transportistas</a>
                 </li>
+                @endcan
 
+                @can('ver referencias')
                 <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.referencias')}}">Referencias</a>
                 </li>
+                @endcan
+                @if(auth()->user()->canAny(['ver tiempos', 'compilar promedios']))
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
                        role="button"
@@ -89,16 +107,22 @@
                         Tiempos
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
+                        @can('ver tiempos')
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos')}}"><i class="bi bi-stopwatch"></i> Tiempos de ruta</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.horario')}}"><i class="bi bi-clock-history"></i> Horarios</a></li>
+                        @endcan
+                        @can('compilar promedios')
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio')}}"><i class="bi bi-calculator"></i> Compilar promedios</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio.horario')}}"><i class="bi bi-calendar3"></i> Compilar horarios</a></li>
+                        @endcan
+                        @can('ver tiempos')
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio.ver')}}"><i class="bi bi-table"></i> Promedios compilados</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio.horario.ver')}}"><i class="bi bi-grid-3x3-gap"></i> Horarios compilados</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.comportamiento')}}"><i class="bi bi-person-lines-fill"></i> Comportamiento</a></li>
-                        <li><a class="dropdown-item" href="{{route('lupita.tiempos.api')}}"><i class="bi bi-plug"></i> Probar API Tiempos</a></li>
+                        @endcan
                     </ul>
                 </li>
+                @endif
                 {{-- el modulo de scoring solo se muestra si el usuario trae el permiso
                      de lectura: `can()` devuelve false antes que el seeder corra, y no
                      revienta como `hasPermissionTo` --}}
@@ -121,10 +145,13 @@
                         </ul>
                     </li>
                 @endcan
+                @can('etiquetar llamada')
                 <li class="nav-item">
                     <a class="nav-link" href="{{route('lupita.audio')}}">Etiquetar</a>
                 </li>
+                @endcan
                 <!-- 🔽 MENÚ DESPLEGABLE -->
+                @if(auth()->user()->canAny(['importar json', 'importar excel', 'importar vapi', 'ver lista de lotes']))
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
                        role="button"
@@ -134,16 +161,43 @@
                     </a>
 
                     <ul class="dropdown-menu dropdown-menu-end">
+                        @can('importar json')
                         <li><a class="dropdown-item" href="{{route('importar.json')}}">JSON</a></li>
+                        @endcan
+                        @can('importar excel')
                         <li><a class="dropdown-item" href="{{route('importar.excel')}}">Excel</a></li>
+                        @endcan
+                        @can('importar vapi')
                         <li><a class="dropdown-item" href="{{route('vapi.index')}}">Por correo Vapi</a></li>
+                        @endcan
+                        @can('ver lista de lotes')
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item"  href="{{route('importar.excel.lotes')}}">Lista de Lotes</a></li>
-                        <li><a class="dropdown-item" href="{{route('lupita.refs.seleccion')}}"><i class="bi bi-arrow-repeat"></i> Actualizar Refs</a></li>
-                        <li><a class="dropdown-item" href="{{route('lupita.refs.docs')}}"><i class="bi bi-journal-code"></i> Docs API Refs</a></li>
+                        @endcan
                     </ul>
                 </li>
+                @endif
 
+                {{-- Grupo API: se abre con el permiso de lectura `ver api` --}}
+                @can('ver api')
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        API
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{route('lupita.refs.seleccion')}}"><i class="bi bi-arrow-repeat"></i> Actualizar Refs</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.refs.docs')}}"><i class="bi bi-journal-code"></i> Docs API Refs</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.tiempos.api')}}"><i class="bi bi-plug"></i> Probar API Tiempos</a></li>
+                    </ul>
+                </li>
+                @endcan
+
+                @can('ver reportes')
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
                        role="button"
@@ -163,6 +217,7 @@
                         <li><a class="dropdown-item" href="{{route('lupita.reporte.seleccion')}}">Para correo (histórico)</a></li>
                     </ul>
                 </li>
+                @endcan
 
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
@@ -173,6 +228,25 @@
                     </a>
 
                     <ul class="dropdown-menu dropdown-menu-end">
+                        @can('administrar usuarios')
+                            {{-- la administracion de usuarios es solo del administrador (usuario 1) --}}
+                            <li>
+                                <a href="{{ route('lupita.usuarios') }}" class="dropdown-item">
+                                    <i class="bi bi-people-fill"></i> Usuarios
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('lupita.permisos') }}" class="dropdown-item">
+                                    <i class="bi bi-shield-lock"></i> Permisos por rol
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                        @endcan
+                        <li>
+                            <span class="dropdown-item-text text-light">
+                                {{ auth()->user()->name }}@if(auth()->user()->nombres)<small class="text-white-50"> · {{ auth()->user()->nombres }}</small>@endif
+                            </span>
+                        </li>
                         <li>
                             <a href="{{ route('logout') }}" class="dropdown-item"
                                onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
@@ -223,9 +297,21 @@
             <div class="col-md-4 mb-4 mb-md-0">
                 <h5 class="fw-bold mb-3">Enlaces rápidos</h5>
                 <ul class="list-unstyled">
-                    <li class="mb-2"><a href="{{route('lupita.llamadas')}}" class="text-white text-decoration-none">Llamadas</a></li>
-                    <li class="mb-2"><a href="{{route('lupita.conductores')}}" class="text-white text-decoration-none">Conductores</a></li>
-                    <li class="mb-2"><a href="{{route('lupita.transportistas')}}" class="text-white text-decoration-none">Transportistas</a></li>
+                    <li class="mb-2">
+                        @can('ver llamadas')
+                        <a href="{{route('lupita.llamadas')}}" class="text-white text-decoration-none">Llamadas</a>
+                        @endcan
+                    </li>
+                    <li class="mb-2">
+                        @can('ver conductores')
+                        <a href="{{route('lupita.conductores')}}" class="text-white text-decoration-none">Conductores</a>
+                        @endcan
+                    </li>
+                    <li class="mb-2">
+                        @can('ver transportistas')
+                        <a href="{{route('lupita.transportistas')}}" class="text-white text-decoration-none">Transportistas</a>
+                        @endcan
+                    </li>
                     <li class="mb-2"><a href="#" class="text-white text-decoration-none">Contacto</a></li>
                 </ul>
             </div>

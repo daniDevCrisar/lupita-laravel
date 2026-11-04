@@ -75,6 +75,8 @@ class LlamadasController extends Controller
         }
 
         $reporte->total= $reporte->total[0];
+        // clasificacion exclusiva de fallidas por etiquetas actuales (todo1)
+        $reporte->fallos= $llamadas::clasificacion_fallos();
         $reporte->top_peores= $top_peor_c;
         $reporte->peores= $llamadas::top_peores_conductores($top_peor_c);
         $reporte->mejores= $llamadas::top_mejores_conductores();

@@ -422,6 +422,61 @@ class DBLlamadas {
         return  DB::select($sql . $filtro[0], $filtro[1]);
     }
 
+    /**
+     * Clasificacion de las fallidas con las etiquetas actuales (mismo criterio
+     * que DBReportes::ETIQUETAS_FALLO). Cada llamada fallida cae en UN solo
+     * cubo, por prioridad: fallo de contacto > no coopera > error tecnico >
+     * otros. Antes la seccion usaba razones de finalizacion del operador y un
+     * residuo "solo_cuelga", que duplicaba y dejaba llamadas sin clasificar.
+     * Los sub-contadores son crudos (una llamada puede sumar en dos de ellos),
+     * por eso la suma de los 4 cubos SI cuadra contra `fallidas`.
+     */
+    public static function clasificacion_fallos(){
+        $contacto = '(IFNULL(buzon_de_voz,0)=1 OR IFNULL(conductor_no_contesta,0)=1 OR IFNULL(conductor_cuelga,0)=1)';
+        $nocoop = '(IFNULL(conductor_contesta_pero_no_habla,0)=1 OR IFNULL(conductor_no_escucha,0)=1 OR IFNULL(conductor_conducta_inapropiada,0)=1)';
+        $tec = '(IFNULL(error_origen,0) IN (-1,1,2,3) OR IFNULL(error_tecnico_llamada,0)=1 OR IFNULL(error_audio,0)=1)';
+
+        $sql="SELECT
+            SUM(llamada_exitosa=0) AS fallidas,
+            SUM(llamada_exitosa=0 AND $contacto) AS f_contacto,
+            SUM(llamada_exitosa=0 AND NOT $contacto AND $nocoop) AS f_no_coopera,
+            SUM(llamada_exitosa=0 AND NOT $contacto AND NOT $nocoop AND $tec) AS f_tecnicos,
+            SUM(llamada_exitosa=0 AND NOT $contacto AND NOT $nocoop AND NOT $tec) AS f_otros,
+
+            SUM(IFNULL(buzon_de_voz,0)=1 AND llamada_exitosa=0) AS buzon_f,
+            SUM(IFNULL(conductor_no_contesta,0)=1 AND llamada_exitosa=0) AS no_contesta_f,
+            SUM(IFNULL(conductor_cuelga,0)=1 AND llamada_exitosa=0) AS cuelga_f,
+            SUM(razon_finalizacion_id=5 AND llamada_exitosa=0) AS ocupado_f,
+
+            SUM(IFNULL(conductor_contesta_pero_no_habla,0)=1 AND llamada_exitosa=0) AS no_habla_f,
+            SUM(IFNULL(conductor_no_escucha,0)=1 AND llamada_exitosa=0) AS no_escucha_f,
+            SUM(IFNULL(conductor_conducta_inapropiada,0)=1 AND llamada_exitosa=0) AS inapropiada_f,
+
+            SUM(error_origen=1 AND llamada_exitosa=0) AS err_ia_f,
+            SUM(error_origen=2 AND llamada_exitosa=0) AS err_red_f,
+            SUM(error_origen=3 AND llamada_exitosa=0) AS err_sistema_f,
+            SUM(error_origen=-1 AND llamada_exitosa=0) AS err_desconocido_f,
+
+            SUM(IFNULL(conductor_mala_senal,0)=1 AND llamada_exitosa=0) AS senal_f,
+            SUM(IFNULL(confusion_en_llamada,0)=1 AND llamada_exitosa=0) AS confusion_f,
+            SUM(IFNULL(contesta_otra_persona,0)=1 AND llamada_exitosa=0) AS otra_persona_f,
+            SUM(IFNULL(numero_equivocado,0)=1 AND llamada_exitosa=0) AS numero_equivocado_f,
+            SUM(IFNULL(conductor_da_motivos,0)=1 AND llamada_exitosa=0) AS motivos_f,
+            SUM(IFNULL(conductor_confirma,0)=1 AND llamada_exitosa=0 AND IFNULL(error_origen,0)=0) AS parcial_f,
+
+            SUM(llamada_exitosa=0 AND NOT $contacto AND NOT $nocoop AND NOT $tec
+                AND IFNULL(conductor_mala_senal,0)=0 AND IFNULL(confusion_en_llamada,0)=0 AND
+                IFNULL(contesta_otra_persona,0)=0 AND IFNULL(numero_equivocado,0)=0 AND
+                IFNULL(conductor_da_motivos,0)=0 AND IFNULL(conductor_confirma,0)=0) AS sin_etiqueta_f
+
+            FROM llamadas a
+            where 1=1
+            ";
+        $filtro= self::aplicar_filtro_sqltext();
+
+        return DB::select($sql . $filtro[0], $filtro[1])[0];
+    }
+
 
     public static function aplicar_filtro_sqltext($letra='a'){
         $fecha_i =self::$filtro->fecha_inicio;

@@ -16,12 +16,16 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LlamadasController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\ReferenciasController;
+use App\Http\Controllers\RefsController;
 use App\Http\Controllers\TiemposRutaController;
+use App\Http\Controllers\TiemposApiVerController;
 use App\Http\Controllers\PalabrasController;
 use App\Http\Controllers\ScoringController;
 use App\Http\Controllers\TiemposHorarioController;
 use App\Http\Controllers\TiemposPromedioController;
 use App\Http\Controllers\TiemposPromedioVerController;
+use App\Http\Controllers\UsuariosController;
+use App\Http\Controllers\PermisosController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
 
@@ -31,33 +35,59 @@ Route::get('/', function () {
     return view('index');
 });
 
+//--- MAPA DE PERMISOS DEL PANEL ---
+// Cada modulo del panel tiene su permiso (Spatie). Las rutas que no son API
+// cuelgan del grupo `auth` y exigen el permiso de su modulo:
+//   ver llamadas | ver conductores | ver transportistas | ver referencias
+//   ver tiempos   | ver reportes   | ver scoring        | ver lote
+//   ver lista de lotes | ver api | compilar promedios | importar excel
+//   importar json | importar vapi | etiquetar llamada | editar palabras clave
+//   eliminar lote | fusionar conductores | administrar usuarios  (solo admin)
+// REGLA: los API son PUBLICOS. Lo que vive en app/Http/Controllers/Api y en el
+// grupo /api no lleva `auth` ni middleware `permission`; las pantallas que los
+// acompanian (RefsController, TiemposApiVerController) exigen solo el permiso
+// de lectura `ver api` (grupo API del menu).
 Route::middleware(['auth'])->group(function () {
     Route::prefix('lupita')->group(function () {
-        Route::get('/llamadas', [LlamadasController::class, 'listar_llamadas'])->name('lupita.llamadas');
-        Route::get('/conductores', [LlamadasController::class, 'listar_conductores'])->name('lupita.conductores');
+        Route::get('/llamadas', [LlamadasController::class, 'listar_llamadas'])->name('lupita.llamadas')
+            ->middleware('permission:ver llamadas');
+        Route::get('/conductores', [LlamadasController::class, 'listar_conductores'])->name('lupita.conductores')
+            ->middleware('permission:ver conductores');
 
         //--- Fusion de conductores duplicados (mismo nombre) ---
         // lectura: la pantalla solo agrupa y cuenta
-        Route::get('/conductores/duplicados', [ConductoresDuplicadosController::class, 'index'])->name('lupita.conductores.duplicados');
+        Route::get('/conductores/duplicados', [ConductoresDuplicadosController::class, 'index'])->name('lupita.conductores.duplicados')
+            ->middleware('permission:gestionar duplicados conductores');
         // escritura: reapunta llamadas, referencias, telefonos y log al id elegido
-        Route::post('/conductores/duplicados/fusionar', [ConductoresDuplicadosController::class, 'fusionar'])->name('lupita.conductores.duplicados.fusionar');
+        Route::post('/conductores/duplicados/fusionar', [ConductoresDuplicadosController::class, 'fusionar'])->name('lupita.conductores.duplicados.fusionar')
+            ->middleware('role:admin')->middleware('permission:fusionar conductores');
 
-        Route::get('/conductores/log/nuevo', [LogConductoresController::class, 'nuevo'])->name('lupita.conductores.log.nuevo');
+        Route::get('/conductores/log/nuevo', [LogConductoresController::class, 'nuevo'])->name('lupita.conductores.log.nuevo')
+            ->middleware('permission:ver conductores');
 
-        Route::get('/conductores/log', LogConductoresPadre::class)->name('lupita.conductores.log');
+        Route::get('/conductores/log', LogConductoresPadre::class)->name('lupita.conductores.log')
+            ->middleware('permission:ver conductores');
 
-        Route::get('/conductores/casos', LogConductoresBandeja::class)->name('lupita.conductores.casos');
+        Route::get('/conductores/casos', LogConductoresBandeja::class)->name('lupita.conductores.casos')
+            ->middleware('permission:gestionar casos conductores');
 
 
-        Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas');
-        Route::get('/referencias', [ReferenciasController::class, 'index'])->name('lupita.referencias');
-        Route::get('/referencias/mapa', [ReferenciasController::class, 'mapa'])->name('lupita.referencias.mapa');
-        Route::get('/tiempos', [TiemposRutaController::class, 'index'])->name('lupita.tiempos');
+        Route::get('/transportistas', [LlamadasController::class, 'listar_trts'])->name('lupita.transportistas')
+            ->middleware('permission:ver transportistas');
+        Route::get('/referencias', [ReferenciasController::class, 'index'])->name('lupita.referencias')
+            ->middleware('permission:ver referencias');
+        Route::get('/referencias/mapa', [ReferenciasController::class, 'mapa'])->name('lupita.referencias.mapa')
+            ->middleware('permission:ver referencias');
+        Route::get('/tiempos', [TiemposRutaController::class, 'index'])->name('lupita.tiempos')
+            ->middleware('permission:ver tiempos');
 
         //--- Comportamiento por placa / conductor (habitos, puntualidad y tiempos) ---
-        Route::get('/comportamiento', [ComportamientoController::class, 'index'])->name('lupita.comportamiento');
-        Route::get('/comportamiento/ficha', [ComportamientoController::class, 'ficha'])->name('lupita.comportamiento.ficha');
-        Route::get('/palabras', [PalabrasController::class, 'index'])->name('lupita.palabras');
+        Route::get('/comportamiento', [ComportamientoController::class, 'index'])->name('lupita.comportamiento')
+            ->middleware('permission:ver tiempos');
+        Route::get('/comportamiento/ficha', [ComportamientoController::class, 'ficha'])->name('lupita.comportamiento.ficha')
+            ->middleware('permission:ver tiempos');
+        Route::get('/palabras', [PalabrasController::class, 'index'])->name('lupita.palabras')
+            ->middleware('permission:ver scoring');
 
         //--- Scoring de exito por palabras (pesos por tipo de llamada) ---
         // lectura: la evaluacion y su configuracion comparten el permiso de ver
@@ -91,50 +121,100 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/scoring/sugerencia', [ScoringController::class, 'guardar_sugerencia'])->name('lupita.scoring.sugerencia.guardar')
             ->middleware('permission:editar palabras clave');
 
-        Route::get('/refs/actualizar', [ActualizarRefsController::class, 'seleccion'])->name('lupita.refs.seleccion');
-        Route::get('/refs/docs', [ActualizarRefsController::class, 'documentacion'])->name('lupita.refs.docs');
+        //--- Pantallas del modulo de API (grupo API del menu) ---
+        Route::get('/refs/actualizar', [RefsController::class, 'seleccion'])->name('lupita.refs.seleccion')
+            ->middleware('permission:ver api');
+        Route::get('/refs/docs', [RefsController::class, 'documentacion'])->name('lupita.refs.docs')
+            ->middleware('permission:ver api');
 
-        Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario');
+        //--- Permisos por rol (que modulos ve cada rol) ---
+        Route::get('/permisos', [PermisosController::class, 'index'])->name('lupita.permisos')
+            ->middleware('permission:administrar usuarios');
+        Route::post('/permisos', [PermisosController::class, 'guardar'])->name('lupita.permisos.guardar')
+            ->middleware('permission:administrar usuarios');
+
+        //--- Administracion de usuarios (solo el usuario 1: el administrador) ---
+        Route::get('/usuarios', [UsuariosController::class, 'index'])->name('lupita.usuarios')
+            ->middleware('permission:administrar usuarios');
+        Route::get('/usuarios/nuevo', [UsuariosController::class, 'crear'])->name('lupita.usuarios.crear')
+            ->middleware('permission:administrar usuarios');
+        Route::post('/usuarios', [UsuariosController::class, 'guardar'])->name('lupita.usuarios.guardar')
+            ->middleware('permission:administrar usuarios');
+        Route::get('/usuarios/{id}/editar', [UsuariosController::class, 'editar'])->name('lupita.usuarios.editar')
+            ->whereNumber('id')->middleware('permission:administrar usuarios');
+        Route::post('/usuarios/{id}', [UsuariosController::class, 'actualizar'])->name('lupita.usuarios.actualizar')
+            ->whereNumber('id')->middleware('permission:administrar usuarios');
+        Route::post('/usuarios/{id}/estado', [UsuariosController::class, 'alternar_activo'])->name('lupita.usuarios.estado')
+            ->whereNumber('id')->middleware('permission:administrar usuarios');
+
+        Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario')
+            ->middleware('permission:ver tiempos');
 
         //--- Compilacion de promedios de ruta (inicio_ruta -> llegada destino) por tope en minutos ---
         // lectura: previsualiza cuanto se pierde con el tope elegido
-        Route::get('/tiempos/promedio', [TiemposPromedioController::class, 'index'])->name('lupita.tiempos.promedio');
+        Route::get('/tiempos/promedio', [TiemposPromedioController::class, 'index'])->name('lupita.tiempos.promedio')
+            ->middleware('permission:ver tiempos');
         // escritura: guarda los promedios por partes (todas, una ruta o solo las que faltan)
-        Route::post('/tiempos/promedio/compilar', [TiemposPromedioController::class, 'compilar'])->name('lupita.tiempos.promedio.compilar');
+        Route::post('/tiempos/promedio/compilar', [TiemposPromedioController::class, 'compilar'])->name('lupita.tiempos.promedio.compilar')
+            ->middleware('permission:compilar promedios');
         // escritura: compila una sola ruta con el tope propio escrito en la tabla
-        Route::post('/tiempos/promedio/ruta', [TiemposPromedioController::class, 'compilar_ruta'])->name('lupita.tiempos.promedio.ruta');
+        Route::post('/tiempos/promedio/ruta', [TiemposPromedioController::class, 'compilar_ruta'])->name('lupita.tiempos.promedio.ruta')
+            ->middleware('permission:compilar promedios');
 
         //--- Promedios por dia de la semana y hora de inicio de ruta (matriz ruta x dia x hora) ---
         // lectura: previsualiza cuantos viajes arrancan en cada celda y cuantos pasan el tope
-        Route::get('/tiempos/promedio/horario', [TiemposPromedioController::class, 'horario'])->name('lupita.tiempos.promedio.horario');
+        Route::get('/tiempos/promedio/horario', [TiemposPromedioController::class, 'horario'])->name('lupita.tiempos.promedio.horario')
+            ->middleware('permission:ver tiempos');
         // escritura: recompila solo las celdas dia/hora, sin tocar los promedios de ruta
-        Route::post('/tiempos/promedio/horario/compilar', [TiemposPromedioController::class, 'compilar_horario'])->name('lupita.tiempos.promedio.horario.compilar');
+        Route::post('/tiempos/promedio/horario/compilar', [TiemposPromedioController::class, 'compilar_horario'])->name('lupita.tiempos.promedio.horario.compilar')
+            ->middleware('permission:compilar promedios');
 
         //--- Consulta de lo ya compilado (solo lectura, consume /api/tiempos/promedio) ---
-        Route::get('/tiempos/promedio/ver', [TiemposPromedioVerController::class, 'rutas'])->name('lupita.tiempos.promedio.ver');
-        Route::get('/tiempos/promedio/horario/ver', [TiemposPromedioVerController::class, 'horario'])->name('lupita.tiempos.promedio.horario.ver');
+        Route::get('/tiempos/promedio/ver', [TiemposPromedioVerController::class, 'rutas'])->name('lupita.tiempos.promedio.ver')
+            ->middleware('permission:ver tiempos');
+        Route::get('/tiempos/promedio/horario/ver', [TiemposPromedioVerController::class, 'horario'])->name('lupita.tiempos.promedio.horario.ver')
+            ->middleware('permission:ver tiempos');
 
-        Route::get('/tiempos/api', [TiemposApiController::class, 'probar'])->name('lupita.tiempos.api');
+        Route::get('/tiempos/api', [TiemposApiVerController::class, 'index'])->name('lupita.tiempos.api')
+            ->middleware('permission:ver api');
         Route::get('/audio', [LlamadasController::class, 'procesar_audio'])->name('lupita.audio')->middleware('permission:etiquetar llamada');
         Route::patch('/audio/guardar', [LlamadasController::class, 'guardar_etiquetas'])->name('lupita.audio.guardar')->middleware('permission:etiquetar llamada');
-        Route::get('/reporte', [LlamadasController::class, 'reporte_todo'])->name('lupita.reporte');
-        Route::get('/reporte/portada', [LlamadasController::class, 'reporte_portada'])->name('lupita.reporte.portada');
-        Route::get('/reporte/compacta', [LlamadasController::class, 'reporte_compacta'])->name('lupita.reporte.compacta');
-        Route::get('/reporte/seleccion', [LlamadasController::class, 'reporte_seleccion'])->name('lupita.reporte.seleccion');
-        Route::get('/reporte/ejecutivo', [LlamadasController::class, 'reporte_ejecutivo'])->name('lupita.reporte.ejecutivo');
+        Route::get('/reporte', [LlamadasController::class, 'reporte_todo'])->name('lupita.reporte')
+            ->middleware('permission:ver reportes');
+        Route::get('/reporte/portada', [LlamadasController::class, 'reporte_portada'])->name('lupita.reporte.portada')
+            ->middleware('permission:ver reportes');
+        Route::get('/reporte/compacta', [LlamadasController::class, 'reporte_compacta'])->name('lupita.reporte.compacta')
+            ->middleware('permission:ver reportes');
+        Route::get('/reporte/seleccion', [LlamadasController::class, 'reporte_seleccion'])->name('lupita.reporte.seleccion')
+            ->middleware('permission:ver reportes');
+        Route::get('/reporte/ejecutivo', [LlamadasController::class, 'reporte_ejecutivo'])->name('lupita.reporte.ejecutivo')
+            ->middleware('permission:ver reportes');
 
         //--- Reportes V2: dashboard interactivo + reportes email-safe (dia y rango) ---
-        Route::get('/reportes/dashboard', [ReportesController::class, 'dashboard'])->name('lupita.reportes.dashboard');
-        Route::get('/reportes/dashboard/html', [ReportesController::class, 'dashboard_html'])->name('lupita.reportes.dashboard.html');
-        Route::get('/reportes/seleccion', [ReportesController::class, 'seleccion'])->name('lupita.reportes.seleccion');
-        Route::get('/reportes/reporte', [ReportesController::class, 'reporte'])->name('lupita.reportes.reporte');
-        Route::get('/reportes/reporte/html', [ReportesController::class, 'reporte_html'])->name('lupita.reportes.reporte.html');
-        Route::get('/reportes/dia', [ReportesController::class, 'dia'])->name('lupita.reportes.dia');
-        Route::get('/reportes/rango', [ReportesController::class, 'rango'])->name('lupita.reportes.rango');
+        Route::get('/reportes/dashboard', [ReportesController::class, 'dashboard'])->name('lupita.reportes.dashboard')
+            ->middleware('permission:ver reportes');
+        Route::get('/reportes/dashboard/html', [ReportesController::class, 'dashboard_html'])->name('lupita.reportes.dashboard.html')
+            ->middleware('permission:ver reportes');
+        Route::get('/reportes/seleccion', [ReportesController::class, 'seleccion'])->name('lupita.reportes.seleccion')
+            ->middleware('permission:ver reportes');
+        Route::get('/reportes/reporte', [ReportesController::class, 'reporte'])->name('lupita.reportes.reporte')
+            ->middleware('permission:ver reportes');
+        Route::get('/reportes/reporte/html', [ReportesController::class, 'reporte_html'])->name('lupita.reportes.reporte.html')
+            ->middleware('permission:ver reportes');
+        //--- Progreso por semana y por mes (formato reporte clasico, metricas del dashboard) ---
+        Route::get('/reportes/progreso', [ReportesController::class, 'progreso'])->name('lupita.reportes.progreso')
+            ->middleware('permission:ver reportes');
+        Route::get('/reportes/progreso/html', [ReportesController::class, 'progreso_html'])->name('lupita.reportes.progreso.html')
+            ->middleware('permission:ver reportes');
+        Route::get('/reportes/dia', [ReportesController::class, 'dia'])->name('lupita.reportes.dia')
+            ->middleware('permission:ver reportes');
+        Route::get('/reportes/rango', [ReportesController::class, 'rango'])->name('lupita.reportes.rango')
+            ->middleware('permission:ver reportes');
     });
 
     Route::prefix('importar')->group(function () {
-        Route::get('/json', [ImportController::class, 'procesar_json'])->name('importar.json');
+        Route::get('/json', [ImportController::class, 'procesar_json'])->name('importar.json')
+            ->middleware('permission:importar json');
         //Route::post('/json/procesar', [ImportController::class, 'jsonProcesar']);
 
         Route::get('/excel', [ImportController::class, 'cargar_excel'])->name('importar.excel')->middleware('permission:importar excel');
@@ -147,21 +227,26 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('role:admin')->middleware('permission:eliminar lote');
 
         //vicodeado solo vapi correos de dtgroup
-        Route::get('/vapi', [VapiController::class, 'index'])->name('vapi.index');
+        Route::get('/vapi', [VapiController::class, 'index'])->name('vapi.index')
+            ->middleware('permission:importar vapi');
 
         // Procesa el link, descarga, extrae el JSON y lo devuelve
-        Route::post('/vapi/procesar', [VapiController::class, 'procesarZip'])->name('vapi.procesar');
+        Route::post('/vapi/procesar', [VapiController::class, 'procesarZip'])->name('vapi.procesar')
+            ->middleware('permission:importar vapi');
 
     });
 
-    Route::get('/test-c', [HomeController::class, 'test_nombres']);
-    Route::get('/test-identificar-error-nombres', [ImportController::class, 'nombres_verificar_error']);
+    // Rutas de soporte: solo el administrador
+    Route::get('/test-c', [HomeController::class, 'test_nombres'])->middleware('permission:administrar usuarios');
+    Route::get('/test-identificar-error-nombres', [ImportController::class, 'nombres_verificar_error'])
+        ->middleware('permission:administrar usuarios');
 
 });
 
 
 Auth::routes();
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home')
+    ->middleware(['auth', 'permission:ver llamadas']);
 
 
 Route::prefix('api')->group(function () {
@@ -192,7 +277,7 @@ Route::prefix('api')->group(function () {
 
 Route::get('/llamadas', [LlamadasController::class, 'calls_lista_llamadas']);
 
-Route::get('/mail-config', function () {
+Route::middleware(['auth', 'permission:administrar usuarios'])->get('/mail-config', function () {
     echo "<h1>🔧 Configuración de correo</h1>";
     echo "<pre style='background:#1a1a2e;color:#00ff88;padding:15px;border-radius:8px;'>";
     echo "MAIL_MAILER: " . config('mail.default') . "\n";
@@ -246,4 +331,5 @@ Route::get('/livewire/discover', function() {
     }
 });
 
-Route::get('/tabulator_table_ejm', [HomeController::class, 'tabulator_table_ejm']);
+Route::get('/tabulator_table_ejm', [HomeController::class, 'tabulator_table_ejm'])
+    ->middleware(['auth', 'permission:administrar usuarios']);

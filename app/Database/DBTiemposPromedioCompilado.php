@@ -42,6 +42,9 @@ class DBTiemposPromedioCompilado
 
     private static $tablas = null;
 
+    /** id del local => palabra clave escrita por el usuario. */
+    private static $palabras_locales = null;
+
     //------------------- tablas -------------------
 
     /**
@@ -102,6 +105,7 @@ class DBTiemposPromedioCompilado
                 'tablas' => self::tablas_listas(),
             ],
             'filas' => [],
+            'ubicaciones' => [],
             'limitados' => 0,
         ];
 
@@ -228,7 +232,90 @@ class DBTiemposPromedioCompilado
         $salida->limitados = count($recipiente);
         $salida->filas = array_slice($recipiente, 0, $limite);
 
+        // las palabras clave se listan UNA sola vez por ubicacion, no por ruta
+        $salida->ubicaciones = self::ubicaciones($salida->filas, $rutas);
+
         return $salida;
+    }
+
+    /**
+     * Mapa de ubicaciones unicas de las filas listadas: clave => [nombre, palabras_claves].
+     *
+     * La clave es el id del local; cuando la ruta no tiene local, el ubigeo. Asi
+     * las palabras clave no se repiten en cada ruta y el consumidor las resuelve
+     * por `origen_id` / `destino_id`.
+     *
+     * @param  array<int, object>  $filas  filas ya formateadas
+     * @param  array<string, object>  $rutas  mapa de DBTiemposPromedio::rutas()
+     * @return array<string, array{nombre: string, palabras_claves: array<int, string>}>
+     */
+    private static function ubicaciones(array $filas, array $rutas): array
+    {
+        $salida = [];
+        $palabras = self::palabras_locales();
+
+        foreach ($filas as $fila) {
+            $ruta = $rutas[$fila->ruta_id] ?? null;
+
+            foreach (['origen', 'destino'] as $lado) {
+                $id = trim((string) ($fila->{$lado . '_id'} ?? ''));
+                $local = $ruta !== null ? trim((string) ($ruta->{'loc_' . $lado . '_nombre'} ?? '')) : '';
+                $ubigeo = $ruta !== null ? trim((string) ($ruta->{'ubigeo_' . $lado} ?? '')) : '';
+                $distrito = $ruta !== null ? trim((string) ($ruta->{'ubg_' . $lado . '_nombre'} ?? '')) : '';
+
+                // clave unica: id del local si existe, si no el ubigeo
+                $clave = $id !== '' ? $id : $ubigeo;
+                if ($clave === '' || isset($salida[$clave])) {
+                    continue;
+                }
+
+                // variantes del local separadas por '|'; sin local, el distrito
+                $lista = [];
+                if ($id !== '') {
+                    foreach (explode('|', (string) ($palabras[$id] ?? '')) as $palabra) {
+                        $palabra = trim($palabra);
+                        if ($palabra !== '') {
+                            $lista[] = $palabra;
+                        }
+                    }
+                }
+                if ($lista === []) {
+                    if ($distrito !== '') {
+                        $lista[] = $distrito;
+                    } elseif ($ubigeo !== '') {
+                        $lista[] = $ubigeo;
+                    }
+                }
+
+                // nombre: el del local; sin local, el ubigeo (ej. "030101"); si no, el distrito
+                $salida[$clave] = [
+                    'nombre' => $local !== '' ? $local : ($ubigeo !== '' ? $ubigeo : ($distrito !== '' ? $distrito : $clave)),
+                    'palabras_claves' => $lista,
+                ];
+            }
+        }
+
+        return $salida;
+    }
+
+    /**
+     * Palabras clave de los locales, indexadas por id.
+     *
+     * @return array<string, string>
+     */
+    private static function palabras_locales(): array
+    {
+        if (self::$palabras_locales !== null) {
+            return self::$palabras_locales;
+        }
+
+        try {
+            self::$palabras_locales = DB::table('locales')->pluck('palabra_clave', 'id')->all();
+        } catch (\Throwable $e) {
+            self::$palabras_locales = [];
+        }
+
+        return self::$palabras_locales;
     }
 
     /**
