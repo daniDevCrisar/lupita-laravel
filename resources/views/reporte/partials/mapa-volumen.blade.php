@@ -139,11 +139,11 @@
     </div>
 @endif
 
-@if(!empty($con_animacion) && ($layout ?? null) !== 'layouts.export')
+@if(!empty($con_animacion))
     {{-- Animacion por dia (pequena), debajo del grafico en la columna derecha.
-         Solo en pantalla: en la descarga .html no se pinta ningun fragmento. --}}
+         Se muestra tambien en la descarga .html (layouts.export): calendario + boton "Abrir en pestana nueva". --}}
     <div class="mt-3">
-        <div class="fw-bold mb-2 small"><i class="bi bi-film me-1"></i>Animación por día</div>
+        <div class="fw-bold mb-2 small"><i class="bi bi-film me-1"></i>Animación por día de descargue</div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
             <label class="small mb-0 {{ $texto_class }}" for="calendario_dia">Día</label>
             <input type="date" id="calendario_dia" class="form-control form-control-sm" style="max-width:170px;"
