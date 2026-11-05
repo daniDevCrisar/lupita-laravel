@@ -20,6 +20,8 @@ class TiemposHorarioController extends Controller
             'fecha_fin' => 'nullable|date',
             'ruta_id' => 'array',
             'ruta_id.*' => 'string|max:100',
+            'origen' => 'nullable|string|max:100',
+            'destino' => 'nullable|string|max:100',
             'granularidad' => 'nullable|in:hora,turno',
             'conductor' => 'nullable|numeric',
             'tope' => 'nullable|numeric',
@@ -81,6 +83,9 @@ class TiemposHorarioController extends Controller
             'rutas' => $rutas,
             'nombres_rutas' => $nombres_rutas,
             'rutas_sel' => $horario::rutas(),
+            'opciones' => $horario::opciones_origen_destino(),
+            'origen_sel' => $horario::origen(),
+            'destino_sel' => $horario::destino(),
             'conductores' => $horario::conductores_lista(),
             'conductor_sel' => $horario::conductor(),
             'conductor_nombre' => $horario::filtrando_conductor()

@@ -112,6 +112,40 @@
                         </div>
                     </div>
 
+                    <div class="col-md-3">
+                        <label class="form-label" for="origen_buscar">Origen</label>
+                        <input type="search" id="origen_buscar" class="form-control form-control-sm mb-1"
+                               placeholder="Buscar origen..." autocomplete="off">
+                        <select name="origen" id="origen" class="form-control">
+                            <option value="" data-buscar="todos los origenes">Todos los orígenes</option>
+                            @foreach($opciones['origen'] as $item)
+                                <option value="{{ $item->id }}"
+                                        data-buscar="{{ mb_strtolower($item->nombre . ' ' . $item->id) }}"
+                                    @selected($origen_sel === $item->id)>
+                                    {{ $item->nombre }} ({{ $item->rutas }} rutas)
+                                </option>
+                            @endforeach
+                        </select>
+                        <div id="origen_contador" class="form-text"></div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label" for="destino_buscar">Destino</label>
+                        <input type="search" id="destino_buscar" class="form-control form-control-sm mb-1"
+                               placeholder="Buscar destino..." autocomplete="off">
+                        <select name="destino" id="destino" class="form-control">
+                            <option value="" data-buscar="todos los destinos">Todos los destinos</option>
+                            @foreach($opciones['destino'] as $item)
+                                <option value="{{ $item->id }}"
+                                        data-buscar="{{ mb_strtolower($item->nombre . ' ' . $item->id) }}"
+                                    @selected($destino_sel === $item->id)>
+                                    {{ $item->nombre }} ({{ $item->rutas }} rutas)
+                                </option>
+                            @endforeach
+                        </select>
+                        <div id="destino_contador" class="form-text"></div>
+                    </div>
+
                     <div class="col-md-2">
                         <label class="form-label" for="granularidad">Agrupar por</label>
                         <select name="granularidad" id="granularidad" class="form-control">
@@ -186,6 +220,40 @@
             <a href="{{ route('lupita.tiempos.horario', request()->except(['conductor', 'ruta_id', 'rutas_tocadas'])) }}"
                class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-x-circle"></i> Quitar conductor
+            </a>
+        </div>
+    @endif
+
+    @php
+        // nombres elegidos para el aviso de origen/destino
+        $nombre_opcion = function ($lista, $id) {
+            foreach ($lista as $opcion) {
+                if ($opcion->id === $id) {
+                    return $opcion->nombre;
+                }
+            }
+
+            return $id;
+        };
+        $origen_nombre = $origen_sel !== '' ? $nombre_opcion($opciones['origen'], $origen_sel) : '';
+        $destino_nombre = $destino_sel !== '' ? $nombre_opcion($opciones['destino'], $destino_sel) : '';
+    @endphp
+
+    @if($origen_nombre !== '' or $destino_nombre !== '')
+        <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
+            <div class="small">
+                <i class="bi bi-pin-map"></i>
+                @if($origen_nombre !== '' and $destino_nombre !== '')
+                    Solo la ruta <strong>{{ $origen_nombre }} - {{ $destino_nombre }}</strong>
+                @elseif($origen_nombre !== '')
+                    Solo viajes con origen <strong>{{ $origen_nombre }}</strong>
+                @else
+                    Solo viajes con destino <strong>{{ $destino_nombre }}</strong>
+                @endif
+            </div>
+            <a href="{{ route('lupita.tiempos.horario', request()->except(['origen', 'destino'])) }}"
+               class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Quitar origen/destino
             </a>
         </div>
     @endif
@@ -706,15 +774,12 @@
             }
         })();
 
-        // ---- buscador del select de conductores + envio automatico al elegir
-        (function () {
-            const selector = document.getElementById('conductor');
-            const buscar = document.getElementById('conductores_buscar');
+        // ---- buscador reutilizable para los selects simples (conductor, origen, destino)
+        // al elegir una opcion el formulario se envia solo, como venia haciendo el conductor
+        const buscadorDeSelect = function (selector, buscar, contador, plural, alElegir) {
             if (!selector || !buscar) {
                 return;
             }
-
-            const contador = document.getElementById('conductores_contador');
 
             const normalizar = function (valor) {
                 return valor.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -757,8 +822,8 @@
                 selector.appendChild(fragmento);
 
                 contador.textContent = consulta === ''
-                    ? total + ' conductores'
-                    : visibles + ' de ' + total + ' conductores';
+                    ? total + ' ' + plural
+                    : visibles + ' de ' + total + ' ' + plural;
             };
 
             buscar.addEventListener('input', filtrar);
@@ -772,13 +837,9 @@
                 }
             });
 
-            // al elegir el conductor se envian sus rutas
             selector.addEventListener('change', function () {
-                // se limpia la marca para que el servidor vuelva a
-                // seleccionar todas las rutas del conductor elegido
-                const tocadas = document.getElementById('rutas_tocadas');
-                if (tocadas) {
-                    tocadas.value = '';
+                if (alElegir) {
+                    alElegir();
                 }
 
                 const formulario = selector.form;
@@ -799,9 +860,38 @@
             if (buscar.value !== '') {
                 filtrar();
             } else {
-                contador.textContent = total + ' conductores';
+                contador.textContent = total + ' ' + plural;
             }
-        })();
+        };
+
+        buscadorDeSelect(
+            document.getElementById('conductor'),
+            document.getElementById('conductores_buscar'),
+            document.getElementById('conductores_contador'),
+            'conductores',
+            function () {
+                // se limpia la marca para que el servidor vuelva a
+                // seleccionar todas las rutas del conductor elegido
+                const tocadas = document.getElementById('rutas_tocadas');
+                if (tocadas) {
+                    tocadas.value = '';
+                }
+            }
+        );
+
+        buscadorDeSelect(
+            document.getElementById('origen'),
+            document.getElementById('origen_buscar'),
+            document.getElementById('origen_contador'),
+            'orígenes'
+        );
+
+        buscadorDeSelect(
+            document.getElementById('destino'),
+            document.getElementById('destino_buscar'),
+            document.getElementById('destino_contador'),
+            'destinos'
+        );
 
         // ---- graficos
         (function () {

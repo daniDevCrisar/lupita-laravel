@@ -26,6 +26,7 @@ use App\Http\Controllers\TiemposPromedioController;
 use App\Http\Controllers\TiemposPromedioVerController;
 use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\PermisosController;
+use App\Http\Controllers\VerificarReferenciasController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
 
@@ -77,6 +78,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/referencias', [ReferenciasController::class, 'index'])->name('lupita.referencias')
             ->middleware('permission:ver referencias');
         Route::get('/referencias/mapa', [ReferenciasController::class, 'mapa'])->name('lupita.referencias.mapa')
+            ->middleware('permission:ver referencias');
+
+        //--- Verificacion masiva: pegar una lista de refs y ver cuales no existen
+        // o existen sin fin de descargue. La lista viaja por sesion (POST -> GET),
+        // asi 5k refs no tienen que caber en la URL.
+        Route::get('/referencias/verificar', [VerificarReferenciasController::class, 'index'])->name('lupita.referencias.verificar')
+            ->middleware('permission:ver referencias');
+        Route::post('/referencias/verificar', [VerificarReferenciasController::class, 'cargar'])->name('lupita.referencias.verificar.cargar')
+            ->middleware('permission:ver referencias');
+        Route::get('/referencias/verificar/exportar', [VerificarReferenciasController::class, 'exportar'])->name('lupita.referencias.verificar.exportar')
             ->middleware('permission:ver referencias');
         Route::get('/tiempos', [TiemposRutaController::class, 'index'])->name('lupita.tiempos')
             ->middleware('permission:ver tiempos');

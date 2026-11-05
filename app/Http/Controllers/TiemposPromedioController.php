@@ -28,6 +28,10 @@ class TiemposPromedioController extends Controller
         $dep_origen = $this->departamento($request->get('dep_origen'));
         $dep_destino = $this->departamento($request->get('dep_destino'));
         $orden = $this->orden($request);
+        // con el filtro activo la pantalla mide solo lo que falta compilar
+        $ocultar_compiladas = $request->boolean('ocultar_compiladas');
+
+        $rutas_tabla = DBTiemposPromedio::por_ruta($tope, $modo, $ruta_id, $dep_origen, $dep_destino, $orden, $topes, $ocultar_compiladas);
 
         $datos = (object) [
             'tope' => $tope,
@@ -38,8 +42,10 @@ class TiemposPromedioController extends Controller
             'orden' => $orden,
             'ordenes' => DBTiemposPromedio::ORDENES,
             'topes' => $topes,
-            'perdida' => DBTiemposPromedio::perdida($tope, $modo, $ruta_id, $dep_origen, $dep_destino, $topes),
-            'filas' => DBTiemposPromedio::por_ruta($tope, $modo, $ruta_id, $dep_origen, $dep_destino, $orden, $topes),
+            'ocultar_compiladas' => $ocultar_compiladas,
+            'ocultas' => $rutas_tabla->ocultas,
+            'perdida' => DBTiemposPromedio::perdida($tope, $modo, $ruta_id, $dep_origen, $dep_destino, $topes, $ocultar_compiladas),
+            'filas' => $rutas_tabla->filas,
             'guardados' => DBTiemposPromedio::guardados_por_ruta(),
             'estado' => $estado,
             'rutas' => DBTiemposPromedio::rutas(),
@@ -68,6 +74,7 @@ class TiemposPromedioController extends Controller
             'rutas' => ['nullable', 'array'],
             'rutas.*' => ['string', 'max:100'],
             'orden' => ['nullable', 'string', 'max:20'],
+            'ocultar_compiladas' => ['nullable'],
         ]);
 
         $tope = max(DBTiemposPromedio::TOPE_MINIMO, (int) ($validado['tope'] ?? DBTiemposPromedio::TOPE_DEFECTO));
@@ -88,6 +95,13 @@ class TiemposPromedioController extends Controller
             }
         }
         if ($alcance === 'faltantes') {
+            $solo_faltantes = true;
+        }
+
+        // con el filtro de compiladas el lote "todas" ya viene sin las rutas
+        // guardadas, asi que se compila igual que "solo las que faltan"
+        $ocultar_compiladas = $request->boolean('ocultar_compiladas');
+        if ($ocultar_compiladas && $alcance === 'todas') {
             $solo_faltantes = true;
         }
         if ($alcance === 'seleccion') {
@@ -125,15 +139,20 @@ class TiemposPromedioController extends Controller
             return back()->with('error', 'No se compilo ninguna ruta: con este tope no queda ningun viaje medible o la tabla ya estaba completa. ' . $mensaje);
         }
 
+        $query = [
+            'tope' => $tope,
+            'modo' => $modo,
+            'ruta_id' => $ruta_id,
+            'dep_origen' => $dep_origen,
+            'dep_destino' => $dep_destino,
+            'orden' => $orden,
+        ];
+        if ($ocultar_compiladas) {
+            $query['ocultar_compiladas'] = 1;
+        }
+
         return redirect()
-            ->route('lupita.tiempos.promedio', [
-                'tope' => $tope,
-                'modo' => $modo,
-                'ruta_id' => $ruta_id,
-                'dep_origen' => $dep_origen,
-                'dep_destino' => $dep_destino,
-                'orden' => $orden,
-            ])
+            ->route('lupita.tiempos.promedio', $query)
             ->with('success', $mensaje);
     }
 
@@ -298,6 +317,7 @@ class TiemposPromedioController extends Controller
         $validado = $request->validate([
             'ruta_id' => ['required', 'string', 'max:100'],
             'tope' => ['required', 'integer', 'min:' . DBTiemposPromedio::TOPE_MINIMO, 'max:100000'],
+            'ocultar_compiladas' => ['nullable'],
         ]);
 
         $ruta_id = trim((string) $validado['ruta_id']);
@@ -314,8 +334,15 @@ class TiemposPromedioController extends Controller
             return back()->with('error', 'Con un tope de ' . $tope . ' min no queda ningún viaje medible en ' . $ruta_id . ': el promedio anterior no se tocó.');
         }
 
+        // la fila recien compilada desaparece si el filtro esta activo, asi que
+        // el flag viaja para no perderlo al volver a la pantalla
+        $query = ['tope' => $tope, 'modo' => 'global', 'ruta_id' => $ruta_id];
+        if ($request->boolean('ocultar_compiladas')) {
+            $query['ocultar_compiladas'] = 1;
+        }
+
         return redirect()
-            ->route('lupita.tiempos.promedio', ['tope' => $tope, 'modo' => 'global', 'ruta_id' => $ruta_id])
+            ->route('lupita.tiempos.promedio', $query)
             ->with('success', sprintf(
                 '%s compilada con su tope propio de %d min: %d viaje(s) usados, %d descartados, %d celda(s) día/hora.',
                 DBTiemposPromedio::nombre($ruta_id),

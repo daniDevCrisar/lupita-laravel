@@ -297,12 +297,24 @@ class DBTiemposPromedio
     /**
      * Lo que se pierde con un tope, en toda la data (o en una sola ruta).
      *
+     * Con $ocultar_compiladas se excluyen las rutas que ya tienen promedio
+     * guardado: el resumen queda midiendo solo lo que falta compilar, igual que
+     * la tabla de la pantalla.
+     *
      * @param  array<string, int>  $topes  topes escritos en la tabla (ruta => minutos)
      */
-    public static function perdida(int $tope, string $modo = 'global', ?string $ruta_id = null, ?string $dep_origen = null, ?string $dep_destino = null, array $topes = []): object
+    public static function perdida(int $tope, string $modo = 'global', ?string $ruta_id = null, ?string $dep_origen = null, ?string $dep_destino = null, array $topes = [], bool $ocultar_compiladas = false): object
     {
         [$sql, $params] = self::agregados_sql($tope, $modo, $ruta_id, $dep_origen, $dep_destino, $topes);
         $filas = DB::select($sql, $params);
+
+        if ($ocultar_compiladas) {
+            $guardados = self::guardados_por_ruta();
+            $filas = array_values(array_filter(
+                $filas,
+                fn ($fila) => !isset($guardados[(string) $fila->ruta_id])
+            ));
+        }
 
         $resumen = (object) [
             'rutas' => 0,
@@ -369,6 +381,10 @@ class DBTiemposPromedio
      *
      * `$orden` es una de las claves de `ORDENES`; por defecto las rutas con mas
      * viajes medibles, que son las que mandan en el promedio global.
+     *
+     * Con $ocultar_compiladas se omiten las rutas que ya tienen promedio
+     * guardado; `ocultas` dice cuantas se dejaron fuera para poder avisarlo en
+     * pantalla (sin el, la tabla pareceria haber perdido rutas).
      */
     public static function por_ruta(
         int $tope,
@@ -377,8 +393,9 @@ class DBTiemposPromedio
         ?string $dep_origen = null,
         ?string $dep_destino = null,
         string $orden = 'viajes',
-        array $topes = []
-    ): array {
+        array $topes = [],
+        bool $ocultar_compiladas = false
+    ): object {
         [$sql, $params] = self::agregados_sql($tope, $modo, $ruta_id, $dep_origen, $dep_destino, $topes);
         $filas = DB::select($sql, $params);
 
@@ -387,10 +404,17 @@ class DBTiemposPromedio
         $rutas = self::rutas();
 
         $salida = [];
+        $ocultas = 0;
         foreach ($filas as $fila) {
             $id = (string) $fila->ruta_id;
             $total = (int) $fila->viajes_total;
             $descartados = (int) $fila->descartados;
+
+            // compiladas: se dejan fuera de la tabla cuando el filtro esta activo
+            if ($ocultar_compiladas && isset($guardados[$id])) {
+                $ocultas++;
+                continue;
+            }
 
             $salida[] = (object) [
                 'ruta_id' => $id,
@@ -446,7 +470,7 @@ class DBTiemposPromedio
             }
         });
 
-        return $salida;
+        return (object) ['filas' => $salida, 'ocultas' => $ocultas];
     }
 
     /**

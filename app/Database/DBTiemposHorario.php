@@ -45,6 +45,8 @@ class DBTiemposHorario
         self::$filtro->fecha_inicio = $request->fecha_inicio;
         self::$filtro->fecha_fin = $request->fecha_fin;
         self::$filtro->rutas = self::normalizar_rutas($request->ruta_id);
+        self::$filtro->origen = trim((string) ($request->origen ?? ''));
+        self::$filtro->destino = trim((string) ($request->destino ?? ''));
         self::$filtro->conductor = $request->conductor;
         self::$filtro->granularidad = $request->granularidad;
         self::$filtro->tope = $request->tope;
@@ -97,6 +99,22 @@ class DBTiemposHorario
     public static function filtrando_rutas(): bool
     {
         return self::rutas() !== [];
+    }
+
+    // Origen / destino seleccionados ('' = todos). Vienen del id de `rutas`.
+    public static function origen(): string
+    {
+        return self::$filtro->origen ?? '';
+    }
+
+    public static function destino(): string
+    {
+        return self::$filtro->destino ?? '';
+    }
+
+    public static function filtrando_origen_destino(): bool
+    {
+        return self::origen() !== '' || self::destino() !== '';
     }
 
     // Conductor seleccionado (0 = todos)
@@ -173,6 +191,18 @@ class DBTiemposHorario
             $params = array_merge($params, $rutas);
         }
 
+        $origen = self::origen();
+        if ($origen !== '') {
+            $sql .= ' AND ru.origen_id = ? ';
+            $params[] = $origen;
+        }
+
+        $destino = self::destino();
+        if ($destino !== '') {
+            $sql .= ' AND ru.destino_id = ? ';
+            $params[] = $destino;
+        }
+
         $conductor = ($aplicar_conductor && self::filtrando_conductor()) ? self::conductor() : 0;
         if ($conductor > 0) {
             $sql .= ' AND COALESCE(r.conductor_id, lc.conductor_id) = ? ';
@@ -200,6 +230,7 @@ class DBTiemposHorario
             " . self::case_turno() . " AS turno,
             TIMESTAMPDIFF(MINUTE, r.inicio_ruta, r.qr_llegada_destino) AS minutos
         FROM referencias r
+        LEFT JOIN rutas ru ON ru.id = r.ruta_id
         LEFT JOIN (
             SELECT lf.ref AS ref, MAX(lf.conductor_id) AS conductor_id
             FROM llamadas lf
@@ -375,6 +406,35 @@ class DBTiemposHorario
         $filas = DB::select("SELECT DISTINCT b.ruta_id FROM ($base) b ORDER BY b.ruta_id", $params);
 
         return array_map(fn ($fila) => (string) $fila->ruta_id, $filas);
+    }
+
+    /**
+     * Catalogos de origen y destino para los selectores: los extremos que
+     * realmente usan las rutas, con el nombre del local y si no, del ubigeo.
+     *
+     * @return array{origen: array, destino: array}
+     */
+    public static function opciones_origen_destino(): array
+    {
+        $opciones = [];
+
+        foreach (['origen' => 'origen_id', 'destino' => 'destino_id'] as $clave => $columna) {
+            $ubigeo = 'ubigeo_' . $clave;
+
+            $opciones[$clave] = DB::select("
+            SELECT
+                ru.$columna AS id,
+                COALESCE(MAX(lo.nombre), MAX(ud.distrito), ru.$columna) AS nombre,
+                COUNT(*) AS rutas
+            FROM rutas ru
+            LEFT JOIN locales lo ON lo.id = ru.$columna
+            LEFT JOIN ubigeo_distritos ud ON ud.ubigeo = ru.$ubigeo
+            WHERE ru.$columna IS NOT NULL AND ru.$columna <> ''
+            GROUP BY ru.$columna
+            ORDER BY nombre");
+        }
+
+        return $opciones;
     }
 
     /**

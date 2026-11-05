@@ -188,6 +188,27 @@
                     </div>
                 </div>
 
+                {{-- las rutas compiladas se pueden sacar de la tabla y del resumen --}}
+                <div class="col-md-6">
+                    <label class="form-label d-block">Rutas compiladas</label>
+                    <div class="form-check form-switch">
+                        <input type="hidden" name="ocultar_compiladas" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="ocultar_compiladas"
+                               name="ocultar_compiladas" value="1"
+                               @checked($datos->ocultar_compiladas)
+                               onchange="document.getElementById('filtros').submit()">
+                        <label class="form-check-label" for="ocultar_compiladas">
+                            Ocultar las rutas que ya tienen promedio compilado
+                        </label>
+                    </div>
+                    <div class="form-text">
+                        La tabla y el resumen de pérdida pasan a medir solo lo pendiente.
+                        @if($estado->rutas > 0)
+                            Hay {{ number_format($estado->rutas) }} ruta(s) compiladas.
+                        @endif
+                    </div>
+                </div>
+
                 {{-- topes escritos en la tabla: viajan con el GET para no perderse al ordenar --}}
                 @foreach($datos->topes as $ruta_tope => $minutos)
                     <input type="hidden" name="topes[{{ $ruta_tope }}]" value="{{ $minutos }}">
@@ -204,7 +225,7 @@
                     <div class="text-muted small">Viajes medibles (sin tope)</div>
                     <div class="fs-4 fw-bold">{{ number_format($p->viajes_total) }}</div>
                     <div class="small text-muted">
-                        {{ $p->rutas }} ruta(s) con datos
+                        {{ $p->rutas }} ruta(s) {{ $datos->ocultar_compiladas ? 'sin compilar' : 'con datos' }}
                         @if($p->sin_promedio > 0)
                             · {{ $p->sin_promedio }} sin viaje dentro del tope
                         @endif
@@ -277,6 +298,7 @@
         <input type="hidden" name="dep_destino" value="{{ $datos->dep_destino }}">
         <input type="hidden" name="orden" value="{{ $datos->orden }}">
         <input type="hidden" name="alcance" value="todas">
+        <input type="hidden" name="ocultar_compiladas" value="{{ $datos->ocultar_compiladas ? 1 : 0 }}">
 
         <fieldset class="border p-3 rounded">
             <legend class="float-none w-auto px-2 fs-6">Compilar y guardar</legend>
@@ -295,7 +317,13 @@
             <div class="d-flex flex-wrap gap-2">
                 <button type="button" class="btn btn-success" onclick="compilar('todas')">
                     <i class="bi bi-database-add"></i>
-                    {{ ($datos->dep_origen || $datos->dep_destino) ? 'Compilar todas las del filtro' : 'Compilar todas las rutas' }}
+                    @if($datos->ocultar_compiladas)
+                        Compilar todas las pendientes
+                    @elseif($datos->dep_origen || $datos->dep_destino)
+                        Compilar todas las del filtro
+                    @else
+                        Compilar todas las rutas
+                    @endif
                 </button>
 
                 <button type="button" class="btn btn-outline-success" id="btn_seleccion"
@@ -321,6 +349,10 @@
                 {{ $datos->limite }} rutas visibles) y no depende de los combos: lo marcado se compila. Los lotes
                 "todas" y "las que faltan" sí se limitan al filtro de departamento. Ninguna opción borra promedios
                 de rutas sin datos.
+                @if($datos->ocultar_compiladas)
+                    Con <strong>Ocultar compiladas</strong> activo, "todas" compila solo las pendientes: no se
+                    reescribe ninguna ruta que ya tenga promedio.
+                @endif
             </div>
             @else
             <p class="small text-warning mb-0">
@@ -336,7 +368,10 @@
         <h2 class="fs-5 mb-0">Lo que se pierde por ruta</h2>
         <div class="d-flex flex-wrap align-items-end gap-3">
             <div class="text-muted small text-end">
-                {{ count($datos->filas) }} ruta(s)
+                {{ count($datos->filas) }} ruta(s){{ $datos->ocultar_compiladas ? ' sin compilar' : '' }}
+                @if($datos->ocultar_compiladas && $datos->ocultas > 0)
+                    <br>{{ $datos->ocultas }} oculta(s) por estar compiladas
+                @endif
                 @if($datos->dep_origen)
                     <br>Origen: {{ $datos->departamentos[$datos->dep_origen] ?? $datos->dep_origen }}
                 @endif
@@ -433,6 +468,9 @@
                               onsubmit="return confirm('¿Compilar solo esta ruta con el tope escrito?');">
                             @csrf
                             <input type="hidden" name="ruta_id" value="{{ $fila->ruta_id }}">
+                            @if($datos->ocultar_compiladas)
+                                <input type="hidden" name="ocultar_compiladas" value="1">
+                            @endif
                             <input type="number" name="tope" min="{{ $tope_minimo }}" step="10"
                                    value="{{ $fila->tope_min }}" class="form-control form-control-sm"
                                    style="width: 82px" title="Tope personalizado en minutos"
@@ -485,7 +523,12 @@
             @empty
                 <tr>
                     <td colspan="11" class="text-center text-muted py-4">
-                        No hay viajes medibles con estos filtros.
+                        @if($datos->ocultar_compiladas && $datos->ocultas > 0)
+                            Todas las rutas con datos ya están compiladas: apaga
+                            <strong>Ocultar compiladas</strong> para verlas con sus topes.
+                        @else
+                            No hay viajes medibles con estos filtros.
+                        @endif
                     </td>
                 </tr>
             @endforelse

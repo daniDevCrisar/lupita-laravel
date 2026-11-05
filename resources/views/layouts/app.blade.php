@@ -94,8 +94,18 @@
                 @endcan
 
                 @can('ver referencias')
-                <li class="nav-item">
-                    <a class="nav-link" href="{{route('lupita.referencias')}}">Referencias</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        Referencias
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{route('lupita.referencias')}}"><i class="bi bi-list-ul"></i> Consulta</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.referencias.verificar')}}"><i class="bi bi-check2-square"></i> Verificar lista</a></li>
+                    </ul>
                 </li>
                 @endcan
                 @if(auth()->user()->canAny(['ver tiempos', 'compilar promedios']))

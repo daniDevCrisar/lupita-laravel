@@ -9,8 +9,12 @@
 @section('content')
 
     <div class="row">
-        <div class="col-12">
-            <h1><i class="bi bi-signpost-split"></i> Consulta de Referencias (viajes)</h1>
+        <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h1 class="mb-0"><i class="bi bi-signpost-split"></i> Consulta de Referencias (viajes)</h1>
+            {{-- verificacion masiva: pegar una lista de refs y ver cuales faltan o estan abiertas --}}
+            <a href="{{ route('lupita.referencias.verificar') }}" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-check2-square"></i> Verificar lista de refs
+            </a>
         </div>
     </div>
 
