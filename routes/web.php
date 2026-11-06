@@ -137,6 +137,8 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:ver api');
         Route::get('/refs/docs', [RefsController::class, 'documentacion'])->name('lupita.refs.docs')
             ->middleware('permission:ver api');
+        Route::get('/refs/ruta-id', [RefsController::class, 'documentacion_ruta_id'])->name('lupita.refs.ruta_id')
+            ->middleware('permission:ver api');
 
         //--- Permisos por rol (que modulos ve cada rol) ---
         Route::get('/permisos', [PermisosController::class, 'index'])->name('lupita.permisos')
@@ -178,6 +180,17 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:ver tiempos');
         // escritura: recompila solo las celdas dia/hora, sin tocar los promedios de ruta
         Route::post('/tiempos/promedio/horario/compilar', [TiemposPromedioController::class, 'compilar_horario'])->name('lupita.tiempos.promedio.horario.compilar')
+            ->middleware('permission:compilar promedios');
+
+        //--- Promedios de espera por PLANTA (tabla aparte: tiempos_planta_promedio) ---
+        // lectura: espera fuera y dentro de cada planta, fusionando carga (E2/E3) y descarga (E5/E6)
+        Route::get('/tiempos/promedio/plantas', [TiemposPromedioController::class, 'plantas'])->name('lupita.tiempos.promedio.plantas')
+            ->middleware('permission:ver tiempos');
+        // escritura: guarda la tabla de plantas con el tope recomendado (≤18 % descartado), uno global o uno por planta
+        Route::post('/tiempos/promedio/plantas/compilar', [TiemposPromedioController::class, 'compilar_plantas'])->name('lupita.tiempos.promedio.plantas.compilar')
+            ->middleware('permission:compilar promedios');
+        // escritura: borra el promedio guardado solo de las plantas marcadas
+        Route::post('/tiempos/promedio/plantas/eliminar', [TiemposPromedioController::class, 'eliminar_plantas'])->name('lupita.tiempos.promedio.plantas.eliminar')
             ->middleware('permission:compilar promedios');
 
         //--- Consulta de lo ya compilado (solo lectura, consume /api/tiempos/promedio) ---
@@ -284,6 +297,7 @@ Route::prefix('api')->group(function () {
     //--- Promedios YA compilados (tiempos_ruta_promedio y tiempos_ruta_horario, en JSON) ---
     Route::get('/tiempos/promedio', [TiemposPromedioApiController::class, 'por_ruta'])->name('api.tiempos.promedio');
     Route::get('/tiempos/promedio/horario', [TiemposPromedioApiController::class, 'horario'])->name('api.tiempos.promedio.horario');
+    Route::get('/tiempos/promedio/plantas', [TiemposPromedioApiController::class, 'plantas'])->name('api.tiempos.promedio.plantas');
 });
 
 Route::get('/llamadas', [LlamadasController::class, 'calls_lista_llamadas']);

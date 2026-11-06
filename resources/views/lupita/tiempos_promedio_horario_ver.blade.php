@@ -368,7 +368,8 @@
                     const texto = !c ? '·' : (metrica === 'viajes' ? num(v) : min(prom));
                     const clase = c ? 'text-light' : 'text-white-50';
                     const title = c
-                        ? `${dias[dia]} ${hora(h)}: ${num(v)} viaje(s) · ${min(prom)} · tope ${num(c.tope_min)} min`
+                        ? `${dias[dia]} ${hora(h)}: ${num(v)} viaje(s) · ${min(prom)} · ${
+                            c.tope_min == null ? 'sin tope' : 'tope ' + num(c.tope_min) + ' min'}`
                         : `${dias[dia]} ${hora(h)}: sin datos`;
 
                     return `<td class="text-center ${clase} p-0" style="background: ${fondo}; font-size: .66rem"
@@ -427,7 +428,8 @@
                 <td class="text-end text-nowrap">${hora(c.hora)}</td>
                 <td class="text-end">${num(c.viajes)}</td>
                 <td class="text-end text-nowrap text-info">${min(c.prom_min)}</td>
-                <td class="text-end text-nowrap text-white-50">${num(c.tope_min)} min</td>
+                <td class="text-end text-nowrap text-white-50">${
+                    c.tope_min == null ? 'sin tope' : num(c.tope_min) + ' min'}</td>
             </tr>`).join('');
 
             document.getElementById('bloque_tabla').style.display = celdas.length ? '' : 'none';

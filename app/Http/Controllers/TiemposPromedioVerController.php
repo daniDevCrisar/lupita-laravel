@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Database\DBTiemposHorario;
+use App\Database\DBTiemposPlanta;
+use App\Database\DBTiemposPlantaCompilado;
 use App\Database\DBTiemposPromedio;
 use App\Database\DBTiemposPromedioCompilado;
 
@@ -10,14 +12,18 @@ use App\Database\DBTiemposPromedioCompilado;
  * Pantallas de consulta de los promedios YA compilados.
  *
  * No calculan ni escriben: solo arman los filtros y apuntan al endpoint JSON
- * (`/api/tiempos/promedio` y `/api/tiempos/promedio/horario`), igual que la
- * pantalla de prueba del API de tiempos. Las pantallas de compilacion siguen
- * siendo `TiemposPromedioController`.
+ * (`/api/tiempos/promedio`, `/api/tiempos/promedio/horario` y
+ * `/api/tiempos/promedio/plantas`), igual que la pantalla de prueba del API de
+ * tiempos. Las pantallas de compilacion siguen siendo
+ * `TiemposPromedioController`.
  */
 class TiemposPromedioVerController extends Controller
 {
     /**
      * Promedios compilados por ruta (inicio de ruta -> llegada a destino).
+     *
+     * La misma pantalla consulta, debajo de las rutas, los promedios de espera
+     * por planta (`tiempos_planta_promedio`) contra su propio endpoint.
      */
     public function rutas()
     {
@@ -28,6 +34,14 @@ class TiemposPromedioVerController extends Controller
             'departamentos' => DBTiemposPromedio::departamentos(),
             'ordenes' => DBTiemposPromedioCompilado::ORDENES,
             'limite' => 300,
+
+            // --- promedios por planta (seccion debajo de las rutas) ---
+            'endpoint_plantas' => url('/api/tiempos/promedio/plantas'),
+            'plantas' => DBTiemposPlanta::plantas(),
+            'departamentos_plantas' => DBTiemposPlantaCompilado::departamentos(),
+            'ordenes_plantas' => DBTiemposPlantaCompilado::ORDENES,
+            'limite_plantas' => DBTiemposPlantaCompilado::LIMITE,
+            'estado_plantas' => DBTiemposPlanta::estado(),
         ]);
     }
 

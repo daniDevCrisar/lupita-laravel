@@ -201,6 +201,7 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="{{route('lupita.refs.seleccion')}}"><i class="bi bi-arrow-repeat"></i> Actualizar Refs</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.refs.docs')}}"><i class="bi bi-journal-code"></i> Docs API Refs</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.refs.ruta_id')}}"><i class="bi bi-signpost-split"></i> Docs ruta_id de viaje</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.api')}}"><i class="bi bi-plug"></i> Probar API Tiempos</a></li>
                     </ul>

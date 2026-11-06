@@ -19,10 +19,35 @@
 
         $etiqueta_modo = [
             'global' => 'global',
-            'ruta' => 'p97 de cada ruta',
+            'ruta' => 'p82 de cada ruta',
             'propio' => 'el tope guardado de cada ruta',
         ][$datos->modo] ?? 'global';
     @endphp
+
+    <style>
+        /* tabla de perdidas: el hover de darkly casi no se nota, y la fila marcada
+           para compilar se pinta en verde. El fondo va en el <td>: Bootstrap pinta
+           las celdas, no el <tr> */
+        #tabla_perdida > tbody > tr > td {
+            transition: background-color .12s linear;
+        }
+
+        #tabla_perdida > tbody > tr:hover > td {
+            background-color: rgba(var(--bs-info-rgb), .12);
+        }
+
+        #tabla_perdida > tbody > tr.marcada > td {
+            background-color: rgba(var(--bs-success-rgb), .18);
+        }
+
+        #tabla_perdida > tbody > tr.marcada > td:first-child {
+            box-shadow: inset 3px 0 0 var(--bs-success);
+        }
+
+        #tabla_perdida > tbody > tr.marcada:hover > td {
+            background-color: rgba(var(--bs-success-rgb), .28);
+        }
+    </style>
 
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
@@ -31,7 +56,12 @@
                 Etapa de ruta: <strong>inicio de ruta &rarr; llegada a destino</strong> (etapa 4), calculada sobre
                 <strong>toda la data</strong>, sin filtrar por estados de planta ni por fechas. Aquí se elige un
                 <strong>tope en minutos</strong>: los viajes que lo superan se descartan y abajo se ve exactamente
-                cuántos se pierden.
+                cuántos se pierden. Con el tope en <strong>0</strong> no se manda ningún corte global y lo que aplica
+                es el combo <strong>Tope a aplicar</strong>.
+            </p>
+            <p class="text-muted small mb-2">
+                También se compila el <strong>ciclo completo</strong> (presenta para carga &rarr; fin de descargue: E2 a E6):
+                es la suma de los promedios de las cinco etapas y solo se guarda si todas aportan datos.
             </p>
             <p class="text-muted small mb-2">
                 El <strong>promedio sin tope</strong> es el de todos los viajes medibles; el
@@ -69,6 +99,8 @@
         <div class="alert alert-danger mt-3 mb-0">{{ session('error') }}</div>
     @endif
 
+    @include('lupita._tiempos_promedio_tabs', ['tab' => 'rutas'])
+
     {{-- filtros: previsualizan la perdida con el tope elegido --}}
     <form method="GET" id="filtros" class="mt-3">
         <fieldset class="border p-3 rounded">
@@ -77,11 +109,17 @@
             <div class="row g-3 align-items-end">
                 <div class="col-md-2">
                     <label class="form-label" for="tope">Tope (minutos)</label>
-                    <input type="number" id="tope" name="tope" min="{{ $tope_minimo }}"
-                           step="10" value="{{ $datos->tope }}" class="form-control" required>
+                    <input type="number" id="tope" name="tope" min="0" max="100000"
+                           step="1" value="{{ $datos->tope }}" class="form-control">
                     <div class="form-text">
-                        Equivale a <span id="tope_horas">{{ round($datos->tope / 60, 1) }}</span> h.
-                        Un tope menor descarta más viajes.
+                        {{-- el JS reescribe la nota entera: con 0 el texto no es una equivalencia en horas --}}
+                        <span id="tope_nota">
+                            @if($datos->tope > 0)
+                                Equivale a {{ round($datos->tope / 60, 1) }} h: un tope menor descarta más viajes.
+                            @else
+                                0 = sin tope global: no se corta nada y manda el combo de al lado.
+                            @endif
+                        </span>
                         @if($datos->modo === 'propio')
                             Ahora manda el tope de cada ruta (el escrito en la tabla o el guardado); este valor solo se
                             usa en las rutas que no tienen ninguno.
@@ -90,26 +128,21 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label d-block">Tope a aplicar</label>
-                    <div class="btn-group w-100" role="group">
-                        <input type="radio" class="btn-check" name="modo" id="modo_global" value="global"
-                            @checked($datos->modo === 'global')>
-                        <label class="btn btn-outline-primary" for="modo_global">Global</label>
-
-                        <input type="radio" class="btn-check" name="modo" id="modo_ruta" value="ruta"
-                            @checked($datos->modo === 'ruta')>
-                        <label class="btn btn-outline-primary" for="modo_ruta">p97 por ruta</label>
-
-                        <input type="radio" class="btn-check" name="modo" id="modo_propio" value="propio"
-                            @checked($datos->modo === 'propio')>
-                        <label class="btn btn-outline-primary" for="modo_propio">Tope por ruta</label>
-                    </div>
+                    <label class="form-label" for="modo">Tope a aplicar</label>
+                    <select name="modo" id="modo" class="form-control">
+                        @foreach($datos->modos as $valor => $etiqueta)
+                            <option value="{{ $valor }}" @selected($datos->modo === $valor)>{{ $etiqueta }}</option>
+                        @endforeach
+                    </select>
                     <div class="form-text">
-                        <strong>Global</strong>: el mismo tope para todas (ej. 4320 = 72 h).
-                        <strong>p97 por ruta</strong>: a cada ruta se le aplica su propio percentil 97, con piso de
-                        4 h; una ruta con viajes cortos no recibe un tope de días.
-                        <strong>Tope por ruta</strong>: el tope escrito en cada fila de la tabla o, si no tiene, el que
+                        <strong>Global</strong>: el mismo tope para todas (ej. 4320 = 72 h); con el tope en 0 no se
+                        descarta ningún viaje.
+                        <strong>p82 por ruta</strong>: a cada ruta se le aplica su propio percentil 82, con piso de
+                        4 h: deja fuera, como máximo, el 18 % de sus viajes; una ruta con viajes cortos no recibe un tope de días.
+                        <strong>El de cada ruta</strong>: el tope escrito en cada fila de la tabla o, si no tiene, el que
                         se fijó al compilarla ({{ $estado->rutas }} guardada(s)); las demás usan el global.
+                        Al guardar con el tope en 0 y modo global se aplica el p82 de cada ruta, para no promediar
+                        sin ningún corte.
                     </div>
                 </div>
 
@@ -180,6 +213,10 @@
                 <div class="col-md-6">
                     <label class="form-label d-block">Atajos de tope</label>
                     <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary" onclick="poner_tope(0)"
+                                title="Tope 0: no se corta nada, manda el combo de tope a aplicar">
+                            Sin tope
+                        </button>
                         @foreach([720 => '12 h', 1440 => '24 h', 2880 => '48 h', 4320 => '72 h', 5760 => '96 h', 8640 => '6 días'] as $min => $etiqueta)
                             <button type="button" class="btn btn-outline-secondary" onclick="poner_tope({{ $min }})">
                                 {{ $etiqueta }}
@@ -188,8 +225,20 @@
                     </div>
                 </div>
 
+                {{-- las rutas con poca muestra se pueden sacar de la tabla y del resumen --}}
+                <div class="col-md-3">
+                    <label class="form-label" for="min_viajes">Mínimo de viajes</label>
+                    <input type="number" id="min_viajes" name="min_viajes" min="0" step="1"
+                           value="{{ $datos->min_viajes }}" class="form-control"
+                           onchange="document.getElementById('filtros').submit()">
+                    <div class="form-text">
+                        Oculta las rutas con menos viajes medibles y acota los lotes de compilación.
+                        Deja 0 para verlas todas.
+                    </div>
+                </div>
+
                 {{-- las rutas compiladas se pueden sacar de la tabla y del resumen --}}
-                <div class="col-md-6">
+                <div class="col-md-3">
                     <label class="form-label d-block">Rutas compiladas</label>
                     <div class="form-check form-switch">
                         <input type="hidden" name="ocultar_compiladas" value="0">
@@ -257,6 +306,26 @@
         <div class="col-md-3">
             <div class="card border-secondary h-100">
                 <div class="card-body py-2">
+                    <div class="text-muted small" title="Presenta para carga → fin de descargue: suma de los promedios E2..E6">
+                        Ciclo promedio (E2 &rarr; E6)
+                    </div>
+                    <div class="fs-4 fw-bold">{{ $fmt($p->prom_ciclo_min) }}</div>
+                    <div class="small text-muted">
+                        Rápido: {{ $fmt($p->prom_ciclo_rapido_min) }}
+                        · Tardado: {{ $fmt($p->prom_ciclo_sin_tope_min) }}
+                        <br>Espera fuera: {{ $fmt($p->prom_fuera_min) }}
+                        · dentro: {{ $fmt($p->prom_dentro_min) }}
+                        @if($p->con_ciclo > 0)
+                            <br>{{ $p->con_ciclo }} ruta(s) con ciclo completo
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-secondary h-100">
+                <div class="card-body py-2">
                     <div class="text-muted small">Promedio por ruta</div>
                     <div class="fs-4 fw-bold">
                         {{ $fmt($p->prom_min) }}
@@ -299,6 +368,12 @@
         <input type="hidden" name="orden" value="{{ $datos->orden }}">
         <input type="hidden" name="alcance" value="todas">
         <input type="hidden" name="ocultar_compiladas" value="{{ $datos->ocultar_compiladas ? 1 : 0 }}">
+        <input type="hidden" name="min_viajes" value="{{ $datos->min_viajes }}">
+
+        {{-- topes escritos en la tabla: viajan con el POST para "El tope de cada ruta" --}}
+        @foreach($datos->topes as $ruta_tope => $minutos)
+            <input type="hidden" name="topes[{{ $ruta_tope }}]" value="{{ $minutos }}">
+        @endforeach
 
         <fieldset class="border p-3 rounded">
             <legend class="float-none w-auto px-2 fs-6">Compilar y guardar</legend>
@@ -306,11 +381,18 @@
             @can('compilar promedios')
 
             <p class="small text-muted mb-2">
-                Se guarda con tope <strong>{{ $datos->tope }} min</strong>
-                ({{ $etiqueta_modo }}). El botón usa el tope que está
+                @if($datos->tope > 0)
+                    Se guarda con tope <strong>{{ $datos->tope }} min</strong> ({{ $etiqueta_modo }}).
+                @elseif($datos->modo === 'global')
+                    Se guarda <strong>sin tope global</strong>: el modo global no tiene ningún corte que aplicar,
+                    así que cada ruta queda con su <strong>p82</strong> (máximo 18 % descartado).
+                @else
+                    Se guarda <strong>sin tope global</strong> ({{ $etiqueta_modo }}): manda el tope a aplicar.
+                @endif
+                El botón usa el tope que está
                 escrito arriba, aunque todavía no hayas recalculado: la pérdida real se recalcula al guardar.
                 @if($datos->modo === 'propio')
-                    Con <strong>Tope por ruta</strong> cada ruta se recompila con el tope que ya tenía guardado.
+                    Con <strong>El tope de cada ruta</strong> cada una se recompila con el tope que ya tenía guardado.
                 @endif
             </p>
 
@@ -319,7 +401,7 @@
                     <i class="bi bi-database-add"></i>
                     @if($datos->ocultar_compiladas)
                         Compilar todas las pendientes
-                    @elseif($datos->dep_origen || $datos->dep_destino)
+                    @elseif($datos->dep_origen || $datos->dep_destino || $datos->min_viajes > 0)
                         Compilar todas las del filtro
                     @else
                         Compilar todas las rutas
@@ -327,7 +409,8 @@
                 </button>
 
                 <button type="button" class="btn btn-outline-success" id="btn_seleccion"
-                        onclick="compilar('seleccion')" disabled>
+                        onclick="compilar('seleccion')" disabled
+                        title="Compila cada ruta marcada con el tope escrito en su fila">
                     <i class="bi bi-check2-square"></i>
                     Compilar las <span id="seleccion_n">0</span> marcadas
                 </button>
@@ -346,9 +429,15 @@
             <div class="form-text mt-2">
                 <strong>Solo las que faltan</strong> no toca las rutas que ya tienen promedio guardado: sirve para
                 compilar por partes. <strong>Las marcadas</strong> usa los checks de la tabla (máximo
-                {{ $datos->limite }} rutas visibles) y no depende de los combos: lo marcado se compila. Los lotes
-                "todas" y "las que faltan" sí se limitan al filtro de departamento. Ninguna opción borra promedios
-                de rutas sin datos.
+                {{ $datos->limite }} rutas visibles) y compila cada una con el tope escrito en su fila, sin importar
+                el tope global elegido. Los lotes "todas" y "las que faltan" sí se limitan al filtro de
+                departamento y usan el tope escrito en cada fila solo si el combo dice <strong>El tope de cada ruta</strong>.
+                Ninguna opción borra promedios de rutas sin datos.
+                @if($datos->min_viajes > 0)
+                    Los lotes "todas" y "las que faltan" omiten las rutas con menos de
+                    {{ number_format($datos->min_viajes) }} viajes medibles; <strong>las marcadas</strong> se
+                    compilan igual porque van elegidas a mano.
+                @endif
                 @if($datos->ocultar_compiladas)
                     Con <strong>Ocultar compiladas</strong> activo, "todas" compila solo las pendientes: no se
                     reescribe ninguna ruta que ya tenga promedio.
@@ -371,6 +460,9 @@
                 {{ count($datos->filas) }} ruta(s){{ $datos->ocultar_compiladas ? ' sin compilar' : '' }}
                 @if($datos->ocultar_compiladas && $datos->ocultas > 0)
                     <br>{{ $datos->ocultas }} oculta(s) por estar compiladas
+                @endif
+                @if($datos->ocultas_min > 0)
+                    <br>{{ $datos->ocultas_min }} oculta(s) con menos de {{ number_format($datos->min_viajes) }} viajes
                 @endif
                 @if($datos->dep_origen)
                     <br>Origen: {{ $datos->departamentos[$datos->dep_origen] ?? $datos->dep_origen }}
@@ -398,7 +490,7 @@
     </div>
 
     <div class="table-responsive mt-2" style="max-height: 65vh; overflow: auto">
-        <table class="table table-sm table-hover align-middle mb-0">
+        <table class="table table-sm table-hover align-middle mb-0" id="tabla_perdida">
             <thead class="table-dark" style="position: sticky; top: 0; z-index: 1">
             <tr>
                 <th class="text-center" style="width: 34px">
@@ -415,7 +507,10 @@
                 <th class="text-end" title="Promedio de todos los viajes medibles, sin descartar nada">
                     Prom. sin tope
                 </th>
-                <th class="text-end" title="Escribe el tope de esta ruta y compílala sola. Haz clic en el p97 para ponerlo en el input">
+                <th class="text-end" title="Ciclo E2 → E6 con tres escenarios de espera: rápido (p50), promedio (p82, pierde ≤18 % de viajes) y tardado (toda la espera real). Debajo, la espera media fuera y dentro">
+                    Ciclo prom.
+                </th>
+                <th class="text-end" title="Escribe el tope de recorrido de esta ruta y compílala sola. Haz clic en el p82 (deja fuera ≤18 % de los viajes) para ponerlo en el input">
                     Tope por ruta
                 </th>
                 <th class="text-end">Mediana</th>
@@ -446,7 +541,9 @@
                         </div>
                     </td>
                     <td class="text-end">{{ number_format($fila->viajes_total) }}</td>
-                    <td class="text-end">{{ number_format($fila->descartados) }}</td>
+                    <td class="text-end text-nowrap">
+                        {{ number_format($fila->descartados) }}
+                    </td>
                     <td class="text-end">
                         <span class="badge bg-{{ $color_perdido($fila->pct_perdido) }}">
                             {{ $fila->pct_perdido === null ? '—' : $fila->pct_perdido . ' %' }}
@@ -461,37 +558,67 @@
                     <td class="text-end text-nowrap text-muted">
                         {{ $fmt($fila->prom_sin_tope_min) }}
                     </td>
+                    <td class="text-end text-nowrap">
+                        {{ $fmt($fila->prom_ciclo_min) }}
+                        @if($fila->prom_ciclo_rapido_min !== null)
+                            <div class="text-muted" style="font-size: .72rem"
+                                 title="Ciclo con el tope rápido (p50 de espera)">
+                                rápido {{ $fmt($fila->prom_ciclo_rapido_min) }}
+                            </div>
+                        @endif
+                        @if($fila->prom_ciclo_sin_tope_min !== null)
+                            <div class="text-muted" style="font-size: .72rem"
+                                 title="Ciclo con toda la espera real, sin tope">
+                                tardado {{ $fmt($fila->prom_ciclo_sin_tope_min) }}
+                                @if($fila->ciclo_viajes > 0)
+                                    · {{ $fila->ciclo_viajes }} viaje(s)
+                                @endif
+                            </div>
+                        @endif
+                        @if($fila->prom_fuera_min !== null || $fila->prom_dentro_min !== null)
+                            <div class="text-warning" style="font-size: .72rem"
+                                 title="Espera media fuera (E2 + E5) y dentro (E3 + E6) con el tope del 18 %">
+                                fuera {{ $fmt($fila->prom_fuera_min) }}
+                                · dentro {{ $fmt($fila->prom_dentro_min) }}
+                            </div>
+                        @endif
+                    </td>
                     <td class="text-end">
                         @can('compilar promedios')
                         <form method="POST" action="{{ route('lupita.tiempos.promedio.ruta') }}"
-                              class="d-flex gap-1 justify-content-end"
+                              class="d-flex flex-column gap-1 align-items-end"
                               onsubmit="return confirm('¿Compilar solo esta ruta con el tope escrito?');">
                             @csrf
                             <input type="hidden" name="ruta_id" value="{{ $fila->ruta_id }}">
                             @if($datos->ocultar_compiladas)
                                 <input type="hidden" name="ocultar_compiladas" value="1">
                             @endif
-                            <input type="number" name="tope" min="{{ $tope_minimo }}" step="10"
-                                   value="{{ $fila->tope_min }}" class="form-control form-control-sm"
-                                   style="width: 82px" title="Tope personalizado en minutos"
-                                   data-tope-fila data-ruta="{{ $fila->ruta_id }}">
-                            <button type="submit" class="btn btn-sm btn-outline-success"
-                                    title="Compilar esta ruta con este tope">
-                                <i class="bi bi-check2"></i>
-                            </button>
+                            <input type="hidden" name="min_viajes" value="{{ $datos->min_viajes }}">
+                            <div class="d-flex gap-1">
+                                <input type="number" name="tope" min="{{ $tope_minimo }}" step="1"
+                                       value="{{ $fila->tope_min }}" class="form-control form-control-sm"
+                                       style="width: 82px" title="Tope de recorrido en minutos"
+                                       data-tope-fila data-ruta="{{ $fila->ruta_id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-success"
+                                        title="Compilar esta ruta con este tope">
+                                    <i class="bi bi-check2"></i>
+                                </button>
+                            </div>
                         </form>
                         @else
-                        <span class="small text-muted">tope {{ $fila->tope_min }} min</span>
+                        <span class="small text-muted">
+                            tope {{ $fila->tope_min === null ? 'sin tope' : $fila->tope_min . ' min' }}
+                        </span>
                         @endcan
                         <div class="mt-1" style="font-size: .7rem">
-                            @if($fila->p97_min === null)
-                                <span class="text-muted">p97: —</span>
+                            @if($fila->p82_min === null)
+                                <span class="text-muted">p82: —</span>
                             @else
                                 <button type="button" class="btn btn-link btn-sm p-0 align-baseline text-info text-decoration-none"
                                         style="font-size: .7rem"
-                                        data-tope-sugerido="{{ $fila->p97_min }}"
-                                        title="Poner el p97 ({{ $fmt($fila->p97_min) }}) como tope de esta ruta">
-                                    p97: {{ $fmt($fila->p97_min) }}
+                                        data-tope-sugerido="{{ $fila->p82_min }}"
+                                        title="Poner el p82 ({{ $fmt($fila->p82_min) }}) como tope de esta ruta: deja fuera ≤18 % de sus viajes">
+                                    p82: {{ $fmt($fila->p82_min) }}
                                 </button>
                             @endif
                         </div>
@@ -511,8 +638,10 @@
                     </td>
                     <td class="text-nowrap">
                         @if($fila->guardado ?? null)
-                            <span class="badge bg-success text-dark" title="Promedio guardado con ese tope">
-                                {{ $fila->guardado->tope_min }} min
+                            @php $tope_guardado = (int) $fila->guardado->tope_min; @endphp
+                            <span class="badge bg-{{ $tope_guardado > 0 ? 'success' : 'secondary' }} text-dark"
+                                  title="{{ $tope_guardado > 0 ? 'Promedio guardado con ese tope' : 'Promedio guardado sin tope: entraron todos los viajes medibles' }}">
+                                {{ $tope_guardado > 0 ? $tope_guardado . ' min' : 'sin tope' }}
                             </span>
                             <div class="text-muted" style="font-size: .72rem">{{ $fila->guardado->actualizado_en }}</div>
                         @else
@@ -522,10 +651,13 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="11" class="text-center text-muted py-4">
+                    <td colspan="12" class="text-center text-muted py-4">
                         @if($datos->ocultar_compiladas && $datos->ocultas > 0)
                             Todas las rutas con datos ya están compiladas: apaga
                             <strong>Ocultar compiladas</strong> para verlas con sus topes.
+                        @elseif($datos->ocultas_min > 0)
+                            Ninguna ruta llega a {{ number_format($datos->min_viajes) }} viajes medibles: baja el
+                            mínimo o pon 0 para verlas todas.
                         @else
                             No hay viajes medibles con estos filtros.
                         @endif
@@ -548,14 +680,29 @@
             Guardado actual: {{ $estado->rutas }} ruta(s), {{ number_format($estado->viajes) }} viaje(s) usados,
             {{ number_format($estado->descartados) }} descartados, {{ number_format($estado->celdas) }} celda(s) de
             día/hora y {{ $estado->fusionadas }} ruta(s) con promedio fusionado.
+            @if($estado->con_ciclo > 0)
+                <br>{{ number_format($estado->con_ciclo) }} ruta(s) con ciclo promedio guardado.
+            @endif
         </p>
     @endif
 
     <script>
+        // la nota del tope: equivalencia en horas si hay corte, y el sentido
+        // del 0 (sin tope global, manda el combo) cuando no lo hay
+        function pintar_tope(minutos) {
+            const nota = document.getElementById('tope_nota');
+            if (!nota) {
+                return;
+            }
+            nota.textContent = minutos > 0
+                ? 'Equivale a ' + (minutos / 60).toFixed(1) + ' h: un tope menor descarta más viajes.'
+                : '0 = sin tope global: no se corta nada y manda el combo de al lado.';
+        }
+
         function poner_tope(minutos) {
             const input = document.getElementById('tope');
             input.value = minutos;
-            document.getElementById('tope_horas').textContent = (minutos / 60).toFixed(1);
+            pintar_tope(minutos);
         }
 
         // recalcula el resumen y la tabla con el tope escrito o guardado de cada ruta
@@ -583,7 +730,7 @@
             window.location = window.location.pathname + '?' + params.toString();
         }
 
-        // el p97 de una fila se pone en el tope de esa ruta con un clic
+        // el p82 de una fila se pone en el tope de esa ruta con un clic
         document.querySelectorAll('[data-tope-sugerido]').forEach(function (boton) {
             boton.addEventListener('click', function () {
                 const input = boton.closest('td').querySelector('[data-tope-fila]');
@@ -697,6 +844,14 @@
         const contador = document.getElementById('seleccion_n');
 
         function contar_marcadas() {
+            // la fila marcada se resalta para no perderla de vista al compilar
+            checks.forEach(function (check) {
+                const fila = check.closest('tr');
+                if (fila) {
+                    fila.classList.toggle('marcada', check.checked);
+                }
+            });
+
             const marcadas = checks.filter(function (check) {
                 return check.checked;
             }).length;
@@ -725,14 +880,66 @@
 
         contar_marcadas();
 
+        // un tope escrito en una fila viaja en el POST como topes[ruta]; si el
+        // hidden ya existe se reutiliza para no mandar el mismo campo dos veces
+        function poner_tope_envio(form, base, ruta_id, minutos, temporal) {
+            const campo = base + '[' + ruta_id + ']';
+            let input = form.elements[campo];
+
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = campo;
+                if (temporal) {
+                    input.dataset.topeTemporal = '1';
+                }
+                form.appendChild(input);
+            }
+
+            input.value = minutos;
+        }
+
         function compilar(alcance) {
             const filtros = document.getElementById('filtros');
             const form = document.getElementById('compilar');
             const ruta = filtros.elements['ruta_id'].value;
+            const marcadas = checks.filter(function (check) {
+                return check.checked;
+            });
 
             if (alcance === 'ruta' && !ruta) {
                 alert('Elige una ruta en el selector para compilar solo ese tramo.');
                 return;
+            }
+
+            if (alcance === 'seleccion' && marcadas.length === 0) {
+                alert('Marca al menos una ruta en la tabla.');
+                return;
+            }
+
+            // topes escritos en la fila de cada ruta marcada
+            const topes_filas = marcadas.map(function (check) {
+                const fila = check.closest('tr');
+                return {
+                    ruta: check.value,
+                    input: fila.querySelector('[data-tope-fila]'),
+                };
+            });
+
+            // el tope de la fila lo valida el propio input (cualquier minuto
+            // entero: 425 es valido, no se exige multiplo de 10)
+            for (const fila of topes_filas) {
+                if (!fila.input) {
+                    continue;
+                }
+                if (fila.input.value.trim() === '') {
+                    alert('Escribe el tope en minutos de ' + fila.ruta + ' antes de compilar la selección.');
+                    fila.input.focus();
+                    return;
+                }
+                if (!fila.input.reportValidity()) {
+                    return;
+                }
             }
 
             let etiqueta = alcance === 'ruta'
@@ -740,31 +947,58 @@
                 : (alcance === 'faltantes' ? 'solo las rutas sin promedio' : 'todas las rutas');
 
             if (alcance === 'seleccion') {
-                const marcadas = checks.filter(function (check) {
-                    return check.checked;
-                });
-
-                if (marcadas.length === 0) {
-                    alert('Marca al menos una ruta en la tabla.');
-                    return;
-                }
-
                 etiqueta = 'las ' + marcadas.length + ' ruta(s) marcadas';
             }
 
-            if (!confirm('Se guardarán los promedios con tope ' + form.elements['tope'].value + ' min para ' + etiqueta + '. ¿Continuar?')) {
+            // la seleccion usa el tope de cada fila; los lotes, el tope de arriba
+            const tope_lote = parseInt(filtros.elements['tope'].value, 10) || 0;
+            let resumen_tope;
+
+            if (alcance === 'seleccion') {
+                resumen_tope = 'el tope escrito en la fila de cada marcada';
+            } else if (tope_lote > 0) {
+                resumen_tope = 'un tope de ' + tope_lote + ' min';
+            } else if (filtros.elements['modo'].value === 'global') {
+                // sin corte global el guardado cae al p82 de cada ruta
+                resumen_tope = 'sin tope global, así que se guardará el p82 de cada ruta';
+            } else {
+                const combo = filtros.elements['modo'].selectedOptions[0].textContent.trim();
+                resumen_tope = 'sin tope global: manda «' + combo + '»';
+            }
+
+            if (!confirm('Se guardarán los promedios con ' + resumen_tope + ' para ' + etiqueta + '. ¿Continuar?')) {
                 return;
             }
 
             form.elements['tope'].value = filtros.elements['tope'].value;
-            form.elements['modo'].value = filtros.elements['modo'].value;
+            form.elements['modo'].value = alcance === 'seleccion' ? 'propio' : filtros.elements['modo'].value;
             form.elements['ruta_id'].value = ruta;
             form.elements['alcance'].value = alcance;
+            form.elements['min_viajes'].value = filtros.elements['min_viajes'].value;
+
+            // los topes temporales de una seleccion anterior no deben viajar
+            form.querySelectorAll('[data-tope-temporal]').forEach(function (input) {
+                input.remove();
+            });
+
+            if (alcance === 'seleccion') {
+                topes_filas.forEach(function (fila) {
+                    if (fila.input) {
+                        poner_tope_envio(form, 'topes', fila.ruta, fila.input.value, true);
+                    }
+                });
+            } else {
+                // lotes: mandan los topes escritos que aun no se recalcularon
+                document.querySelectorAll('[data-tope-fila][data-modificado]').forEach(function (input) {
+                    poner_tope_envio(form, 'topes', input.dataset.ruta, input.value.trim(), false);
+                });
+            }
+
             form.submit();
         }
 
         document.getElementById('tope').addEventListener('input', function () {
-            document.getElementById('tope_horas').textContent = (this.value / 60).toFixed(1);
+            pintar_tope(parseInt(this.value, 10) || 0);
         });
     </script>
 @endsection

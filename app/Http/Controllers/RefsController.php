@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
  *  - seleccion():     GET /lupita/refs/actualizar -> seleccion de lotes por rango
  *                      y link a tceflexia.
  *  - documentacion(): GET /lupita/refs/docs       -> contrato del API.
+ *  - documentacion_ruta_id(): GET /lupita/refs/ruta-id -> como se deduce el ruta_id del titulo.
  *
  * Son PANTALLAS del panel, no endpoints: por eso viven aqui y NO en
  * app/Http/Controllers/Api, donde solo estan los endpoints publicos en JSON
@@ -63,5 +64,14 @@ class RefsController extends Controller
     public function documentacion()
     {
         return view('refs.docs');
+    }
+
+    /**
+     * GET /lupita/refs/ruta-id : documentacion del sp_actualizar_ruta_id
+     * (solo lectura: explica como se deduce el ruta_id desde el titulo_viaje)
+     */
+    public function documentacion_ruta_id()
+    {
+        return view('refs.ruta_id_docs');
     }
 }

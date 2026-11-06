@@ -5,7 +5,6 @@
 @section('content')
 
     @php
-        $tope_minimo = \App\Database\DBTiemposPromedio::TOPE_MINIMO;
         $fmt = fn ($minutos) => \App\Database\DBTiemposRuta::formatear_minutos($minutos);
         $dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
@@ -33,7 +32,8 @@
             <p class="text-muted small mb-2">
                 El tope se aplica <strong>viaje por viaje antes de promediar la celda</strong>: los viajes que lo
                 superan se descartan y la columna <strong>% perdido</strong> dice cuánto se cae en esa hora. Una celda
-                que se queda sin viajes no se guarda.
+                que se queda sin viajes no se guarda. Con el tope en <strong>0</strong> no se manda corte global y
+                aplica el <strong>p82 de cada ruta</strong>.
             </p>
             <p class="text-muted small mb-0">
                 Esta compilación escribe <strong>solo</strong> las celdas de día/hora: no toca los promedios de ruta
@@ -68,6 +68,8 @@
         <div class="alert alert-danger mt-3 mb-0">{{ session('error') }}</div>
     @endif
 
+    @include('lupita._tiempos_promedio_tabs', ['tab' => 'horario'])
+
     <form method="GET" id="filtros" class="mt-3">
         <fieldset class="border p-3 rounded">
             <legend class="float-none w-auto px-2 fs-6">Tope y alcance</legend>
@@ -75,10 +77,14 @@
             <div class="row g-3 align-items-end">
                 <div class="col-md-2">
                     <label class="form-label" for="tope">Tope (minutos)</label>
-                    <input type="number" id="tope" name="tope" min="{{ $tope_minimo }}"
-                           step="10" value="{{ $datos->tope }}" class="form-control" required>
-                    <div class="form-text">
-                        <span id="tope_horas">{{ round($datos->tope / 60, 1) }}</span> h
+                    <input type="number" id="tope" name="tope" min="0" max="100000"
+                           step="10" value="{{ $datos->tope }}" class="form-control">
+                    <div class="form-text" id="tope_nota">
+                        @if($datos->tope > 0)
+                            {{ round($datos->tope / 60, 1) }} h
+                        @else
+                            0 = sin tope global
+                        @endif
                     </div>
                 </div>
 
@@ -91,9 +97,10 @@
 
                         <input type="radio" class="btn-check" name="modo" id="modo_ruta" value="ruta"
                             @checked($datos->modo === 'ruta')>
-                        <label class="btn btn-outline-primary" for="modo_ruta">p97 por ruta</label>
+                        <label class="btn btn-outline-primary" for="modo_ruta">p82 por ruta</label>
                     </div>
-                    <div class="form-text">El p97 se calcula por ruta con piso de 4 h.</div>
+                    <div class="form-text">El p82 se calcula por ruta con piso de 4 h: deja fuera ≤18 % de los viajes.
+                        Con el tope en 0 el global no corta nada.</div>
                 </div>
 
                 <div class="col-md-3">
@@ -130,6 +137,10 @@
                 <div class="col-12">
                     <span class="text-muted small me-2">Atajos:</span>
                     <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary" onclick="poner_tope(0)"
+                                title="Tope 0: no se corta nada, manda el tope a aplicar">
+                            Sin tope
+                        </button>
                         @foreach([720 => '12 h', 1440 => '24 h', 2880 => '48 h', 4320 => '72 h', 5760 => '96 h'] as $min => $etiqueta)
                             <button type="button" class="btn btn-outline-secondary" onclick="poner_tope({{ $min }})">
                                 {{ $etiqueta }}
@@ -211,8 +222,14 @@
             @can('compilar promedios')
 
             <p class="small text-muted mb-2">
-                Se guardan las celdas con tope <strong>{{ $datos->tope }} min</strong>
-                ({{ $datos->modo === 'ruta' ? 'p97 de cada ruta' : 'global' }}). Solo se reescriben las celdas de las
+                @if($datos->tope > 0)
+                    Se guardan las celdas con tope <strong>{{ $datos->tope }} min</strong>
+                    ({{ $datos->modo === 'ruta' ? 'p82 de cada ruta' : 'global' }}).
+                @else
+                    Se guardan las celdas <strong>sin tope global</strong>
+                    ({{ $datos->modo === 'ruta' ? 'p82 de cada ruta' : 'el global no corta nada, así que se guarda el p82 de cada ruta' }}).
+                @endif
+                Solo se reescriben las celdas de las
                 rutas que se compilan; el resto de la matriz y los promedios de ruta quedan intactos.
             </p>
 
@@ -287,7 +304,9 @@
                     </td>
                     <td class="text-end text-nowrap">{{ $fmt($celda->prom_min) }}</td>
                     <td class="text-end text-nowrap text-muted">{{ $fmt($celda->prom_sin_tope) }}</td>
-                    <td class="text-end text-nowrap text-muted">{{ $fmt($celda->tope_min) }}</td>
+                    <td class="text-end text-nowrap text-muted">
+                        {{ $celda->tope_min === null ? 'sin tope' : $fmt($celda->tope_min) }}
+                    </td>
                 </tr>
             @empty
                 <tr>
@@ -308,9 +327,17 @@
     @endif
 
     <script>
+        // la nota del tope: horas si hay corte, y el sentido del 0 si no
+        function pintar_tope(minutos) {
+            const nota = document.getElementById('tope_nota');
+            if (nota) {
+                nota.textContent = minutos > 0 ? (minutos / 60).toFixed(1) + ' h' : '0 = sin tope global';
+            }
+        }
+
         function poner_tope(minutos) {
             document.getElementById('tope').value = minutos;
-            document.getElementById('tope_horas').textContent = (minutos / 60).toFixed(1);
+            pintar_tope(minutos);
         }
 
         function compilar(alcance) {
@@ -324,8 +351,11 @@
             }
 
             const etiqueta = alcance === 'ruta' ? 'solo la ruta elegida' : 'todas las rutas';
+            const tope = parseInt(filtros.elements['tope'].value, 10) || 0;
+            // con tope 0 el global no corta nada: el guardado cae al p82 de cada ruta
+            const como_tope = tope > 0 ? 'tope ' + tope + ' min' : 'sin tope global, con el p82 de cada ruta';
 
-            if (!confirm('Se guardarán las celdas día/hora con tope ' + filtros.elements['tope'].value + ' min para ' + etiqueta + '. ¿Continuar?')) {
+            if (!confirm('Se guardarán las celdas día/hora ' + como_tope + ' para ' + etiqueta + '. ¿Continuar?')) {
                 return;
             }
 
@@ -338,7 +368,7 @@
         }
 
         document.getElementById('tope').addEventListener('input', function () {
-            document.getElementById('tope_horas').textContent = (this.value / 60).toFixed(1);
+            pintar_tope(parseInt(this.value, 10) || 0);
         });
     </script>
 @endsection

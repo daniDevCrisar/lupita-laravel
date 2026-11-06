@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Lectura (solo consulta) de los promedios YA COMPILADOS:
  *
- *  - `tiempos_ruta_promedio`  un promedio por ruta y sentido (etapa 4)
+ *  - `tiempos_ruta_promedio`  un promedio por ruta y sentido (etapa 4), mas el
+ *                             ciclo completo (E2..E6) y los topes de espera
+ *                             fuera y dentro de planta con los que se compilo
  *  - `tiempos_ruta_horario`   promedio por ruta, dia de la semana y hora
  *
  * Esta clase no calcula ni escribe nada: las pantallas de compilacion
@@ -24,6 +26,7 @@ class DBTiemposPromedioCompilado
         'perdido' => 'Mayor % descartado',
         'perdido_asc' => 'Menor % descartado',
         'mediana' => 'Mediana más alta',
+        'ciclo' => 'Ciclo promedio más alto',
         'ruta' => 'Nombre de la ruta',
         'actualizado' => 'Compilación más reciente',
     ];
@@ -95,9 +98,18 @@ class DBTiemposPromedioCompilado
                 'viajes' => 0,
                 'viajes_total' => 0,
                 'descartados' => 0,
+                'descartados_fuera' => 0,
+                'descartados_dentro' => 0,
                 'pct_perdido' => null,
                 'prom_ponderado' => null,
                 'prom_sin_tope' => null,
+                'prom_ciclo' => null,
+                'prom_ciclo_rapido' => null,
+                'prom_ciclo_sin_tope' => null,
+                'con_ciclo' => 0,
+                'prom_espera_fuera' => null,
+                'prom_espera_dentro' => null,
+                'espera_descartados' => 0,
                 'mediana_ponderada' => null,
                 'fusionadas' => 0,
                 'topes' => 0,
@@ -144,9 +156,19 @@ class DBTiemposPromedioCompilado
         $suma_prom = 0.0;
         $suma_sin_tope = 0.0;
         $suma_mediana = 0.0;
+        $suma_ciclo = 0.0;
+        $suma_ciclo_rapido = 0.0;
+        $suma_ciclo_sin_tope = 0.0;
+        $suma_espera_fuera = 0.0;
+        $suma_espera_dentro = 0.0;
+        $peso_espera_fuera = 0;
+        $peso_espera_dentro = 0;
         $peso_prom = 0;
         $peso_sin_tope = 0;
         $peso_mediana = 0;
+        $peso_ciclo = 0;
+        $peso_ciclo_rapido = 0;
+        $peso_ciclo_sin_tope = 0;
         $topes = [];
 
         foreach ($filas as $fila) {
@@ -154,6 +176,8 @@ class DBTiemposPromedioCompilado
             $resumen->viajes += $fila->viajes;
             $resumen->viajes_total += $fila->viajes_total;
             $resumen->descartados += $fila->descartados;
+            $resumen->descartados_fuera += $fila->descartados_fuera;
+            $resumen->descartados_dentro += $fila->descartados_dentro;
             $resumen->fusionadas += $fila->prom_fusion_min !== null ? 1 : 0;
             $topes[(int) $fila->tope_min] = true;
             $recipiente[] = $fila;
@@ -170,6 +194,36 @@ class DBTiemposPromedioCompilado
                 $suma_mediana += $fila->mediana_min * $fila->viajes;
                 $peso_mediana += $fila->viajes;
             }
+
+            // el ciclo pesa por los viajes que tienen la cadena E2..E6 completa
+            if ($fila->prom_ciclo_min !== null) {
+                $resumen->con_ciclo++;
+                $peso = max(1, $fila->ciclo_viajes);
+                $suma_ciclo += $fila->prom_ciclo_min * $peso;
+                $peso_ciclo += $peso;
+            }
+            if ($fila->prom_ciclo_rapido_min !== null) {
+                $peso_rapido = max(1, $fila->ciclo_viajes);
+                $suma_ciclo_rapido += $fila->prom_ciclo_rapido_min * $peso_rapido;
+                $peso_ciclo_rapido += $peso_rapido;
+            }
+            // las esperas se miden sobre los mismos viajes que el ciclo
+            if ($fila->prom_fuera_min !== null) {
+                $peso_espera = max(1, $fila->ciclo_viajes);
+                $suma_espera_fuera += $fila->prom_fuera_min * $peso_espera;
+                $peso_espera_fuera += $peso_espera;
+            }
+            if ($fila->prom_dentro_min !== null) {
+                $peso_dentro = max(1, $fila->ciclo_viajes);
+                $suma_espera_dentro += $fila->prom_dentro_min * $peso_dentro;
+                $peso_espera_dentro += $peso_dentro;
+            }
+            $resumen->espera_descartados += $fila->espera_descartados;
+            if ($fila->prom_ciclo_sin_tope_min !== null) {
+                $peso_bruto = max(1, $fila->ciclo_viajes > 0 ? $fila->ciclo_viajes : $fila->viajes_total);
+                $suma_ciclo_sin_tope += $fila->prom_ciclo_sin_tope_min * $peso_bruto;
+                $peso_ciclo_sin_tope += $peso_bruto;
+            }
         }
 
         $resumen->pct_perdido = $resumen->viajes_total > 0
@@ -178,6 +232,13 @@ class DBTiemposPromedioCompilado
         $resumen->prom_ponderado = $peso_prom > 0 ? round($suma_prom / $peso_prom, 1) : null;
         $resumen->prom_sin_tope = $peso_sin_tope > 0 ? round($suma_sin_tope / $peso_sin_tope, 1) : null;
         $resumen->mediana_ponderada = $peso_mediana > 0 ? round($suma_mediana / $peso_mediana, 1) : null;
+        $resumen->prom_ciclo = $peso_ciclo > 0 ? round($suma_ciclo / $peso_ciclo, 1) : null;
+        $resumen->prom_ciclo_rapido = $peso_ciclo_rapido > 0 ? round($suma_ciclo_rapido / $peso_ciclo_rapido, 1) : null;
+        $resumen->prom_espera_fuera = $peso_espera_fuera > 0 ? round($suma_espera_fuera / $peso_espera_fuera, 1) : null;
+        $resumen->prom_espera_dentro = $peso_espera_dentro > 0 ? round($suma_espera_dentro / $peso_espera_dentro, 1) : null;
+        $resumen->prom_ciclo_sin_tope = $peso_ciclo_sin_tope > 0
+            ? round($suma_ciclo_sin_tope / $peso_ciclo_sin_tope, 1)
+            : null;
         $resumen->topes = count($topes);
 
         // ultima compilacion de las rutas que entraron en el filtro
@@ -213,6 +274,10 @@ class DBTiemposPromedioCompilado
 
                 case 'mediana':
                     return (($b->mediana_min ?? -1) <=> ($a->mediana_min ?? -1))
+                        ?: ($b->viajes <=> $a->viajes);
+
+                case 'ciclo':
+                    return (($b->prom_ciclo_min ?? -1) <=> ($a->prom_ciclo_min ?? -1))
                         ?: ($b->viajes <=> $a->viajes);
 
                 case 'ruta':
@@ -380,13 +445,31 @@ class DBTiemposPromedioCompilado
             'dep_origen' => DBTiemposPromedio::nombre_departamento(substr((string) ($ruta->ubigeo_origen ?? ''), 0, 2)),
             'dep_destino' => DBTiemposPromedio::nombre_departamento(substr((string) ($ruta->ubigeo_destino ?? ''), 0, 2)),
             'modo' => (string) ($fila->modo ?? 'global'),
-            'tope_min' => (int) $fila->tope_min,
+            // 0 es el tope guardado de una compilacion sin corte global
+            'tope_min' => (int) $fila->tope_min > 0 ? (int) $fila->tope_min : null,
             'viajes_total' => $viajes_total,
             'viajes' => (int) $fila->viajes,
             'descartados' => $descartados,
+            'descartados_fuera' => (int) ($fila->descartados_fuera ?? 0),
+            'descartados_dentro' => (int) ($fila->descartados_dentro ?? 0),
             'pct_perdido' => $viajes_total > 0 ? round(100 * $descartados / $viajes_total, 1) : null,
             'prom_min' => $prom,
             'prom_sin_tope_min' => $fila->prom_sin_tope_min !== null ? round((float) $fila->prom_sin_tope_min, 1) : null,
+            // ciclo completo E2..E6: suma de los promedios de etapa
+            'prom_ciclo_min' => ($fila->prom_ciclo_min ?? null) !== null ? round((float) $fila->prom_ciclo_min, 1) : null,
+            'prom_ciclo_rapido_min' => ($fila->prom_ciclo_rapido_min ?? null) !== null
+                ? round((float) $fila->prom_ciclo_rapido_min, 1)
+                : null,
+            'prom_ciclo_sin_tope_min' => ($fila->prom_ciclo_sin_tope_min ?? null) !== null
+                ? round((float) $fila->prom_ciclo_sin_tope_min, 1)
+                : null,
+            'prom_fuera_min' => ($fila->prom_fuera_min ?? null) !== null ? round((float) $fila->prom_fuera_min, 1) : null,
+            'prom_dentro_min' => ($fila->prom_dentro_min ?? null) !== null ? round((float) $fila->prom_dentro_min, 1) : null,
+            'tope_espera_min' => ($fila->tope_espera_min ?? null) !== null ? (int) $fila->tope_espera_min : null,
+            'espera_descartados' => (int) ($fila->espera_descartados ?? 0),
+            'ciclo_viajes' => (int) ($fila->ciclo_viajes ?? 0),
+            'tope_fuera_min' => ($fila->tope_fuera_min ?? null) !== null ? (int) $fila->tope_fuera_min : null,
+            'tope_dentro_min' => ($fila->tope_dentro_min ?? null) !== null ? (int) $fila->tope_dentro_min : null,
             'mediana_min' => $fila->mediana_min !== null ? (int) $fila->mediana_min : null,
             'p25_min' => $fila->p25_min !== null ? (int) $fila->p25_min : null,
             'p75_min' => $fila->p75_min !== null ? (int) $fila->p75_min : null,
@@ -497,7 +580,8 @@ class DBTiemposPromedioCompilado
                 'hora' => $hora,
                 'viajes' => $viajes,
                 'prom_min' => $prom,
-                'tope_min' => (int) $fila->tope_min,
+                // 0 = la celda se calculo sin tope
+                'tope_min' => (int) $fila->tope_min > 0 ? (int) $fila->tope_min : null,
             ];
             $celdas[] = $celda;
 
