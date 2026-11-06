@@ -49,6 +49,23 @@ use Illuminate\Validation\ValidationException;
 class TiemposPromedioApiController extends Controller
 {
     /**
+     * En hosting compartido no se puede tocar el php.ini, y algunos servidores
+     * traen `serialize_precision = 17`: eso hace que `json_encode` vuelque la
+     * expansion binaria completa de un float (16.7 sale como
+     * 16.699999999999999 y 675.7 como 675.70000000000004547). No es un error de
+     * la columna DECIMAL (que es exacta), sino de como PHP serializa floats.
+     *
+     * Se corrige solo para las peticiones a este controller (no es config
+     * global del proyecto ni del request siguiente): -1 usa la representacion
+     * mas corta que round-tripea, o sea 16.7 y 675.7 limpios.
+     */
+    public function __construct()
+    {
+        ini_set('precision', '14');
+        ini_set('serialize_precision', '-1');
+    }
+
+    /**
      * Respuesta de validacion SIEMPRE en JSON 422 (sin el header Accept,
      * Laravel responderia con un redirect 302).
      */

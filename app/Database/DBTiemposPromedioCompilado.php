@@ -468,8 +468,6 @@ class DBTiemposPromedioCompilado
             'tope_espera_min' => ($fila->tope_espera_min ?? null) !== null ? (int) $fila->tope_espera_min : null,
             'espera_descartados' => (int) ($fila->espera_descartados ?? 0),
             'ciclo_viajes' => (int) ($fila->ciclo_viajes ?? 0),
-            'tope_fuera_min' => ($fila->tope_fuera_min ?? null) !== null ? (int) $fila->tope_fuera_min : null,
-            'tope_dentro_min' => ($fila->tope_dentro_min ?? null) !== null ? (int) $fila->tope_dentro_min : null,
             'mediana_min' => $fila->mediana_min !== null ? (int) $fila->mediana_min : null,
             'p25_min' => $fila->p25_min !== null ? (int) $fila->p25_min : null,
             'p75_min' => $fila->p75_min !== null ? (int) $fila->p75_min : null,
