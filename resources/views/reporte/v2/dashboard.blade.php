@@ -121,7 +121,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
             <h1 class="h3 fw-bold mb-1">
-                <i class="bi bi-speedometer2 text-info me-2"></i>Dashboard VAPI
+                <i class="bi bi-speedometer2 text-info me-2"></i>Dashboard Llamadas
             </h1>
             <span class="badge bg-dark border border-secondary p-2">
                 <i class="bi bi-calendar-range me-2"></i>{{ $titulo_periodo }} · {{ $p->dias }} día(s)
@@ -133,26 +133,32 @@
                 <span class="badge bg-info text-dark p-2">TRT #{{ $filtros->trt_id }}</span>
             @endif
         </div>
-        <div class="d-flex gap-2 flex-wrap no-print">
-            <a href="{{ route('lupita.reportes.reporte', $params_base) }}" class="btn btn-outline-info btn-sm">
-                <i class="bi bi-file-earmark-bar-graph"></i> Reporte completo
-            </a>
-            <a href="{{ route('lupita.reportes.progreso', $params_base) }}" class="btn btn-outline-info btn-sm">
-                <i class="bi bi-graph-up-arrow"></i> Progreso semana/mes
-            </a>
-            <a href="{{ route('lupita.reportes.dashboard.html', $params_descarga) }}" class="btn btn-success btn-sm">
-                <i class="bi bi-download"></i> Descargar HTML
-            </a>
-            <a href="{{ route('lupita.reportes.dia', $params_base) }}" class="btn btn-outline-light btn-sm">
-                <i class="bi bi-file-earmark-text"></i> Reporte del día (correo)
-            </a>
-            <a href="{{ route('lupita.reportes.rango', $params_base) }}" class="btn btn-outline-light btn-sm">
-                <i class="bi bi-file-earmark-spreadsheet"></i> Reporte del rango (correo)
-            </a>
-        </div>
+
+        @if(!$es_export)
+            <div class="d-flex gap-2 flex-wrap no-print">
+                <a href="{{ route('lupita.reportes.reporte', $params_base) }}" class="btn btn-outline-info btn-sm">
+                    <i class="bi bi-file-earmark-bar-graph"></i> Reporte completo
+                </a>
+                <a href="{{ route('lupita.reportes.progreso', $params_base) }}" class="btn btn-outline-info btn-sm">
+                    <i class="bi bi-graph-up-arrow"></i> Progreso semana/mes
+                </a>
+                <a href="{{ route('lupita.reportes.dashboard.html', $params_descarga) }}" class="btn btn-success btn-sm">
+                    <i class="bi bi-download"></i> Descargar HTML
+                </a>
+                <a href="{{ route('lupita.reportes.dia', $params_base) }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-file-earmark-text"></i> Reporte del día (correo)
+                </a>
+                <a href="{{ route('lupita.reportes.rango', $params_base) }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Reporte del rango (correo)
+                </a>
+            </div>
+        @endif
+
+
     </div>
 
     {{-- ============ FILTROS ============ --}}
+    @if(!$es_export)
     <form method="GET" action="{{ route('lupita.reportes.dashboard') }}" class="mb-4 no-print">
         <fieldset class="border border-secondary rounded p-3">
             <legend class="float-none w-auto px-2 fs-6 text-white-50">Filtros</legend>
@@ -225,7 +231,7 @@
             </div>
         </fieldset>
     </form>
-
+    @endif
     @if($t->total == 0)
         <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i>
             No hay llamadas en el periodo seleccionado.</div>
