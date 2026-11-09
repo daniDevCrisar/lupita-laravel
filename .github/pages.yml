@@ -1,0 +1,25 @@
+
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: ["master"] # O main, según tu rama
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs' # Aquí le indicas explícitamente que solo tome la carpeta docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
