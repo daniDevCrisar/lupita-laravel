@@ -38,3 +38,9 @@ php artisan make:livewire PruebaComponente
 
 php artisan make:livewire EtiquetarLlamada
 
+
+
+REPOMIX
+
+npx repomix --ignore "docs/**"
+
