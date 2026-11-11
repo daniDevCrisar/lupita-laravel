@@ -85,7 +85,7 @@ class LlamadasApiController extends Controller
                 if (is_string($i)) $i = ExcelTool::normalizarTexto(strtoupper( html_entity_decode($i, ENT_QUOTES, 'UTF-8')));
             });
             //------------------------------------------
-
+            $item['transportista']=self::normalizarTexto($item['transportista']);
             $update=DB::update($sql,[$item['transportista'],$lote_id,$key]);
             if ($item['confirmacion'] and !$update){
                 $fecha_llamada_buscar= explode(' ',$item['fecha_llamada']);
@@ -108,4 +108,27 @@ class LlamadasApiController extends Controller
         ]);
 
     }
+
+
+
+    public static function normalizarTexto($valor)
+    {
+        // null a string
+        $valor = trim((string)($valor ?? ''));
+
+        if ($valor === '') return '';
+
+        // Reemplazo manual de tildes, ñ y guiones (-)
+        $buscar = ['á','é','í','ó','ú','Á','É','Í','Ó','Ú','ü','Ü','Ñ','ñ', '-'];
+        $reemplazar = ['a','e','i','o','u','A','E','I','O','U','u','U','N','n', ''];
+
+        $valor = str_replace($buscar, $reemplazar, $valor);
+
+        // Mayúsculas UTF8
+        $valor = mb_strtoupper($valor, 'UTF-8');
+
+        return $valor;
+    }
+
+
 }
