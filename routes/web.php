@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\TiemposPromedioApiController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ConductoresDuplicadosController;
 use App\Http\Controllers\ComportamientoController;
+use App\Http\Controllers\LocalesController;
 use App\Http\Controllers\LogConductoresController;
 use App\Http\Controllers\VapiController;
 use Illuminate\Support\Facades\Route;
@@ -159,6 +160,20 @@ Route::middleware(['auth'])->group(function () {
             ->whereNumber('id')->middleware('permission:administrar usuarios');
         Route::post('/usuarios/{id}/estado', [UsuariosController::class, 'alternar_activo'])->name('lupita.usuarios.estado')
             ->whereNumber('id')->middleware('permission:administrar usuarios');
+
+        //--- Catalogo de locales / plantas (listado y alta) ---
+        // es un catalogo de apoyo de tiempos, plantas y reportes: solo admin
+        Route::get('/locales', [LocalesController::class, 'index'])->name('lupita.locales')
+            ->middleware('role:admin');
+        Route::get('/locales/nuevo', [LocalesController::class, 'crear'])->name('lupita.locales.crear')
+            ->middleware('role:admin');
+        Route::post('/locales', [LocalesController::class, 'guardar'])->name('lupita.locales.guardar')
+            ->middleware('role:admin');
+        // el id viaja por la URL: puede traer espacios (ej: LOC_PTE PIEDRA)
+        Route::get('/locales/{id}/editar', [LocalesController::class, 'editar'])->name('lupita.locales.editar')
+            ->middleware('role:admin');
+        Route::post('/locales/{id}', [LocalesController::class, 'actualizar'])->name('lupita.locales.actualizar')
+            ->middleware('role:admin');
 
         Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario')
             ->middleware('permission:ver tiempos');

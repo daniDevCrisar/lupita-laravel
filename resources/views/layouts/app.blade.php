@@ -253,6 +253,15 @@
                             </li>
                             <li><hr class="dropdown-divider"></li>
                         @endcan
+                        @role('admin')
+                            {{-- catalogo de locales/plantas: solo el rol admin --}}
+                            <li>
+                                <a href="{{ route('lupita.locales') }}" class="dropdown-item">
+                                    <i class="bi bi-shop"></i> Locales
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                        @endrole
                         <li>
                             <span class="dropdown-item-text text-light">
                                 {{ auth()->user()->name }}@if(auth()->user()->nombres)<small class="text-white-50"> · {{ auth()->user()->nombres }}</small>@endif
