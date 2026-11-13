@@ -27,6 +27,7 @@ use App\Http\Controllers\TiemposPromedioController;
 use App\Http\Controllers\TiemposPromedioVerController;
 use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\PermisosController;
+use App\Http\Controllers\PrediccionController;
 use App\Http\Controllers\VerificarReferenciasController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
@@ -97,6 +98,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/comportamiento', [ComportamientoController::class, 'index'])->name('lupita.comportamiento')
             ->middleware('permission:ver tiempos');
         Route::get('/comportamiento/ficha', [ComportamientoController::class, 'ficha'])->name('lupita.comportamiento.ficha')
+            ->middleware('permission:ver tiempos');
+
+        //--- Prediccion de la hora de presenta para carga (ver docs/superpowers) ---
+        Route::get('/prediccion/presenta', [PrediccionController::class, 'presenta'])->name('lupita.prediccion.presenta')
+            ->middleware('permission:ver tiempos');
+        Route::post('/prediccion/parametros', [PrediccionController::class, 'guardar_parametros'])->name('lupita.prediccion.parametros')
+            ->middleware('permission:ver tiempos');
+        Route::get('/prediccion/aciertos', [PrediccionController::class, 'aciertos'])->name('lupita.prediccion.aciertos')
             ->middleware('permission:ver tiempos');
         Route::get('/palabras', [PalabrasController::class, 'index'])->name('lupita.palabras')
             ->middleware('permission:ver scoring');

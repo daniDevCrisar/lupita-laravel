@@ -129,6 +129,8 @@
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio.ver')}}"><i class="bi bi-table"></i> Promedios compilados</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.promedio.horario.ver')}}"><i class="bi bi-grid-3x3-gap"></i> Horarios compilados</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.comportamiento')}}"><i class="bi bi-person-lines-fill"></i> Comportamiento</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.prediccion.presenta')}}"><i class="bi bi-clock-history"></i> Predecir carga</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.prediccion.aciertos')}}"><i class="bi bi-bullseye"></i> Aciertos de la predicción</a></li>
                         @endcan
                     </ul>
                 </li>

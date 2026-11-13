@@ -49,7 +49,14 @@
                     · tope por etapa: {{ $topes[$datos->tope] ?? 'Sin tope' }}
                 </div>
             </div>
-            <a href="{{ route('lupita.comportamiento', $params_volver) }}" class="btn btn-outline-secondary ms-auto">
+            @if($esPlaca)
+                <a href="{{ route('lupita.prediccion.presenta', ['placa' => $f->nombre]) }}"
+                   class="btn btn-outline-primary ms-auto">
+                    <i class="bi bi-clock-history"></i> Predecir carga
+                </a>
+            @endif
+            <a href="{{ route('lupita.comportamiento', $params_volver) }}"
+               class="btn btn-outline-secondary {{ $esPlaca ? '' : 'ms-auto' }}">
                 <i class="bi bi-arrow-left"></i> Volver al ranking
             </a>
         </div>
