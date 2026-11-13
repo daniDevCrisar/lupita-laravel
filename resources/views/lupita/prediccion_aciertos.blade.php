@@ -339,6 +339,12 @@
                                 </span>
                             @endif
                             <div class="text-muted" style="font-size:.7rem">{{ $fila->pares_calibracion ?? 0 }} pares</div>
+                            @if($fila->cerca ?? false)
+                                <span class="badge bg-info text-dark" style="font-size:.6rem"
+                                      title="descargó en el mismo local o distrito de la planta donde carga{{ !empty($fila->cerca_regimen) ? ' (régimen: ' . $fila->cerca_regimen . ')' : '' }}">
+                                    cerca
+                                </span>
+                            @endif
                         </td>
                         <td>
                             <span class="badge bg-{{ $coloresEvidencia[$fila->evidencia] ?? 'secondary' }}">

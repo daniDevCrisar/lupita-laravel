@@ -363,6 +363,14 @@ php artisan prediccion:calibrar --aplicar   # guarda en prediccion_config</pre>
             </div>
             <hr>
             <p class="mb-0">
+                <strong>Cerca de la planta.</strong> Si el camión descargó en el <em>mismo local</em> o en el
+                <em>mismo distrito</em> de la planta donde vuelve a cargar, carga enseguida mucho más seguido
+                (flota: mediana <strong>138 min</strong> y 54 % en ≤3 h, contra <strong>1.020 min</strong> y 7 % cuando
+                está lejos). En ese caso el motor calibra el hueco con los viajes en que también quedó cerca; si la placa
+                no tiene muestra propia usa el régimen medido en la flota (por chofer si ese chofer tiene pares). Se
+                publica en <code>historia.cerca</code>, <code>historia.calibrado_cerca</code> y
+                <code>historia.cerca_regimen</code>.
+                <br>
                 <strong>Placa o conductor.</strong> El hueco del descanso se aprende del historial de la
                 <em>placa</em>, salvo que el conductor de la referencia concentre <strong>menos de la mitad</strong> de
                 los viajes de esa placa en el período mirado (<code>lookback_dias</code>): ahí manda el

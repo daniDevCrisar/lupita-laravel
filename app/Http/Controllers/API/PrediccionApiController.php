@@ -174,6 +174,9 @@ class PrediccionApiController extends Controller
                 // con qué historia se calibró esta fila: la placa o el conductor
                 'calibra_con' => $fila->grupo ?? 'placa',
                 'pares_calibracion' => $fila->pares_calibracion ?? 0,
+                // el camión quedó cerca de la planta de carga (mismo local/distrito)
+                'cerca' => (bool) ($fila->cerca ?? false),
+                'cerca_regimen' => $fila->cerca_regimen ?? null,
             ];
         }
 

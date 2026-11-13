@@ -120,6 +120,12 @@
                                   : 'la placa manda: su conductor habitual no está definido' }}">
                             {{ ($r->historia->grupo ?? 'placa') === 'conductor' ? 'por chofer' : 'por placa' }}
                         </span>
+                        @if($r->historia->cerca ?? false)
+                            <span class="badge bg-info text-dark"
+                                  title="el camión descargó en el mismo local o distrito de la planta donde carga: se calibró con los viajes en que también quedó cerca{{ !empty($r->historia->cerca_regimen) ? ' (régimen medido en la ' . $r->historia->cerca_regimen . ')' : '' }}">
+                                descarga cerca de la planta de carga
+                            </span>
+                        @endif
                     </div>
                     <div class="small text-muted">
                         Estado del camión: <strong>{{ $r->estado->etiqueta ?? '—' }}</strong>

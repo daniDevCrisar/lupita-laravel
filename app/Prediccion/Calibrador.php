@@ -194,6 +194,13 @@ final class Calibrador
      * rutas) para que la corrección se pueda sumar a cualquier base, incluida la
      * de una calibración hecha sólo con los pares recientes de una placa.
      *
+     * GUARDA IMPORTANTE: una franja necesita al menos `$min_entidad` pares para
+     * corregir. Con menos, esa franja no es una tendencia horaria sino un par
+     * suelto, y su mediana ES ese par: una placa con 11 pares repartidos en 8
+     * franjas puede tener una sola noche de 54 h en la franja de las 19 y la
+     * predicción se iba 48 h al futuro (caso real AHV874). Sin muestra, el
+     * residuo es 0 y manda la mediana de la entidad.
+     *
      * @return array<int, array{n: int, residual_min: ?int}>
      */
     private static function curva(array $limpios, array $por_entidad, array $todos, int $min_entidad, int $bins): array
@@ -203,6 +210,7 @@ final class Calibrador
             $curva[$bin] = ['n' => 0, 'residual_min' => null];
         }
 
+        $minimo = max(2, $min_entidad);
         $residuos = [];
         foreach ($limpios as $fila) {
             $base = null;
@@ -220,6 +228,10 @@ final class Calibrador
         }
 
         foreach ($residuos as $bin => $valores) {
+            if (count($valores) < $minimo) {
+                continue;   // franja sin muestra: residual 0 (null)
+            }
+
             $curva[$bin] = [
                 'n' => count($valores),
                 'residual_min' => (int) round((float) Estadistica::mediana($valores)),
@@ -227,6 +239,35 @@ final class Calibrador
         }
 
         return $curva;
+    }
+
+    /**
+     * Calibración de un solo nivel a partir de un resumen ya calculado
+     * (`n`, `base_min`, `p25_min`, `p75_min`).
+     *
+     * Sirve para aplicar un RÉGIMEN medido en otra población sin recalibrar todo:
+     * por ejemplo "los viajes en que el camión quedó cerca de la planta de carga",
+     * que son los que cargan enseguida (ver Servicio::regimen_cerca()).
+     */
+    public static function de_resumen(array $resumen, string $etiqueta = 'regimen'): stdClass
+    {
+        $resumen = [
+            'n' => (int) ($resumen['n'] ?? 0),
+            'base_min' => isset($resumen['base_min']) ? (int) round((float) $resumen['base_min']) : null,
+            'p25_min' => isset($resumen['p25_min']) ? (int) round((float) $resumen['p25_min']) : null,
+            'p75_min' => isset($resumen['p75_min']) ? (int) round((float) $resumen['p75_min']) : null,
+        ];
+
+        return (object) [
+            'min_ruta' => 1,
+            'min_entidad' => 1,
+            'bins' => 1,
+            'recientes_max' => 0,
+            'par_rutas' => [],
+            'entidad' => [$etiqueta => $resumen],
+            'global' => $resumen,
+            'curva' => [0 => ['n' => $resumen['n'], 'residual_min' => 0]],
+        ];
     }
 
     /** @return array{n: int, base_min: ?int, p25_min: ?int, p75_min: ?int} */

@@ -64,4 +64,63 @@ class ServicioTest extends TestCase
         $this->assertNull(Servicio::pct_conductor($pares, 0));
         $this->assertNull(Servicio::pct_conductor([], 7));
     }
+
+    public function test_cerca_usa_el_traslado_de_vuelta(): void
+    {
+        $this->assertFalse(Servicio::cerca(null));
+        $this->assertTrue(Servicio::cerca((object) ['min' => 0]));       // misma planta o distrito
+        $this->assertTrue(Servicio::cerca((object) ['min' => 60]));      // justo el umbral
+        $this->assertFalse(Servicio::cerca((object) ['min' => 61]));
+
+        // el umbral se puede mover desde la configuración
+        $this->assertTrue(Servicio::cerca((object) ['min' => 120], (object) ['cerca_min' => 150]));
+        $this->assertFalse(Servicio::cerca((object) ['min' => 120], (object) ['cerca_min' => 90]));
+    }
+
+    public function test_es_cerca_por_local_distrito_o_ruta_corta(): void
+    {
+        $indice = ['LOC_A|LOC_B' => true];
+        $par = fn (array $datos) => (object) $datos;
+
+        // mismo local
+        $this->assertTrue(Servicio::es_cerca($par([
+            'ancla_destino' => 'LOC_A', 'carga_origen' => 'LOC_A',
+        ]), $indice));
+
+        // mismo distrito (es lo que hace el motor con ya_esta_en_planta)
+        $this->assertTrue(Servicio::es_cerca($par([
+            'ancla_destino' => 'LOC_X', 'carga_origen' => 'LOC_Y',
+            'ancla_ubigeo' => '150132', 'carga_ubigeo' => '150132',
+        ]), $indice));
+
+        // ruta medida corta entre locales distintos
+        $this->assertTrue(Servicio::es_cerca($par([
+            'ancla_destino' => 'LOC_B', 'carga_origen' => 'LOC_A',
+            'ancla_ubigeo' => '150101', 'carga_ubigeo' => '070101',
+        ]), $indice));
+
+        // lejos
+        $this->assertFalse(Servicio::es_cerca($par([
+            'ancla_destino' => 'LOC_X', 'carga_origen' => 'LOC_Y',
+            'ancla_ubigeo' => '150101', 'carga_ubigeo' => '070101',
+        ]), $indice));
+
+        // sin datos del par
+        $this->assertFalse(Servicio::es_cerca($par([]), $indice));
+    }
+
+    public function test_el_indice_de_cercania_usa_el_viaje_medido(): void
+    {
+        $rutas = [
+            'R1' => (object) ['origen_id' => 'LOC_A', 'destino_id' => 'LOC_B'],
+            'R2' => (object) ['origen_id' => 'LOC_A', 'destino_id' => 'LOC_C'],
+        ];
+        $etapas = ['R1' => ['e4' => 29], 'R2' => ['e4' => 400]];
+
+        $indice = Servicio::indice_cerca($etapas, $rutas, 60);
+
+        $this->assertTrue(isset($indice['LOC_A|LOC_B']));
+        $this->assertTrue(isset($indice['LOC_B|LOC_A']), 'la cercanía es en los dos sentidos');
+        $this->assertFalse(isset($indice['LOC_A|LOC_C']), 'e4 de 400 min no es cerca');
+    }
 }

@@ -36,6 +36,18 @@ return [
     // Franjas de 3 h para la corrección del hueco por hora del ancla.
     'bins_horarios' => 8,
 
+    // "Cerca": si el camión descargó a menos de estos minutos de la planta donde
+    // vuelve a cargar (o en el mismo local/distrito), el hueco se calibra sólo con
+    // los viajes en que también quedó cerca. Medido con la flota: quedando cerca
+    // la mediana es 138 min y carga en ≤3 h el 54 % de las veces; lejos, 1.020 min
+    // y 7 %. Sin ese condicionamiento el motor esperaba medio día en un caso que
+    // carga enseguida.
+    'cerca_min' => 60,
+
+    // Una franja necesita al menos `min_pares_entidad` pares para corregir: con
+    // menos, la "mediana" de la franja es un par suelto y una noche de 54 h en la
+    // franja de las 19 corría la predicción dos días (ver Calibrador::curva()).
+
     // Sin pares medidos no hay cuantiles: la fecha "rápido" y "tardado" se abren
     // este porcentaje alrededor de la cadena (0.30 = -30 % / +30 %).
     'spread_cadena' => 0.30,

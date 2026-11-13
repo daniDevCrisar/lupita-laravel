@@ -63,13 +63,26 @@ class DBPrediccion
         return 'GREATEST(' . implode(', ', $partes) . ')';
     }
 
-    /** Nombre del hito más reciente de una fila de `referencias` (o NULL). */
-    public static function hito_mas_reciente($fila): ?string
+    /**
+     * Nombre del hito más reciente de una fila de `referencias` (o NULL).
+     *
+     * `$ignorar` deja afuera hitos que no son eventos del camión: el
+     * `compromiso_carga` es una cita planificada, no algo que haya pasado, y
+     * puede quedar con fecha posterior a la presentación real (pasa en ~2 % de
+     * las refs). Para anclar la predicción no sirve: se busca el último evento
+     * de verdad.
+     *
+     * @param  array<int, string>  $ignorar
+     */
+    public static function hito_mas_reciente($fila, array $ignorar = []): ?string
     {
         $mejor = null;
         $mejorTs = null;
 
         foreach (self::HITOS as $hito) {
+            if (in_array($hito, $ignorar, true)) {
+                continue;
+            }
             $valor = is_object($fila) ? ($fila->{$hito} ?? null) : ($fila[$hito] ?? null);
             if ($valor === null || $valor === '' || (string) $valor < self::FECHA_MINIMA) {
                 continue;
@@ -166,12 +179,16 @@ class DBPrediccion
      * El conductor sale de la propia referencia: el fallback por `llamadas`
      * obligaba a agrupar 40k filas en la consulta más pesada del módulo.
      *
-     * @return array<int, object> objetos con ancla, presenta, ruta_ancla, ruta_siguiente, entidad, hueco_min
+     * @return array<int, object> objetos con ancla, presenta, ruta_ancla, ruta_siguiente, entidad,
+     *                            hueco_min y los locales/ubigeos del par (para saber si quedó cerca)
      */
     public static function pares(?string $excluirRef, Carbon $desde, Carbon $hasta, ?string $placa = null,
                                  ?int $conductorId = null, int $limite = 20000): array
     {
-        $sql = "SELECT x.* FROM (
+        $sql = "SELECT x.*,
+                       rap.destino_id AS ancla_destino, rap.ubigeo_destino AS ancla_ubigeo,
+                       rsi.origen_id AS carga_origen, rsi.ubigeo_origen AS carga_ubigeo
+                FROM (
                     SELECT r.ref, r.placa, r.conductor_id AS conductor_clave,
                            r.ruta_id, r.presenta_para_carga,
                            LAG(r.ruta_id) OVER (PARTITION BY r.placa ORDER BY r.presenta_para_carga) AS ruta_ancla,
@@ -180,6 +197,10 @@ class DBPrediccion
                     FROM referencias r
                     WHERE r.placa <> '' AND r.presenta_para_carga >= ?
                 ) x
+                -- de dónde vuelve el camión y dónde carga: la cercanía entre esos dos
+                -- puntos es lo que hace más probable que cargue enseguida
+                LEFT JOIN rutas rap ON rap.id = x.ruta_ancla
+                LEFT JOIN rutas rsi ON rsi.id = x.ruta_id
                 WHERE x.presenta_para_carga BETWEEN ? AND ? AND x.fin_ancla IS NOT NULL";
         $params = [self::FECHA_MINIMA, $desde->toDateTimeString(), $hasta->toDateTimeString()];
 
@@ -212,10 +233,90 @@ class DBPrediccion
                 'ruta_siguiente' => $fila->ruta_id,
                 'entidad' => (string) $fila->placa,
                 'hueco_min' => (int) round((strtotime($fila->presenta_para_carga) - strtotime($fila->fin_ancla)) / 60),
+                'ancla_destino' => (string) ($fila->ancla_destino ?? ''),
+                'ancla_ubigeo' => (string) ($fila->ancla_ubigeo ?? ''),
+                'carga_origen' => (string) ($fila->carga_origen ?? ''),
+                'carga_ubigeo' => (string) ($fila->carga_ubigeo ?? ''),
             ];
         }
 
         return $salida;
+    }
+
+    //------------------- régimen "cerca" de la flota -------------------
+
+    /**
+     * Huecos de los viajes en que el camión quedó CERCA de la planta donde
+     * volvió a cargar (mismo local o mismo distrito), de toda la flota.
+     *
+     * Es el régimen que usa el motor cuando la placa/chofer no tienen suficientes
+     * pares propios: quedando cerca, la flota carga mucho más seguido. Se
+     * devuelve el resumen global y el de cada conductor (con muestra).
+     *
+     * @return array{global: array|null, conductores: array<string, array>}
+     */
+    public static function resumen_cerca(Carbon $desde, Carbon $hasta, int $limite = 8000): array
+    {
+        $vacio = ['global' => null, 'conductores' => []];
+
+        try {
+            $filas = DB::select("
+                SELECT x.conductor_clave, x.hueco
+                FROM (
+                    SELECT r.placa, r.conductor_id AS conductor_clave, r.ruta_id,
+                           LAG(r.fin_descargue) OVER (PARTITION BY r.placa ORDER BY r.presenta_para_carga) AS fin_ancla,
+                           LAG(r.ruta_id) OVER (PARTITION BY r.placa ORDER BY r.presenta_para_carga) AS ruta_ancla,
+                           r.presenta_para_carga,
+                           TIMESTAMPDIFF(MINUTE,
+                               LAG(r.fin_descargue) OVER (PARTITION BY r.placa ORDER BY r.presenta_para_carga),
+                               r.presenta_para_carga) AS hueco
+                    FROM referencias r
+                    WHERE r.placa <> '' AND r.presenta_para_carga >= ?
+                ) x
+                LEFT JOIN rutas rap ON rap.id = x.ruta_ancla
+                LEFT JOIN rutas rsi ON rsi.id = x.ruta_id
+                WHERE x.presenta_para_carga BETWEEN ? AND ?
+                  AND x.fin_ancla IS NOT NULL
+                  AND x.hueco > 0 AND x.hueco <= ?
+                  AND (
+                        (rap.destino_id IS NOT NULL AND rap.destino_id <> '' AND rap.destino_id = rsi.origen_id)
+                     OR (rap.ubigeo_destino IS NOT NULL AND rap.ubigeo_destino <> ''
+                         AND rap.ubigeo_destino = rsi.ubigeo_origen)
+                  )
+                ORDER BY x.presenta_para_carga DESC
+                LIMIT " . max(1, $limite),
+                [$desde->toDateTimeString(), $desde->toDateTimeString(), $hasta->toDateTimeString(),
+                 \App\Prediccion\Calibrador::TOPE_HUECO]
+            );
+        } catch (\Throwable $e) {
+            return $vacio;
+        }
+
+        $todos = [];
+        $porConductor = [];
+        foreach ($filas as $fila) {
+            $hueco = (int) $fila->hueco;
+            $todos[] = $hueco;
+            if ($fila->conductor_clave !== null) {
+                $porConductor[(string) $fila->conductor_clave][] = $hueco;
+            }
+        }
+
+        $resumen = fn (array $huecos) => $huecos === [] ? null : [
+            'n' => count($huecos),
+            'base_min' => (int) round((float) \App\Prediccion\Estadistica::mediana($huecos)),
+            'p25_min' => (int) round((float) \App\Prediccion\Estadistica::cuantil($huecos, 0.25)),
+            'p75_min' => (int) round((float) \App\Prediccion\Estadistica::cuantil($huecos, 0.75)),
+        ];
+
+        $conductores = [];
+        foreach ($porConductor as $id => $huecos) {
+            if (count($huecos) >= 3) {
+                $conductores[$id] = $resumen($huecos);
+            }
+        }
+
+        return ['global' => $resumen($todos), 'conductores' => $conductores];
     }
 
     //------------------- promedios y etapas -------------------

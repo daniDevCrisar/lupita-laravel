@@ -112,4 +112,52 @@ class CalibradorTest extends TestCase
         $this->assertSame(1000, Calibrador::estimar($sinRecencia, 'R1', 'R2', 'ABC123', 8)->gap_min);
         $this->assertSame(300, Calibrador::estimar($conRecencia, 'R1', 'R2', 'ABC123', 8)->gap_min);
     }
+
+    public function test_una_franja_con_un_solo_par_no_corrige_la_hora(): void
+    {
+        // 6 pares de 300 min a las 03:00 y UNO de 54 h a las 19:00: sin la guarda,
+        // ese par suelto se tomaba como "tendencia de la tarde" y la predicción se
+        // iba 48 h al futuro (caso real AHV874: 1 par de 54 h en la franja 18-21)
+        $pares = array_merge(
+            $this->pares(6, 300, 'R1', 'R2', '03:00'),
+            [(object) [
+                'ancla' => Carbon::parse('2026-10-10 19:00'),
+                'presenta' => Carbon::parse('2026-10-12 01:00'),
+                'ruta_ancla' => 'R1', 'ruta_siguiente' => 'R2', 'entidad' => 'ABC123',
+            ]]
+        );
+
+        $cal = Calibrador::calibrar($pares);
+        $est = Calibrador::estimar($cal, 'R1', 'R2', 'ABC123', 19);
+
+        $this->assertSame(0, $est->residual_min, 'una franja con un solo par no es una tendencia horaria');
+        $this->assertSame(300, $est->gap_min);
+    }
+
+    public function test_una_franja_con_muestra_suficiente_si_corrige(): void
+    {
+        $pares = array_merge(
+            $this->pares(4, 300, 'R1', 'R2', '03:00'),
+            $this->pares(4, 900, 'R1', 'R2', '19:00')
+        );
+
+        $cal = Calibrador::calibrar($pares);
+
+        $this->assertSame(300, Calibrador::estimar($cal, 'R1', 'R2', 'ABC123', 3)->gap_min);
+        $this->assertSame(900, Calibrador::estimar($cal, 'R1', 'R2', 'ABC123', 19)->gap_min);
+    }
+
+    public function test_calibracion_a_partir_de_un_resumen_ya_calculado(): void
+    {
+        // es el camino del régimen "cerca": un resumen medido en otra poblacion
+        $cal = Calibrador::de_resumen(['n' => 9, 'base_min' => 138, 'p25_min' => 12, 'p75_min' => 919]);
+        $est = Calibrador::estimar($cal, 'R1', 'R2', 'regimen', 19);
+
+        $this->assertSame(138, $est->gap_min);
+        $this->assertSame(12, $est->p25_min);
+        $this->assertSame(919, $est->p75_min);
+        $this->assertSame(9, $est->n);
+        $this->assertSame('parcial', $est->nivel);
+        $this->assertSame(0, $est->residual_min);
+    }
 }

@@ -158,10 +158,10 @@ class PrediccionController extends Controller
 
         // La corrida tarda ~3-4 s (300 filas): se cachea 10 minutos. Con
         // `?refrescar=1` se fuerza de nuevo. El número de versión sube cuando
-        // cambia la forma de las filas o de la corrida (v4: sin línea base, con
-        // el grupo de calibración por fila).
+        // cambia la forma de las filas o de la corrida (v5: sin línea base, con
+        // grupo de calibración y cercanía a la planta de carga).
         $parametros = Parametros::cargar();
-        $llave = 'prediccion:aciertos:v4:' . md5(json_encode([$filtros, (array) $parametros]));
+        $llave = 'prediccion:aciertos:v5:' . md5(json_encode([$filtros, (array) $parametros]));
 
         if ($request->boolean('refrescar')) {
             \Illuminate\Support\Facades\Cache::forget($llave);

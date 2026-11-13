@@ -4,6 +4,7 @@ namespace App\Prediccion;
 
 use App\Database\DBPrediccion;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
@@ -27,6 +28,13 @@ class Servicio
         ['desde' => 1320, 'hasta' => 1440],   // 22:00 - 24:00
         ['desde' => 0, 'hasta' => 360],       // 00:00 - 06:00
     ];
+
+    /**
+     * Hitos que no sirven para anclar la predicción: `compromiso_carga` es una
+     * cita del plan (puede ser posterior a la presentación real), no un evento
+     * del camión.
+     */
+    public const HITOS_NO_ANCLA = ['compromiso_carga'];
 
     /**
      * Predicción de una referencia concreta.
@@ -190,21 +198,56 @@ class Servicio
             : null;
 
         // calibración: pares de la placa (o del chofer si concentra sus viajes)
+        $conductorClave = $fila->conductor_clave !== null ? (int) $fila->conductor_clave : null;
         [$grupoCalibracion, $claveCalibracion] = self::clave_calibracion(
             $placa,
-            $fila->conductor_clave !== null ? (int) $fila->conductor_clave : null,
+            $conductorClave,
             self::pct_chofer_habitual($fila, $desde, $ahora)
         );
 
         $pares = DBPrediccion::pares($ref, $desde, $ahora, $placa, null, 5000);
-        if ($grupoCalibracion === 'conductor') {
-            foreach ($pares as $par) {
-                $par->entidad = $par->conductor !== null ? (string) $par->conductor : 'sin_conductor';
+
+        // Si el camión quedó CERCA de la planta de carga (mismo local, mismo
+        // distrito o traslado medido corto), el hueco se calibra con los viajes en
+        // que también quedó cerca: ahí carga enseguida mucho más seguido (mediana
+        // 138 min y 54 % en ≤3 h, contra 1.020 min y 7 % lejos). Si esa placa no
+        // tiene muestra propia, se usa el mismo régimen medido en la flota (por
+        // chofer si tiene pares, si no toda la flota).
+        $cerca = self::cerca($traslado, $p);
+        $indiceCerca = self::indice_cerca($etapasPorRuta, DBPrediccion::rutas(), self::cerca_minutos($p));
+        $paresCerca = 0;
+        $paresCalibracion = $pares;
+        $condicionado = false;
+        $regimenUsado = null;
+        $calibracion = null;
+        $claveParaEstimar = $claveCalibracion;
+
+        if ($cerca) {
+            $paresCerca = array_values(array_filter($pares, fn (stdClass $par) => self::es_cerca($par, $indiceCerca)));
+
+            if (count($paresCerca) >= max(1, (int) $p->min_pares_entidad)) {
+                $paresCalibracion = $paresCerca;
+                $condicionado = true;
+            } else {
+                $regimen = self::resumen_cerca_fila($conductorClave);
+                if ($regimen !== null) {
+                    $calibracion = Calibrador::de_resumen($regimen['resumen']);
+                    $claveParaEstimar = 'regimen';
+                    $regimenUsado = $regimen['origen'];
+                }
             }
         }
 
-        $calibracion = Calibrador::calibrar($pares, (int) $p->min_pares_ruta,
-            (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max);
+        if ($calibracion === null) {
+            if ($grupoCalibracion === 'conductor') {
+                foreach ($paresCalibracion as $par) {
+                    $par->entidad = $par->conductor !== null ? (string) $par->conductor : 'sin_conductor';
+                }
+            }
+
+            $calibracion = Calibrador::calibrar($paresCalibracion, (int) $p->min_pares_ruta,
+                (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max);
+        }
 
         $rutaAncla = $ancla !== null ? (string) ($ancla->ruta_id ?? '') : '';
         $horaAncla = self::hora_ancla(
@@ -220,7 +263,7 @@ class Servicio
         $calibrador = $anclaDeclarada ? null : Calibrador::estimar($calibracion,
             $rutaAncla !== '' ? $rutaAncla : null,
             $rutaRef !== '' ? $rutaRef : null,
-            $claveCalibracion,
+            $claveParaEstimar,
             $horaAncla);
 
         $ventanas = self::ventanas($placa, $desde, $ahora, $p);
@@ -296,6 +339,11 @@ class Servicio
             'grupo' => $grupoCalibracion,
             'clave' => $claveCalibracion,
             'conductor' => $fila->conductor_nombre ?? null,
+            // quedó cerca de la planta de carga y se calibró con los pares "cerca"
+            'cerca' => $cerca,
+            'pares_cerca' => $paresCerca,
+            'calibrado_cerca' => $condicionado,
+            'cerca_regimen' => $regimenUsado,
             'ventanas' => $ventanas['ventanas'],
             'ventanas_origen' => $ventanas['origen'],
             'calibrador_usado' => !$anclaDeclarada,
@@ -303,6 +351,17 @@ class Servicio
             'geoapify_usado' => $usoGeo,
             'traslado_fuente' => (string) ($traslado->fuente ?? 'sin_dato'),
         ];
+
+        if ($condicionado) {
+            $resultado->supuestos[] = 'el camión quedó cerca de la planta de carga (traslado '
+                . (int) ($traslado->min ?? 0) . ' min): el hueco se calibró sólo con los '
+                . count($paresCalibracion) . ' pares en que también quedó cerca';
+        } elseif ($regimenUsado !== null) {
+            $resultado->supuestos[] = 'el camión quedó cerca de la planta de carga (traslado '
+                . (int) ($traslado->min ?? 0) . ' min): el hueco sale del régimen medido en la flota para '
+                . 'los viajes en que queda cerca (' . $regimenUsado . ', '
+                . (int) ($calibrador->n ?? 0) . ' pares)';
+        }
 
         if ($anclaDeclarada) {
             $resultado->advertencias[] = 'ancla_declarada: no hay un viaje en curso utilizable (o su último hito '
@@ -375,6 +434,9 @@ class Servicio
         // anteriores a su ancla (ver el cálculo de $ventanasCache en el bucle)
         $hitosPorPlaca = DBPrediccion::hitos_por_placa($aprendizajeDesde, $hasta, $placas);
 
+        // pares de locales que están "cerca" (para calibrar la fila con su grupo)
+        $indiceCerca = self::indice_cerca($etapas, $rutas, self::cerca_minutos($p));
+
         // La tabla corre cientos de filas: nada de llamadas HTTP adentro. Geoapify
         // queda apagado durante el backtest (cada fila caería a la red y son
         // ~1 segundo por fila: 300 filas = 5 minutos).
@@ -431,6 +493,30 @@ class Servicio
             [$grupoCalibracion, $claveCalibracion] = self::clave_calibracion(
                 $par->placa, $conductorFila, self::pct_conductor($previosTodos, $conductorFila));
 
+            // misma regla de cercanía que producción: si esta fila quedó cerca de
+            // la planta de carga, se calibra con los pares en que también quedó
+            // cerca; si no alcanzan, con el régimen medido en la flota
+            $cercaFila = self::cerca($traslado, $p);
+            $regimenFila = null;
+            $regimenResumen = null;
+            $claveParaEstimar = $claveCalibracion;
+
+            if ($cercaFila) {
+                $soloCerca = array_values(array_filter($previosTodos,
+                    fn (stdClass $previo) => self::es_cerca($previo, $indiceCerca)));
+
+                if (count($soloCerca) >= max(1, (int) $p->min_pares_entidad)) {
+                    $previosTodos = $soloCerca;
+                } else {
+                    $regimen = self::resumen_cerca_fila($conductorFila);
+                    if ($regimen !== null) {
+                        $regimenFila = $regimen['origen'];
+                        $regimenResumen = $regimen['resumen'];
+                        $claveParaEstimar = 'regimen';
+                    }
+                }
+            }
+
             $previos = [];
             foreach ($previosTodos as $previo) {
                 $copia = clone $previo;   // no tocar los objetos compartidos con otras filas
@@ -444,13 +530,15 @@ class Servicio
             // con sus pares). Antes se reemplazaba por la curva global de todo el
             // tramo: el backtest predecía con otra corrección que producción y la
             // fila no coincidía con lo que muestra "Predecir" (5 h de diferencia).
-            $calFila = Calibrador::calibrar($previos, (int) $p->min_pares_ruta,
-                (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max);
+            $calFila = $regimenResumen !== null
+                ? Calibrador::de_resumen($regimenResumen)
+                : Calibrador::calibrar($previos, (int) $p->min_pares_ruta,
+                    (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max);
 
             $calibrador = Calibrador::estimar($calFila,
                 $rutaAncla !== '' ? $rutaAncla : null,
                 $rutaSiguiente !== '' ? $rutaSiguiente : null,
-                $claveCalibracion,
+                $claveParaEstimar,
                 (int) $par->ancla->format('G'));
 
             // franjas inactivas as-of: sólo los hitos anteriores al ancla EXACTA de
@@ -517,6 +605,8 @@ class Servicio
                 'estado' => $resultado->estado->clave ?? null,
                 'grupo' => $grupoCalibracion,
                 'pares_calibracion' => (int) ($calibrador->n ?? 0),
+                'cerca' => $cercaFila,
+                'cerca_regimen' => $regimenFila,
             ];
         }
 
@@ -539,6 +629,12 @@ class Servicio
     /**
      * Viajes del camión que pueden servir de ancla, del más reciente al más viejo.
      *
+     * El hito del ancla es el último EVENTO real del viaje (`inicio_ruta`,
+     * `qr_llegada_destino`, `inicio_descargue`, ...). El `compromiso_carga` no
+     * cuenta: es una cita planificada, no algo que haya pasado, y puede quedar
+     * con fecha posterior a la presentación. Un viaje sin ningún evento real no
+     * es ancla y no se lista.
+     *
      * @return array<int, stdClass>
      */
     public static function candidatos_viaje(string $placa, ?Carbon $antes = null, int $limite = 40): array
@@ -550,8 +646,12 @@ class Servicio
 
         $salida = [];
         foreach (DBPrediccion::refs_por_placa($placa, $antes, $limite) as $fila) {
-            $hito = DBPrediccion::hito_mas_reciente($fila);
-            $fecha = $hito !== null ? self::carbon($fila->{$hito} ?? null) : null;
+            $hito = DBPrediccion::hito_mas_reciente($fila, self::HITOS_NO_ANCLA);
+            if ($hito === null) {
+                continue;   // sólo tiene compromiso/plan: no sirve de ancla
+            }
+
+            $fecha = self::carbon($fila->{$hito} ?? null);
 
             $salida[] = (object) [
                 'ref' => (string) $fila->ref,
@@ -681,6 +781,149 @@ class Servicio
         }
 
         return round(100 * $propios / count($paresPrevios), 1);
+    }
+
+    /** Minutos de traslado a partir de los cuales el camión ya no quedó "cerca". */
+    public const CERCA_MIN_DEFECTO = 60;
+
+    public static function cerca_minutos(?object $p = null): int
+    {
+        return max(1, (int) ($p->cerca_min ?? self::CERCA_MIN_DEFECTO));
+    }
+
+    /**
+     * ¿El camión quedó cerca de la planta donde tiene que cargar?
+     *
+     * Se mira el TRASLADO de vuelta que ya calculó el motor: 0 (misma planta o
+     * mismo distrito) o un traslado medido corto. Es lo que hace más probable que
+     * cargue enseguida (ver `pares_cerca()`).
+     */
+    public static function cerca(?object $traslado, ?object $p = null): bool
+    {
+        if ($traslado === null) {
+            return false;
+        }
+
+        return (int) ($traslado->min ?? self::CERCA_MIN_DEFECTO + 1) <= self::cerca_minutos($p);
+    }
+
+    /**
+     * Índice de pares de locales que están "cerca": existe una ruta medida entre
+     * ellos con un viaje (e4) de hasta `$umbral` minutos.
+     *
+     * @param  array<string, array<string, int|null>>  $etapas  salida de etapas_por_ruta()
+     * @param  array<string, object>  $rutas  salida de DBPrediccion::rutas()
+     * @return array<string, bool> claves "LOC_A|LOC_B"
+     */
+    public static function indice_cerca(array $etapas, array $rutas, int $umbral): array
+    {
+        $indice = [];
+
+        foreach ($rutas as $id => $ruta) {
+            $origen = (string) ($ruta->origen_id ?? '');
+            $destino = (string) ($ruta->destino_id ?? '');
+            if ($origen === '' || $destino === '') {
+                continue;
+            }
+
+            $e4 = $etapas[(string) $id]['e4'] ?? null;
+            if ($e4 === null || (int) $e4 <= 0 || (int) $e4 > $umbral) {
+                continue;
+            }
+
+            $indice[$origen . '|' . $destino] = true;
+            $indice[$destino . '|' . $origen] = true;
+        }
+
+        return $indice;
+    }
+
+    /**
+     * ¿Ese par histórico también quedó cerca? Mismo local, mismo distrito o una
+     * ruta medida corta entre los dos.
+     */
+    public static function es_cerca(object $par, array $indice): bool
+    {
+        $desde = (string) ($par->ancla_destino ?? '');
+        $hasta = (string) ($par->carga_origen ?? '');
+
+        if ($desde !== '' && $desde === $hasta) {
+            return true;
+        }
+        if ($desde !== '' && $hasta !== '' && (isset($indice[$desde . '|' . $hasta])
+                || isset($indice[$hasta . '|' . $desde]))) {
+            return true;
+        }
+
+        $desdeUbigeo = (string) ($par->ancla_ubigeo ?? '');
+        $hastaUbigeo = (string) ($par->carga_ubigeo ?? '');
+
+        return $desdeUbigeo !== '' && $desdeUbigeo === $hastaUbigeo;
+    }
+
+    /** Memo por request del régimen "cerca" de la flota. */
+    private static ?object $regimenCerca = null;
+
+    /**
+     * Régimen "cerca" medido en TODA la flota: los huecos de los viajes en que el
+     * camión descargó en el mismo local o el mismo distrito donde volvió a cargar.
+     *
+     * Es lo que usa una placa sin muestra propia en ese régimen. Se memoiza por
+     * request y se cachea unos minutos porque recorre 120 días de pares.
+     */
+    public static function regimen_cerca(): ?object
+    {
+        if (self::$regimenCerca !== null) {
+            return self::$regimenCerca;
+        }
+
+        // ojo: un resultado vacío NO se cachea (si la base falla o no hay datos,
+        // el próximo request lo reintenta en vez de quedarse 15 min en cero)
+        $llave = 'prediccion:regimen_cerca:' . now()->format('YmdH');
+
+        try {
+            $datos = Cache::get($llave);
+
+            if (!is_array($datos) || ($datos['global'] ?? null) === null) {
+                $hasta = Carbon::now();
+                $datos = DBPrediccion::resumen_cerca($hasta->copy()->subDays(120)->startOfDay(), $hasta);
+
+                if (($datos['global'] ?? null) !== null) {
+                    Cache::put($llave, $datos, now()->addMinutes(15));
+                }
+            }
+        } catch (\Throwable $e) {
+            return self::$regimenCerca = null;
+        }
+
+        if (!is_array($datos) || ($datos['global'] ?? null) === null) {
+            return self::$regimenCerca = null;
+        }
+
+        return self::$regimenCerca = (object) [
+            'global' => $datos['global'],
+            'conductores' => (array) ($datos['conductores'] ?? []),
+        ];
+    }
+
+    /**
+     * Resumen del régimen "cerca" para una fila: el de ese conductor si tiene
+     * muestra propia (así manda su comportamiento), si no el de la flota.
+     *
+     * @return array{resumen: array, origen: string}|null
+     */
+    public static function resumen_cerca_fila(?int $conductor): ?array
+    {
+        $regimen = self::regimen_cerca();
+        if ($regimen === null) {
+            return null;
+        }
+
+        if ($conductor !== null && isset($regimen->conductores[(string) $conductor])) {
+            return ['resumen' => $regimen->conductores[(string) $conductor], 'origen' => 'chofer'];
+        }
+
+        return $regimen->global !== null ? ['resumen' => $regimen->global, 'origen' => 'flota'] : null;
     }
 
     /**

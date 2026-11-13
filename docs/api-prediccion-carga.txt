@@ -378,7 +378,9 @@ RESPUESTA
             "evidencia": "parcial",
             "confianza": 35,
             "calibra_con": "placa",
-            "pares_calibracion": 12
+            "pares_calibracion": 12,
+            "cerca": false,
+            "cerca_regimen": null
         }
     ],
     "descartados": 94,
@@ -403,6 +405,10 @@ COMO LEERLO
   calibra_con           placa | conductor. De quien sale el hueco de esa fila
                         (ver 8.5).
   pares_calibracion     cuantos pares entraron en esa calibracion.
+  cerca                 el camion descargo en el mismo local o distrito de la
+                        planta donde carga: el hueco se condiciona (ver 8.6).
+  cerca_regimen         chofer | flota | null: de donde salio ese prior cuando
+                        la placa no tenia pares "cerca" propios.
   resumen_motor.n       filas con prediccion.
   mae_min               error medio absoluto (min).
   mediana_error_min     mediana del error (min), con signo.
@@ -550,7 +556,13 @@ Como se leen los pasos:
     cuentan desde el ancla, no desde `presenta`.
   - `restante_viaje` aparece solo si el ancla es un viaje en curso. Se arma con
     los promedios medidos de la ruta del viaje, y son exactamente las etapas que
-    le faltan segun el ultimo hito registrado:
+    le faltan segun el ultimo hito registrado. El "ultimo hito" es el EVENTO con
+    la fecha mas actual (se resuelve por fecha, no por el orden del ciclo), y se
+    aceptan todas las etapas: `inicio_de_carga`, `fin_de_carga`, `inicio_ruta`,
+    `qr_llegada_destino`, `inicio_descargue`, `fin_descargue`. El
+    `compromiso_carga` NO cuenta: es una cita del plan (puede quedar con fecha
+    posterior a la presentacion real) y un viaje que solo tiene compromiso no se
+    ofrece como ancla.
 
       hito del ancla     etapas que se suman
       presenta_para_carga  e2 + e3 + e4 + e5 + e6
@@ -725,7 +737,41 @@ COMO LEER LAS DOS COLUMNAS DE CALIBRACION DE LA TABLA
   Regla practica: badge + pares > 0 y evidencia medido/parcial = hora con
   historia real. Cadena con 0 pares = estimacion gruesa: no comprometer.
 
-8.6 Donde quedan los resultados
+8.6 Quedo cerca de la planta: el hueco cambia
+----------------------------------------------
+Si el camion descargo EN EL MISMO LOCAL o EN EL MISMO DISTRITO de la planta donde
+vuelve a cargar, es mucho mas probable que cargue enseguida. Medido con la flota
+(pares de 120 dias):
+
+  mismo local      n=727    mediana 49 min    p75 714
+  mismo distrito   n=582    mediana 235 min   p75 1041
+  lejos            n=9685   mediana 1020 min  p75 3152
+  -> carga en <= 3 h: cerca 54,4 % · lejos 7 %
+
+Por eso el motor condiciona el hueco:
+
+  - Si la placa tiene al menos 3 pares historicos en ese regimen, calibra con
+    ESOS pares (el comportamiento del chofer/placa manda).
+  - Si no alcanzan, usa el REGIMEN medido en la flota (mismo local o distrito):
+    por conductor si ese chofer tiene muestra propia, si no toda la flota.
+    Queda explicito en `historia.cerca_regimen` ("chofer" | "flota").
+
+En el JSON de la prediccion:
+
+  "historia": {
+    "grupo": "conductor", "clave": "144", "n": 4, "nivel": "parcial",
+    "cerca": true,
+    "pares_cerca": 2,          # pares "cerca" de esa placa
+    "calibrado_cerca": false,  # true = se calibro con sus propios pares cerca
+    "cerca_regimen": "chofer"  # chofer|flota: de donde salio el prior
+  }
+
+Ejemplo real (AHV874, chofer 144, camion libre 13/11 19:24 en BABEL CAMPOY y
+cargando en BABEL MAXO a 29 min): hueco del regimen del chofer = 80 min
+(p25 2, p75 407) -> presenta normal 20:44 del mismo dia, rapido 19:26. Sin este
+condicionamiento el motor esperaba hasta el dia siguiente.
+
+8.7 Donde quedan los resultados
 --------------------------------
 Cada prediccion (de la pantalla o del API) se guarda en la tabla
 `prediccion_resultados`: ref, placa, corte, las TRES fechas, inicio de carga,
@@ -740,7 +786,7 @@ presentar) y publica el porcentaje de exito en dos formas:
 Ese porcentaje es el "acierto real de produccion" y se ve en
 /lupita/prediccion/aciertos, junto al backtest automatico.
 
-8.7 Documentacion en el navegador
+8.8 Documentacion en el navegador
 ----------------------------------
 La misma informacion de este archivo, en pantalla:
 /lupita/prediccion/documentacion (requiere sesion y el permiso "ver tiempos").
@@ -928,6 +974,11 @@ evidencia. Hay tres niveles.
   - Cuantiles del hueco: p25/mediana/p75 se miden con los pares reales de la
     placa (o del conductor) y se corrigen por hora del dia. `spread_cadena` es el
     unico control sobre la ventana cuando NO hay pares.
+  - Correccion horaria: cada franja de `bins_horarios` (3 h por defecto) corrige
+    con la mediana de sus residuos SOLO si tiene al menos `min_pares_entidad` (3)
+    pares. Con menos, la franja no corrige: antes un unico par suelto de 54 h en
+    la franja de las 19 movia la prediccion 2 dias al futuro (caso real AHV874,
+    donde el camion descargaba a 29 min de la planta de carga).
   - Minimos de evidencia: cuanto mas alto el minimo, menos filas califican como
     "medido" y mas peso tiene la cadena; el efecto sobre el MAE se mide con la
     tabla de aciertos, no se supone.
