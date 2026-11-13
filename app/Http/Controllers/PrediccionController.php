@@ -128,8 +128,12 @@ class PrediccionController extends Controller
             $mensaje = 'No se pudieron guardar los parámetros: ' . $e->getMessage();
         }
 
-        return redirect()
-            ->route('lupita.prediccion.presenta', $request->only(['ref', 'placa', 'ahora']))
+        // vuelve a la pantalla desde donde se guardó (calculadora o aciertos);
+        // si no hay referrer, a la calculadora
+        $destino = url()->previous();
+        $valido = str_contains($destino, '/lupita/prediccion/');
+
+        return ($valido ? redirect()->to($destino) : redirect()->route('lupita.prediccion.presenta'))
             ->with('estado', $mensaje);
     }
 

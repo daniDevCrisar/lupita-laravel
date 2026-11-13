@@ -58,6 +58,9 @@
                 </div>
                 <div class="col-md-4">
                     <button class="btn btn-primary w-100"><i class="bi bi-arrow-repeat"></i> Correr la tabla</button>
+                    <div class="text-muted" style="font-size:.7rem">
+                        corre el motor fila por fila en el servidor: tarda unos segundos
+                    </div>
                 </div>
             </form>
         </div>
