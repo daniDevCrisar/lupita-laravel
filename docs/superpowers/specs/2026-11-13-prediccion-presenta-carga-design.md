@@ -181,7 +181,7 @@ estado: {clave, etiqueta, motivo}           (en_ruta, en_planta_descarga, descar
 ancla: {ref, hito, fecha, edad_min, cerrada}
 atrasado: bool, presenta_crudo: fecha        (si el cálculo cayó antes de `ahora`)
 desglose: [{concepto, min, fuente}]         (restante_viaje, hueco_total, traslado_regreso,
-                                             tiempo_muerto, espera_ventana, espera_carga)
+                                             tiempo_muerto, espera_ventana, ajuste, espera_carga)
 supuestos: string[]
 advertencias: string[]
 ```
@@ -193,8 +193,10 @@ vez de devolver `ahora` disfrazado de hora). Cuando el cálculo en cambio cae ap
 del corte, se devuelve `ahora` con `atrasado = true` y la hora cruda en `presenta_crudo`,
 para poder decir "ya debería haber presentado a las X".
 
-`restante_viaje` + `hueco_total` + `espera_ventana` = lo que hay entre el ancla y
-`presenta`. Dentro del hueco, `traslado_regreso` es el viaje de vuelta estimado con los
+`restante_viaje` + `hueco_total` + `espera_ventana` + `ajuste` = lo que hay entre el ancla y
+`presenta`. La fila `ajuste` aparece cuando un recorte (`atrasado`, `etapa_vencida`) movió el
+resultado: sin ella el desglose no reconstruye la hora publicada y la explicación de la
+pantalla mentiría. Dentro del hueco, `traslado_regreso` es el viaje de vuelta estimado con los
 promedios de las APIs y `tiempo_muerto = hueco_total - traslado_regreso` es la espera y el
 descanso del conductor: el número que hoy nadie mide.
 
@@ -240,10 +242,18 @@ misma placa:
   maquillados en la primera versión);
 - se descartan las filas con hueco real ≤ 0 o > 7 días (`descartados` en la respuesta):
   están fuera del dominio del modelo y sólo aportan ruido a las métricas;
+- con más filas elegibles que el `limite` (300 por defecto), se evalúan **las más
+  recientes**: la pantalla lo dice para no presentar métricas parciales como si fueran del
+  rango completo;
 - se corre también la réplica del histograma actual con la historia previa al corte, para
   comparar manzanas con manzanas;
 - agregados por corrida: n, MAE, mediana del error, sesgo, % |error| ≤ 30/60/120/180/360/720
   min, % dentro de la ventana p25–p75; y los mismos números para el histograma.
+
+La tabla mide la variante **calibrada por placa**. La calculadora puede calibrar por chofer
+(`clave_calibracion`) cuando la placa no concentra a uno, pero replicar esa regla fila por
+fila en el backtest exigiría el reparto placa-chofer de cada viaje; queda declarado en la
+pantalla en vez de esconderse.
 
 Los pares se traen en una sola consulta con `LAG(fin_descargue) OVER (PARTITION BY placa
 ORDER BY presenta_para_carga)` sobre una ventana más larga que el rango (lookback 120
@@ -289,6 +299,31 @@ fondo: acierta la rutina y llega temprano, así que no sirve para el viaje concr
 Los errores de validación devuelven 422 en JSON (nunca redirect), como
 `TiemposPromedioApiController::error_validacion()` (`:72`); ref inexistente 404 y fallo de
 base 500, siempre con `success => false`.
+
+Dos reglas del payload que existen por seguridad de los datos:
+
+- `guardar` persiste **exactamente las refs que el llamador mandó, con sus propias
+  fechas**. `viaje` es el ancla y `historia` las anteriores; ninguna se copia sobre otra.
+  (Una versión previa copiaba los hitos del viaje ancla sobre la ref a predecir y le
+  reescribía los hitos con fechas de otro viaje: corrupción silenciosa que además se
+  delataba como `ya_presento`.)
+- la ubicación declarada se valida: `local` tiene que existir en `locales` y `ubigeo` ser de
+  6 dígitos; si no, 422 en vez de degradar el traslado a otro nivel y devolver una hora
+  plausible sin decir por qué.
+
+## 13. Desempeño
+
+`referencias` tenía sólo `PRIMARY(ref)` e `idx_ruta_id`: predecir costaba ~1,5 s por
+llamada y la tabla de aciertos ~4 s. La migración `2026_11_13_130000` agrega el índice
+`idx_referencias_placa_presenta (placa, presenta_para_carga)`, y las consultas que agrupaban
+las 40k filas de `llamadas` se reemplazaron por la búsqueda por índice de `llamadas.ref`.
+
+Medido en la base local (32.202 referencias): `Servicio::predecir()` 1.500 ms → **184 ms**;
+`candidatos_viaje()` 448 ms → **1 ms**; `backtest(300)` 3.900 ms → **3.300 ms** (el resto es
+el `LAG` sobre toda la historia, que se paga una vez por corrida).
+
+El índice se aplica a mano en el servidor con `sql/prediccion.sql`, como el resto de las
+tablas de este módulo.
 
 ## 11. Decisiones tomadas (y por quién)
 

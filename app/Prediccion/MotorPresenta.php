@@ -90,6 +90,8 @@ final class MotorPresenta
         // predicción hacia el futuro
         if ($fechaAncla->greaterThan($ahora)) {
             $fechaAncla = $ahora->copy();
+            $salida->ancla->fecha = $fechaAncla;
+            $salida->ancla->edad_min = 0;
             $salida->advertencias[] = 'ancla_futura: el último hito del camión está fechado después del corte; '
                 . 'se usa el corte como ancla';
         }
@@ -196,7 +198,10 @@ final class MotorPresenta
             'ancla_cerrada' => $cerrada,
             'espera_ventana' => $esperaVentana,
             'traslado_fuente' => (string) ($traslado->fuente ?? ''),
-            'horizonte_min' => (int) round($t->diffInMinutes($ahora)),
+            // OJO con el signo: en Carbon 3 `$t->diffInMinutes($ahora)` da
+            // $ahora - $t, o sea negativo cuando la predicción está en el futuro.
+            // El horizonte es lo que falta desde ahora hasta la presentación.
+            'horizonte_min' => (int) round($ahora->diffInMinutes($t)),
             'parametros' => $p,
         ]);
 
@@ -208,6 +213,23 @@ final class MotorPresenta
         $salida->confianza_motivo = $confianza->motivo;
         $salida->desglose = self::desglose($cerrada, $restante, $hueco, $fuenteHueco, $traslado, $trasladoMin,
             $tiempoMuerto, $esCadena, $esperaVentana, $espera);
+
+        // el desglose tiene que reconstruir la hora publicada, incluso cuando un
+        // recorte (atrasado, etapa vencida) movió el resultado
+        $suma = 0;
+        foreach ($salida->desglose as $fila) {
+            if (in_array($fila['concepto'], ['restante_viaje', 'hueco_total', 'espera_ventana'], true)) {
+                $suma += $fila['min'];
+            }
+        }
+        $desdeAncla = (int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60);
+        if ($desdeAncla !== $suma) {
+            $salida->desglose[] = [
+                'concepto' => 'ajuste',
+                'min' => $desdeAncla - $suma,
+                'fuente' => 'recorte a la hora de corte',
+            ];
+        }
         $salida->ventana = self::ventana($t, $cal);
         $salida->supuestos = self::supuestos($cerrada, $esCadena, $cal, $traslado, $espera, $p);
 

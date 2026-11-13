@@ -48,7 +48,6 @@ class PrediccionApiController extends Controller
                 'ubicacion_tipo' => (string) $request->query('ubicacion_tipo', 'auto'),
                 'ubicacion_id' => (string) $request->query('ubicacion_id', ''),
             ],
-            false
         );
     }
 
@@ -87,31 +86,21 @@ class PrediccionApiController extends Controller
         }
 
         $ref = mb_strtoupper(trim((string) ($payload['ref'] ?? '')));
+        $tipoUbicacionTmp = (string) ($payload['ubicacion']['tipo'] ?? 'auto');
+        $idUbicacionTmp = (string) ($payload['ubicacion']['id'] ?? '');
+        $errorUbicacion = Servicio::ubicacion_invalida($tipoUbicacionTmp, $idUbicacionTmp);
+        if ($errorUbicacion !== null) {
+            return self::error($errorUbicacion, 422);
+        }
+
         $guardar = (bool) ($payload['guardar'] ?? false);
 
-        $refs = [];
-        foreach (['viaje', 'historia'] as $clave) {
-            $contenido = $payload[$clave] ?? null;
-            if (!is_array($contenido)) {
-                continue;
-            }
-            // historia puede venir como lista o como objeto {ref: {...}}
-            $items = array_is_list($contenido) ? $contenido : array_values($contenido);
-            foreach ($items as $item) {
-                if (is_array($item) && isset($item['ref']) && is_scalar($item['ref'])) {
-                    $refs[mb_strtoupper(trim((string) $item['ref']))] = $item;
-                }
-            }
-        }
-        if ($ref !== '' && !isset($refs[$ref]) && is_array($payload['viaje'] ?? null)) {
-            $refs[$ref] = ['ref' => $ref] + $payload['viaje'];
-        }
+        $refs = self::refs_del_payload($payload);
 
         $guardado = null;
         if ($guardar) {
-            $sinDatos = !is_array($payload['viaje'] ?? null) && !is_array($payload['historia'] ?? null);
-            if ($sinDatos) {
-                return self::error('"guardar" requiere "viaje" o "historia" con datos de las referencias', 422);
+            if ($refs === []) {
+                return self::error('"guardar" requiere "viaje" o "historia" con referencias y sus hitos', 422);
             }
 
             try {
@@ -131,7 +120,7 @@ class PrediccionApiController extends Controller
             'ancla_ref' => (string) ($payload['ancla'] ?? ''),
             'ubicacion_tipo' => (string) ($payload['ubicacion']['tipo'] ?? 'auto'),
             'ubicacion_id' => (string) ($payload['ubicacion']['id'] ?? ''),
-        ], true, $guardado);
+        ], $guardado);
     }
 
     /** Tabla de aciertos del rango en JSON. */
@@ -197,8 +186,73 @@ class PrediccionApiController extends Controller
 
     //------------------- apoyo -------------------
 
+    /**
+     * Refs que se persisten con `guardar: true`, con sus hitos tal como vienen.
+     *
+     * Regla dura: se guarda EXACTAMENTE lo que el llamador mandó, cada ref con
+     * SUS fechas. Antes esto copiaba los hitos de `viaje` (el viaje ancla) sobre
+     * la ref a predecir y le reescribía los hitos con los de otro viaje — un
+     * corruptor de datos silencioso, porque el resultado salía
+     * `ya_presento: true` en vez de una hora.
+     *
+     * `viaje` es un objeto y `historia` puede ser lista `[{ref, ...}]` o mapa
+     * `{ref: {...}}`; en el mapa la clave es la ref.
+     *
+     * @return array<string, array<string, mixed>> ref => item con sus hitos
+     */
+    public static function refs_del_payload(array $payload): array
+    {
+        $refs = [];
+
+        // `viaje` es UN viaje: {ref, hitos...}
+        $viaje = $payload['viaje'] ?? null;
+        if (is_array($viaje) && $viaje !== []) {
+            $item = self::item_con_ref($viaje, null);
+            if ($item !== null) {
+                $refs[$item['ref']] = $item;
+            }
+        }
+
+        // `historia` es una colección: lista [{ref,...}] o mapa {ref: {...}}
+        $historia = $payload['historia'] ?? null;
+        if (is_array($historia)) {
+            $esLista = array_is_list($historia);
+            foreach ($historia as $indice => $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $ref = $item['ref'] ?? ($esLista ? null : $indice);
+                $preparado = self::item_con_ref($item, $ref);
+                if ($preparado !== null) {
+                    $refs[$preparado['ref']] = $preparado;
+                }
+            }
+        }
+
+        return $refs;
+    }
+
+    /**
+     * Normaliza un item del payload a `['ref' => REF] + hitos`, o NULL si no
+     * tiene una ref usable.
+     */
+    private static function item_con_ref(array $item, $ref = null): ?array
+    {
+        $ref = $item['ref'] ?? $ref;
+        if (!is_scalar($ref)) {
+            return null;
+        }
+
+        $ref = mb_strtoupper(trim((string) $ref));
+        if ($ref === '') {
+            return null;
+        }
+
+        return ['ref' => $ref] + $item;
+    }
+
     /** Corre la predicción y arma la respuesta; 404 si la ref no existe. */
-    private function responder(Request $request, string $ref, array $opciones, bool $esPost, ?array $guardado = null)
+    private function responder(Request $request, string $ref, array $opciones, ?array $guardado = null)
     {
         try {
             $request->validate([
@@ -217,6 +271,14 @@ class PrediccionApiController extends Controller
         }
 
         $ref = mb_strtoupper(trim($ref));
+
+        $errorUbicacion = Servicio::ubicacion_invalida(
+            (string) ($opciones['ubicacion_tipo'] ?? 'auto'),
+            (string) ($opciones['ubicacion_id'] ?? '')
+        );
+        if ($errorUbicacion !== null) {
+            return self::error($errorUbicacion, 422);
+        }
 
         try {
             $resultado = Servicio::predecir($ref, $opciones);
@@ -258,6 +320,8 @@ class PrediccionApiController extends Controller
             'confianza' => $resultado->confianza,
             'confianza_motivo' => $resultado->confianza_motivo,
             'ya_presento' => $resultado->ya_presento,
+            'atrasado' => (bool) ($resultado->atrasado ?? false),
+            'presenta_crudo' => self::fecha($resultado->presenta_crudo ?? null),
             'estado' => $resultado->estado,
             'ancla' => [
                 'ref' => $resultado->ancla->ref ?? '',
@@ -275,7 +339,6 @@ class PrediccionApiController extends Controller
 
         if ($guardado !== null) {
             $respuesta['guardado'] = $guardado;
-            $respuesta['guardado'][$esPost ? 'via_post' : 'via_get'] = true;
         }
 
         return response()->json($respuesta);

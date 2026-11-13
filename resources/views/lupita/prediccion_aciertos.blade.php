@@ -32,6 +32,9 @@
                 ({{ $b->aprendizaje_desde->format('d/m/Y') }} – {{ $b->desde->format('d/m/Y') }}), así ninguna fila ve
                 su propia presentación. Las filas con un hueco real de más de 7 días o negativo se descartan
                 ({{ $b->descartados }} en esta corrida): están fuera del dominio del modelo.
+                Si el rango tiene más filas que el límite, se evalúan <strong>las más recientes</strong>: subí el
+                límite para ver el rango completo. La tabla mide la variante <em>calibrada por placa</em> (la
+                calculadora puede calibrar por chofer cuando la placa no concentra a uno).
                 <a href="{{ route('lupita.prediccion.presenta') }}">&larr; Volver a la calculadora</a>
             </p>
         </div>

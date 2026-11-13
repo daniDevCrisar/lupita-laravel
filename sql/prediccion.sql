@@ -10,6 +10,13 @@
 -- tocar código.
 -- ============================================================
 
+-- Índice por placa: sin esto `refs_por_placa()` y los pares por placa hacen full
+-- scan de toda la tabla y predecir cuesta ~1,5 s. Con el índice baja a decenas
+-- de ms. Migración: 2026_11_13_130000_add_indice_placa_a_referencias.php
+ALTER TABLE `referencias`
+    ADD INDEX `idx_referencias_placa_presenta` (`placa`, `presenta_para_carga`);
+
+
 CREATE TABLE IF NOT EXISTS `prediccion_config` (
     `clave` VARCHAR(32) NOT NULL,
     `valor` VARCHAR(32) NOT NULL,

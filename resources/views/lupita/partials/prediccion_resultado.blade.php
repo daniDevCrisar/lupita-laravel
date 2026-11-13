@@ -130,7 +130,9 @@
                             · nivel {{ $r->historia->nivel }} · n={{ $r->historia->n }}
                         </div>
                         <div class="small text-muted">
-                            franjas inactivas:
+                            franjas inactivas ({{ $r->historia->ventanas_origen === 'perfil_del_camion'
+                                ? 'de su propio perfil'
+                                : 'por defecto: ' . str_replace('_', ' ', $r->historia->ventanas_origen) }}):
                             @forelse($r->historia->ventanas as $ventana)
                                 {{ sprintf('%02d:%02d-%02d:%02d', intdiv($ventana['desde'], 60), $ventana['desde'] % 60, intdiv($ventana['hasta'], 60), $ventana['hasta'] % 60) }}{{ $loop->last ? '' : ' · ' }}
                             @empty

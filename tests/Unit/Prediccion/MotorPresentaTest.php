@@ -197,6 +197,74 @@ class MotorPresentaTest extends TestCase
         $this->assertSame($desdeAncla, $suma);
     }
 
+    public function test_la_confianza_baja_con_un_horizonte_de_mas_de_24_horas(): void
+    {
+        // hueco de 82 h: la predicción queda a más de 3 días y la confianza tiene
+        // que pagarlo (en Carbon 3 la diferencia con signo es al revés y este
+        // castigo no se aplicaba nunca)
+        $r = MotorPresenta::predecir($this->entrada([
+            'calibrador' => (object) ['gap_min' => 5000, 'p25_min' => 4000, 'p75_min' => 6000,
+                                      'base_min' => 5000, 'residual_min' => 0, 'n' => 4, 'nivel' => 'medido'],
+        ]));
+
+        $this->assertGreaterThan(0, $r->presenta->getTimestamp() - $r->ahora->getTimestamp());
+        $this->assertStringContainsString('horizonte', $r->confianza_motivo);
+        $this->assertLessThan(75, $r->confianza);
+    }
+
+    public function test_el_desglose_cuadra_tambien_cuando_la_prediccion_se_recorta(): void
+    {
+        $casos = [
+            'atrasado' => [
+                'ahora' => '2026-11-16 10:00',
+                'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                     'fecha' => Carbon::parse('2026-11-14 09:00')],
+            ],
+            'etapa_vencida' => [
+                'ahora' => '2026-11-14 10:00',
+                'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                     'fecha' => Carbon::parse('2026-11-13 09:00')],
+            ],
+        ];
+
+        foreach ($casos as $caso => $datos) {
+            $r = MotorPresenta::predecir($this->entrada($datos));
+
+            // sólo las filas que componen la hora: traslado y tiempo muerto son
+            // el desglose del hueco, y la espera en planta va después
+            $suma = 0;
+            foreach ($r->desglose as $fila) {
+                if (in_array($fila['concepto'], ['restante_viaje', 'hueco_total', 'espera_ventana', 'ajuste'], true)) {
+                    $suma += $fila['min'];
+                }
+            }
+
+            $desdeAncla = (int) round(($r->presenta->getTimestamp() - $r->ancla->fecha->getTimestamp()) / 60);
+            $this->assertSame($desdeAncla, $suma, 'el desglose no cuadra en el caso ' . $caso);
+        }
+    }
+
+    public function test_confianza_castiga_dispersion_ventana_traslado_y_horizonte(): void
+    {
+        $limpio = (object) [
+            'nivel' => 'medido', 'iqr' => 60, 'ancla_cerrada' => true, 'espera_ventana' => 0,
+            'traslado_fuente' => 'ruta_medida', 'horizonte_min' => 60, 'parametros' => $this->parametros(),
+        ];
+
+        $this->assertSame(95, MotorPresenta::confianza($limpio)->pct);
+        $this->assertSame(75, MotorPresenta::confianza((object) array_merge((array) $limpio, ['iqr' => 400]))->pct);
+        $this->assertSame(70, MotorPresenta::confianza((object) array_merge((array) $limpio, ['espera_ventana' => 120]))->pct);
+        $this->assertSame(70, MotorPresenta::confianza((object) array_merge((array) $limpio, ['nivel' => 'parcial']))->pct);
+        $this->assertSame(45, MotorPresenta::confianza((object) array_merge((array) $limpio, ['nivel' => 'cadena']))->pct);
+
+        $todoMal = (object) array_merge((array) $limpio, [
+            'iqr' => 400, 'ancla_cerrada' => false, 'espera_ventana' => 120,
+            'traslado_fuente' => 'defecto', 'horizonte_min' => 48 * 60,
+        ]);
+        $this->assertSame(5, MotorPresenta::confianza($todoMal)->pct);
+        $this->assertStringContainsString('horizonte', MotorPresenta::confianza($todoMal)->motivo);
+    }
+
     public function test_estado_del_conductor(): void
     {
         $enRuta = MotorPresenta::estado('inicio_ruta', Carbon::parse('2026-11-14 08:00'),

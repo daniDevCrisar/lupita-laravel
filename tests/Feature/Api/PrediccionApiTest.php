@@ -80,48 +80,44 @@ class PrediccionApiTest extends TestCase
 
     public function test_predice_una_referencia_real_de_la_base(): void
     {
-        // no todas las refs son predecibles: si el último hito de la placa es de
-        // hace días, el motor contesta sin_datos a propósito. Se busca una que sí.
-        $candidatas = \Illuminate\Support\Facades\DB::table('referencias')
-            ->whereNotNull('presenta_para_carga')
-            ->where('presenta_para_carga', '>=', '2026-10-01')
-            ->whereNotNull('ruta_id')
-            ->where('ruta_id', '<>', '')
-            ->orderByDesc('presenta_para_carga')
-            ->limit(25)
-            ->get(['ref', 'presenta_para_carga']);
+        // se busca un par real (fin_descargue del viaje anterior -> presenta del
+        // siguiente) para que el ancla exista y sea fresca: así este test prueba
+        // el motor de verdad y no se salta cuando el motor devuelve null
+        $par = \Illuminate\Support\Facades\DB::selectOne("
+            SELECT x.ref, x.fin_ancla, x.presenta_para_carga
+            FROM (
+                SELECT r.ref, r.presenta_para_carga,
+                       LAG(r.fin_descargue) OVER (PARTITION BY r.placa ORDER BY r.presenta_para_carga) AS fin_ancla
+                FROM referencias r
+                WHERE r.placa <> '' AND r.presenta_para_carga IS NOT NULL
+                  AND r.presenta_para_carga >= '2026-10-01' AND r.ruta_id IS NOT NULL AND r.ruta_id <> ''
+            ) x
+            WHERE x.fin_ancla IS NOT NULL
+              AND TIMESTAMPDIFF(MINUTE, x.fin_ancla, x.presenta_para_carga) BETWEEN 60 AND 2880
+            ORDER BY x.presenta_para_carga DESC
+            LIMIT 1
+        ");
 
-        if ($candidatas->isEmpty()) {
-            $this->markTestSkipped('la base no tiene referencias medibles');
+        if ($par === null) {
+            $this->markTestSkipped('la base no tiene pares recientes con ancla fresca');
         }
 
-        $respuesta = null;
-        $elegida = null;
-        foreach ($candidatas as $fila) {
-            $ahora = \Carbon\Carbon::parse($fila->presenta_para_carga)->subHours(20)->format('Y-m-d H:i');
-            $intento = $this->getJson('/api/prediccion/presenta?ref=' . $fila->ref . '&ahora=' . urlencode($ahora));
-            $intento->assertOk()->assertJsonPath('success', true)->assertJsonPath('ref', $fila->ref);
+        $respuesta = $this->getJson('/api/prediccion/presenta?ref=' . $par->ref
+            . '&ahora=' . urlencode($par->fin_ancla));
 
-            if ($intento->json('presenta') !== null) {
-                $respuesta = $intento;
-                $elegida = $fila;
-                break;
-            }
-        }
+        $respuesta->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('ref', (string) $par->ref)
+            ->assertJsonStructure([
+                'success', 'ref', 'ahora', 'placa', 'ruta', 'presenta', 'inicio_carga', 'espera_min',
+                'ventana' => ['desde', 'hasta'], 'evidencia', 'confianza', 'estado', 'ancla',
+                'desglose', 'supuestos', 'advertencias', 'candidatos',
+            ]);
 
-        if ($respuesta === null) {
-            $this->markTestSkipped('ninguna de las referencias recientes tiene ancla fresca');
-        }
-
-        $respuesta->assertJsonStructure([
-            'success', 'ref', 'ahora', 'placa', 'ruta', 'presenta', 'inicio_carga', 'espera_min',
-            'ventana' => ['desde', 'hasta'], 'evidencia', 'confianza', 'estado', 'ancla',
-            'desglose', 'supuestos', 'advertencias', 'candidatos',
-        ]);
-
+        $this->assertNotNull($respuesta->json('presenta'), 'con un ancla fresca el motor tiene que predecir');
+        $this->assertFalse((bool) $respuesta->json('atrasado'));
         $this->assertContains($respuesta->json('evidencia'), ['medido', 'parcial', 'cadena']);
         $this->assertNotEmpty($respuesta->json('desglose'));
-        $this->assertSame($elegida->ref, $respuesta->json('ref'));
     }
 
     public function test_post_predice_sin_guardar(): void

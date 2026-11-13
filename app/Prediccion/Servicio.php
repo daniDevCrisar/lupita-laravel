@@ -148,7 +148,7 @@ class Servicio
             'etapas' => $etapasPorRuta[$rutaAncla] ?? [],
             'calibrador' => $calibrador,
             'traslado' => $traslado,
-            'ventanas' => $ventanas,
+            'ventanas' => $ventanas['ventanas'],
             'espera_carga_min' => DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
                 $rutaRef !== '' ? $rutaRef : null),
             'parametros' => $p,
@@ -165,10 +165,9 @@ class Servicio
             'n' => $calibrador->n,
             'grupo' => $grupoCalibracion,
             'clave' => $claveCalibracion,
-            'ventanas' => $ventanas,
-            'ventanas_origen' => $ventanas['origen'] ?? 'calculadas',
+            'ventanas' => $ventanas['ventanas'],
+            'ventanas_origen' => $ventanas['origen'],
         ];
-        unset($resultado->historia->ventanas['origen']);
 
         return $resultado;
     }
@@ -257,12 +256,8 @@ class Servicio
 
             // calibración as-of: sólo los pares de esta placa anteriores al ancla,
             // y la corrección horaria global (que no conoce la fila)
-            $previos = array_values(array_filter(
-                $historialPorPlaca[$par->placa] ?? [],
-                fn (stdClass $parcial) => $parcial->presenta->lessThan($par->ancla)
-            ));
-            usort($previos, fn (stdClass $a, stdClass $b) => $b->presenta->getTimestamp() <=> $a->presenta->getTimestamp());
-            $previos = array_slice($previos, 0, max(1, (int) $p->pares_recientes_max));
+            $previos = self::pares_previos($historialPorPlaca[$par->placa] ?? [], $par->ancla,
+                max(1, (int) $p->pares_recientes_max));
 
             $calFila = Calibrador::calibrar($previos, (int) $p->min_pares_ruta,
                 (int) $p->min_pares_entidad, (int) $p->bins_horarios, 0);
@@ -274,9 +269,10 @@ class Servicio
                 $par->placa,
                 (int) $par->ancla->format('G'));
 
-            // franjas inactivas as-of: sólo los hitos anteriores al ancla de esta
-            // fila (se cachea por placa y día: cambian de a poco dentro del día)
-            $llaveVentana = $par->placa . '|' . $par->ancla->format('Y-m-d');
+            // franjas inactivas as-of: sólo los hitos anteriores al ancla EXACTA de
+            // esta fila (la clave lleva el timestamp, no el día: cachear por día
+            // dejaba ver hasta 24 h de futuro dentro de la misma jornada)
+            $llaveVentana = $par->placa . '|' . $par->ancla->format('Y-m-d H:i:s');
             if (!isset($ventanasCache[$llaveVentana])) {
                 $hitosPrevios = array_values(array_filter(
                     $hitosPorPlaca[$par->placa] ?? [],
@@ -296,7 +292,7 @@ class Servicio
                 'etapas' => $etapas[$rutaAncla] ?? [],
                 'calibrador' => $calibrador,
                 'traslado' => $traslado,
-                'ventanas' => $ventanasCache[$llaveVentana],
+                'ventanas' => $ventanasCache[$llaveVentana]['ventanas'],
                 'espera_carga_min' => DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
                     $rutaSiguiente !== '' ? $rutaSiguiente : null),
                 'parametros' => $p,
@@ -421,6 +417,64 @@ class Servicio
     }
 
     /**
+     * Pares que se pueden usar para calibrar una fila: sólo los anteriores a su
+     * ancla (nada de futuro), del más reciente al más viejo, y como máximo `$max`.
+     *
+     * Es la guarda anti-fuga de la tabla de aciertos, sacada a un método puro
+     * para poder probarla sin base de datos.
+     *
+     * @param  array<int, stdClass>  $historial  pares de la placa (cada uno con ->presenta Carbon)
+     * @return array<int, stdClass>
+     */
+    public static function pares_previos(array $historial, Carbon $ancla, int $max = 20): array
+    {
+        $previos = [];
+        foreach ($historial as $parcial) {
+            if (isset($parcial->presenta) && $parcial->presenta instanceof Carbon
+                && $parcial->presenta->lessThan($ancla)) {
+                $previos[] = $parcial;
+            }
+        }
+
+        usort($previos, fn (stdClass $a, stdClass $b) => $b->presenta->getTimestamp() <=> $a->presenta->getTimestamp());
+
+        return array_slice($previos, 0, max(1, $max));
+    }
+
+    /**
+     * Valida la ubicación declarada por el usuario: si el local no existe o el
+     * ubigeo no es de 6 dígitos, el traslado caería a otro nivel y devolvería
+     * una hora plausible sin decir por qué. Devuelve el mensaje de error o NULL.
+     */
+    public static function ubicacion_invalida(string $tipo, string $id): ?string
+    {
+        $tipo = trim($tipo) !== '' ? trim($tipo) : 'auto';
+        $id = trim($id);
+
+        if ($id === '') {
+            return null;   // sin ubicación declarada: se deduce del último hito
+        }
+
+        if ($tipo === 'local') {
+            try {
+                return DB::table('locales')->where('id', $id)->exists()
+                    ? null
+                    : 'la ubicación "' . $id . '" no existe en el catálogo de locales';
+            } catch (\Throwable $e) {
+                return null;   // sin catálogo no se puede juzgar: no se bloquea
+            }
+        }
+
+        if ($tipo === 'ubigeo') {
+            return preg_match('/^\d{6}$/', $id) === 1
+                ? null
+                : 'el ubigeo tiene que ser de 6 dígitos (ej. 140101)';
+        }
+
+        return null;
+    }
+
+    /**
      * Con qué clave se calibra el hueco: la placa manda, salvo que un conductor
      * concentre menos de la mitad de sus viajes (misma regla que
      * `ComportamientoController::chofer_habitual`), en cuyo caso los promedios de
@@ -495,7 +549,7 @@ class Servicio
         return (int) $tFin->format('G');
     }
 
-    /** @return array<int, array{desde: int, hasta: int}> */
+    /** @return array{ventanas: array<int, array{desde: int, hasta: int}>, origen: string} */
     private static function ventanas(string $placa, Carbon $desde, Carbon $hasta, stdClass $p): array
     {
         $hitos = DBPrediccion::hitos_entidad('placa', $placa, $desde, $hasta);
@@ -507,13 +561,16 @@ class Servicio
      * Franjas inactivas a partir de las marcas ya cargadas, con las dos guardas:
      * historia mínima y perfil creíble (menos del 60 % del día quieto).
      *
+     * Devuelve también el ORIGEN (perfil del camión o una de las dos caídas al
+     * perfil por defecto): la pantalla tiene que poder decir de dónde salen.
+     *
      * @param  array<int, \Carbon\Carbon>  $hitos
-     * @return array<int, array{desde: int, hasta: int}>
+     * @return array{ventanas: array<int, array{desde: int, hasta: int}>, origen: string}
      */
     private static function ventanas_con_hitos(array $hitos, Carbon $desde, Carbon $hasta, stdClass $p): array
     {
         if ($hitos === []) {
-            return self::VENTANAS_DEFECTO;
+            return ['ventanas' => self::VENTANAS_DEFECTO, 'origen' => 'defecto_sin_hitos'];
         }
 
         $primero = $hitos[0];
@@ -521,15 +578,17 @@ class Servicio
         $dias = max(1, (int) round($primero->copy()->startOfDay()->diffInDays($ultimo->copy()->startOfDay())) + 1);
 
         if ($dias < max(1, (int) $p->min_dias_actividad)) {
-            return self::VENTANAS_DEFECTO;
+            return ['ventanas' => self::VENTANAS_DEFECTO, 'origen' => 'defecto_historia_corta'];
         }
 
         $ventanas = Ventanas::inactivas($hitos, $desde, $hasta,
             (int) $p->min_hitos_bin, (int) $p->granularidad_min);
 
-        return Ventanas::minutosInactivos($ventanas) > (int) (0.6 * Ventanas::MINUTOS_DIA)
-            ? self::VENTANAS_DEFECTO
-            : $ventanas;
+        if (Ventanas::minutosInactivos($ventanas) > (int) (0.6 * Ventanas::MINUTOS_DIA)) {
+            return ['ventanas' => self::VENTANAS_DEFECTO, 'origen' => 'defecto_perfil_absurdo'];
+        }
+
+        return ['ventanas' => $ventanas, 'origen' => 'perfil_del_camion'];
     }
 
     /** Minutos de `$hasta - $desde` (positivo si la predicción llegó tarde). */

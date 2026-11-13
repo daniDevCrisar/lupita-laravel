@@ -43,7 +43,18 @@ class PrediccionController extends Controller
             'ahora' => 'nullable|date',
             'ancla' => 'nullable|string|max:10',
             'ubicacion_tipo' => 'nullable|in:auto,local,ubigeo,indeterminado',
-            'ubicacion_id' => 'nullable|string|max:20',
+            'ubicacion_id' => [
+                'nullable', 'string', 'max:20',
+                function (string $atributo, $valor, \Closure $falla) use ($request) {
+                    $error = Servicio::ubicacion_invalida(
+                        (string) $request->input('ubicacion_tipo', 'auto'),
+                        (string) $valor
+                    );
+                    if ($error !== null) {
+                        $falla($error);
+                    }
+                },
+            ],
         ]);
 
         $ref = mb_strtoupper(trim((string) $request->input('ref', '')));
