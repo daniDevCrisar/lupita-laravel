@@ -42,3 +42,15 @@ ON DUPLICATE KEY UPDATE `valor` = VALUES(`valor`);
 -- consecutivos hay por placa y cómo se distribuye el hueco real
 -- fin_descargue -> presenta_para_carga. Sin esos números la tabla de aciertos
 -- no se puede interpretar.
+--
+-- Superficies del módulo:
+--   /lupita/prediccion/presenta          calculadora (auth + ver tiempos)
+--   /lupita/prediccion/aciertos          tabla motor vs método actual
+--   GET  /api/prediccion/presenta?ref=X  predicción con lo que hay en la base
+--   POST /api/prediccion/presenta        {"ref","viaje","historia","guardar"}
+--   GET  /api/prediccion/aciertos        tabla en JSON
+-- Las dos pantallas cuelgan del permiso `ver tiempos`; la API es pública como
+-- el resto de /api.
+--
+-- La migración equivalente es la fuente de verdad del esquema; este archivo
+-- existe porque el servidor no tiene consola y las tablas se aplican a mano.

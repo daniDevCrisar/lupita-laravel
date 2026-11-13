@@ -133,27 +133,38 @@ Insumo: pares consecutivos de la placa `(ancla = fin_descargue del viaje Y, pres
 viaje X siguiente)`, con `0 < hueco ≤ 10080 min` (7 días, mismo criterio que
 `DBComportamiento::CICLO_MAX`).
 
+- **Recencia:** se usan sólo los `pares_recientes_max` (20) pares más recientes de cada
+  placa o chofer. No es un adorno: el hueco mediano de la flota pasó de ~1900 min en abril
+  a ~540 min en noviembre, así que calibrar con 120 días parejos sobreestima la vuelta en
+  casi medio día (medido: sesgo +176 min → −23 min al aplicarlo).
 - `base` = mediana del hueco del **par de rutas** (ruta de Y → ruta de X) si hay
   `min_pares_ruta` (3) observaciones; si no, mediana de **la entidad** (placa; o
   conductor cuando la placa no concentra un chofer habitual > 50 %, misma regla que
   `ComportamientoController::chofer_habitual`); si no, mediana global.
-- `residual` = corrección por hora del ancla, en 8 bins de 3 h, calculada globalmente
-  como `mediana(hueco − base)` de ese bin. Corrige que un camión liberado a las 23:00 no
-  vuelve a las 03:00.
+- `residual` = corrección por hora del ancla, en 8 bins de 3 h, calculada como
+  `mediana(hueco − mediana de la propia entidad)` de ese bin. Se mide contra la base de la
+  entidad —no contra la del par de rutas— para que la corrección se pueda sumar a
+  cualquier base, incluida la de una calibración hecha sólo con los pares de una placa.
 - `hueco = base + residual`, acotado a `[traslado_min, 10080]`, con `p25/p75` de la misma
   fuente para la ventana que se muestra.
+- **El hueco medido manda sobre el traslado promedio**: si el hueco de 20 pares reales da
+  menos que el tránsito promedio de la ruta (que se calcula con `AVG` y se infla con
+  viajes atípicos), se usa el medido y se advierte `hueco_menor_que_traslado`. El traslado
+  sólo es piso cuando el hueco no existe (rama `cadena`).
 - Nivel: `medido` (par de rutas con n ≥ 3), `parcial` (entidad o base global con n ≥ 3),
   `cadena` (sin pares suficientes: `traslado + muerto_defecto_min`, 60 min por defecto).
 
 ### 7.4 Tiempo muerto y ventanas inferidas
 
-Con los intervalos entre hitos consecutivos de la entidad (cualquier hito → el
-siguiente, incluidos los huecos), se calcula la cobertura de cada franja de 30 min del
-día: minutos cubiertos / (días × 30). Las franjas con cobertura ≤ `umbral_inactividad`
-(0,10) forman las ventanas de no-actividad, que es como se ven el descanso nocturno y el
-almuerzo sin que nadie los configure. Con menos de `min_dias_actividad` (5) días de
-historia se usa el perfil global de todas las placas; si tampoco hay, se usan las
-ventanas de `config/prediccion.php`.
+Se miden con la **densidad de hitos por franja del día**, no con cobertura de intervalos:
+el hueco entre un fin de descargue y la presentación siguiente también es un intervalo, y
+contarlo como actividad vuelve el descanso invisible (fue el primer error de esta parte).
+Una franja de 30 min con menos de `min_hitos_bin` (2) marcas en todo el lookback es una
+franja muerta, que es como se ven el descanso nocturno y el almuerzo sin que nadie los
+configure. Con menos de `min_dias_actividad` (5) días de historia, o si el perfil sale
+absurdo (más de 60 % del día quieto), se usan las ventanas por defecto de
+`Servicio::VENTANAS_DEFECTO` (22:00–06:00) en vez de un perfil que empujaría todo al día
+siguiente.
 
 `Ventanas::desplazar()` mueve la predicción al final de la ventana en la que cayó, como
 máximo `max_desplazamiento_min` (600) y en hasta 3 pasadas; si no alcanza, deja aviso.
@@ -211,17 +222,35 @@ Cada nivel deja su marca en `fuente`, que es lo que se pinta en el desglose.
 Para cada ref X del rango con `presenta_para_carga` no nulo y un viaje anterior Y de la
 misma placa:
 
-- corte `ahora = fin_descargue(Y)`; se corre el motor **sin** la fila de X ni ningún par
-  que la involucre (guarda anti-fuga);
-- se compara `predicho` vs `real` (error positivo = el motor se quedó corto);
+- corte `ahora = fin_descargue(Y)`;
+- **calibración as-of por fila**: cada fila calibra sólo con los pares de su propia placa
+  anteriores a ese corte (los `pares_recientes_max` más recientes), y toma la corrección
+  horaria global —que no conoce ninguna fila— de una calibración hecha sobre la ventana
+  anterior al rango. Así ninguna fila ve su propia presentación ni arrastra una
+  calibración vieja (era la causa del sesgo de +8 h);
+- se descartan las filas con hueco real ≤ 0 o > 7 días (`descartados` en la respuesta):
+  están fuera del dominio del modelo y sólo aportan ruido a las métricas;
 - se corre también la réplica del histograma actual con la historia previa al corte, para
   comparar manzanas con manzanas;
-- agregados por corrida: n, MAE, mediana del error, sesgo, % |error| ≤ 30/60/120/180 min,
-  % dentro de la ventana p25–p75; y los mismos números para el histograma.
+- agregados por corrida: n, MAE, mediana del error, sesgo, % |error| ≤ 30/60/120/180/360/720
+  min, % dentro de la ventana p25–p75; y los mismos números para el histograma.
 
 Los pares se traen en una sola consulta con `LAG(fin_descargue) OVER (PARTITION BY placa
 ORDER BY presenta_para_carga)` sobre una ventana más larga que el rango (lookback 120
 días) para que la primera ref de cada placa también tenga ancla.
+
+### 9.1 Estado medido (2026-11-13, rango 1-ago → 3-nov, 500 filas)
+
+| | n | MAE | mediana error | sesgo | ±1 h | ±6 h | ±12 h | ventana |
+|---|---|---|---|---|---|---|---|---|
+| Motor | 411 | 1189 min | +142 min | −23 min | 9 % | 37 % | 54 % | 77 % |
+| Histograma actual | 326 | 1385 min | −96 min | −493 min | 8 % | 39 % | 55 % | — |
+
+El motor queda centrado (sesgo ≈ 0) y gana en MAE, pero en tasa de acierto está empatado
+con el histograma: predecir a qué hora vuelve un camión cuyo hueco mediano es de 19 h es un
+problema difícil, y la tabla está para decirlo con números, no para maquillarlo. El sesgo
+del histograma (−493 min) muestra por qué no sirve como predictor del viaje concreto:
+acierta la rutina y llega temprano.
 
 ## 10. Superficies
 
@@ -239,12 +268,16 @@ días) para que la primera ref de cada placa también tenga ancla.
 
 - `GET /api/prediccion/presenta?ref=…` — atajo sobre la BD.
 - `POST /api/prediccion/presenta` — cuerpo con `ref`, y opcionales `ahora`, `ancla`,
-  `ubicacion`, `viaje`, `historia[]`, `guardar`. Con `guardar=1` las refs del payload se
-  persisten por el mismo camino que `/api/refs/actualizar`.
+  `ubicacion {tipo,id}`, `viaje`, `historia[]`, `guardar`. Cada ref del payload lleva sus
+  hitos. Con `guardar: true` las refs del payload se escriben en `referencias`
+  **antes** de predecir, por el mismo camino que `/api/refs/actualizar`
+  (`App\Database\DBRefsActualizar`); sin `guardar` la predicción usa sólo lo que ya está
+  en la base. `guardar` sin `viaje` ni `historia` ⇒ 422.
 - `GET /api/prediccion/aciertos?desde=&hasta=&placa=&limit=` — la tabla en JSON.
 
 Los errores de validación devuelven 422 en JSON (nunca redirect), como
-`TiemposPromedioApiController::error_validacion()` (`:72`).
+`TiemposPromedioApiController::error_validacion()` (`:72`); ref inexistente 404 y fallo de
+base 500, siempre con `success => false`.
 
 ## 11. Decisiones tomadas (y por quién)
 

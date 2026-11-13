@@ -22,7 +22,7 @@
 - Si `prediccion_config` no existe o la conexión falla, el cálculo usa los defaults de `config/prediccion.php` y no revienta (convención de `scoring_config`).
 - El servidor no tiene consola: la migración es la fuente de verdad y su DDL se replica a mano en `sql/prediccion.sql`.
 - Suites: `vendor\bin\phpunit --testsuite Unit` y `--testsuite Feature` deben quedar verdes. No hay MySQL en este entorno: la base de datos se verifica con `php artisan prediccion:diagnostico` en el servidor, no con PHPUnit.
-- Valores fijos de `config/prediccion.php`: `lookback_dias=120`, `min_pares_ruta=3`, `min_pares_entidad=3`, `min_dias_actividad=5`, `umbral_inactividad=0.10`, `granularidad_min=30`, `bins_horarios=8`, `max_desplazamiento_min=600`, `traslado_defecto_min=240`, `muerto_defecto_min=60`, `espera_carga_defecto_min=90`, `frescura_horizonte_h=24`, `edad_ancla_max_h=72`, `tope_hueco_min=10080`, `tope_etapa_min=2880`.
+- Valores fijos de `config/prediccion.php` (16 claves): `lookback_dias=120`, `min_pares_ruta=3`, `min_pares_entidad=3`, `pares_recientes_max=20`, `min_dias_actividad=5`, `min_hitos_bin=2`, `granularidad_min=30`, `bins_horarios=8`, `max_desplazamiento_min=600`, `traslado_defecto_min=240`, `muerto_defecto_min=60`, `espera_carga_defecto_min=90`, `frescura_horizonte_h=24`, `edad_ancla_max_h=72`, `tope_hueco_min=10080`, `tope_etapa_min=2880`.
 
 ## Review Focus
 
@@ -1166,3 +1166,39 @@ En `sql/prediccion.sql`, encabezado con: aplicar el `CREATE TABLE` a mano en el 
 git add sql/prediccion.sql
 git commit -m "docs(prediccion): nota de despliegue y verificacion en servidor"
 ```
+
+---
+
+## Cambios hechos durante la ejecución (2026-11-13)
+
+El plan se ejecutó completo; estas son las decisiones que se apartaron de lo escrito, con
+el motivo. El diseño (`docs/superpowers/specs/2026-11-13-prediccion-presenta-carga-design.md`)
+ya está actualizado y es la referencia.
+
+1. **Ventanas por densidad de hitos, no por cobertura de intervalos** (Task 3/7). La
+   cobertura contaba el hueco entre viajes como actividad, así que el descanso era
+   invisible: ninguna placa mostraba franja nocturna. Ahora una franja es muerta si tuvo
+   menos de `min_hitos_bin` marcas en todo el lookback.
+2. **Calibración con los 20 pares más recientes por entidad** (Task 2/7). El hueco mediano
+   de la flota cayó de ~1900 min en abril a ~540 en noviembre; calibrar con 120 días
+   parejos dejaba sesgo +176 min. Con recencia el sesgo quedó en −23 min.
+3. **Calibración as-of por fila en la tabla de aciertos** (Task 7). Cada fila calibra sólo
+   con los pares de su placa anteriores a su ancla, más la curva horaria global.
+4. **El hueco medido manda sobre el traslado promedio** (Task 4). El piso
+   `hueco = max(hueco, traslado)` se invirtió: el traslado sólo es piso en la rama
+   `cadena`; si el hueco medido es menor se respeta y se advierte
+   `hueco_menor_que_traslado`. El `e4` promedio se infla con viajes atípicos y estaba
+   pisando 20 pares reales.
+5. **`faltantes()` se acota al tope de una etapa** (Task 4): el remanente de un viaje no
+   puede superar 2880 min; por encima los promedios son basura.
+6. **Tolerancias de la tabla ampliadas a ±6 h y ±12 h** (Task 7). Con un hueco mediano de
+   19 h, ±3 h no describe nada.
+7. **Tasks 8 y 9 en un solo commit** (pantallas): comparten controlador, catálogos y
+   tarjeta de parámetros; separarlas dejaba el menú apuntando a una ruta inexistente.
+8. **La suite de tests corre contra MySQL, no sqlite** (hallazgo en Task 11): el `.env`
+   gana sobre `phpunit.xml`. Por eso el test de la API es de integración real y el de
+   `Parametros` ya no afirma "sin tabla".
+9. **Ruta `app/Http/Controllers/API` vs `Api`** (Task 10/11): el repo trackea la carpeta en
+   mayúsculas y el namespace PSR-4 pide `Api`. En Windows es la misma carpeta; en Linux los
+   controladores preexistentes no autoloadearían. El archivo nuevo se agregó con la ruta
+   del disco y git la normalizó a `API/`, quedando consistente con el resto.
