@@ -1,0 +1,159 @@
+<?php
+
+namespace Tests\Unit\Prediccion;
+
+use App\Prediccion\MotorPresenta;
+use Carbon\Carbon;
+use Tests\TestCase;
+
+class MotorPresentaTest extends TestCase
+{
+    private function parametros(array $over = []): object
+    {
+        return (object) array_merge([
+            'tope_hueco_min' => 10080, 'tope_etapa_min' => 2880,
+            'max_desplazamiento_min' => 600, 'traslado_defecto_min' => 240,
+            'muerto_defecto_min' => 60, 'espera_carga_defecto_min' => 90,
+            'bins_horarios' => 8, 'edad_ancla_max_h' => 72, 'frescura_horizonte_h' => 24,
+        ], $over);
+    }
+
+    private function entrada(array $over = []): object
+    {
+        return (object) array_merge([
+            'ahora' => Carbon::parse('2026-11-14 10:00'),
+            'ref' => 'REQ1', 'planta_carga' => 'LOC_CARAL',
+            'ref_presenta' => null,
+            'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+            'etapas' => ['e2' => 90, 'e3' => 60, 'e4' => 180, 'e5' => 60, 'e6' => 45, 'ciclo' => 435],
+            'calibrador' => (object) ['gap_min' => 300, 'p25_min' => 240, 'p75_min' => 420,
+                                      'base_min' => 300, 'residual_min' => 0, 'n' => 6, 'nivel' => 'medido'],
+            'traslado' => (object) ['min' => 180, 'fuente' => 'ruta_inversa'],
+            'ventanas' => [],
+            'espera_carga_min' => 100,
+            'parametros' => $this->parametros(),
+        ], $over);
+    }
+
+    public function test_ancla_cerrada_mas_hueco_calibrado(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada());
+
+        // 09:00 + hueco 300' = 14:00 ; inicio de carga = 14:00 + espera 100' = 15:40
+        $this->assertSame('2026-11-14 14:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 15:40', $r->inicio_carga->format('Y-m-d H:i'));
+        $this->assertSame('medido', $r->evidencia);
+        $this->assertSame(100, $r->espera_min);
+        // el hueco incluye el regreso: 300 totales, 180 de traslado, 120 de espera y descanso
+        $this->assertSame(300, collect($r->desglose)->firstWhere('concepto', 'hueco_total')['min']);
+        $this->assertSame(180, collect($r->desglose)->firstWhere('concepto', 'traslado_regreso')['min']);
+        $this->assertSame(120, collect($r->desglose)->firstWhere('concepto', 'tiempo_muerto')['min']);
+    }
+
+    public function test_ancla_a_mitad_de_viaje_suma_etapas_faltantes(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+        ]));
+
+        // inicio_ruta -> falta e4+e5+e6 = 180+60+45 = 285; 09:00 + 285' = 13:45; + 300' = 18:45
+        $this->assertSame('2026-11-14 18:45', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame(285, collect($r->desglose)->firstWhere('concepto', 'restante_viaje')['min']);
+    }
+
+    public function test_sin_pares_usa_la_cadena_y_baja_la_evidencia(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada(['calibrador' => null]));
+
+        // sin calibracion: t_fin + traslado 180' + muerto por defecto 60' = 09:00 + 240' = 13:00
+        $this->assertSame('2026-11-14 13:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame('cadena', $r->evidencia);
+        $this->assertLessThanOrEqual(45, $r->confianza);
+        $this->assertSame(60, collect($r->desglose)->firstWhere('concepto', 'tiempo_muerto')['min']);
+    }
+
+    public function test_sin_traslado_ni_hueco_no_inventa_hora(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada(['calibrador' => null, 'traslado' => null]));
+
+        $this->assertNull($r->presenta);
+        $this->assertSame('sin_datos', $r->evidencia);
+        $this->assertNotEmpty($r->advertencias);
+    }
+
+    public function test_prediccion_en_el_pasado_se_marca_atrasada(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-16 10:00'),
+            'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+        ]));
+
+        $this->assertTrue($r->presenta->greaterThanOrEqualTo(Carbon::parse('2026-11-16 10:00')));
+        $this->assertContains('atrasado', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
+    }
+
+    public function test_ref_que_ya_presento(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'ref_presenta' => Carbon::parse('2026-11-14 08:30'),
+        ]));
+
+        $this->assertTrue($r->ya_presento);
+        $this->assertNull($r->presenta);
+    }
+
+    public function test_la_ventana_mueve_la_prediccion_nocturna(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-11-14 20:00')],
+            'ventanas' => [['desde' => 1320, 'hasta' => 1440], ['desde' => 0, 'hasta' => 360]],
+        ]));
+
+        // 20:00 + 300' = 01:00 (dentro de la ventana) -> 06:00
+        $this->assertSame('2026-11-15 06:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame(300, collect($r->desglose)->firstWhere('concepto', 'espera_ventana')['min']);
+    }
+
+    public function test_etapa_vencida_se_acota_a_ahora_y_advierte(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                 'fecha' => Carbon::parse('2026-11-13 09:00')],
+        ]));
+
+        // 13-11 09:00 + 285' cae antes de ahora: t_fin = ahora (14-11 10:00) + 300' = 15:00
+        $this->assertSame('2026-11-14 15:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertContains('etapa_vencida', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
+    }
+
+    public function test_estado_del_conductor(): void
+    {
+        $enRuta = MotorPresenta::estado('inicio_ruta', Carbon::parse('2026-11-14 08:00'),
+            Carbon::parse('2026-11-14 10:00'), [], 72);
+        $this->assertSame('en_ruta', $enRuta->clave);
+
+        $durmiendo = MotorPresenta::estado('fin_descargue', Carbon::parse('2026-11-14 01:00'),
+            Carbon::parse('2026-11-14 03:30'), [['desde' => 0, 'hasta' => 360]], 72);
+        $this->assertSame('descansando', $durmiendo->clave);
+
+        $parado = MotorPresenta::estado('fin_descargue', Carbon::parse('2026-11-14 01:00'),
+            Carbon::parse('2026-11-14 12:00'), [['desde' => 0, 'hasta' => 360]], 6);
+        $this->assertSame('inactivo_extendido', $parado->clave);
+    }
+
+    public function test_faltantes_por_hito(): void
+    {
+        $etapas = ['e2' => 90, 'e3' => 60, 'e4' => 180, 'e5' => 60, 'e6' => 45];
+
+        $this->assertSame(285, MotorPresenta::faltantes('inicio_ruta', $etapas));
+        $this->assertSame(105, MotorPresenta::faltantes('qr_llegada_destino', $etapas));
+        $this->assertSame(45, MotorPresenta::faltantes('inicio_descargue', $etapas));
+        $this->assertSame(435, MotorPresenta::faltantes('presenta_para_carga', $etapas));
+        $this->assertNull(MotorPresenta::faltantes('fin_descargue', $etapas));
+        $this->assertNull(MotorPresenta::faltantes('inicio_ruta', ['e4' => 180]));
+    }
+}
