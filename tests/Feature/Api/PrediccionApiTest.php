@@ -108,4 +108,47 @@ class PrediccionApiTest extends TestCase
         $this->assertContains($respuesta->json('evidencia'), ['medido', 'parcial', 'cadena', 'sin_datos']);
         $this->assertNotEmpty($respuesta->json('desglose'));
     }
+
+    public function test_post_predice_sin_guardar(): void
+    {
+        $fila = \Illuminate\Support\Facades\DB::table('referencias')
+            ->whereNotNull('presenta_para_carga')
+            ->where('presenta_para_carga', '>=', '2026-10-01')
+            ->orderByDesc('presenta_para_carga')
+            ->first(['ref', 'presenta_para_carga']);
+
+        if ($fila === null) {
+            $this->markTestSkipped('la base no tiene referencias medibles');
+        }
+
+        $ahora = \Carbon\Carbon::parse($fila->presenta_para_carga)->subHours(10)->format('Y-m-d H:i');
+
+        $this->postJson('/api/prediccion/presenta', ['ref' => $fila->ref, 'ahora' => $ahora])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('ref', $fila->ref)
+            ->assertJsonMissingPath('guardado');
+    }
+
+    public function test_aciertos_devuelve_filas_con_el_error_bien_firmado(): void
+    {
+        $respuesta = $this->getJson('/api/prediccion/aciertos?desde=2026-10-01&hasta=2026-11-03&limit=8');
+        $respuesta->assertOk()->assertJsonPath('success', true);
+
+        $filas = $respuesta->json('filas');
+        $this->assertNotEmpty($filas);
+
+        $conError = 0;
+        foreach ($filas as $fila) {
+            if ($fila['predicho'] === null || $fila['error_min'] === null) {
+                continue;
+            }
+            // error = predicho - real, en minutos: el signo es lo que se mira en la tabla
+            $esperado = (strtotime($fila['predicho']) - strtotime($fila['real'])) / 60;
+            $this->assertEqualsWithDelta($esperado, $fila['error_min'], 1.5);
+            $conError++;
+        }
+
+        $this->assertGreaterThan(0, $conError, 'la corrida no produjo ninguna predicción con error');
+    }
 }

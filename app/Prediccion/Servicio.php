@@ -220,6 +220,8 @@ class Servicio
         }
 
         $placas = array_values(array_unique(array_map(fn (stdClass $par) => $par->placa, $pares)));
+        // los hitos de TODO el tramo se traen una vez; cada fila filtra los suyos
+        // anteriores a su ancla (ver el cálculo de $ventanasCache en el bucle)
         $hitosPorPlaca = DBPrediccion::hitos_por_placa($aprendizajeDesde, $hasta, $placas);
 
         $filas = [];
@@ -272,9 +274,16 @@ class Servicio
                 $par->placa,
                 (int) $par->ancla->format('G'));
 
-            if (!isset($ventanasCache[$par->placa])) {
-                $ventanasCache[$par->placa] = self::ventanas_con_hitos(
-                    $hitosPorPlaca[$par->placa] ?? [], $aprendizajeDesde, $hasta, $p);
+            // franjas inactivas as-of: sólo los hitos anteriores al ancla de esta
+            // fila (se cachea por placa y día: cambian de a poco dentro del día)
+            $llaveVentana = $par->placa . '|' . $par->ancla->format('Y-m-d');
+            if (!isset($ventanasCache[$llaveVentana])) {
+                $hitosPrevios = array_values(array_filter(
+                    $hitosPorPlaca[$par->placa] ?? [],
+                    fn (Carbon $hito) => $hito->lessThan($par->ancla)
+                ));
+                $ventanasCache[$llaveVentana] = self::ventanas_con_hitos(
+                    $hitosPrevios, $aprendizajeDesde, $par->ancla, $p);
             }
 
             $resultado = MotorPresenta::predecir((object) [
@@ -287,7 +296,7 @@ class Servicio
                 'etapas' => $etapas[$rutaAncla] ?? [],
                 'calibrador' => $calibrador,
                 'traslado' => $traslado,
-                'ventanas' => $ventanasCache[$par->placa],
+                'ventanas' => $ventanasCache[$llaveVentana],
                 'espera_carga_min' => DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
                     $rutaSiguiente !== '' ? $rutaSiguiente : null),
                 'parametros' => $p,

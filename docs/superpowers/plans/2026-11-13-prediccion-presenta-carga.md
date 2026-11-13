@@ -1182,8 +1182,11 @@ ya está actualizado y es la referencia.
 2. **Calibración con los 20 pares más recientes por entidad** (Task 2/7). El hueco mediano
    de la flota cayó de ~1900 min en abril a ~540 en noviembre; calibrar con 120 días
    parejos dejaba sesgo +176 min. Con recencia el sesgo quedó en −23 min.
-3. **Calibración as-of por fila en la tabla de aciertos** (Task 7). Cada fila calibra sólo
-   con los pares de su placa anteriores a su ancla, más la curva horaria global.
+3. **Calibración y franjas as-of por fila en la tabla de aciertos** (Task 7). Cada fila
+   calibra sólo con los pares de su placa anteriores a su ancla, y sus franjas inactivas se
+   calculan sólo con los hitos anteriores a ese ancla; la curva horaria global sale de una
+   calibración previa al rango. La primera versión miraba hitos hasta el final del rango:
+   era fuga de futuro y maquillaba el resultado (MAE 1189 → 1439 min con la fuga cerrada).
 4. **El hueco medido manda sobre el traslado promedio** (Task 4). El piso
    `hueco = max(hueco, traslado)` se invirtió: el traslado sólo es piso en la rama
    `cadena`; si el hueco medido es menor se respeta y se advierte

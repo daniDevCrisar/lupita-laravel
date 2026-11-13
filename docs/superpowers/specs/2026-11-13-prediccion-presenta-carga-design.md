@@ -226,8 +226,10 @@ misma placa:
 - **calibración as-of por fila**: cada fila calibra sólo con los pares de su propia placa
   anteriores a ese corte (los `pares_recientes_max` más recientes), y toma la corrección
   horaria global —que no conoce ninguna fila— de una calibración hecha sobre la ventana
-  anterior al rango. Así ninguna fila ve su propia presentación ni arrastra una
-  calibración vieja (era la causa del sesgo de +8 h);
+  anterior al rango. Las **franjas inactivas también son as-of**: se calculan con los hitos
+  de la placa anteriores al ancla de esa fila. Así ninguna fila ve su propia presentación
+  ni datos posteriores a su corte (era la causa de un sesgo de +8 h y de números
+  maquillados en la primera versión);
 - se descartan las filas con hueco real ≤ 0 o > 7 días (`descartados` en la respuesta):
   están fuera del dominio del modelo y sólo aportan ruido a las métricas;
 - se corre también la réplica del histograma actual con la historia previa al corte, para
@@ -239,18 +241,19 @@ Los pares se traen en una sola consulta con `LAG(fin_descargue) OVER (PARTITION 
 ORDER BY presenta_para_carga)` sobre una ventana más larga que el rango (lookback 120
 días) para que la primera ref de cada placa también tenga ancla.
 
-### 9.1 Estado medido (2026-11-13, rango 1-ago → 3-nov, 500 filas)
+### 9.1 Estado medido (2026-11-13, rango 1-ago → 3-nov, 500 filas, todo as-of)
 
-| | n | MAE | mediana error | sesgo | ±1 h | ±6 h | ±12 h | ventana |
-|---|---|---|---|---|---|---|---|---|
-| Motor | 411 | 1189 min | +142 min | −23 min | 9 % | 37 % | 54 % | 77 % |
-| Histograma actual | 326 | 1385 min | −96 min | −493 min | 8 % | 39 % | 55 % | — |
+| | n | MAE | mediana error | sesgo | ±1 h | ±3 h | ±6 h | ±12 h | ventana |
+|---|---|---|---|---|---|---|---|---|---|
+| Motor | 403 | 1439 min | +96 min | −388 min | 7 % | 20 % | 32 % | 48 % | 69 % |
+| Histograma actual | 302 | 1591 min | −129 min | −867 min | 8 % | 24 % | 38 % | 52 % | — |
 
-El motor queda centrado (sesgo ≈ 0) y gana en MAE, pero en tasa de acierto está empatado
-con el histograma: predecir a qué hora vuelve un camión cuyo hueco mediano es de 19 h es un
-problema difícil, y la tabla está para decirlo con números, no para maquillarlo. El sesgo
-del histograma (−493 min) muestra por qué no sirve como predictor del viaje concreto:
-acierta la rutina y llega temprano.
+Lectura honesta: el motor gana en error medio (152 min, ~2,5 h) y está mucho menos sesgado,
+pero **en tasa de acierto está empatado o apenas debajo** del histograma. Predecir a qué hora
+vuelve un camión cuyo hueco mediano es de ~19 h es un problema difícil: el MAE lo dominan
+los viajes que se estiran días, que ningún modelo puede anticipar. La tabla está para decir
+esto con números, no para maquillarlo. El sesgo −867 del histograma muestra su defecto de
+fondo: acierta la rutina y llega temprano, así que no sirve para el viaje concreto.
 
 ## 10. Superficies
 
