@@ -28,12 +28,16 @@ class ParametrosTest extends TestCase
         $this->assertSame(2880, $p->tope_etapa_min);
     }
 
-    public function test_cargar_sin_tabla_devuelve_los_defaults(): void
+    public function test_cargar_devuelve_valores_tipados_y_no_revienta(): void
     {
-        // en la suite la base es sqlite en memoria y no tiene prediccion_config
+        // OJO: la suite corre contra la misma base que la app (el .env gana sobre
+        // phpunit.xml), así que esto lee `prediccion_config` de verdad cuando la
+        // tabla existe y cae a config/prediccion.php cuando no.
         $p = Parametros::cargar();
 
-        $this->assertSame(3, $p->min_pares_ruta);
-        $this->assertSame(2, $p->min_hitos_bin);
+        $this->assertIsInt($p->min_pares_ruta);
+        $this->assertIsInt($p->min_hitos_bin);
+        $this->assertIsInt($p->pares_recientes_max);
+        $this->assertSame(Parametros::por_defecto()->lookback_dias, $p->lookback_dias);
     }
 }

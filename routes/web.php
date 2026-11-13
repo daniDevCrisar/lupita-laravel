@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\LlamadasJsonApiController;
 use App\Http\Controllers\Api\ReferenciasApiController;
 use App\Http\Controllers\Api\TiemposApiController;
 use App\Http\Controllers\Api\TiemposPromedioApiController;
+use App\Http\Controllers\Api\PrediccionApiController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ConductoresDuplicadosController;
 use App\Http\Controllers\ComportamientoController;
@@ -322,6 +323,11 @@ Route::prefix('api')->group(function () {
     Route::get('/tiempos/promedio', [TiemposPromedioApiController::class, 'por_ruta'])->name('api.tiempos.promedio');
     Route::get('/tiempos/promedio/horario', [TiemposPromedioApiController::class, 'horario'])->name('api.tiempos.promedio.horario');
     Route::get('/tiempos/promedio/plantas', [TiemposPromedioApiController::class, 'plantas'])->name('api.tiempos.promedio.plantas');
+
+    //--- Prediccion de la hora de presenta para carga (publica, solo JSON) ---
+    Route::get('/prediccion/presenta', [PrediccionApiController::class, 'presenta_por_get'])->name('api.prediccion.presenta');
+    Route::post('/prediccion/presenta', [PrediccionApiController::class, 'presenta_por_post'])->name('api.prediccion.presenta.post');
+    Route::get('/prediccion/aciertos', [PrediccionApiController::class, 'aciertos'])->name('api.prediccion.aciertos');
 });
 
 Route::get('/llamadas', [LlamadasController::class, 'calls_lista_llamadas']);
