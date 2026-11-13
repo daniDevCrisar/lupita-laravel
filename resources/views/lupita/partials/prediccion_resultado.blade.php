@@ -89,21 +89,48 @@
 
             <div class="row g-3">
                 <div class="col-lg-7">
-                    <div class="fw-bold small text-uppercase text-muted mb-1">Cómo se armó la hora</div>
+                    <div class="fw-bold small text-uppercase text-muted mb-1">
+                        Cómo se armó la hora ({{ $r->duracion_total ?? '—' }} en total)
+                    </div>
                     <table class="table table-sm mb-0 align-middle">
                         <thead class="table-light">
-                        <tr><th>Concepto</th><th class="text-end">Minutos</th><th>Fuente</th></tr>
+                        <tr><th style="width:34px">#</th><th>Paso</th><th class="text-end">Duración</th><th>Cuándo</th></tr>
                         </thead>
                         <tbody>
-                        @foreach($r->desglose as $fila)
-                            <tr>
-                                <td>{{ $fila['concepto'] }}</td>
-                                <td class="text-end fw-bold">{{ number_format($fila['min'], 0, ',', '.') }}</td>
-                                <td class="small text-muted">{{ $fila['fuente'] }}</td>
+                        @foreach($r->pasos ?? [] as $paso)
+                            <tr @class(['table-light' => in_array($paso['concepto'], ['presenta', 'inicio_carga'], true)])>
+                                <td class="text-muted small">{{ $paso['n'] }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ $paso['titulo'] }}</div>
+                                    <div class="small text-muted">{{ $paso['detalle'] }}</div>
+                                </td>
+                                <td class="text-end fw-bold text-nowrap">{{ $paso['duracion'] }}</td>
+                                <td class="small text-nowrap">
+                                    {{ $paso['fecha'] ? \Carbon\Carbon::parse($paso['fecha'])->format('d/m H:i') : '—' }}
+                                </td>
                             </tr>
                         @endforeach
                         </tbody>
                     </table>
+
+                    <details class="mt-2">
+                        <summary class="small text-muted">Desglose crudo en minutos</summary>
+                        <table class="table table-sm mb-0 align-middle mt-1">
+                            <thead class="table-light">
+                            <tr><th>Concepto</th><th class="text-end">Minutos</th><th>Fuente</th></tr>
+                            </thead>
+                            <tbody>
+                            @foreach($r->desglose as $fila)
+                                <tr>
+                                    <td class="small">{{ $fila['concepto'] }}</td>
+                                    <td class="text-end fw-bold">{{ number_format($fila['min'], 0, ',', '.') }}</td>
+                                    <td class="small text-muted">{{ $fila['fuente'] }}</td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </details>
+
                     <div class="small text-muted mt-1">
                         Ancla: <code>{{ $r->ancla->ref ?: '—' }}</code>
                         · {{ $r->ancla->hito ?? 'sin hito' }}

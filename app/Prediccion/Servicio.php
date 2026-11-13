@@ -160,10 +160,27 @@ class Servicio
 
         $ventanas = self::ventanas($placa, $desde, $ahora, $p);
 
+        $plantaNombre = DBPrediccion::texto_ubicacion($plantaCarga !== '' ? $plantaCarga : null,
+            (string) ($fila->ubigeo_origen ?? ''));
+
+        if ($anclaDeclarada) {
+            $anclaTexto = 'Ubicación declarada: ' . ($plantaNombre !== '' && $desdePlanta === $plantaCarga
+                ? $plantaNombre
+                : DBPrediccion::texto_ubicacion($desdePlanta !== '' ? $desdePlanta : null,
+                    $desdeUbigeo !== '' ? $desdeUbigeo : null));
+        } elseif ($ancla !== null) {
+            $anclaTexto = 'Viaje ' . $ancla->ref . ' · ' . Tiempo::hito($ancla->hito)
+                . ($ancla->fecha !== null ? ' del ' . $ancla->fecha->format('d/m H:i') : '');
+        } else {
+            $anclaTexto = 'Sin ancla';
+        }
+
         $resultado = MotorPresenta::predecir((object) [
             'ahora' => $ahora,
             'ref' => $ref,
             'planta_carga' => $plantaCarga !== '' ? $plantaCarga : null,
+            'planta_nombre' => $plantaNombre !== '' ? $plantaNombre : 'la planta de carga',
+            'ancla_texto' => $anclaTexto,
             'ref_presenta' => $fila->presenta_para_carga,
             'ancla_ref' => $ancla->ref ?? '',
             'ancla' => (object) [
@@ -184,6 +201,7 @@ class Servicio
         $resultado->ruta = $rutaRef;
         $resultado->ruta_nombre = self::nombre_ruta($fila);
         $resultado->planta_carga = $plantaCarga;
+        $resultado->planta_carga_nombre = $plantaNombre;
         $resultado->candidatos = $candidatos;
         $resultado->historia = (object) [
             'pares' => count($pares),
@@ -194,15 +212,21 @@ class Servicio
             'ventanas' => $ventanas['ventanas'],
             'ventanas_origen' => $ventanas['origen'],
             'calibrador_usado' => !$anclaDeclarada,
+            'geoapify' => \App\Prediccion\Geoapify::disponible(),
         ];
 
         if ($anclaDeclarada) {
             $resultado->advertencias[] = 'ancla_declarada: no hay un viaje en curso utilizable (o su último hito '
                 . 'es de hace más de ' . intdiv($topeAncla, 60) . ' h); el cálculo arranca ahora desde la ubicación '
-                . 'declarada y suma el traslado medido hasta la planta de carga';
+                . 'declarada y suma el traslado hasta la planta de carga';
         } elseif ($ancla === null) {
             $resultado->advertencias[] = 'sin_ubicacion: sin viaje en curso y sin ubicación declarada no hay desde '
                 . 'dónde contar; declarando un local o un ubigeo sí se puede estimar';
+        }
+
+        if ($traslado !== null && ($traslado->fuente ?? '') === 'geoapify') {
+            $resultado->advertencias[] = 'traslado_geoapify: no hay tránsito medido para ese par; el tiempo de '
+                . 'manejo sale de Geoapify (' . Tiempo::hhmm((int) $traslado->min) . ')';
         }
 
         return $resultado;

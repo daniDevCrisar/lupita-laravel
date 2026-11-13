@@ -9,6 +9,9 @@
         $tipoUbicacion = $opciones['ubicacion_tipo'] ?? 'auto';
         $ubicacionId = $opciones['ubicacion_id'] ?? '';
         $anclaSel = $opciones['ancla_ref'] ?? '';
+        // etiqueta de lo ya elegido en los inputs buscables
+        $localTexto = $local_texto ?? '';
+        $ubigeoTexto = $ubigeo_texto ?? '';
     @endphp
 
     <div class="row mb-2">
@@ -162,21 +165,34 @@
                         </div>
                     </div>
                     <div class="col-md-5" id="bloque_local">
-                        <label class="form-label">Local / planta</label>
-                        <select name="ubicacion_id" id="select_local" class="form-select">
-                            <option value="">— elegir —</option>
-                            @foreach($catalogos->locales as $local)
-                                <option value="{{ $local->id }}" @selected($ubicacionId === $local->id)>
-                                    {{ $local->nombre }}{{ $local->distrito_ubigeo ? ' (' . $local->distrito_ubigeo . ')' : '' }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <label class="form-label">Local / planta (buscable)</label>
+                        <div class="position-relative">
+                            <input type="text" class="form-control" id="texto_local" autocomplete="off"
+                                   placeholder="escribí el nombre del local…"
+                                   value="{{ $tipoUbicacion === 'local' ? $localTexto : '' }}">
+                            <input type="hidden" name="ubicacion_id" id="id_local"
+                                   value="{{ $tipoUbicacion === 'local' ? $ubicacionId : '' }}">
+                            <div class="list-group position-absolute w-100 shadow-sm" id="lista_local"
+                                 style="z-index:1050; display:none; max-height:260px; overflow:auto"></div>
+                        </div>
+                        <div class="text-muted" style="font-size:.7rem">
+                            el traslado se calcula desde ese local hasta la planta de carga
+                        </div>
                     </div>
                     <div class="col-md-5" id="bloque_ubigeo">
-                        <label class="form-label">Ubigeo del distrito (6 dígitos)</label>
-                        <input type="text" name="ubicacion_id" id="input_ubigeo" class="form-control"
-                               value="{{ $ubicacionId }}" maxlength="6" placeholder="ej. 140101"
-                               inputmode="numeric" autocomplete="off">
+                        <label class="form-label">Distrito (buscable por nombre o ubigeo)</label>
+                        <div class="position-relative">
+                            <input type="text" class="form-control" id="texto_ubigeo" autocomplete="off"
+                                   placeholder="ej. Chiclayo o 140101"
+                                   value="{{ $tipoUbicacion === 'ubigeo' ? $ubigeoTexto : '' }}">
+                            <input type="hidden" name="ubicacion_id" id="id_ubigeo" disabled
+                                   value="{{ $tipoUbicacion === 'ubigeo' ? $ubicacionId : '' }}">
+                            <div class="list-group position-absolute w-100 shadow-sm" id="lista_ubigeo"
+                                 style="z-index:1050; display:none; max-height:260px; overflow:auto"></div>
+                        </div>
+                        <div class="text-muted" style="font-size:.7rem">
+                            se usa el centro del distrito para calcular el traslado
+                        </div>
                     </div>
                     <div class="col-md-4 small text-muted align-self-end" id="ayuda_ubicacion"></div>
                 </div>
@@ -190,6 +206,38 @@
         @include('lupita.partials.prediccion_resultado', ['resultado' => $resultado])
     @endif
 
+    @if($resultado && empty($resultado->error))
+        @php
+            $paramsApi = array_filter([
+                'ref' => $resultado->ref,
+                'ahora' => $ahora !== '' ? $ahora : null,
+                'ancla' => ($opciones['ancla_ref'] ?? '') !== '' ? $opciones['ancla_ref'] : null,
+                'ubicacion_tipo' => ($opciones['ubicacion_tipo'] ?? 'auto') !== 'auto' ? $opciones['ubicacion_tipo'] : null,
+                'ubicacion_id' => ($opciones['ubicacion_id'] ?? '') !== '' ? $opciones['ubicacion_id'] : null,
+            ], fn ($valor) => $valor !== null && $valor !== '');
+            $urlApi = url('/api/prediccion/presenta') . '?' . http_build_query($paramsApi);
+            $jsonApi = \App\Http\Controllers\Api\PrediccionApiController::respuesta_json($resultado);
+        @endphp
+
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">
+                <strong>Request y respuesta del API</strong>
+                <span class="small">— exactamente lo que devuelve el endpoint público para este caso</span>
+            </div>
+            <div class="card-body">
+                <div class="small text-uppercase text-muted mb-1">Request</div>
+                <pre class="small p-2 bg-dark text-light rounded mb-3">GET {{ $urlApi }}
+Accept: application/json</pre>
+
+                <div class="small text-uppercase text-muted mb-1">
+                    Response ({{ count($jsonApi['pasos'] ?? []) }} pasos · {{ $jsonApi['duracion_total_hhmm'] ?? '—' }} total)
+                </div>
+                <pre class="small p-2 bg-dark text-light rounded mb-0"
+                     style="max-height:460px; overflow:auto">{{ json_encode($jsonApi, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+            </div>
+        </div>
+    @endif
+
     @include('lupita.partials.prediccion_parametros')
 @endsection
 
@@ -199,8 +247,8 @@
             const tipo = document.getElementById('ubicacion_tipo');
             const bloqueLocal = document.getElementById('bloque_local');
             const bloqueUbigeo = document.getElementById('bloque_ubigeo');
-            const select = document.getElementById('select_local');
-            const input = document.getElementById('input_ubigeo');
+            const idLocal = document.getElementById('id_local');
+            const idUbigeo = document.getElementById('id_ubigeo');
             const ayuda = document.getElementById('ayuda_ubicacion');
 
             if (!tipo || !bloqueLocal) return;
@@ -213,19 +261,81 @@
                 bloqueLocal.style.display = esLocal ? '' : 'none';
                 bloqueUbigeo.style.display = esUbigeo ? '' : 'none';
 
-                // sólo se envía el control visible: el otro quedaría pisando el valor
-                if (select) select.disabled = !esLocal;
-                if (input) input.disabled = !esUbigeo;
+                // sólo se envía el control visible
+                if (idLocal) idLocal.disabled = !esLocal;
+                if (idUbigeo) idUbigeo.disabled = !esUbigeo;
 
                 ayuda.textContent = valor === 'auto'
                     ? 'Se deduce la planta de descarga del último hito del camión.'
                     : (valor === 'indeterminado'
                         ? 'Sin ubicación: la predicción se apoya sólo en los huecos medidos y la evidencia baja.'
-                        : 'El traslado se busca en las rutas medidas entre esa posición y la planta de carga.');
+                        : 'El traslado se calcula desde esa posición hasta la planta de carga (medido, o con Geoapify si no hay promedio).');
             }
 
             tipo.addEventListener('change', aplicar);
             aplicar();
+
+            // buscador (typeahead) para local y ubigeo
+            const urlBuscar = @json(route('lupita.prediccion.buscar'));
+
+            function buscador(inputId, listaId, hiddenId, tipoBusqueda) {
+                const input = document.getElementById(inputId);
+                const lista = document.getElementById(listaId);
+                const hidden = document.getElementById(hiddenId);
+                if (!input || !lista || !hidden) return;
+
+                let timer = null;
+
+                function ocultar() {
+                    lista.style.display = 'none';
+                }
+
+                input.addEventListener('input', function () {
+                    clearTimeout(timer);
+                    const texto = input.value.trim();
+                    hidden.value = '';
+
+                    if (texto.length < 2) {
+                        ocultar();
+                        return;
+                    }
+
+                    timer = setTimeout(function () {
+                        fetch(urlBuscar + '?tipo=' + tipoBusqueda + '&texto=' + encodeURIComponent(texto), {
+                            headers: { 'Accept': 'application/json' }
+                        })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) {
+                                lista.innerHTML = '';
+                                const items = data.resultados || [];
+                                items.forEach(function (item) {
+                                    const enlace = document.createElement('a');
+                                    enlace.href = '#';
+                                    enlace.className = 'list-group-item list-group-item-action small';
+                                    enlace.textContent = item.texto;
+                                    enlace.addEventListener('click', function (e) {
+                                        e.preventDefault();
+                                        input.value = item.texto;
+                                        hidden.value = item.id;
+                                        ocultar();
+                                    });
+                                    lista.appendChild(enlace);
+                                });
+                                lista.style.display = items.length ? 'block' : 'none';
+                            })
+                            .catch(function () { ocultar(); });
+                    }, 250);
+                });
+
+                document.addEventListener('click', function (e) {
+                    if (e.target !== input && !lista.contains(e.target)) {
+                        ocultar();
+                    }
+                });
+            }
+
+            buscador('texto_local', 'lista_local', 'id_local', 'local');
+            buscador('texto_ubigeo', 'lista_ubigeo', 'id_ubigeo', 'ubigeo');
         })();
     </script>
 @endpush

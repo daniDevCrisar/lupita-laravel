@@ -291,6 +291,49 @@ class MotorPresentaTest extends TestCase
         $this->assertSame(360, $suma);
     }
 
+    public function test_los_pasos_explican_la_prediccion_con_nombres_y_hhmm(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'planta_nombre' => 'PLANTA CARAL',
+            'ancla_texto' => 'Fin de descargue del viaje 1180352',
+            'calibrador' => null,
+            'traslado' => (object) [
+                'min' => 547, 'fuente' => 'geoapify', 'km' => 624.0,
+                'texto' => 'Supe, Barranca, Lima → Chiclayo, Chiclayo, Lambayeque',
+            ],
+        ]));
+
+        $this->assertIsArray($r->pasos);
+        $conceptos = array_column($r->pasos, 'concepto');
+        foreach (['ancla', 'traslado', 'tiempo_muerto', 'presenta', 'espera_carga', 'inicio_carga'] as $concepto) {
+            $this->assertContains($concepto, $conceptos, 'falta el paso ' . $concepto);
+        }
+
+        $traslado = null;
+        foreach ($r->pasos as $paso) {
+            if ($paso['concepto'] === 'traslado') {
+                $traslado = $paso;
+            }
+        }
+
+        $this->assertSame(547, $traslado['min']);
+        $this->assertSame('9:07', $traslado['duracion']);
+        $this->assertStringContainsString('Chiclayo', $traslado['detalle']);
+        $this->assertStringContainsString('PLANTA CARAL', $traslado['titulo']);
+
+        // ancla 09:00 + traslado 547 + muerto 60 = 19:07
+        $this->assertSame('10:07', $r->duracion_total);
+        $this->assertSame('2026-11-14 19:07', $r->presenta->format('Y-m-d H:i'));
+
+        $espera = null;
+        foreach ($r->pasos as $paso) {
+            if ($paso['concepto'] === 'espera_carga') {
+                $espera = $paso;
+            }
+        }
+        $this->assertSame('1:40', $espera['duracion']);
+    }
+
     public function test_estado_del_conductor(): void
     {
         $enRuta = MotorPresenta::estado('inicio_ruta', Carbon::parse('2026-11-14 08:00'),

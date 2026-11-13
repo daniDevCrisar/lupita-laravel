@@ -6,6 +6,7 @@ use App\Prediccion\Parametros;
 use App\Prediccion\Servicio;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use stdClass;
 
 /**
@@ -81,6 +82,16 @@ class PrediccionController extends Controller
             $candidatos = Servicio::candidatos_viaje($placa, self::carbon($opciones['ahora']));
         }
 
+        // texto legible de lo que ya está elegido (los inputs son buscables)
+        $ubicacionId = (string) ($opciones['ubicacion_id'] ?? '');
+        $tipoUbicacion = (string) ($opciones['ubicacion_tipo'] ?? 'auto');
+        $localTexto = $tipoUbicacion === 'local' && $ubicacionId !== ''
+            ? \App\Database\DBPrediccion::texto_ubicacion($ubicacionId, null) . ' · ' . $ubicacionId
+            : '';
+        $ubigeoTexto = $tipoUbicacion === 'ubigeo' && $ubicacionId !== ''
+            ? (\App\Prediccion\Geoapify::nombre_ubigeo($ubicacionId) ?? $ubicacionId) . ' · ' . $ubicacionId
+            : '';
+
         return view('lupita.prediccion_presenta', array_merge(self::comunes(), [
             'ref' => $ref,
             'placa' => $placa,
@@ -88,6 +99,8 @@ class PrediccionController extends Controller
             'opciones' => $opciones,
             'resultado' => $resultado,
             'candidatos' => $candidatos,
+            'local_texto' => $localTexto,
+            'ubigeo_texto' => $ubigeoTexto,
         ]));
     }
 
@@ -120,6 +133,71 @@ class PrediccionController extends Controller
             'filtros' => $filtros,
             'aciertos' => Servicio::backtest($filtros),
         ]));
+    }
+
+    /** Búsqueda para los inputs de local y ubigeo de la calculadora. */
+    public static function buscar(Request $request)
+    {
+        $texto = trim((string) $request->query('texto', ''));
+        $tipo = (string) $request->query('tipo', 'local');
+
+        if (mb_strlen($texto) < 2) {
+            return response()->json(['resultados' => []]);
+        }
+
+        $resultados = [];
+
+        try {
+            if ($tipo === 'ubigeo') {
+                $filas = DB::select(
+                    "SELECT d.ubigeo, d.distrito, p.provincia, dep.departamento
+                     FROM ubigeo_distritos d
+                     LEFT JOIN ubigeo_provincias p ON p.id = d.provincia_id
+                     LEFT JOIN ubigeo_departamentos dep ON dep.id = d.departamento_id
+                     WHERE d.distrito LIKE ? OR p.provincia LIKE ? OR d.ubigeo LIKE ?
+                     ORDER BY d.distrito
+                     LIMIT 15",
+                    ['%' . $texto . '%', '%' . $texto . '%', $texto . '%']
+                );
+
+                foreach ($filas as $fila) {
+                    $partes = array_filter([
+                        (string) $fila->distrito,
+                        (string) ($fila->provincia ?? ''),
+                        (string) ($fila->departamento ?? ''),
+                    ], fn (string $parte) => $parte !== '');
+
+                    $resultados[] = [
+                        'id' => (string) $fila->ubigeo,
+                        'texto' => implode(', ', $partes) . ' · ' . $fila->ubigeo,
+                    ];
+                }
+            } else {
+                $filas = DB::select(
+                    "SELECT id, nombre, palabra_clave, distrito_ubigeo
+                     FROM locales
+                     WHERE activo = 1 AND (nombre LIKE ? OR palabra_clave LIKE ? OR id LIKE ?)
+                     ORDER BY nombre
+                     LIMIT 15",
+                    ['%' . $texto . '%', '%' . $texto . '%', '%' . $texto . '%']
+                );
+
+                foreach ($filas as $fila) {
+                    $distrito = (string) ($fila->distrito_ubigeo ?? '');
+                    $nombreDistrito = $distrito !== '' ? (\App\Prediccion\Geoapify::nombre_ubigeo($distrito) ?? '') : '';
+                    $resultados[] = [
+                        'id' => (string) $fila->id,
+                        'texto' => (string) $fila->nombre
+                            . ($nombreDistrito !== '' ? ' · ' . $nombreDistrito : '')
+                            . ' · ' . $fila->id,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            return response()->json(['resultados' => [], 'error' => 'No se pudo buscar'], 200);
+        }
+
+        return response()->json(['resultados' => $resultados]);
     }
 
     /** Guarda los parámetros editables en `prediccion_config`. */

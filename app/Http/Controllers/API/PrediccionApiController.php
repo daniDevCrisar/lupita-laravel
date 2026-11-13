@@ -293,6 +293,24 @@ class PrediccionApiController extends Controller
             return self::error('Ref no encontrada', 404);
         }
 
+        $respuesta = self::respuesta_json($resultado);
+
+        if ($guardado !== null) {
+            $respuesta['guardado'] = $guardado;
+        }
+
+        return response()->json($respuesta);
+    }
+
+    /**
+     * El JSON público de una predicción.
+     *
+     * Está separado del endpoint para que la pantalla de la calculadora muestre
+     * EXACTAMENTE lo mismo que devuelve el API: si se muestra el request del API
+     * y su respuesta, tienen que coincidir de verdad.
+     */
+    public static function respuesta_json(stdClass $resultado): array
+    {
         $candidatos = [];
         foreach (array_slice($resultado->candidatos ?? [], 0, 10) as $viaje) {
             $candidatos[] = [
@@ -304,7 +322,7 @@ class PrediccionApiController extends Controller
             ];
         }
 
-        $respuesta = [
+        return [
             'success' => true,
             'ref' => $resultado->ref,
             'ahora' => self::fecha($resultado->ahora),
@@ -312,9 +330,12 @@ class PrediccionApiController extends Controller
             'ruta' => $resultado->ruta,
             'ruta_nombre' => $resultado->ruta_nombre,
             'planta_carga' => $resultado->planta_carga,
+            'planta_carga_nombre' => $resultado->planta_carga_nombre ?? null,
             'presenta' => self::fecha($resultado->presenta),
             'inicio_carga' => self::fecha($resultado->inicio_carga),
             'espera_min' => $resultado->espera_min,
+            'espera_hhmm' => \App\Prediccion\Tiempo::hhmm($resultado->espera_min),
+            'duracion_total_hhmm' => $resultado->duracion_total ?? null,
             'ventana' => [
                 'desde' => self::fecha($resultado->ventana['desde'] ?? null),
                 'hasta' => self::fecha($resultado->ventana['hasta'] ?? null),
@@ -333,18 +354,13 @@ class PrediccionApiController extends Controller
                 'edad_min' => $resultado->ancla->edad_min ?? null,
                 'cerrada' => (bool) ($resultado->ancla->cerrada ?? false),
             ],
+            'pasos' => $resultado->pasos ?? [],
             'desglose' => $resultado->desglose,
             'supuestos' => $resultado->supuestos,
             'advertencias' => $resultado->advertencias,
             'historia' => $resultado->historia ?? null,
             'candidatos' => $candidatos,
         ];
-
-        if ($guardado !== null) {
-            $respuesta['guardado'] = $guardado;
-        }
-
-        return response()->json($respuesta);
     }
 
     private static function error(string $mensaje, int $estado)

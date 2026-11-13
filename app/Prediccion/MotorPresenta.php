@@ -234,8 +234,114 @@ final class MotorPresenta
         }
         $salida->ventana = self::ventana($t, $cal);
         $salida->supuestos = self::supuestos($cerrada, $esCadena, $cal, $traslado, $espera, $p);
+        $salida->pasos = self::pasos($e, $salida, $fechaAncla, $t, $restante, $hueco, $trasladoMin, $tiempoMuerto,
+            $esperaVentana, $espera, $cerrada);
+        $salida->duracion_total = Tiempo::hhmm((int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60));
 
         return $salida;
+    }
+
+    /**
+     * Los pasos que arman la predicción, con nombres y tiempos en h:mm.
+     *
+     * Es lo que se muestra en la pantalla y lo que viaja en el JSON: la hora sin
+     * el recorrido no le sirve a nadie para decidir.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function pasos(stdClass $e, stdClass $salida, Carbon $fechaAncla, Carbon $t, ?int $restante,
+                                  int $hueco, ?int $trasladoMin, int $tiempoMuerto, int $esperaVentana,
+                                  int $espera, bool $cerrada): array
+    {
+        $pasos = [];
+        $planta = (string) ($e->planta_nombre ?? 'la planta de carga');
+        $traslado = $e->traslado ?? null;
+
+        $pasos[] = [
+            'concepto' => 'ancla',
+            'titulo' => 'Punto de partida',
+            'detalle' => (string) ($e->ancla_texto ?? ('Último hito: ' . Tiempo::hito($salida->ancla->hito ?? null))),
+            'fecha' => $fechaAncla->format('Y-m-d H:i:s'),
+            'min' => 0,
+            'duracion' => Tiempo::hhmm(0),
+        ];
+
+        if (!$cerrada && $restante !== null && $restante > 0) {
+            $pasos[] = [
+                'concepto' => 'restante_viaje',
+                'titulo' => 'Termina el viaje en curso',
+                'detalle' => 'le faltan las etapas que siguen a ' . Tiempo::hito($salida->ancla->hito ?? null)
+                    . ' en su ruta',
+                'fecha' => null,
+                'min' => $restante,
+                'duracion' => Tiempo::hhmm($restante),
+            ];
+        }
+
+        $pasos[] = [
+            'concepto' => 'traslado',
+            'titulo' => 'Regreso hasta ' . $planta,
+            'detalle' => trim((string) ($traslado->texto ?? 'tramo estimado'))
+                . (isset($traslado->km) && $traslado->km !== null ? ' · ' . $traslado->km . ' km' : '')
+                . ' · fuente: ' . (string) ($traslado->fuente ?? 'sin dato'),
+            'fecha' => null,
+            'min' => (int) ($trasladoMin ?? 0),
+            'duracion' => Tiempo::hhmm((int) ($trasladoMin ?? 0)),
+        ];
+
+        $pasos[] = [
+            'concepto' => 'tiempo_muerto',
+            'titulo' => 'Espera y descanso del conductor',
+            'detalle' => 'diferencia entre el hueco real medido y el traslado estimado',
+            'fecha' => null,
+            'min' => $tiempoMuerto,
+            'duracion' => Tiempo::hhmm($tiempoMuerto),
+        ];
+
+        if ($esperaVentana > 0) {
+            $pasos[] = [
+                'concepto' => 'espera_ventana',
+                'titulo' => 'Fuera de su franja sin actividad',
+                'detalle' => 'la hora calculada caía en una franja de descanso o almuerzo',
+                'fecha' => null,
+                'min' => $esperaVentana,
+                'duracion' => Tiempo::hhmm($esperaVentana),
+            ];
+        }
+
+        $pasos[] = [
+            'concepto' => 'presenta',
+            'titulo' => 'Se presenta en ' . $planta,
+            'detalle' => 'total desde el punto de partida',
+            'fecha' => $t->format('Y-m-d H:i:s'),
+            'min' => (int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60),
+            'duracion' => Tiempo::hhmm((int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60)),
+        ];
+
+        $pasos[] = [
+            'concepto' => 'espera_carga',
+            'titulo' => 'Espera para cargar en ' . $planta,
+            'detalle' => 'espera en planta (fuera + dentro)',
+            'fecha' => null,
+            'min' => $espera,
+            'duracion' => Tiempo::hhmm($espera),
+        ];
+
+        $inicioCarga = $t->copy()->addMinutes($espera);
+        $pasos[] = [
+            'concepto' => 'inicio_carga',
+            'titulo' => 'Empieza a cargar',
+            'detalle' => 'presenta + espera en planta',
+            'fecha' => $inicioCarga->format('Y-m-d H:i:s'),
+            'min' => (int) round(($inicioCarga->getTimestamp() - $fechaAncla->getTimestamp()) / 60),
+            'duracion' => Tiempo::hhmm((int) round(($inicioCarga->getTimestamp() - $fechaAncla->getTimestamp()) / 60)),
+        ];
+
+        foreach ($pasos as $indice => $paso) {
+            $pasos[$indice]['n'] = $indice + 1;
+        }
+
+        return $pasos;
     }
 
     /**
@@ -371,6 +477,8 @@ final class MotorPresenta
             'ya_presento' => false,
             'atrasado' => false,
             'presenta_crudo' => null,
+            'pasos' => [],
+            'duracion_total' => null,
         ];
     }
 

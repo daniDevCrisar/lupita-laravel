@@ -108,6 +108,9 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:ver tiempos');
         Route::get('/prediccion/aciertos', [PrediccionController::class, 'aciertos'])->name('lupita.prediccion.aciertos')
             ->middleware('permission:ver tiempos');
+        // buscador de los inputs de local/ubigeo (JSON para el typeahead)
+        Route::get('/prediccion/buscar', [PrediccionController::class, 'buscar'])->name('lupita.prediccion.buscar')
+            ->middleware('permission:ver tiempos');
         Route::get('/palabras', [PalabrasController::class, 'index'])->name('lupita.palabras')
             ->middleware('permission:ver scoring');
 
