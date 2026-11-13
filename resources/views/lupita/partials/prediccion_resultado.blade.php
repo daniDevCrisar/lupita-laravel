@@ -50,12 +50,22 @@
         <div class="card-body">
             <div class="row g-3 align-items-end">
                 <div class="col-md-5">
-                    <div class="text-muted small">Se presenta para cargar el</div>
+                    <div class="text-muted small">
+                        Se presenta para cargar el
+                        @if($r->atrasado)
+                            <span class="badge bg-danger">atrasado</span>
+                        @endif
+                    </div>
                     <div class="display-6 fw-bold text-{{ $color === 'warning' ? 'warning' : $color }}">
                         {{ $r->presenta->format('d/m/Y') }} · {{ $r->presenta->format('H:i') }}
                     </div>
                     <div class="small text-muted">
-                        {{ $r->presenta->isoFormat('dddd') }} · faltan {{ $texto($minutos($r->presenta)) }}
+                        @if($r->atrasado && $r->presenta_crudo)
+                            el cálculo lo daba a las {{ $r->presenta_crudo->format('d/m H:i') }}, o sea que ya
+                            debería haber presentado: la hora de arriba es el corte
+                        @else
+                            {{ $r->presenta->isoFormat('dddd') }} · faltan {{ $texto($minutos($r->presenta)) }}
+                        @endif
                         @if($r->ventana['desde'])
                             · ventana {{ $r->ventana['desde']->format('d/m H:i') }} – {{ $r->ventana['hasta']->format('d/m H:i') }}
                         @endif

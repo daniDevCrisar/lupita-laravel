@@ -94,6 +94,18 @@ final class MotorPresenta
                 . 'se usa el corte como ancla';
         }
 
+        // un ancla de días no sirve para predecir: devolver "ahora" con la forma de
+        // una hora sería mentir, así que se dice que no hay con qué. El límite es
+        // el tope del hueco (7 días): más allá de eso el modelo no tiene dominio.
+        $topeAncla = max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO));
+        $edadMin = (int) round($fechaAncla->diffInMinutes($ahora));
+        if ($edadMin > $topeAncla) {
+            $salida->advertencias[] = 'ancla_vieja: el último hito del camión tiene ' . round($edadMin / 60, 1)
+                . ' h (máximo ' . intdiv($topeAncla, 60) . ' h); no hay con qué predecir esta referencia';
+
+            return $salida;
+        }
+
         // 2) t_fin: cuándo queda libre el camión
         $etapas = is_array($e->etapas ?? null) ? $e->etapas : (array) ($e->etapas ?? []);
         $restante = null;
@@ -160,8 +172,12 @@ final class MotorPresenta
                 . $esperaVentana . ' min';
         }
 
+        $presentaCrudo = $t->copy();
+
         if ($t->lessThan($ahora)) {
             $t = $ahora->copy();
+            $salida->atrasado = true;
+            $salida->presenta_crudo = $presentaCrudo;
             $salida->advertencias[] = 'atrasado: la predicción cayó antes de ahora; el camión está fuera de su patrón';
         }
 
@@ -329,6 +345,8 @@ final class MotorPresenta
             'confianza' => 0,
             'confianza_motivo' => '',
             'ya_presento' => false,
+            'atrasado' => false,
+            'presenta_crudo' => null,
         ];
     }
 

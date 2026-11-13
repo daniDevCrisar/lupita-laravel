@@ -1205,3 +1205,13 @@ ya está actualizado y es la referencia.
    mayúsculas y el namespace PSR-4 pide `Api`. En Windows es la misma carpeta; en Linux los
    controladores preexistentes no autoloadearían. El archivo nuevo se agregó con la ruta
    del disco y git la normalizó a `API/`, quedando consistente con el resto.
+10. **Guardas de ancla en el motor** (posterior al cierre, encontradas al probar con datos
+    vivos): `ancla_futura` (hito fechado después del corte) y `ancla_vieja` (más de 7 días
+    sin hitos ⇒ `sin_datos` en vez de devolver `ahora` como si fuera una hora). Una ref con
+    ancla de 60 días devolvía `ahora` con la forma de una predicción: eso era un número
+    mentiroso. Además la predicción atrasada ahora expone `atrasado` + `presenta_crudo`, y
+    la pantalla lo muestra como "ya debería haber presentado a las X".
+11. **La tabla `prediccion_config` desapareció de la base a mitad de sesión** (alguien
+    restauró/importó datos desde el otro lado). El módulo siguió funcionando con los
+    defaults de config: se verificó en vivo antes de recrear la tabla con
+    `sql/prediccion.sql`. Es exactamente la resiliencia que promete el diseño.

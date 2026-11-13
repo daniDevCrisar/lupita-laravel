@@ -93,6 +93,9 @@ class MotorPresentaTest extends TestCase
 
         $this->assertTrue($r->presenta->greaterThanOrEqualTo(Carbon::parse('2026-11-16 10:00')));
         $this->assertContains('atrasado', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
+        // se conserva la hora cruda para poder decir "debería haber presentado a las X"
+        $this->assertTrue($r->atrasado);
+        $this->assertSame('2026-11-14 14:00', $r->presenta_crudo->format('Y-m-d H:i'));
     }
 
     public function test_ref_que_ya_presento(): void
@@ -156,6 +159,21 @@ class MotorPresentaTest extends TestCase
 
         $this->assertSame('2026-11-14 15:00', $r->presenta->format('Y-m-d H:i'));
         $this->assertContains('ancla_futura', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
+    }
+
+    public function test_ancla_mas_vieja_que_el_maximo_no_predice(): void
+    {
+        // 60 dias sin hitos: no se devuelve "ahora" como si fuera una predicción,
+        // se dice que no hay con qué predecir
+        $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-14 10:00'),
+            'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-09-15 11:30')],
+        ]));
+
+        $this->assertNull($r->presenta);
+        $this->assertSame('sin_datos', $r->evidencia);
+        $this->assertContains('ancla_vieja', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
     }
 
     public function test_estado_del_conductor(): void

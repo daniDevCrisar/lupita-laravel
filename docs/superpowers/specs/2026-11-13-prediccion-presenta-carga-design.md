@@ -179,11 +179,19 @@ estado: {clave, etiqueta, motivo}           (en_ruta, en_planta_descarga, descar
                                              regresando, descansando, almuerzo,
                                              inactivo_extendido, sin_datos)
 ancla: {ref, hito, fecha, edad_min, cerrada}
+atrasado: bool, presenta_crudo: fecha        (si el cálculo cayó antes de `ahora`)
 desglose: [{concepto, min, fuente}]         (restante_viaje, hueco_total, traslado_regreso,
                                              tiempo_muerto, espera_ventana, espera_carga)
 supuestos: string[]
 advertencias: string[]
 ```
+
+Dos guardas evitan que una predicción sea un número mentiroso: `ancla_futura` (un hito
+fechado después del corte se acota a `ahora`) y `ancla_vieja` (si el último hito tiene más
+de 7 días —el tope del hueco— no se predice: se devuelve `sin_datos` con la explicación, en
+vez de devolver `ahora` disfrazado de hora). Cuando el cálculo en cambio cae apenas antes
+del corte, se devuelve `ahora` con `atrasado = true` y la hora cruda en `presenta_crudo`,
+para poder decir "ya debería haber presentado a las X".
 
 `restante_viaje` + `hueco_total` + `espera_ventana` = lo que hay entre el ancla y
 `presenta`. Dentro del hueco, `traslado_regreso` es el viaje de vuelta estimado con los
