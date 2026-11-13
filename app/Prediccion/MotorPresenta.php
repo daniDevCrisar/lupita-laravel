@@ -44,6 +44,8 @@ final class MotorPresenta
         'qr_llegada_destino' => ['en_planta_descarga', 'Llegó a la planta de descarga'],
         'inicio_descargue' => ['descargando', 'Descargando'],
         'fin_descargue' => ['regresando', 'Libre: vuelve a cargar'],
+        // sin viaje en curso: el usuario declaró dónde está el camión
+        'ubicacion_declarada' => ['en_posicion_declarada', 'En la ubicación que se declaró'],
     ];
 
     /** Tope por etapa, en minutos (mismo valor que el módulo de tiempos). */

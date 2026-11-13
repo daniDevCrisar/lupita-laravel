@@ -265,6 +265,32 @@ class MotorPresentaTest extends TestCase
         $this->assertStringContainsString('horizonte', MotorPresenta::confianza($todoMal)->motivo);
     }
 
+    public function test_ancla_declarada_arma_la_cadena_desde_ahora(): void
+    {
+        // sin viaje en curso utilizable pero con la ubicación declarada: el
+        // cálculo arranca en el corte y sólo suma el traslado hasta la planta
+        $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-14 10:00'),
+            'ancla' => (object) ['hito' => 'ubicacion_declarada', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-11-14 10:00')],
+            'calibrador' => null,
+            'traslado' => (object) ['min' => 300, 'fuente' => 'ruta_medida'],
+        ]));
+
+        // 10:00 + traslado 300' + muerto por defecto 60' = 16:00
+        $this->assertSame('2026-11-14 16:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame('cadena', $r->evidencia);
+        $this->assertSame('en_posicion_declarada', $r->estado->clave);
+
+        $suma = 0;
+        foreach ($r->desglose as $fila) {
+            if (in_array($fila['concepto'], ['restante_viaje', 'hueco_total', 'espera_ventana', 'ajuste'], true)) {
+                $suma += $fila['min'];
+            }
+        }
+        $this->assertSame(360, $suma);
+    }
+
     public function test_estado_del_conductor(): void
     {
         $enRuta = MotorPresenta::estado('inicio_ruta', Carbon::parse('2026-11-14 08:00'),

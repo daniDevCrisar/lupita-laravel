@@ -1,0 +1,610 @@
+================================================================================
+ API DE PREDICCION DE CARGA
+ Predice a que hora un camion se va a presentar para cargar
+================================================================================
+Version       : 1.0
+Fecha         : 13/11/2026
+Base URL      : https://calls.pedrosotelo.fun
+Prefijo       : /api/prediccion
+Autenticacion : NINGUNA (API publica, igual que el resto de /api)
+Formato       : JSON, UTF-8, fechas en hora local del Peru (America/Lima)
+
+--------------------------------------------------------------------------------
+INDICE
+--------------------------------------------------------------------------------
+ 1. Que hace y que devuelve
+ 2. Reglas de la respuesta (leer antes de integrar)
+ 3. GET  /api/prediccion/presenta       (prediccion rapida)
+ 4. POST /api/prediccion/presenta       (prediccion + envio de historia)
+ 5. GET  /api/prediccion/aciertos       (tabla de aciertos del modelo)
+ 6. Niveles de evidencia y confianza
+ 7. Advertencias: lista completa y que hacer con cada una
+ 8. Como leer el desglose
+ 9. Casos de uso tipicos
+10. Codigos de error
+11. Limites, tiempos de respuesta y buenas practicas
+12. Pantallas equivalentes (para revisar a mano)
+13. Historial de cambios
+
+
+================================================================================
+1. QUE HACE Y QUE DEVUELVE
+================================================================================
+
+Dada una referencia (la `ref` del viaje que el camion todavia no empezo),
+devuelve dos horas:
+
+  presenta      cuando se va a presentar en la planta de carga
+  inicio_carga  cuando va a empezar a cargar (presenta + espera en planta)
+
+Para calcularlo se apoya en:
+  - el ULTIMO HITO CONOCIDO del camion (el viaje anterior, cerrado o en curso);
+  - las etapas E2..E6 de su ruta (promedios medidos sobre `referencias`);
+  - el HUECO REAL medido de esa placa: cuanto tarda desde su `fin_descargue`
+    hasta su `presenta_para_carga` siguiente, con los 20 pares mas recientes;
+  - sus franjas de descanso/almuerzo, inferidas de su propia actividad;
+  - la espera de la planta de carga (promedios compilados por planta).
+
+Todo es explicable: la respuesta trae el desglose en minutos, los supuestos y las
+advertencias. Si no se puede predecir, devuelve `presenta: null` con el motivo;
+nunca inventa una hora.
+
+
+================================================================================
+2. REGLAS DE LA RESPUESTA (LEER ANTES DE INTEGRAR)
+================================================================================
+
+a) Claves siempre presentes
+   Todas las claves de primer nivel existen siempre. Cuando no aplica, valen
+   null (o [] en las listas). No hace falta preguntar por `success` para saber
+   si un campo existe.
+
+b) `success: false` solo en errores (ver seccion 10). En una prediccion
+   correcta `success` es true incluso si `presenta` es null: en ese caso la
+   respuesta trae el motivo en `advertencias` y `evidencia: "sin_datos"`.
+
+c) Fechas: "YYYY-MM-DD HH:MM:SS" (hora local). `ahora` es el corte usado; por
+   defecto el momento del request. Enviando `ahora` se puede simular otro
+   instante (util para reprocesar el pasado).
+
+d) `presenta` se puede mover a la derecha por las franjas de descanso: si el
+   calculo cae dentro de una franja sin actividad del camion, se corre al final
+   de esa franja y se informa en `desglose` como `espera_ventana`.
+
+e) Si `atrasado` es true, el calculo cayo ANTES de `ahora`: el camion ya deberia
+   haberse presentado. `presenta` viene igual a `ahora` y `presenta_crudo` trae
+   la hora que habia dado el calculo.
+
+f) `ya_presento: true` significa que la referencia ya tiene
+   `presenta_para_carga` registrado. No hay nada que predecir.
+
+g) Los tiempos son SIEMPRE minutos enteros. No hay horas decimales.
+
+
+================================================================================
+3. GET /api/prediccion/presenta
+================================================================================
+
+Prediccion con lo que ya esta en la base. Es el endpoint para tener a mano.
+
+  GET https://calls.pedrosotelo.fun/api/prediccion/presenta?ref=1182661
+
+PARAMETROS (query string)
+  ref            obligatorio. Referencia a predecir. 3 a 10 caracteres.
+  ahora          opcional. Corte "ahora". "YYYY-MM-DD HH:MM" o "YYYY-MM-DD".
+  ancla          opcional. Ref del viaje a usar como ancla. Si no viene se usa
+                 el ultimo viaje del camion anterior a `ahora`.
+  ubicacion_tipo opcional. auto | local | ubigeo | indeterminado  (def: auto)
+  ubicacion_id   opcional. Si tipo=local  -> id del local (ej. LOC_CARAL)
+                          Si tipo=ubigeo -> 6 digitos (ej. 140101)
+
+QUE SIGNIFICA `ubicacion_tipo`
+  auto           (defecto) la posicion se deduce del ultimo hito del camion:
+                 la planta donde descargo su viaje anterior.
+  local          el operador declara en que local/planta esta el camion.
+  ubigeo         el operador declara el distrito (6 digitos).
+  indeterminado  no se sabe: solo se usan los huecos medidos.
+
+  `local` y `ubigeo` son la via para predecir CUANDO NO HAY VIAJE EN CURSO
+  (ver seccion 9.2).
+
+EJEMPLO
+  curl -s "https://calls.pedrosotelo.fun/api/prediccion/presenta?ref=1182661" \
+       -H "Accept: application/json"
+
+RESPUESTA (ejemplo real, recortado en historia/candidatos)
+{
+    "success": true,
+    "ref": "1182661",
+    "ahora": "2026-11-11 09:00:00",
+    "placa": "C0E912",
+    "ruta": "RUT_CHICLAYO-200601",
+    "ruta_nombre": "RUT_CHICLAYO-200601",
+    "planta_carga": "LOC_CHICLAYO",
+    "presenta": "2026-11-15 09:27:00",
+    "inicio_carga": "2026-11-15 11:16:00",
+    "espera_min": 109,
+    "ventana": {
+        "desde": "2026-11-13 05:29:00",
+        "hasta": "2026-11-16 12:44:00"
+    },
+    "evidencia": "parcial",
+    "confianza": 35,
+    "confianza_motivo": "dispersión alta (IQR 4755 min), horizonte de más de 24 h",
+    "ya_presento": false,
+    "atrasado": false,
+    "presenta_crudo": null,
+    "estado": {
+        "clave": "regresando",
+        "etiqueta": "Libre: vuelve a cargar",
+        "motivo": "último hito: fin_descargue"
+    },
+    "ancla": {
+        "ref": "1180352",
+        "hito": "fin_descargue",
+        "fecha": "2026-11-11 09:00:00",
+        "edad_min": 0,
+        "cerrada": true
+    },
+    "desglose": [
+        { "concepto": "hueco_total",      "min": 5787, "fuente": "medido (12 pares)" },
+        { "concepto": "traslado_regreso", "min": 1406, "fuente": "ruta_medida" },
+        { "concepto": "tiempo_muerto",    "min": 4381, "fuente": "hueco medido - traslado" },
+        { "concepto": "espera_ventana",   "min": 0,    "fuente": "franjas inactivas" },
+        { "concepto": "espera_carga",     "min": 109,  "fuente": "espera en la planta de carga" }
+    ],
+    "supuestos": [
+        "el camión ya cerró su viaje anterior: el hueco se cuenta desde su fin de descargue",
+        "hueco real medido con 12 pares de esta placa o de la base",
+        "traslado de vuelta: ruta_medida",
+        "espera en la planta de carga: 109 min"
+    ],
+    "advertencias": [],
+    "historia": {
+        "pares": 16,
+        "nivel": "parcial",
+        "n": 12,
+        "grupo": "placa",
+        "clave": "C0E912",
+        "ventanas": [
+            { "desde": 1320, "hasta": 1440 },
+            { "desde": 0, "hasta": 360 }
+        ],
+        "ventanas_origen": "defecto_perfil_absurdo",
+        "calibrador_usado": true
+    },
+    "candidatos": [
+        {
+            "ref": "1180352",
+            "ruta": "PLANTA CHICLAYO → SALEM TUMBES",
+            "hito": "fin_descargue",
+            "fecha": "2026-11-11 09:00:00",
+            "cerrado": true
+        }
+    ]
+}
+
+CAMPOS DE LA RESPUESTA
+  success          true en prediccion (aunque no haya hora), false en error.
+  ref              la referencia pedida (en mayusculas).
+  ahora            corte usado.
+  placa            placa del camion de la referencia.
+  ruta             id de la ruta de la referencia.
+  ruta_nombre      nombre legible de la ruta (si el catalogo no la tiene, el id).
+  planta_carga     local donde tiene que cargar (origen de la ruta).
+  presenta         hora estimada de presentacion (null si no se pudo).
+  inicio_carga     presenta + espera en planta (null si no hay presenta).
+  espera_min       espera en planta usada, en minutos.
+  ventana          rango p25-p75 del hueco medido (null si no hay medicion).
+  evidencia        medido | parcial | cadena | sin_datos   (ver seccion 6).
+  confianza        0 a 100 (ver seccion 6).
+  confianza_motivo texto con los castigos aplicados.
+  ya_presento      true si la ref ya tiene presenta_para_carga.
+  atrasado         true si el calculo cayo antes de `ahora`.
+  presenta_crudo   la hora del calculo antes de recortarla a `ahora`.
+  estado           donde esta y que hace el camion ahora (clave, etiqueta, motivo).
+  ancla            el hito usado como punto de partida (ref, hito, fecha,
+                   edad_min, cerrada).
+  desglose         los minutos que arman la hora (ver seccion 8).
+  supuestos        frases que explican las decisiones del calculo.
+  advertencias     avisos con prefijo "clave: explicacion" (ver seccion 7).
+  historia         que historia se uso: pares medidos, nivel, n, grupo (placa o
+                   conductor), clave, franjas inactivas (minutos del dia) y de
+                   donde salieron (`ventanas_origen` =
+                   perfil_del_camion | defecto_sin_hitos |
+                   defecto_historia_corta | defecto_perfil_absurdo),
+                   calibrador_usado (false si se predijo desde una ubicacion
+                   declarada).
+  candidatos       hasta 10 viajes que se podrian usar como ancla (ref, ruta,
+                   hito, fecha, cerrado), del mas reciente al mas viejo.
+
+
+================================================================================
+4. POST /api/prediccion/presenta
+================================================================================
+
+Igual que el GET, pero ademas permite enviar la historia del camion y, si se
+quiere, que la API la guarde. Usar este endpoint si el sistema de despacho ya
+tiene los hitos actualizados y quiere que la prediccion los use en el acto.
+
+  POST https://calls.pedrosotelo.fun/api/prediccion/presenta
+  Content-Type: application/json
+
+CUERPO
+{
+    "ref": "1182661",                       obligatorio, 3-10 caracteres
+    "ahora": "2026-11-11 09:00",            opcional
+    "ancla": "1180352",                     opcional: ref del viaje ancla
+    "guardar": false,                       opcional: escribir la historia
+    "ubicacion": {                          opcional
+        "tipo": "local",                    auto | local | ubigeo | indeterminado
+        "id": "LOC_CARAL"                   id del local o ubigeo de 6 digitos
+    },
+    "viaje": {                              opcional: el ULTIMO viaje del camion
+        "ref": "1180352",
+        "placa": "C0E912",
+        "presenta_para_carga": "11/11/2026 09:00",
+        "fin_descargue": "11/11/2026 15:30"
+    },
+    "historia": [                           opcional: referencias anteriores
+        { "ref": "1175763", "presenta_para_carga": "05/11/2026 08:00",
+          "fin_descargue": "05/11/2026 16:00" }
+    ]
+}
+
+FORMATOS DE FECHA ACEPTADOS EN `viaje`/`historia`
+  dd/mm/aaaa hh:mm   (11/11/2026 09:00)   <- formato del despachador
+  dd/mm/aaaa
+  aaaa-mm-dd hh:mm
+  aaaa-mm-dd
+  Un evento vacio ("") significa "no enviado": NO borra el valor que la
+  referencia ya tiene.
+
+QUE HACE `guardar`
+  Con "guardar": true la API escribe las referencias de `viaje`/`historia` en la
+  base y RECIEN DESPUES predice, con esos datos ya dentro. Es el camino para
+  predecir con hitos que el sistema de despacho acaba de generar.
+  - Se guarda EXACTAMENTE lo enviado, cada ref con SUS fechas. `viaje` es el
+    ancla, no se copia sobre la ref a predecir.
+  - Reglas de escritura (las mismas de POST /api/refs/actualizar): la placa se
+    reemplaza, los eventos se reemplazan con los enviados, el conductor y el
+    transportista solo se rellenan si la ref no los tenia, y `ruta_id` se
+    reprocesa cuando llega un titulo de viaje nuevo.
+  - Devuelve el detalle en `guardado` (ver abajo).
+  No hace falta para predecir: sin "guardar" la prediccion usa solo lo que ya
+  esta en la base.
+
+EJEMPLO (predecir y ademas guardar la historia enviada)
+  curl -s -X POST "https://calls.pedrosotelo.fun/api/prediccion/presenta" \
+       -H "Content-Type: application/json" \
+       -H "Accept: application/json" \
+       -d '{
+             "ref": "1182661",
+             "guardar": true,
+             "viaje": { "ref": "1180352", "placa": "C0E912",
+                        "presenta_para_carga": "11/11/2026 09:00",
+                        "fin_descargue": "11/11/2026 15:30" },
+             "historia": [
+               { "ref": "1175763", "presenta_para_carga": "05/11/2026 08:00",
+                 "fin_descargue": "05/11/2026 16:00" }
+             ]
+           }'
+
+  Cuando `guardar` es true, la respuesta agrega:
+    "guardado": {
+        "recibidas": 2, "actualizadas": 1, "nuevas": 1, "completas": 0,
+        "no_encontradas": 0, "sin_cambios": 0, "invalidas": 0
+    }
+  "nuevas" son refs insertadas, "completas" las que ya tenian fin_descargue y no
+  se tocaron (solo en modo lotes), "invalidas" las que fallaron validacion.
+
+DETALLE
+  - `ubicacion_tipo` y `ubicacion_id` tambien se aceptan sueltos en el cuerpo,
+    igual que en el GET, por comodidad.
+  - `historia` puede venir como lista [{ref,...}] o como mapa
+    {"1175763": {...}}; en el mapa la clave es la ref.
+  - Maximo 1000 referencias por envio.
+
+
+================================================================================
+5. GET /api/prediccion/aciertos
+================================================================================
+
+Corre el modelo en modo automatico sobre las referencias YA CERRADAS de un rango
+y lo compara con el metodo anterior (el histograma dia x hora de la ficha de
+comportamiento). Sirve para vigilar la calidad del modelo, no para operar.
+
+  GET https://calls.pedrosotelo.fun/api/prediccion/aciertos?desde=2026-10-01&hasta=2026-11-03
+
+PARAMETROS
+  desde   opcional. Defecto: hace 29 dias.
+  hasta   opcional. Defecto: hoy.
+  placa   opcional. Filtra una placa.
+  limit   opcional. 1 a 1000, defecto 200. Si el rango tiene mas filas, se
+          evaluan LAS MAS RECIENTES (ver `descartados` y `filas`).
+
+RESPUESTA
+{
+    "success": true,
+    "desde": "2026-10-01 00:00:00",
+    "hasta": "2026-11-03 00:00:00",
+    "aprendizaje_desde": "2026-06-03 00:00:00",
+    "filas": [
+        {
+            "ref": "1171848",
+            "placa": "BEQ926",
+            "ancla_ref": "1169011",
+            "ancla": "2026-11-01 23:42:00",
+            "hueco_min": 460,
+            "predicho": "2026-11-02 11:48:00",
+            "real": "2026-11-02 12:30:00",
+            "error_min": -42,
+            "dentro_ventana": true,
+            "evidencia": "parcial",
+            "confianza": 35,
+            "metodo_actual": "2026-11-02 08:35:00",
+            "metodo_actual_error_min": -235
+        }
+    ],
+    "descartados": 94,
+    "resumen_motor": {
+        "n": 403, "mae_min": 1439, "mediana_error_min": 96, "sesgo_min": -388,
+        "pct_30": 3, "pct_60": 7, "pct_120": 13, "pct_180": 20,
+        "pct_360": 32, "pct_720": 48, "pct_ventana": 69
+    },
+    "resumen_metodo_actual": { "n": 302, "mae_min": 1591, "mediana_error_min": -129,
+        "sesgo_min": -867, "pct_30": 5, "pct_60": 8, "pct_120": 17, "pct_180": 24,
+        "pct_360": 38, "pct_720": 52, "pct_ventana": null },
+    "comparacion": { "delta_mae_min": -152, "delta_pct_60": 1, "gana": "motor" }
+}
+
+COMO LEERLO
+  error_min             predicho - real, en minutos.
+                        Positivo = el modelo se quedo corto (llego mas tarde).
+                        Negativo = se paso de largo.
+  hueco_min             el hueco real de esa fila (fin del viaje anterior ->
+                        presentacion). Mas de 10080 (7 dias) o negativo se
+                        descarta: esta fuera del dominio del modelo.
+  descartados           filas del rango fuera de ese dominio.
+  resumen_*.n           filas con prediccion (el metodo actual no siempre tiene
+                        historia del camion, por eso n distinto).
+  mae_min               error medio absoluto (min).
+  mediana_error_min     mediana del error (min), con signo.
+  sesgo_min             promedio del error (min), con signo.
+  pct_30..pct_720       % de aciertos dentro de +/-30, 60, 120, 180, 360 y 720
+                        minutos de la hora real.
+  pct_ventana           % de predicciones dentro de su propia ventana p25-p75.
+  comparacion.gana      motor | base | empate. Empate = menos de 30 min de
+                        diferencia de MAE.
+  `aprendizaje_desde`   hasta donde llega la historia usada para calibrar: todo
+                        lo anterior a `desde`, para que ninguna fila vea su
+                        propia presentacion.
+
+
+================================================================================
+6. NIVELES DE EVIDENCIA Y CONFIANZA
+================================================================================
+
+evidencia dice de donde sale el numero:
+  medido      el hueco se midio con 3 o mas pares de la MISMA placa y el mismo
+              par de rutas. Es el mejor caso.
+  parcial     hay 3 o mas pares de la placa (o de la base) pero no del mismo par
+              de rutas.
+  cadena      no hay pares medidos: se usa traslado medido + tiempo muerto por
+              defecto. Tambien es el nivel cuando se predice desde una ubicacion
+              declarada (no hay viaje del que volver).
+  sin_datos   no se pudo predecir (presenta = null). Ver `advertencias`.
+
+confianza (0-100) parte del tope de cada nivel y se castiga:
+  tope            95 medido | 70 parcial | 45 cadena
+  -20             dispersion del hueco alta (IQR > 240 min)
+  -15             ancla a mitad de viaje (no cerro: se estiman etapas)
+  -25             la prediccion tuvo que moverse por una franja de descanso
+  -20             traslado estimado por defecto (no hay ruta medida)
+  -15             horizonte de mas de 24 h
+  El minimo es 5. `confianza_motivo` lista los castigos aplicados.
+
+Regla practica para el consumidor:
+  confianza >= 60  usar la hora para planificar
+  confianza 30-59  mostrarla, pero avisar que es estimativa
+  confianza < 30   no comprometer nada con el cliente; tratar como "sin dato"
+
+
+================================================================================
+7. ADVERTENCIAS: LISTA COMPLETA Y QUE HACER CON CADA UNA
+================================================================================
+
+Formato: "clave: explicacion". La clave es la primera palabra hasta los dos
+puntos. Un consumidor puede filtrar por clave sin parsear el texto.
+
+  ya_presento             La ref ya tiene presenta_para_carga. No hay prediccion.
+                          -> Nada: la ref ya esta en curso.
+  atrasado                El calculo cayo antes de `ahora`: el camion deberia
+                          haberse presentado ya. `presenta` = `ahora`,
+                          `presenta_crudo` = la hora calculada.
+                          -> Avisar al despachador; no prometer hora.
+  ancla_declarada         No hay viaje en curso utilizable (o su ultimo hito es
+                          de hace mas de 7 dias), asi que el calculo sale de la
+                          ubicacion declarada + traslado.
+                          -> Es una estimacion gruesa: evidencia "cadena".
+  ancla_vieja             El ultimo hito del camion tiene mas de 7 dias y no se
+                          declaro ubicacion: sin_datos.
+                          -> Declarar ubicacion (local/ubigeo) y reintentar.
+  ancla_futura            El ultimo hito esta fechado DESPUES del corte (dato
+                          mal cargado). Se usa el corte como ancla.
+                          -> Revisar el hito en origen.
+  etapa_vencida           El viaje en curso ya consumio el promedio de su etapa
+                          sin hitos nuevos: se cuenta desde `ahora`.
+                          -> Pedir actualizacion de hitos al despachador.
+  etapas_incompletas      La ruta del viaje en curso no tiene los promedios
+                          E2..E6: se asume libre ahora.
+                          -> No hay accion; baja la calidad de la estimacion.
+  hueco_menor_que_traslado
+                          El hueco medido es menor que el traslado promedio de
+                          la ruta. Se respeta el medido (es el dato real).
+                          -> Nada; es informativo.
+  desplazamiento_maximo   La prediccion se movio por una franja inactiva pero
+                          toco el tope (10 h): puede quedar dentro de la franja.
+                          -> Revisar `desglose.espera_ventana`.
+  sin_ancla               No hay ningun hito previo del camion.
+                          -> Declarar ubicacion y reintentar.
+  sin_traslado            No se pudo ubicar el camion y no hay huecos medidos.
+                          -> Declarar ubicacion.
+  sin_ubicacion           Sin viaje en curso y sin ubicacion declarada: no hay
+                          desde donde contar.
+                          -> Declarar local o ubigeo (seccion 9.2).
+
+
+================================================================================
+8. COMO LEER EL DESGLOSE
+================================================================================
+
+`desglose` trae filas {concepto, min, fuente}. Los minutos NO son todos
+sumables: hay filas que arman la hora y filas que desglosan el hueco.
+
+  SUMAN (componen la hora):
+    restante_viaje    lo que le falta al viaje en curso para cerrarse
+                      (solo si el ancla esta a mitad de viaje)
+    hueco_total       regreso + espera + descanso desde que quedo libre
+    espera_ventana    minutos que se movio por una franja inactiva
+    ajuste            solo aparece si hubo recorte (atrasado / etapa vencida)
+
+    Invariante: restante_viaje + hueco_total + espera_ventana + ajuste
+                = presenta - ancla.fecha
+
+  INFORMAN (no suman):
+    traslado_regreso  la parte del hueco que es viaje de vuelta
+    tiempo_muerto     hueco_total - traslado_regreso: espera, descanso y
+                      almuerzo del conductor. Es el numero que hoy nadie mide.
+    espera_carga      lo que va de presenta a inicio_carga
+
+  `fuente` dice de donde salio el numero: "medido (N pares)", "ruta_medida",
+  "mismo_ubigeo", "ruta_de_la_ref", "departamentos", "defecto", "franjas
+  inactivas", "etapas de la ruta", "hueco medido - traslado".
+
+
+================================================================================
+9. CASOS DE USO TIPICOS
+================================================================================
+
+9.1 EL CAMION ESTA EN UN VIAJE (lo normal)
+   Solo hace falta la ref. El motor toma el viaje anterior como ancla.
+
+     GET /api/prediccion/presenta?ref=1182661
+
+   Si se quiere fijar el ancla (por ejemplo, para descartar un viaje raro):
+
+     GET /api/prediccion/presenta?ref=1182661&ancla=1180352
+
+9.2 NO HAY VIAJE EN CURSO (o el ultimo hito es viejo)
+   Sin viaje no hay desde donde contar, asi que se declara DONDE ESTA EL CAMION.
+   Con eso el motor suma el traslado medido desde ese punto hasta la planta de
+   carga, mas el tiempo muerto. La evidencia sera "cadena".
+
+     # el camion esta en una planta del catalogo de locales
+     GET /api/prediccion/presenta?ref=1182661&ubicacion_tipo=local&ubicacion_id=LOC_CARAL
+
+     # el camion esta en un distrito (ubigeo de 6 digitos)
+     GET /api/prediccion/presenta?ref=1182661&ubicacion_tipo=ubigeo&ubicacion_id=140101
+
+   En el POST, igual pero anidado:
+
+     { "ref": "1182661",
+       "ubicacion": { "tipo": "local", "id": "LOC_CARAL" } }
+
+   Reglas de esta via:
+     - `local` tiene que existir en el catalogo `locales` (si no, 422).
+     - `ubigeo` tiene que ser de 6 digitos (si no, 422).
+     - No se aplica el hueco medido (se mide desde un fin de descargue, que aca
+       no existe): el resultado es traslado + tiempo muerto.
+     - La respuesta trae la advertencia `ancla_declarada` y en `historia`
+       `calibrador_usado: false`.
+     - Si ademas el camion ya presento (la ref tiene presenta), sigue siendo
+       `ya_presento`: la ubicacion no cambia eso.
+
+9.3 SIMULAR OTRO MOMENTO
+   Para reprocesar el pasado o probar escenarios se envia `ahora`:
+
+     GET /api/prediccion/presenta?ref=1182661&ahora=2026-11-11%2009:00
+
+9.4 PREDECIR CON HISTORIA RECIEN GENERADA
+   Cuando el despachador acaba de actualizar hitos y se quiere el resultado en
+   el acto, se manda la historia con "guardar": true (seccion 4).
+
+9.5 VIGILAR LA CALIDAD DEL MODELO
+   Una vez por semana, correr /api/prediccion/aciertos y mirar `mae_min`,
+   `pct_360` y `comparacion.gana`. Si `gana` es "base" dos semanas seguidas,
+   avisar: el metodo anterior (histograma) esta prediciendo mejor y hay que
+   revisar los parametros (ver pantalla de parametros).
+
+
+================================================================================
+10. CODIGOS DE ERROR
+================================================================================
+
+Todas las respuestas de error son JSON con "success": false.
+
+  400  No se usa.
+  404  {"success": false, "error": "Ref no encontrada"}
+       La ref no existe en `referencias`.
+  415  {"success": false, "error": "Solo se acepta JSON (Content-Type: application/json)"}
+       POST con otro content-type.
+  422  {"success": false, "error": "Parametros invalidos", "detalle": {...}}
+       Parametro faltante, con formato invalido, local inexistente, ubigeo que
+       no es de 6 digitos, o "guardar" sin viaje/historia. `detalle` trae el
+       campo y el mensaje.
+  500  {"success": false, "error": "No se pudo predecir: ..."}
+       Falla del servidor o de la base. Reintentar con espera; si persiste,
+       avisar (no es un problema del request).
+
+
+================================================================================
+11. LIMITES, TIEMPOS DE RESPUESTA Y BUENAS PRACTICAS
+================================================================================
+
+  - GET /api/prediccion/presenta          ~200-400 ms
+  - POST /api/prediccion/presenta         ~200-400 ms (+ escritura si guardar)
+  - GET /api/prediccion/aciertos          crece con las filas: ~3-4 s con 300
+                                            filas, varios segundos arriba de eso
+                                            (el tope es limit=1000)
+
+  Buenas practicas:
+  - No llamarlo en bucle por lote de refs: para N refs, mejor N llamadas
+    espaciadas o la pantalla de aciertos. No hay endpoint batch todavia.
+  - La prediccion cambia cuando entra un hito nuevo, no cada minuto: cachear
+    ~5 minutos por ref es razonable.
+  - Reintentar solo en 500, con backoff (1s, 2s, 4s).
+  - Mandar siempre "Accept: application/json".
+  - No confiar en el orden de las claves ni en campos extra: la respuesta puede
+    crecer con campos nuevos. Un consumidor robusto ignora lo que no conoce.
+  - `candidatos` esta limitado a 10 en la API (la pantalla muestra mas).
+
+
+================================================================================
+12. PANTALLAS EQUIVALENTES (PARA REVISAR A MANO)
+================================================================================
+
+  https://calls.pedrosotelo.fun/lupita/prediccion/presenta
+      Calculadora: elegir ref, viaje ancla, ubicacion declarada, y ver el
+      desglose completo con supuestos y advertencias. Requiere sesion y permiso
+      "ver tiempos". Sirve para depurar un caso concreto antes de integrar.
+
+  https://calls.pedrosotelo.fun/lupita/prediccion/aciertos
+      La tabla de aciertos con los mismos numeros del endpoint 5, fila por fila
+      (predicho, real, error, metodo anterior).
+
+
+================================================================================
+13. HISTORIAL DE CAMBIOS
+================================================================================
+
+  1.0  13/11/2026  Primera version.
+                   - GET/POST /api/prediccion/presenta
+                   - GET /api/prediccion/aciertos
+                   - Prediccion desde ubicacion declarada cuando no hay viaje
+                     en curso (local o ubigeo).
+                   - guardar: true persiste la historia enviada antes de predecir.
+
+================================================================================
+ FIN
+================================================================================

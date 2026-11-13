@@ -82,6 +82,7 @@ class Servicio
 
         $ubicacionTipo = (string) ($opciones['ubicacion_tipo'] ?? 'auto');
         $ubicacionId = trim((string) ($opciones['ubicacion_id'] ?? ''));
+        $ubicacionDeclarada = in_array($ubicacionTipo, ['local', 'ubigeo'], true) && $ubicacionId !== '';
 
         if ($ubicacionTipo === 'local' && $ubicacionId !== '') {
             $desdePlanta = $ubicacionId;
@@ -92,6 +93,29 @@ class Servicio
         } elseif ($ubicacionTipo === 'indeterminado') {
             $desdePlanta = '';
             $desdeUbigeo = '';
+        }
+
+        // ¿el ancla sirve? Si el camión no tiene viaje en curso (o su último hito
+        // es más viejo que el tope del hueco) se arranca desde la ubicación
+        // declarada: el cálculo pasa a ser traslado + tiempo muerto desde ahora.
+        $topeAncla = max(1, (int) $p->tope_hueco_min);
+        $edadAncla = ($ancla !== null && $ancla->fecha instanceof Carbon)
+            ? (int) round($ancla->fecha->diffInMinutes($ahora))
+            : null;
+        $anclaUtil = $edadAncla !== null && $edadAncla <= $topeAncla;
+
+        $anclaDeclarada = false;
+        if (!$anclaUtil) {
+            if ($ubicacionDeclarada) {
+                $ancla = (object) [
+                    'ref' => '', 'hito' => 'ubicacion_declarada', 'fecha' => $ahora->copy(),
+                    'cerrado' => true, 'ruta_id' => '', 'destino_id' => '', 'ubigeo_destino' => '',
+                    'edad_min' => 0,
+                ];
+                $anclaDeclarada = true;
+            } else {
+                $ancla = null;
+            }
         }
 
         $traslado = $plantaCarga !== ''
@@ -126,7 +150,9 @@ class Servicio
             $ahora
         );
 
-        $calibrador = Calibrador::estimar($calibracion,
+        // con ancla declarada no se aplica el hueco medido: ese hueco se mide
+        // desde un fin de descargue, y acá no hay viaje del que volver
+        $calibrador = $anclaDeclarada ? null : Calibrador::estimar($calibracion,
             $rutaAncla !== '' ? $rutaAncla : null,
             $rutaRef !== '' ? $rutaRef : null,
             $claveCalibracion,
@@ -161,13 +187,23 @@ class Servicio
         $resultado->candidatos = $candidatos;
         $resultado->historia = (object) [
             'pares' => count($pares),
-            'nivel' => $calibrador->nivel,
-            'n' => $calibrador->n,
+            'nivel' => $calibrador->nivel ?? 'cadena',
+            'n' => $calibrador->n ?? 0,
             'grupo' => $grupoCalibracion,
             'clave' => $claveCalibracion,
             'ventanas' => $ventanas['ventanas'],
             'ventanas_origen' => $ventanas['origen'],
+            'calibrador_usado' => !$anclaDeclarada,
         ];
+
+        if ($anclaDeclarada) {
+            $resultado->advertencias[] = 'ancla_declarada: no hay un viaje en curso utilizable (o su último hito '
+                . 'es de hace más de ' . intdiv($topeAncla, 60) . ' h); el cálculo arranca ahora desde la ubicación '
+                . 'declarada y suma el traslado medido hasta la planta de carga';
+        } elseif ($ancla === null) {
+            $resultado->advertencias[] = 'sin_ubicacion: sin viaje en curso y sin ubicación declarada no hay desde '
+                . 'dónde contar; declarando un local o un ubigeo sí se puede estimar';
+        }
 
         return $resultado;
     }

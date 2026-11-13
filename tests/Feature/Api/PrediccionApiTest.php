@@ -141,6 +141,46 @@ class PrediccionApiTest extends TestCase
             ->assertJsonMissingPath('guardado');
     }
 
+    public function test_sin_viaje_en_curso_predice_desde_la_ubicacion_declarada(): void
+    {
+        // un par con hueco real de más de 7 días: al corte, el ancla queda fuera
+        // del tope y el motor no puede predecir hasta que se declara la ubicación
+        $par = \Illuminate\Support\Facades\DB::selectOne("
+            SELECT x.ref, x.presenta_para_carga FROM (
+                SELECT r.ref, r.placa, r.presenta_para_carga,
+                       LAG(r.fin_descargue) OVER (PARTITION BY r.placa ORDER BY r.presenta_para_carga) AS fin_ancla
+                FROM referencias r
+                WHERE r.placa <> '' AND r.presenta_para_carga IS NOT NULL
+                  AND r.presenta_para_carga >= '2026-10-01' AND r.ruta_id IS NOT NULL AND r.ruta_id <> ''
+            ) x
+            WHERE x.fin_ancla IS NOT NULL
+              AND TIMESTAMPDIFF(MINUTE, x.fin_ancla, x.presenta_para_carga) > 10080
+            ORDER BY x.presenta_para_carga DESC
+            LIMIT 1
+        ");
+
+        if ($par === null) {
+            $this->markTestSkipped('la base no tiene pares con hueco de más de 7 días');
+        }
+
+        $ahora = \Carbon\Carbon::parse($par->presenta_para_carga)->subHour()->format('Y-m-d H:i');
+        $url = '/api/prediccion/presenta?ref=' . $par->ref . '&ahora=' . urlencode($ahora);
+
+        // sin ubicación declarada no hay desde dónde contar
+        $this->getJson($url)->assertOk()->assertJsonPath('success', true)->assertJsonPath('presenta', null);
+
+        // declarando el local, la predicción sale de la cadena
+        $respuesta = $this->getJson($url . '&ubicacion_tipo=local&ubicacion_id=LOC_CARAL');
+        $respuesta->assertOk()->assertJsonPath('success', true);
+
+        $this->assertNotNull($respuesta->json('presenta'), 'con ubicación declarada tiene que predecir');
+        $this->assertSame('cadena', $respuesta->json('evidencia'));
+        $this->assertContains(
+            'ancla_declarada',
+            array_map(fn ($aviso) => explode(':', $aviso)[0], $respuesta->json('advertencias'))
+        );
+    }
+
     public function test_aciertos_devuelve_filas_con_el_error_bien_firmado(): void
     {
         $respuesta = $this->getJson('/api/prediccion/aciertos?desde=2026-10-01&hasta=2026-11-03&limit=8');

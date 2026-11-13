@@ -35,6 +35,17 @@
         <div class="alert alert-info py-2">{{ session('estado') }}</div>
     @endif
 
+    @if(($errors ?? null)?->any())
+        <div class="alert alert-danger py-2">
+            <strong>Revisá los datos:</strong>
+            <ul class="mb-0 small">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="card mb-3">
         <div class="card-header bg-primary text-white"><strong>Paso 1 — Qué referencia</strong></div>
         <div class="card-body">
@@ -74,7 +85,14 @@
                 </div>
                 @if($candidatos === [])
                     <div class="card-body text-muted">
-                        La placa <code>{{ $placa }}</code> no tiene viajes con hitos registrados.
+                        <p class="mb-1">
+                            La placa <code>{{ $placa }}</code> no tiene viajes con hitos registrados.
+                        </p>
+                        <p class="mb-0 small">
+                            Igual se puede predecir: en el <strong>paso 3</strong> declarás en qué local o ubigeo está
+                            el camión y el motor cuenta desde ahí el traslado hasta la planta de carga más el tiempo
+                            muerto. La evidencia de esa predicción es <code>cadena</code> (no hay hueco medido).
+                        </p>
                     </div>
                 @else
                     <div class="table-responsive">
@@ -139,6 +157,9 @@
                             <option value="ubigeo" @selected($tipoUbicacion === 'ubigeo')>En un ubigeo</option>
                             <option value="indeterminado" @selected($tipoUbicacion === 'indeterminado')>No se sabe</option>
                         </select>
+                        <div class="text-muted" style="font-size:.7rem">
+                            sin viaje en curso, elegí local o ubigeo
+                        </div>
                     </div>
                     <div class="col-md-5" id="bloque_local">
                         <label class="form-label">Local / planta</label>

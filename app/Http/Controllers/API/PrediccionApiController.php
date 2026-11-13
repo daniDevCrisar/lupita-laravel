@@ -115,11 +115,14 @@ class PrediccionApiController extends Controller
             $guardado = $resultado['resumen'] ?? null;
         }
 
+        // se acepta `ubicacion: {tipo, id}` (como está documentado) y también
+        // `ubicacion_tipo`/`ubicacion_id` sueltos, para que el ejemplo del GET
+        // sirva tal cual en el POST
         return $this->responder($request, $ref, [
             'ahora' => $payload['ahora'] ?? null,
             'ancla_ref' => (string) ($payload['ancla'] ?? ''),
-            'ubicacion_tipo' => (string) ($payload['ubicacion']['tipo'] ?? 'auto'),
-            'ubicacion_id' => (string) ($payload['ubicacion']['id'] ?? ''),
+            'ubicacion_tipo' => (string) ($payload['ubicacion']['tipo'] ?? $payload['ubicacion_tipo'] ?? 'auto'),
+            'ubicacion_id' => (string) ($payload['ubicacion']['id'] ?? $payload['ubicacion_id'] ?? ''),
         ], $guardado);
     }
 
