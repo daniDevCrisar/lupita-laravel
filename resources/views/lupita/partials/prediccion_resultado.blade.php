@@ -22,7 +22,12 @@
 @if(!empty($r->error))
     <div class="alert alert-warning">
         <i class="bi bi-question-circle"></i>
-        No se pudo predecir: {{ $r->error }}. {{ $r->advertencias[0] ?? '' }}
+        <strong>No se pudo predecir</strong> <span class="text-muted small">({{ $r->error }})</span>
+        <ul class="mb-0 small">
+            @foreach($r->advertencias ?? [] as $aviso)
+                <li>{{ $aviso }}</li>
+            @endforeach
+        </ul>
     </div>
 @elseif($r->ya_presento)
     <div class="alert alert-info">
@@ -48,40 +53,98 @@
             </span>
         </div>
         <div class="card-body">
-            <div class="row g-3 align-items-end">
-                <div class="col-md-5">
-                    <div class="text-muted small">
-                        Se presenta para cargar el
-                        @if($r->atrasado)
-                            <span class="badge bg-danger">atrasado</span>
-                        @endif
+            @php
+                $tres = $r->presentaciones ?? [];
+                $coloresTres = ['rapido' => 'success', 'normal' => 'primary', 'tardado' => 'warning'];
+            @endphp
+
+            <div class="row g-2 mb-3">
+                @foreach($tres as $p3)
+                    <div class="col-md-3">
+                        <div class="card h-100 border-{{ $coloresTres[$p3['clave']] ?? 'secondary' }}
+                                    {{ $p3['clave'] === 'normal' ? 'shadow-sm' : '' }}">
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-{{ $coloresTres[$p3['clave']] ?? 'secondary' }}">
+                                        {{ $p3['etiqueta'] }}
+                                    </span>
+                                    <span class="badge bg-light text-dark">en {{ $p3['desde_ahora'] }}</span>
+                                </div>
+                                <div class="fs-3 fw-bold text-nowrap">
+                                    {{ \Carbon\Carbon::parse($p3['fecha'])->format('d/m H:i') }}
+                                </div>
+                                <div class="text-muted" style="font-size:.7rem">{{ $p3['descripcion'] }}</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="display-6 fw-bold text-{{ $color === 'warning' ? 'warning' : $color }}">
-                        {{ $r->presenta->format('d/m/Y') }} · {{ $r->presenta->format('H:i') }}
+                @endforeach
+                <div class="col-md-3">
+                    <div class="card h-100 border-info">
+                        <div class="card-body py-2">
+                            <div class="fw-bold text-info">Inicio de carga</div>
+                            <div class="fs-3 fw-bold text-nowrap">
+                                {{ $r->inicio_carga ? $r->inicio_carga->format('d/m H:i') : '—' }}
+                            </div>
+                            <div class="text-muted" style="font-size:.7rem">
+                                normal + espera en planta ({{ $texto($r->espera_min) }})
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <div class="small text-muted">
+                        Evidencia <strong>{{ $r->evidencia }}</strong> · confianza {{ $r->confianza }}%
+                        · {{ $r->confianza_motivo }}
+                        @if($r->atrasado)
+                            · <span class="badge bg-danger">atrasado</span>
+                            el cálculo lo daba a las {{ $r->presenta_crudo?->format('d/m H:i') }}
+                        @endif
                     </div>
                     <div class="small text-muted">
-                        @if($r->atrasado && $r->presenta_crudo)
-                            el cálculo lo daba a las {{ $r->presenta_crudo->format('d/m H:i') }}, o sea que ya
-                            debería haber presentado: la hora de arriba es el corte
+                        Hueco calibrado con
+                        @if(($r->historia->grupo ?? 'placa') === 'conductor')
+                            <strong>el comportamiento del conductor</strong>
+                            @if(!empty($r->historia->conductor))
+                                ({{ $r->historia->conductor }})
+                            @endif
                         @else
-                            {{ $r->presenta->isoFormat('dddd') }} · faltan {{ $texto($minutos($r->presenta)) }}
+                            <strong>el historial de la placa</strong> ({{ $r->placa }})
+                        @endif
+                        · {{ $r->historia->n ?? 0 }} pares · nivel {{ $r->historia->nivel ?? '—' }}
+                        <span class="badge bg-light text-dark"
+                              title="{{ ($r->historia->grupo ?? 'placa') === 'conductor'
+                                  ? 'ese chofer concentra menos de la mitad de los viajes previos de la placa'
+                                  : 'la placa manda: su conductor habitual no está definido' }}">
+                            {{ ($r->historia->grupo ?? 'placa') === 'conductor' ? 'por chofer' : 'por placa' }}
+                        </span>
+                    </div>
+                    <div class="small text-muted">
+                        Estado del camión: <strong>{{ $r->estado->etiqueta ?? '—' }}</strong>
+                        — {{ $r->estado->motivo ?? '' }}
+                        @if($r->geoapify->usado ?? false)
+                            · <span class="badge bg-info text-dark" title="{{ $r->geoapify->motivo }}">
+                                traslado con Geoapify
+                                @if($r->geoapify->km)
+                                    · {{ $r->geoapify->km }} km
+                                @endif
+                                @if(($r->geoapify->llamadas ?? 0) > 0)
+                                    · {{ $r->geoapify->llamadas }}
+                                    {{ $r->geoapify->llamadas === 1 ? 'llamada' : 'llamadas' }} al API
+                                @endif
+                            </span>
                         @endif
                         @if($r->ventana['desde'])
-                            · ventana {{ $r->ventana['desde']->format('d/m H:i') }} – {{ $r->ventana['hasta']->format('d/m H:i') }}
+                            · ventana p25–p75:
+                            {{ $r->ventana['desde']->format('d/m H:i') }} – {{ $r->ventana['hasta']->format('d/m H:i') }}
                         @endif
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="text-muted small">Empieza a cargar (presenta + espera en planta)</div>
-                    <div class="fs-4 fw-bold">
-                        {{ $r->inicio_carga ? $r->inicio_carga->format('d/m H:i') : '—' }}
-                    </div>
-                    <div class="small text-muted">espera esperada {{ $texto($r->espera_min) }}</div>
-                </div>
-                <div class="col-md-3 text-md-end">
-                    <div class="text-muted small">Estado del camión</div>
-                    <div class="fw-bold">{{ $r->estado->etiqueta ?? '—' }}</div>
-                    <div class="small text-muted">{{ $r->estado->motivo ?? '' }}</div>
+                <div class="col-md-4 text-md-end">
+                    <div class="text-muted small">Total desde el ancla</div>
+                    <div class="fs-5 fw-bold">{{ $r->duracion_total ?? '—' }}</div>
                 </div>
             </div>
 

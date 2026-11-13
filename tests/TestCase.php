@@ -20,6 +20,8 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         config(['geoapify.key' => '']);
+        // el contador de `geoapify_uso` es de producción: la suite no lo ensucia
+        config(['geoapify.contar' => false]);
         Geoapify::olvidar();
         DBPrediccion::olvidar();
     }

@@ -48,4 +48,20 @@ class ServicioTest extends TestCase
         $this->assertSame('2026-10-10 08:00', $previos[0]->presenta->format('Y-m-d H:i'));
         $this->assertSame('2026-10-08 08:00', $previos[2]->presenta->format('Y-m-d H:i'));
     }
+
+    public function test_pct_conductor_cuenta_los_pares_del_chofer(): void
+    {
+        $par = fn (?int $conductor) => (object) ['conductor' => $conductor];
+        $pares = [$par(7), $par(7), $par(9), $par(null)];
+
+        // 2 de 4: justo la mitad, la placa sigue mandando
+        $this->assertSame(50.0, Servicio::pct_conductor($pares, 7));
+        $this->assertSame(25.0, Servicio::pct_conductor($pares, 9));
+        $this->assertSame(0.0, Servicio::pct_conductor($pares, 99));
+
+        // sin conductor o sin historia no hay porcentaje que calcular
+        $this->assertNull(Servicio::pct_conductor($pares, null));
+        $this->assertNull(Servicio::pct_conductor($pares, 0));
+        $this->assertNull(Servicio::pct_conductor([], 7));
+    }
 }

@@ -163,14 +163,17 @@ class PrediccionApiController extends Controller
                 'ancla_ref' => $fila->ancla_ref,
                 'ancla' => self::fecha($fila->ancla),
                 'hueco_min' => $fila->hueco_min,
+                'rapido' => self::fecha($fila->rapido ?? null),
                 'predicho' => self::fecha($fila->predicho),
+                'tardado' => self::fecha($fila->tardado ?? null),
                 'real' => self::fecha($fila->real),
                 'error_min' => $fila->error_min,
                 'dentro_ventana' => $fila->dentro,
                 'evidencia' => $fila->evidencia,
                 'confianza' => $fila->confianza,
-                'metodo_actual' => self::fecha($fila->base),
-                'metodo_actual_error_min' => $fila->base_error_min,
+                // con qué historia se calibró esta fila: la placa o el conductor
+                'calibra_con' => $fila->grupo ?? 'placa',
+                'pares_calibracion' => $fila->pares_calibracion ?? 0,
             ];
         }
 
@@ -181,9 +184,8 @@ class PrediccionApiController extends Controller
             'aprendizaje_desde' => self::fecha($datos->aprendizaje_desde),
             'filas' => $filas,
             'descartados' => $datos->descartados,
+            'sin_ruta' => $datos->sin_ruta ?? 0,
             'resumen_motor' => $datos->resumen_motor,
-            'resumen_metodo_actual' => $datos->resumen_base,
-            'comparacion' => $datos->comparacion,
         ]);
     }
 
@@ -290,8 +292,26 @@ class PrediccionApiController extends Controller
         }
 
         if (!empty($resultado->error)) {
+            // una ref sin ruta existe, pero no se puede predecir: sin planta de
+            // carga no hay traslado que estimar. Se distingue de "no encontrada"
+            // para que el consumidor sepa que no es un problema de su request.
+            if ((string) $resultado->error === 'sin_ruta') {
+                return self::error('La referencia no tiene ruta asignada: sin planta de carga no se puede '
+                    . 'estimar el traslado ni la espera', 409);
+            }
+
+            // la ref ya cargó y va camino del destino, pero le falta el
+            // `presenta_para_carga`: no hay presentación que adivinar
+            if ((string) $resultado->error === 'ya_en_curso') {
+                return self::error('La referencia ya tiene hitos de carga y ruta sin `presenta_para_carga`: '
+                    . 'el camión ya presentó, no hay una presentación que predecir', 409);
+            }
+
             return self::error('Ref no encontrada', 404);
         }
+
+        // historial: queda guardado para medir el acierto real después
+        \App\Database\DBPrediccionResultados::guardar($resultado, 'api');
 
         $respuesta = self::respuesta_json($resultado);
 
@@ -332,6 +352,9 @@ class PrediccionApiController extends Controller
             'planta_carga' => $resultado->planta_carga,
             'planta_carga_nombre' => $resultado->planta_carga_nombre ?? null,
             'presenta' => self::fecha($resultado->presenta),
+            'presenta_rapido' => self::fecha($resultado->presenta_rapido ?? null),
+            'presenta_tardado' => self::fecha($resultado->presenta_tardado ?? null),
+            'presentaciones' => $resultado->presentaciones ?? [],
             'inicio_carga' => self::fecha($resultado->inicio_carga),
             'espera_min' => $resultado->espera_min,
             'espera_hhmm' => \App\Prediccion\Tiempo::hhmm($resultado->espera_min),
@@ -355,6 +378,7 @@ class PrediccionApiController extends Controller
                 'cerrada' => (bool) ($resultado->ancla->cerrada ?? false),
             ],
             'pasos' => $resultado->pasos ?? [],
+            'geoapify' => $resultado->geoapify ?? (object) ['usado' => false],
             'desglose' => $resultado->desglose,
             'supuestos' => $resultado->supuestos,
             'advertencias' => $resultado->advertencias,

@@ -22,6 +22,11 @@ use Illuminate\Support\Facades\Http;
  *
  * Si no hay key, si la API falla o si el ubigeo no se puede ubicar, todo
  * devuelve null y el motor cae a sus fallbacks de siempre. Nunca rompe.
+ *
+ * Cada petición HTTP se cuenta: en memoria (`llamadas()`, para saber cuántas
+ * gastó una predicción) y en la tabla `geoapify_uso` (una fila por día y por
+ * endpoint, ver App\Database\DBGeoapify). Es la única forma de saber cuántas
+ * veces se usó el API sin entrar al panel del proveedor.
  */
 final class Geoapify
 {
@@ -35,9 +40,67 @@ final class Geoapify
     /** @var array<string, object|null> coordenadas ya resueltas en este request */
     private static array $coords = [];
 
+    /** Interruptor para procesos masivos (la tabla de aciertos corre cientos de filas). */
+    private static bool $activo = true;
+
+    /** Llamadas HTTP hechas a Geoapify en este proceso (para saber cuánto costó una predicción). */
+    private static int $llamadas = 0;
+
+    /** @var array<string, int> llamadas por endpoint, en este proceso */
+    private static array $llamadasPorTipo = ['geocode' => 0, 'routing' => 0];
+
+    /** Apaga Geoapify en este proceso: `disponible()` pasa a false y todo cae a los fallbacks. */
+    public static function desactivar(): void
+    {
+        self::$activo = false;
+    }
+
+    public static function activar(): void
+    {
+        self::$activo = true;
+    }
+
     public static function disponible(): bool
     {
-        return trim((string) config('geoapify.key', '')) !== '';
+        return self::$activo && trim((string) config('geoapify.key', '')) !== '';
+    }
+
+    /** Cuántas peticiones HTTP se le hicieron a Geoapify en este proceso. */
+    public static function llamadas(): int
+    {
+        return self::$llamadas;
+    }
+
+    /** @return array<string, int> peticiones por endpoint en este proceso */
+    public static function llamadas_por_tipo(): array
+    {
+        return self::$llamadasPorTipo;
+    }
+
+    /**
+     * Una petición HTTP a Geoapify, CONTADA.
+     *
+     * Se cuenta antes de mandarla y se registra en `geoapify_uso` (ver
+     * App\Database\DBGeoapify): cada request, exitoso o no, es lo que el
+     * proveedor descuenta del plan. Devuelve null si la llamada falló, así los
+     * llamadores siguen con sus fallbacks sin repetir el manejo de errores.
+     */
+    private static function pedir(string $url, array $parametros, string $tipo): ?\Illuminate\Http\Client\Response
+    {
+        self::$llamadas++;
+        self::$llamadasPorTipo[$tipo] = (self::$llamadasPorTipo[$tipo] ?? 0) + 1;
+
+        try {
+            $respuesta = Http::connectTimeout(2)->timeout(4)->get($url, $parametros);
+        } catch (\Throwable $e) {
+            \App\Database\DBGeoapify::registrar($tipo, false);
+
+            return null;
+        }
+
+        \App\Database\DBGeoapify::registrar($tipo, $respuesta->successful());
+
+        return $respuesta->successful() ? $respuesta : null;
     }
 
     /**
@@ -102,17 +165,13 @@ final class Geoapify
             return self::$rutas[$llave] = null;
         }
 
-        try {
-            $respuesta = Http::timeout(6)->get(self::ROUTING, [
-                'waypoints' => $desde->lat . ',' . $desde->lng . '|' . $hasta->lat . ',' . $hasta->lng,
-                'mode' => 'drive',
-                'apiKey' => (string) config('geoapify.key', ''),
-            ]);
-        } catch (\Throwable $e) {
-            return self::$rutas[$llave] = null;
-        }
+        $respuesta = self::pedir(self::ROUTING, [
+            'waypoints' => $desde->lat . ',' . $desde->lng . '|' . $hasta->lat . ',' . $hasta->lng,
+            'mode' => 'drive',
+            'apiKey' => (string) config('geoapify.key', ''),
+        ], 'routing');
 
-        if (!$respuesta->successful()) {
+        if ($respuesta === null) {
             return self::$rutas[$llave] = null;
         }
 
@@ -172,55 +231,67 @@ final class Geoapify
             return null;
         }
 
-        try {
-            $respuesta = Http::timeout(6)->get(self::GEOCODE, [
-                'text' => $nombre . ', Peru',
+        // "ANCON, LIMA, LIMA" hace que el parser se confunda (provincia y
+        // departamento repetidos): se mandan las partes únicas. Si el texto
+        // completo no encuentra nada, se reintenta sólo con el distrito.
+        $partes = array_values(array_unique(array_map('trim', explode(',', $nombre))));
+        $textos = [
+            implode(', ', $partes) . ', Peru',
+            ($partes[0] ?? $nombre) . ', Peru',
+        ];
+
+        foreach ($textos as $texto) {
+            $respuesta = self::pedir(self::GEOCODE, [
+                'text' => $texto,
                 'filter' => 'countrycode:pe',
                 'limit' => 1,
                 'lang' => 'es',
                 'apiKey' => (string) config('geoapify.key', ''),
-            ]);
-        } catch (\Throwable $e) {
-            return null;
+            ], 'geocode');
+
+            if ($respuesta === null) {
+                continue;
+            }
+
+            $lat = $respuesta->json('features.0.properties.lat');
+            $lng = $respuesta->json('features.0.properties.lon');
+
+            if (!is_numeric($lat) || !is_numeric($lng)) {
+                continue;
+            }
+
+            $rotulo = $nombre;
+            $formateado = $respuesta->json('features.0.properties.formatted');
+            if (is_string($formateado) && $formateado !== '') {
+                $rotulo .= ' (' . $formateado . ')';
+            }
+
+            try {
+                DB::table('geo_coordenadas')->upsert([[
+                    'ubigeo' => $ubigeo,
+                    'lat' => (float) $lat,
+                    'lng' => (float) $lng,
+                    'texto' => $rotulo,
+                    'fuente' => 'geoapify',
+                    'actualizado_en' => now(),
+                ]], ['ubigeo'], ['lat', 'lng', 'texto', 'fuente', 'actualizado_en']);
+            } catch (\Throwable $e) {
+                // sin tabla igual se usa en este request
+            }
+
+            return (object) ['lat' => (float) $lat, 'lng' => (float) $lng, 'texto' => $rotulo];
         }
 
-        if (!$respuesta->successful()) {
-            return null;
-        }
-
-        $lat = $respuesta->json('features.0.properties.lat');
-        $lng = $respuesta->json('features.0.properties.lon');
-
-        if (!is_numeric($lat) || !is_numeric($lng)) {
-            return null;
-        }
-
-        $texto = $nombre;
-        $formateado = $respuesta->json('features.0.properties.formatted');
-        if (is_string($formateado) && $formateado !== '') {
-            $texto .= ' (' . $formateado . ')';
-        }
-
-        try {
-            DB::table('geo_coordenadas')->upsert([[
-                'ubigeo' => $ubigeo,
-                'lat' => (float) $lat,
-                'lng' => (float) $lng,
-                'texto' => $texto,
-                'fuente' => 'geoapify',
-                'actualizado_en' => now(),
-            ]], ['ubigeo'], ['lat', 'lng', 'texto', 'fuente', 'actualizado_en']);
-        } catch (\Throwable $e) {
-            // sin tabla igual se usa en este request
-        }
-
-        return (object) ['lat' => (float) $lat, 'lng' => (float) $lng, 'texto' => $texto];
+        return null;
     }
 
-    /** Limpia la memoización por request (pruebas). */
+    /** Limpia la memoización y los contadores del proceso (pruebas). */
     public static function olvidar(): void
     {
         self::$rutas = [];
         self::$coords = [];
+        self::$activo = true;
+        self::$llamadas = 0;
+        self::$llamadasPorTipo = ['geocode' => 0, 'routing' => 0];
     }
 }

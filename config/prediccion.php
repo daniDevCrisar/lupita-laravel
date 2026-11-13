@@ -36,6 +36,10 @@ return [
     // Franjas de 3 h para la corrección del hueco por hora del ancla.
     'bins_horarios' => 8,
 
+    // Sin pares medidos no hay cuantiles: la fecha "rápido" y "tardado" se abren
+    // este porcentaje alrededor de la cadena (0.30 = -30 % / +30 %).
+    'spread_cadena' => 0.30,
+
     // Cuánto puede moverse una predicción para salir de una franja inactiva.
     'max_desplazamiento_min' => 600,
 

@@ -30,6 +30,9 @@
                 la ubicación se deduce del último hito o la declaras en el formulario. Cada predicción trae su desglose
                 en minutos, sus supuestos y su nivel de evidencia.
                 <a href="{{ route('lupita.prediccion.aciertos') }}">Ver la tabla de aciertos &rarr;</a>
+                · <a href="{{ route('lupita.prediccion.documentacion') }}">Documentación del API &rarr;</a>
+                · <a href="{{ route('lupita.prediccion.geoapify') }}">Uso de Geoapify:
+                    {{ number_format((int) ($geoapify_hoy ?? 0)) }} llamadas hoy &rarr;</a>
             </p>
         </div>
     </div>
@@ -75,7 +78,9 @@
         </div>
     </div>
 
-    @if($placa !== '' || $candidatos !== [])
+    {{-- con un error duro (ref sin ruta, ref inexistente) no hay ancla ni ubicación
+         que elegir: el aviso del resultado ya dice que no se predice --}}
+    @if(($placa !== '' || $candidatos !== []) && empty($resultado?->error))
         <form method="GET" action="{{ route('lupita.prediccion.presenta') }}">
             <input type="hidden" name="ref" value="{{ $ref }}">
             <input type="hidden" name="placa" value="{{ $placa }}">
@@ -83,8 +88,9 @@
 
             <div class="card mb-3">
                 <div class="card-header bg-dark text-white">
-                    <strong>Paso 2 — Viaje ancla</strong>
-                    <span class="small">— el último viaje del camión antes de presentar; puede estar en curso</span>
+                    <strong>Paso 2 — Última ref hecha (el ancla)</strong>
+                    <span class="small">— el último viaje del camión <em>antes del corte</em>; puede estar en curso.
+                        Con la ref a predecir, estos dos son el contexto completo de la predicción.</span>
                 </div>
                 @if($candidatos === [])
                     <div class="card-body text-muted">
@@ -241,7 +247,7 @@ Accept: application/json</pre>
     @include('lupita.partials.prediccion_parametros')
 @endsection
 
-@push('scripts')
+@section('scripts')
     <script>
         (function () {
             const tipo = document.getElementById('ubicacion_tipo');
@@ -338,4 +344,4 @@ Accept: application/json</pre>
             buscador('texto_ubigeo', 'lista_ubigeo', 'id_ubigeo', 'ubigeo');
         })();
     </script>
-@endpush
+@endsection

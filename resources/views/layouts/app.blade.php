@@ -131,6 +131,8 @@
                         <li><a class="dropdown-item" href="{{route('lupita.comportamiento')}}"><i class="bi bi-person-lines-fill"></i> Comportamiento</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.prediccion.presenta')}}"><i class="bi bi-clock-history"></i> Predecir carga</a></li>
                         <li><a class="dropdown-item" href="{{route('lupita.prediccion.aciertos')}}"><i class="bi bi-bullseye"></i> Aciertos de la predicción</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.prediccion.documentacion')}}"><i class="bi bi-braces"></i> API de predicción</a></li>
+                        <li><a class="dropdown-item" href="{{route('lupita.prediccion.geoapify')}}"><i class="bi bi-cloud-check"></i> Uso de Geoapify</a></li>
                         @endcan
                     </ul>
                 </li>

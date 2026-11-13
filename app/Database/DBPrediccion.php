@@ -385,7 +385,7 @@ class DBPrediccion
      */
     public static function traslado(?string $plantaCarga, ?string $desdePlanta, ?string $desdeUbigeo,
                                     ?string $plantaUbigeo, array $etapas, ?string $rutaPropia = null,
-                                    ?int $defectoMin = null): ?object
+                                    ?int $defectoMin = null, bool $posicionDeclarada = false): ?object
     {
         if ($plantaCarga === null || $plantaCarga === '') {
             return null;
@@ -405,64 +405,44 @@ class DBPrediccion
         $minutos = fn (?string $ruta): ?int => self::minutos_ruta($ruta, $etapas, $compilados);
 
         // 1..3: lo medido (ruta entre los dos locales, mismo par de ubigeos, la ruta
-        // de la propia referencia). Se resuelve primero para no pagar una llamada a
-        // Geoapify cuando el dato medido ya es razonable.
-        $medido = null;
-        $medidoFuente = null;
-        $medidoRuta = null;
-
+        // de la propia referencia). Geoapify NO se llama si hay promedio: el dato de
+        // la flota siempre manda.
         foreach ($rutas as $id => $ruta) {
             $mismoLocal = ($ruta->origen_id === $plantaCarga && $ruta->destino_id === $desdePlanta)
                 || ($ruta->origen_id === $desdePlanta && $ruta->destino_id === $plantaCarga);
             if ($mismoLocal) {
                 $min = $minutos((string) $id);
                 if ($min !== null) {
-                    $medido = $min;
-                    $medidoFuente = 'ruta_medida';
-                    $medidoRuta = (string) $id;
-                    break;
+                    return (object) ['min' => $min, 'fuente' => 'ruta_medida', 'ruta' => (string) $id,
+                                     'texto' => $texto, 'km' => null];
                 }
             }
         }
 
-        if ($medido === null && $desdeUbigeo !== null && $desdeUbigeo !== ''
-            && $plantaUbigeo !== null && $plantaUbigeo !== '') {
+        if ($desdeUbigeo !== null && $desdeUbigeo !== '' && $plantaUbigeo !== null && $plantaUbigeo !== '') {
             foreach ($rutas as $id => $ruta) {
                 $mismoUbigeo = ($ruta->ubigeo_origen === $plantaUbigeo && $ruta->ubigeo_destino === $desdeUbigeo)
                     || ($ruta->ubigeo_origen === $desdeUbigeo && $ruta->ubigeo_destino === $plantaUbigeo);
                 if ($mismoUbigeo) {
                     $min = $minutos((string) $id);
                     if ($min !== null) {
-                        $medido = $min;
-                        $medidoFuente = 'mismo_ubigeo';
-                        $medidoRuta = (string) $id;
-                        break;
+                        return (object) ['min' => $min, 'fuente' => 'mismo_ubigeo', 'ruta' => (string) $id,
+                                         'texto' => $texto, 'km' => null];
                     }
                 }
             }
         }
 
-        if ($medido === null && $rutaPropia !== null) {
+        if ($rutaPropia !== null && !$posicionDeclarada) {
             $min = $minutos($rutaPropia);
             if ($min !== null) {
-                $medido = $min;
-                $medidoFuente = 'ruta_de_la_ref';
-                $medidoRuta = $rutaPropia;
+                return (object) ['min' => $min, 'fuente' => 'ruta_de_la_ref', 'ruta' => $rutaPropia,
+                                 'texto' => $texto, 'km' => null];
             }
         }
 
-        // Geoapify se pide sólo si hace falta: no hay medido, o el medido es tan
-        // largo que seguro incluye colas y descansos (por encima del umbral).
-        $umbralTope = max(0, (int) config('geoapify.tope_desde_min', 180));
-        $geo = ($medido === null || $medido > $umbralTope)
-            ? \App\Prediccion\Geoapify::ruta($desdeUbigeo, $plantaUbigeo)
-            : null;
-
-        if ($medido !== null) {
-            return self::con_tope_de_manejo($medido, $medidoFuente ?? 'medido', $medidoRuta, $texto, $geo);
-        }
-
-        // 4: Geoapify (tiempo de manejo real, cuando no hay promedio medido)
+        // 4: Geoapify. SÓLO acá: no hay ningún promedio compilado para ese par.
+        $geo = \App\Prediccion\Geoapify::ruta($desdeUbigeo, $plantaUbigeo);
         if ($geo !== null) {
             return (object) [
                 'min' => max(1, (int) $geo->min),
@@ -470,6 +450,7 @@ class DBPrediccion
                 'ruta' => null,
                 'texto' => $texto,
                 'km' => $geo->km,
+                'min_medido' => null,
             ];
         }
 
@@ -551,32 +532,6 @@ class DBPrediccion
         }
 
         return self::$locales = $salida;
-    }
-
-    /**
-     * Aplica el tope de manejo real a un tránsito medido.
-     *
-     * Si el promedio medido supera `manejo × factor` (por defecto 1.3), se usa el
-     * tope: un tramo no puede durar 3 veces lo que tarda el manejo. El exceso no
-     * se pierde: en el motor cae en `tiempo_muerto`, que es lo que de verdad pasó
-     * (colas, descanso). El hueco total no cambia.
-     */
-    private static function con_tope_de_manejo(int $min, string $fuente, ?string $ruta, string $texto, ?object $geo): object
-    {
-        $factor = (float) config('geoapify.tope_medido_factor', 1.3);
-
-        if ($geo !== null && $factor > 0 && $min > $geo->min * $factor) {
-            return (object) [
-                'min' => max(1, (int) round($geo->min * $factor)),
-                'fuente' => $fuente . '_capado_geoapify',
-                'ruta' => $ruta,
-                'texto' => $texto,
-                'km' => $geo->km,
-                'min_medido' => $min,
-            ];
-        }
-
-        return (object) ['min' => $min, 'fuente' => $fuente, 'ruta' => $ruta, 'texto' => $texto, 'km' => null];
     }
 
     /** Minutos de tránsito medidos de una ruta: primero las refs, después el compilado. */

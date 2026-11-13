@@ -111,6 +111,14 @@ Route::middleware(['auth'])->group(function () {
         // buscador de los inputs de local/ubigeo (JSON para el typeahead)
         Route::get('/prediccion/buscar', [PrediccionController::class, 'buscar'])->name('lupita.prediccion.buscar')
             ->middleware('permission:ver tiempos');
+        Route::get('/prediccion/documentacion', [PrediccionController::class, 'documentacion'])->name('lupita.prediccion.documentacion')
+            ->middleware('permission:ver tiempos');
+        // contador de llamadas al API de Geoapify (cuántas veces se usó)
+        Route::get('/prediccion/geoapify', [PrediccionController::class, 'geoapify'])->name('lupita.prediccion.geoapify')
+            ->middleware('permission:ver tiempos');
+        // predicción de UNA ref pegándole al API público (y guardándola)
+        Route::get('/prediccion/api-ref', [PrediccionController::class, 'api_ref'])->name('lupita.prediccion.api_ref')
+            ->middleware('permission:ver tiempos');
         Route::get('/palabras', [PalabrasController::class, 'index'])->name('lupita.palabras')
             ->middleware('permission:ver scoring');
 

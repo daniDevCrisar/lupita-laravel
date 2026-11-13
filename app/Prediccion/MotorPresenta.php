@@ -185,6 +185,11 @@ final class MotorPresenta
             $salida->advertencias[] = 'atrasado: la predicción cayó antes de ahora; el camión está fuera de su patrón';
         }
 
+        // las otras dos fechas: rápido y tardado (mismo recorrido, otro hueco)
+        $extremos = self::huecos_extremos($hueco, $cal, $trasladoMin, $p);
+        $rapido = self::fecha_con_hueco($tFin, $extremos['rapido'], $ventanas, $p, $ahora);
+        $tardado = self::fecha_con_hueco($tFin, $extremos['tardado'], $ventanas, $p, $ahora);
+
         // 5) inicio de carga = presenta + espera en la planta de carga
         $espera = $e->espera_carga_min !== null && isset($e->espera_carga_min)
             ? max(0, (int) $e->espera_carga_min)
@@ -208,6 +213,9 @@ final class MotorPresenta
         ]);
 
         $salida->presenta = $t;
+        $salida->presenta_rapido = $rapido;
+        $salida->presenta_tardado = $tardado;
+        $salida->presentaciones = self::presentaciones($ahora, $rapido, $t, $tardado, $cal);
         $salida->inicio_carga = $t->copy()->addMinutes($espera);
         $salida->espera_min = $espera;
         $salida->evidencia = $evidencia;
@@ -239,6 +247,83 @@ final class MotorPresenta
         $salida->duracion_total = Tiempo::hhmm((int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60));
 
         return $salida;
+    }
+
+    /**
+     * Los dos huecos extremos, a partir del calibrador o de un porcentaje.
+     *
+     * Con pares medidos se usan los cuantiles reales (p25 y p75). Sin pares no hay
+     * distribución, así que se abre el hueco de la cadena por `spread_cadena`
+     * (30 % por defecto) y el rápido nunca queda por debajo del traslado: el
+     * camión no puede llegar antes de lo que tarda el viaje.
+     *
+     * @return array{rapido: int, tardado: int}
+     */
+    private static function huecos_extremos(int $hueco, ?object $cal, ?int $trasladoMin, object $p): array
+    {
+        $tope = max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO));
+
+        if ($cal !== null && ($cal->p25_min ?? null) !== null && ($cal->p75_min ?? null) !== null) {
+            $rapido = (int) $cal->p25_min;
+            $tardado = (int) $cal->p75_min;
+        } else {
+            $spread = (float) ($p->spread_cadena ?? 0.30);
+            $spread = max(0.0, min(1.0, $spread));
+            $rapido = (int) round($hueco * (1 - $spread));
+            $tardado = (int) round($hueco * (1 + $spread));
+        }
+
+        $rapido = max(1, min($hueco, max($rapido, (int) ($trasladoMin ?? 0))));
+        $tardado = max($hueco, min($tope, $tardado));
+
+        return ['rapido' => $rapido, 'tardado' => $tardado];
+    }
+
+    /** Igual que la fecha normal: hueco + franjas inactivas + recorte a ahora. */
+    private static function fecha_con_hueco(Carbon $tFin, int $hueco, array $ventanas, object $p, Carbon $ahora): Carbon
+    {
+        $fecha = $tFin->copy()->addMinutes($hueco);
+        $desplazado = Ventanas::desplazar($fecha, $ventanas, max(0, (int) ($p->max_desplazamiento_min ?? 600)));
+        $fecha = $desplazado->fecha;
+
+        return $fecha->lessThan($ahora) ? $ahora->copy() : $fecha;
+    }
+
+    /**
+     * Las tres fechas listas para la pantalla y el JSON, con su etiqueta y su
+     * distancia al corte en h:mm.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function presentaciones(Carbon $ahora, Carbon $rapido, Carbon $normal, Carbon $tardado,
+                                          ?object $cal): array
+    {
+        $desde = fn (Carbon $fecha) => Tiempo::hhmm((int) round(($fecha->getTimestamp() - $ahora->getTimestamp()) / 60));
+        $nivel = $cal !== null ? 'cuantiles medidos (p25 / mediana / p75)' : 'porcentaje sobre la cadena';
+
+        return [
+            [
+                'clave' => 'rapido',
+                'etiqueta' => 'Rápido',
+                'descripcion' => 'si vuelve como sus mejores viajes (' . $nivel . ')',
+                'fecha' => $rapido->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($rapido),
+            ],
+            [
+                'clave' => 'normal',
+                'etiqueta' => 'Normal',
+                'descripcion' => 'la estimación central, la que se usa para planificar',
+                'fecha' => $normal->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($normal),
+            ],
+            [
+                'clave' => 'tardado',
+                'etiqueta' => 'Tardado',
+                'descripcion' => 'si se le cruza un descanso largo, una cola o un viaje que se estira',
+                'fecha' => $tardado->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($tardado),
+            ],
+        ];
     }
 
     /**
@@ -479,6 +564,9 @@ final class MotorPresenta
             'presenta_crudo' => null,
             'pasos' => [],
             'duracion_total' => null,
+            'presenta_rapido' => null,
+            'presenta_tardado' => null,
+            'presentaciones' => [],
         ];
     }
 

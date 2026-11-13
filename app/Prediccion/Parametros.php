@@ -17,10 +17,9 @@ use stdClass;
 final class Parametros
 {
     /**
-     * Claves que se castean a float (el resto a int). Hoy todos los parámetros
-     * son minutos, días o conteos; el arreglo queda por si se agrega un ratio.
+     * Claves que se castean a float (el resto a int).
      */
-    private const FLOTANTES = [];
+    private const FLOTANTES = ['spread_cadena'];
 
     private static ?stdClass $cache = null;
 

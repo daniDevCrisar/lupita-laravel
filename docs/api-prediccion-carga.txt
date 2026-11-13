@@ -2,7 +2,7 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.1
+Version       : 1.6
 Fecha         : 13/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
@@ -23,8 +23,9 @@ INDICE
  9. Casos de uso tipicos
 10. Codigos de error
 11. Limites, tiempos de respuesta y buenas practicas
-12. Pantallas equivalentes (para revisar a mano)
-13. Historial de cambios
+12. Calibrar el motor
+13. Pantallas equivalentes (para revisar a mano)
+14. Historial de cambios
 
 
 ================================================================================
@@ -93,10 +94,25 @@ PARAMETROS (query string)
   ref            obligatorio. Referencia a predecir. 3 a 10 caracteres.
   ahora          opcional. Corte "ahora". "YYYY-MM-DD HH:MM" o "YYYY-MM-DD".
   ancla          opcional. Ref del viaje a usar como ancla. Si no viene se usa
-                 el ultimo viaje del camion anterior a `ahora`.
+                 el ultimo viaje del camion anterior a `ahora`. Es la "ultima
+                 ref hecha": el viaje que el camion termino antes de la ref que
+                 se quiere adivinar. La tabla de aciertos manda siempre las dos
+                 (`ref` + `ancla`) con el corte de esa fila, asi el boton
+                 "Predecir" reproduce exactamente lo que evaluo la tabla.
   ubicacion_tipo opcional. auto | local | ubigeo | indeterminado  (def: auto)
   ubicacion_id   opcional. Si tipo=local  -> id del local (ej. LOC_CARAL)
                           Si tipo=ubigeo -> 6 digitos (ej. 140101)
+
+REFS QUE NO SE PREDICEN (409)
+  - Sin ruta: si la referencia no tiene `ruta_id`, no hay planta de carga
+    (origen), ni su ubigeo, ni la espera: cualquier hora que saliera seria el
+    hueco medido sin el tramo fisico. La tabla de aciertos no las evalua (las
+    cuenta aparte y las muestra como "sin ruta, fuera").
+  - Ya en curso: si la ref NO tiene `presenta_para_carga` pero si hitos
+    posteriores (`inicio_de_carga`, `inicio_ruta`, `qr_llegada_destino`, ...), el
+    camion ya cargo y va camino del destino: la presentacion que se querria
+    adivinar ya ocurrio (o nunca se registro) y no se inventa. Para estimar la
+    PROXIMA carga se usa ese viaje como ancla y la ref siguiente.
 
 QUE SIGNIFICA `ubicacion_tipo`
   auto           (defecto) la posicion se deduce del ultimo hito del camion:
@@ -195,7 +211,14 @@ CAMPOS DE LA RESPUESTA
   planta_carga_nombre
                    nombre legible de esa planta con su distrito
                    ("PLANTA CARAL (Huaral, Huaral, Lima)").
-  presenta         hora estimada de presentacion (null si no se pudo).
+  presenta         hora estimada de presentacion (la "normal", mediana).
+  presenta_rapido  si vuelve como sus mejores viajes (cuantil 25 del hueco).
+  presenta_tardado si se le cruza un descanso largo, una cola o un viaje que se
+                   estira (cuantil 75 del hueco).
+  presentaciones   las tres fechas con etiqueta y `desde_ahora` en h:mm:
+                   [{clave: rapido|normal|tardado, etiqueta, descripcion,
+                     fecha, desde_ahora}]. El rapido nunca es menor que el
+                   traslado: el camion no llega antes de lo que tarda el viaje.
   inicio_carga     presenta + espera en planta (null si no hay presenta).
   espera_min       espera en planta usada, en minutos.
   espera_hhmm      la misma espera en h:mm (ver seccion 8).
@@ -215,6 +238,8 @@ CAMPOS DE LA RESPUESTA
   pasos            los pasos que arman la hora, EN ORDEN, con nombres y tiempos
                    en h:mm (ver seccion 8). Es lo que hay que mostrarle al
                    despachador.
+  geoapify         {usado, min, km, tramo, motivo}: si el traslado salio de
+                   Geoapify (ver 8.4).
   desglose         los minutos que arman la hora (ver seccion 8).
   supuestos        frases que explican las decisiones del calculo.
   advertencias     avisos con prefijo "clave: explicacion" (ver seccion 7).
@@ -320,9 +345,9 @@ DETALLE
 5. GET /api/prediccion/aciertos
 ================================================================================
 
-Corre el modelo en modo automatico sobre las referencias YA CERRADAS de un rango
-y lo compara con el metodo anterior (el histograma dia x hora de la ficha de
-comportamiento). Sirve para vigilar la calidad del modelo, no para operar.
+Corre el modelo en modo automatico sobre las referencias YA CERRADAS de un rango y
+compara contra el `presenta_para_carga` real. Sirve para vigilar la calidad del
+modelo, no para operar: publica SOLO las metricas del motor.
 
   GET https://calls.pedrosotelo.fun/api/prediccion/aciertos?desde=2026-10-01&hasta=2026-11-03
 
@@ -331,7 +356,7 @@ PARAMETROS
   hasta   opcional. Defecto: hoy.
   placa   opcional. Filtra una placa.
   limit   opcional. 1 a 1000, defecto 200. Si el rango tiene mas filas, se
-          evaluan LAS MAS RECIENTES (ver `descartados` y `filas`).
+          evaluan LAS MAS RECIENTES (ver `descartados`, `sin_ruta` y `filas`).
 
 RESPUESTA
 {
@@ -352,20 +377,18 @@ RESPUESTA
             "dentro_ventana": true,
             "evidencia": "parcial",
             "confianza": 35,
-            "metodo_actual": "2026-11-02 08:35:00",
-            "metodo_actual_error_min": -235
+            "calibra_con": "placa",
+            "pares_calibracion": 12
         }
     ],
     "descartados": 94,
+    "sin_ruta": 3,
     "resumen_motor": {
         "n": 403, "mae_min": 1439, "mediana_error_min": 96, "sesgo_min": -388,
         "pct_30": 3, "pct_60": 7, "pct_120": 13, "pct_180": 20,
-        "pct_360": 32, "pct_720": 48, "pct_ventana": 69
-    },
-    "resumen_metodo_actual": { "n": 302, "mae_min": 1591, "mediana_error_min": -129,
-        "sesgo_min": -867, "pct_30": 5, "pct_60": 8, "pct_120": 17, "pct_180": 24,
-        "pct_360": 38, "pct_720": 52, "pct_ventana": null },
-    "comparacion": { "delta_mae_min": -152, "delta_pct_60": 1, "gana": "motor" }
+        "pct_360": 32, "pct_720": 48, "pct_ventana": 69,
+        "dentro_ventana": 278
+    }
 }
 
 COMO LEERLO
@@ -376,16 +399,18 @@ COMO LEERLO
                         presentacion). Mas de 10080 (7 dias) o negativo se
                         descarta: esta fuera del dominio del modelo.
   descartados           filas del rango fuera de ese dominio.
-  resumen_*.n           filas con prediccion (el metodo actual no siempre tiene
-                        historia del camion, por eso n distinto).
+  sin_ruta              refs sin `ruta_id`: no se predicen ni se evaluan.
+  calibra_con           placa | conductor. De quien sale el hueco de esa fila
+                        (ver 8.5).
+  pares_calibracion     cuantos pares entraron en esa calibracion.
+  resumen_motor.n       filas con prediccion.
   mae_min               error medio absoluto (min).
   mediana_error_min     mediana del error (min), con signo.
   sesgo_min             promedio del error (min), con signo.
   pct_30..pct_720       % de aciertos dentro de +/-30, 60, 120, 180, 360 y 720
                         minutos de la hora real.
   pct_ventana           % de predicciones dentro de su propia ventana p25-p75.
-  comparacion.gana      motor | base | empate. Empate = menos de 30 min de
-                        diferencia de MAE.
+  dentro_ventana        cuantas filas cayeron en esa ventana.
   `aprendizaje_desde`   hasta donde llega la historia usada para calibrar: todo
                         lo anterior a `desde`, para que ninguna fila vea su
                         propia presentacion.
@@ -437,6 +462,12 @@ puntos. Un consumidor puede filtrar por clave sin parsear el texto.
                           de hace mas de 7 dias), asi que el calculo sale de la
                           ubicacion declarada + traslado.
                           -> Es una estimacion gruesa: evidencia "cadena".
+  ancla_no_encontrada     Se mando `ancla` con una ref que NO es un viaje de esa
+                          placa anterior al corte (typo, otra placa, fecha mal).
+                          -> No se predice desde otro lado sin avisar: revisar la
+                          ref del ancla.
+  sin_ruta                (respuesta de error, no advertencia) La ref no tiene
+                          ruta asignada: la API devuelve 409.
   traslado_geoapify       No hay transito medido para ese par: el tiempo de
                           manejo sale de Geoapify (se informa en h:mm).
                           -> Es un dato de carretera, no de la flota: sirve.
@@ -496,7 +527,7 @@ Ejemplo abreviado:
       "fecha": "2026-11-11 09:00:00", "min": 0, "duracion": "0:00", "n": 1 },
     { "concepto": "traslado",
       "titulo": "Regreso hasta PLANTA CHICLAYO (Chiclayo, Chiclayo, Lambayeque)",
-      "detalle": "PLANTA CARAL (Huaral, Huaral, Lima) → PLANTA CHICLAYO (...) · 712 km · fuente: ruta_medida_capado_geoapify",
+      "detalle": "PLANTA CARAL (Huaral, Huaral, Lima) → PLANTA CHICLAYO (...) · fuente: ruta_medida",
       "fecha": null, "min": 774, "duracion": "12:54", "n": 2 },
     { "concepto": "tiempo_muerto", "titulo": "Espera y descanso del conductor",
       "detalle": "diferencia entre el hueco real medido y el traslado estimado",
@@ -517,7 +548,30 @@ Como se leen los pasos:
     espera_ventana + ajuste + restante_viaje). El paso `presenta` trae el total
     ya sumado en `min`; los que vienen despues (espera_carga, inicio_carga) se
     cuentan desde el ancla, no desde `presenta`.
-  - `restante_viaje` aparece solo si el ancla es un viaje en curso.
+  - `restante_viaje` aparece solo si el ancla es un viaje en curso. Se arma con
+    los promedios medidos de la ruta del viaje, y son exactamente las etapas que
+    le faltan segun el ultimo hito registrado:
+
+      hito del ancla     etapas que se suman
+      presenta_para_carga  e2 + e3 + e4 + e5 + e6
+      inicio_de_carga    e3 + e4 + e5 + e6
+      fin_de_carga       e3 + e4 + e5 + e6
+      inicio_ruta        e4 + e5 + e6
+      qr_llegada_destino e5 + e6
+      inicio_descargue   e6
+      fin_descargue      (cerrada: no se suma nada, el camion ya quedo libre)
+
+      e2 espera en planta de carga · e3 carga · e4 viaje al destino ·
+      e5 espera/cola en el destino · e6 descargue
+
+    Ejemplo real (rutas de la flota, promedios de 120 dias):
+      RUT_CARAL-BABEL_MAXO  e4 333 + e5 55 + e6 54 = 442 min (7 h 22) desde inicio_ruta
+      RUT_CARAL-HUACHIPA    e4 334 + e5 48 + e6 56 = 438 min (7 h 18)
+      RUT_HUACHIPA-CARAL    e4 328 + e5 47 + e6 86 = 461 min (7 h 41)
+    Despues de eso viene el tiempo muerto y el regreso a la planta (lo que mide
+    el `hueco_total`). Si la ruta no tiene e4..e6 medidos, el paso no se puede
+    armar: se avisa con `etapas_incompletas` y se asume que el camion queda
+    libre ahora.
   - `espera_ventana` aparece solo si la hora calculada caia en una franja sin
     actividad del camion (descanso o almuerzo) y hubo que correrla.
 
@@ -553,15 +607,143 @@ sumables: hay filas que arman la hora y filas que desglosan el hueco.
     ruta_medida            promedio medido entre los dos locales
     mismo_ubigeo           promedio medido del mismo par de distritos
     ruta_de_la_ref         el regreso se parece al viaje de ida de esa ruta
-    geoapify               NO hay promedio medido: tiempo de manejo real de
-                           Geoapify entre los dos distritos
-    *_capado_geoapify      el promedio medido se disparo (mas de 1,3 x el manejo
-                           real) y se corto con el tiempo de Geoapify; el resto
-                           cae en tiempo_muerto. NO cambia la hora, solo deja de
-                           mentir la explicacion
+                           (solo cuando NO se declaro ubicacion)
+    geoapify               NO hay ningun promedio compilado para ese par: se usa
+                           el tiempo de manejo real de Geoapify
     departamentos          mediana de las rutas con ese par de departamentos
     defecto                valor de configuracion (ultimo recurso)
     ya_esta_en_planta      el camion ya esta en la planta de carga
+
+8.4 Geoapify: cuando se usa (y cuando NO)
+------------------------------------------
+Geoapify se consulta SOLO cuando no existe ningun promedio compilado para el
+tramo: ni la ruta entre los dos locales, ni el mismo par de distritos, ni (si no
+se declaro ubicacion) la ruta de la propia referencia. Si hay dato de la flota,
+ese dato manda y la API no se llama.
+
+El JSON lo dice explicito, sin tener que leer advertencias:
+
+  "geoapify": {
+    "usado": true,
+    "min": 595,
+    "km": 712,
+    "tramo": "ANCON, LIMA, LIMA -> PLANTA CHICLAYO (Chiclayo, Chiclayo, Lambayeque)",
+    "motivo": "no habia promedio compilado para ese par de ubicaciones",
+    "llamadas": 2,
+    "uso_hoy": 17
+  }
+
+Cuando no se usa: `usado: false`, `min: null` y el motivo
+"se uso el promedio medido de la flota". En `historia` tambien quedan
+`geoapify_disponible` (si hay key configurada) y `geoapify_usado`.
+Si la API falla o tarda, se cae a los fallbacks y la prediccion sigue
+(no se bloquea la respuesta).
+
+  CONTEO DE USO (para saber cuanto se gasta)
+  Cada peticion HTTP a Geoapify se cuenta, tambien la que falla: es lo que el
+  proveedor descuenta del plan. El JSON lo publica en el mismo bloque:
+
+    llamadas   peticiones que gasto ESTA prediccion (normalmente 0)
+    uso_hoy    total de llamadas del dia en toda la aplicacion
+
+  Una prediccion puede gastar 1 o 2 llamadas de geocodificacion (ubicar el
+  distrito; se reintenta con el nombre solo si el primer intento no encuentra
+  nada) y 1 de routing (tiempo de manejo entre dos distritos). Las coordenadas
+  se guardan en `geo_coordenadas`, asi que el mismo distrito no se paga dos
+  veces. Con `usado: false` el gasto es cero: si hay promedio medido, Geoapify
+  ni se toca.
+
+  El acumulado dia por dia esta en la pantalla
+  /lupita/prediccion/geoapify (tabla `geoapify_uso`: fecha, endpoint, llamadas,
+  exitosas, fallidas). La tabla de aciertos corre con Geoapify APAGADO, asi que
+  recalcularla no suma en ese contador.
+
+8.4 Tiempos muertos: descanso, dormir y almuerzo
+-------------------------------------------------
+Entre que el camion queda libre (fin de descargue) y se presenta de nuevo hay
+horas que no son viaje: descanso nocturno, siesta, almuerzo, colas y tramites.
+El modelo las separa en dos partes medibles:
+
+  a) hueco_total      lo que de verdad tardo: mediana de sus ultimos 20 pares
+                      fin_descargue -> presenta siguiente, corregida por la hora
+                      a la que quedo libre (un camion liberado a las 23:00 no
+                      vuelve a las 03:00).
+  b) traslado_regreso la parte que es viaje de vuelta (promedio medido de la
+                      ruta, o el manejo real de Geoapify si no hay promedio).
+  c) tiempo_muerto    hueco_total - traslado_regreso: EXACTAMENTE lo que el
+                      camion estuvo parado (descanso, dormir, almuerzo, cola).
+                      Es el numero que hoy nadie mide en ningun otro lado.
+
+Ademas, el modelo aprende a que horas del dia el camion no tiene NINGUN hito:
+una franja de 30 minutos con menos de 2 marcas en todo el periodo es una franja
+muerta (su descanso o su almuerzo). Si la hora calculada cae adentro, se corre
+al final de la franja y ese corrimiento se publica como paso `espera_ventana`.
+Las franjas salen en `historia.ventanas` (minutos del dia) y su origen en
+`historia.ventanas_origen` (perfil_del_camion | defecto_sin_hitos |
+defecto_historia_corta | defecto_perfil_absurdo).
+
+8.5 Placa o conductor: de quien sale el hueco
+----------------------------------------------
+El hueco (lo que tarda el camion en volver a presentarse) se aprende del
+historial de UNA entidad. La regla:
+
+  - Por defecto manda la PLACA: sus ultimos `pares_recientes_max` huecos (20 por
+    defecto), corregidos por la hora a la que quedo libre.
+  - Si el conductor de la referencia concentra MENOS DE LA MITAD de los viajes
+    de esa placa en el periodo mirado (`lookback_dias`, 120 dias por defecto),
+    los promedios de la placa no describen a nadie: el hueco sale del
+    COMPORTAMIENTO DEL CONDUCTOR, con sus propios pares.
+  - Con menos de `min_pares_entidad` (3) pares de la entidad elegida, el motor
+    cae al mismo par de rutas y despues a la mediana global: la evidencia baja y
+    se nota en `evidencia` y `confianza`.
+
+El JSON lo dice en cada prediccion:
+
+  "historia": {
+    "grupo": "conductor",
+    "clave": "4821",
+    "conductor": "JUAN PEREZ",
+    "n": 7,
+    "nivel": "parcial"
+  }
+
+La pantalla de la calculadora lo muestra como "Hueco calibrado con el
+comportamiento del conductor (N pares)" o "el historial de la placa", y la tabla
+de aciertos trae la columna "Calibra con" por fila (el backtest usa la MISMA
+regla que produccion, por eso sus numeros son los del motor real).
+
+COMO LEER LAS DOS COLUMNAS DE CALIBRACION DE LA TABLA
+  Calibra con     el badge dice de quien salio el hueco (placa | conductor) y
+                  debajo cuantos pares reales lo sostienen. 0 pares = no hubo
+                  historia suficiente para ese nivel.
+  Evidencia       el nivel final de la prediccion:
+                    medido  3+ pares del MISMO par de rutas
+                    parcial la entidad (placa o chofer) o la mediana de la flota
+                    cadena  sin pares: traslado + tiempo muerto por defecto
+                  y debajo la confianza 0-100 (techo del nivel menos castigos:
+                  dispersion del hueco, traslado por defecto, horizonte lejano).
+  Regla practica: badge + pares > 0 y evidencia medido/parcial = hora con
+  historia real. Cadena con 0 pares = estimacion gruesa: no comprometer.
+
+8.6 Donde quedan los resultados
+--------------------------------
+Cada prediccion (de la pantalla o del API) se guarda en la tabla
+`prediccion_resultados`: ref, placa, corte, las TRES fechas, inicio de carga,
+evidencia, confianza, origen (pantalla|api), el desglose en JSON y la fecha del
+pedido. Cuando la referencia consigue su `presenta_para_carga` real, el sistema
+la compara contra lo guardado (toma la ultima prediccion hecha ANTES de
+presentar) y publica el porcentaje de exito en dos formas:
+
+  - dentro de la ventana rapido-tardado (la que se le mostro al despachador)
+  - a +/- 3 horas
+
+Ese porcentaje es el "acierto real de produccion" y se ve en
+/lupita/prediccion/aciertos, junto al backtest automatico.
+
+8.7 Documentacion en el navegador
+----------------------------------
+La misma informacion de este archivo, en pantalla:
+/lupita/prediccion/documentacion (requiere sesion y el permiso "ver tiempos").
 
 
 ================================================================================
@@ -621,10 +803,19 @@ sumables: hay filas que arman la hora y filas que desglosan el hueco.
    el acto, se manda la historia con "guardar": true (seccion 4).
 
 9.5 VIGILAR LA CALIDAD DEL MODELO
-   Una vez por semana, correr /api/prediccion/aciertos y mirar `mae_min`,
-   `pct_360` y `comparacion.gana`. Si `gana` es "base" dos semanas seguidas,
-   avisar: el metodo anterior (histograma) esta prediciendo mejor y hay que
-   revisar los parametros (ver pantalla de parametros).
+   Una vez por semana, correr /api/prediccion/aciertos sobre las ultimas 4-6
+   semanas y mirar `mae_min`, `pct_180`, `pct_720` y `pct_ventana` con su `n`.
+   Tres guardas antes de tocar nada:
+
+     - n bajo (< 50 filas) = ruido: alargar el rango antes de concluir.
+     - `sin_ruta` alto = faltan rutas asignadas: se arregla en los datos.
+     - una sola semana muy distinta a las anteriores suele ser calendario
+       (feriados, cierre de planta), no el modelo: comparar la semana con la
+       tabla de 30 dias.
+
+   Si el error sube de forma sostenida, calibrar con
+   `php artisan prediccion:calibrar` (seccion 12) y validar en una semana
+   aparte, nunca en la misma que se uso para elegir.
 
 
 ================================================================================
@@ -636,6 +827,14 @@ Todas las respuestas de error son JSON con "success": false.
   400  No se usa.
   404  {"success": false, "error": "Ref no encontrada"}
        La ref no existe en `referencias`.
+  409  {"success": false, "error": "..."} — el estado de la ref no permite
+       predecir, no es un problema del request:
+         - "La referencia no tiene ruta asignada: sin planta de carga no se
+           puede estimar el traslado ni la espera"  (sin `ruta_id`)
+         - "La referencia ya tiene hitos de carga y ruta sin
+           `presenta_para_carga`: el camion ya presento, no hay una
+           presentacion que predecir"  (ya en curso)
+       Se corrige en los datos (asignar ruta / cargar la presentacion).
   415  {"success": false, "error": "Solo se acepta JSON (Content-Type: application/json)"}
        POST con otro content-type.
   422  {"success": false, "error": "Parametros invalidos", "detalle": {...}}
@@ -655,7 +854,16 @@ Todas las respuestas de error son JSON con "success": false.
   - POST /api/prediccion/presenta         ~200-400 ms (+ escritura si guardar)
   - GET /api/prediccion/aciertos          crece con las filas: ~3-4 s con 300
                                             filas, varios segundos arriba de eso
-                                            (el tope es limit=1000)
+                                            (el tope es limit=1000). La PANTALLA
+                                            /lupita/prediccion/aciertos cachea la
+                                            corrida 10 minutos (con un enlace
+                                            "recalcular"), asi que solo la primera
+                                            carga espera.
+                                            OJO: el backtest NO llama a Geoapify
+                                            (corre cientos de filas y cada
+                                            llamada de red son ~1 s por fila);
+                                            usa solo los promedios medidos y sus
+                                            fallbacks.
 
   Buenas practicas:
   - No llamarlo en bucle por lote de refs: para N refs, mejor N llamadas
@@ -670,7 +878,68 @@ Todas las respuestas de error son JSON con "success": false.
 
 
 ================================================================================
-12. PANTALLAS EQUIVALENTES (PARA REVISAR A MANO)
+12. CALIBRAR EL MOTOR
+================================================================================
+
+El motor no "aprende solo": lo que se calibra es con que parametros interpreta la
+evidencia. Hay tres niveles.
+
+12.1 PARAMETROS, SIN TOCAR CODIGO
+  Las 17 claves de `config/prediccion.php` se pisan una por una con una fila en la
+  tabla `prediccion_config` (clave/valor). La pantalla de parametros edita ocho;
+  el resto (lookback_dias, bins_horarios, spread_cadena, min_dias_actividad,
+  granularidad_min, frescura_horizonte_h, edad_ancla_max_h, tope_hueco_min,
+  tope_etapa_min) se cambia insertando la fila o con `--aplicar` (12.2).
+
+  Las que mas mueven el resultado:
+    pares_recientes_max   con cuantos huecos recientes de la placa se calibra
+    min_pares_ruta        minimo de pares del mismo par de rutas para "medido"
+    min_pares_entidad     minimo por placa/conductor para "parcial"
+    bins_horarios         franjas del dia de la correccion horaria del hueco
+    spread_cadena         ancho de rapido/tardado cuando no hay pares
+    lookback_dias         cuanta historia se mira (calibracion y franjas)
+
+12.2 CALIBRACION AUTOMATICA (comando)
+  `php artisan prediccion:calibrar` corre la MISMA tabla de aciertos del endpoint
+  5 con una rejilla de combinaciones sobre un tramo de ENTRENAMIENTO y elige la
+  que mejor mide sobre el tramo final de VALIDACION (que no se uso para elegir),
+  asi el ganador no es el que mejor memorizo el pasado.
+
+    php artisan prediccion:calibrar                    rejilla por defecto (27)
+    php artisan prediccion:calibrar --metrica=pct_3h   optimizar aciertos a 3 h
+    php artisan prediccion:calibrar --metrica=pct_ventana
+    php artisan prediccion:calibrar --rejilla='{"spread_cadena":[0.2,0.3,0.5]}'
+    php artisan prediccion:calibrar --aplicar          lo guarda en prediccion_config
+
+  Opciones:
+    --desde / --hasta                  tramo completo (def: ultimos 30 dias)
+    --validar-desde / --validar-hasta  validacion (def: ultimos 7 dias)
+    --limite=200                       filas por corrida
+    --metrica=mae | pct_1h | pct_3h | pct_ventana
+    --n-minimo=20                      filas minimas para que una corrida cuente
+    --rejilla='{"clave":[valores]}'    que mover y con que valores
+
+  Que NO hace: no cambia el modelo ni inventa datos. Si el MAE de validacion
+  empeora con todas las combinaciones, el problema esta en los datos (hitos
+  incompletos, huecos de varios dias, refs sin ruta), no en los parametros: antes
+  de calibrar conviene correr `php artisan prediccion:diagnostico`.
+
+12.3 LO QUE TAMBIEN ES CALIBRACION (y no es una perilla)
+  - Cuantiles del hueco: p25/mediana/p75 se miden con los pares reales de la
+    placa (o del conductor) y se corrigen por hora del dia. `spread_cadena` es el
+    unico control sobre la ventana cuando NO hay pares.
+  - Minimos de evidencia: cuanto mas alto el minimo, menos filas califican como
+    "medido" y mas peso tiene la cadena; el efecto sobre el MAE se mide con la
+    tabla de aciertos, no se supone.
+  - Franjas de descanso: `min_hitos_bin` y `min_dias_actividad` deciden si el
+    perfil del camion se cree o se usa el de defecto (22:00-06:00).
+  - La ventana rapido-tardado: su cobertura real (% de veces que la hora real cae
+    adentro) esta en la tabla de aciertos; si esta muy abajo, la ventana es muy
+    angosta para la dispersion real del hueco.
+
+
+================================================================================
+13. PANTALLAS EQUIVALENTES (PARA REVISAR A MANO)
 ================================================================================
 
   https://calls.pedrosotelo.fun/lupita/prediccion/presenta
@@ -680,11 +949,32 @@ Todas las respuestas de error son JSON con "success": false.
 
   https://calls.pedrosotelo.fun/lupita/prediccion/aciertos
       La tabla de aciertos con los mismos numeros del endpoint 5, fila por fila
-      (predicho, real, error, metodo anterior).
+      (rapido, predicho, tardado, real, error). Trae solo las metricas del motor
+      y, por fila, con que historia se calibro ("Calibra con": placa o
+      conductor). El limite de filas se elige entre 10, 40, 80 y 100; el rango
+      por defecto es el dia actual. Cada fila trae dos accesos directos:
+      "Predecir" (abre la pantalla que llama al API, mandando la ref, el corte de
+      esa fila Y el ancla = la ultima ref hecha) y el icono de llaves (el JSON
+      crudo del API con esos mismos tres parametros).
+
+  https://calls.pedrosotelo.fun/lupita/prediccion/api-ref?ref=...&ahora=...
+      Prediccion de UNA referencia pegandole al API publico. Muestra el request
+      y, con un clic, el navegador llama al endpoint: la respuesta se pinta (tres
+      fechas, pasos, JSON completo) y la prediccion queda guardada en
+      `prediccion_resultados` con origen "api".
+
+  https://calls.pedrosotelo.fun/lupita/prediccion/geoapify
+      Cuantas veces se uso el API de Geoapify: hoy, ayer, ultimos 7 y 30 dias,
+      acumulado historico y el detalle dia por dia (geocodificacion, rutas y
+      fallidas). Es el mismo numero que publica `geoapify.llamadas` /
+      `geoapify.uso_hoy`, leido de la tabla `geoapify_uso`.
+
+  https://calls.pedrosotelo.fun/lupita/prediccion/documentacion
+      Esta documentacion en pantalla, con los ejemplos y los codigos de error.
 
 
 ================================================================================
-13. HISTORIAL DE CAMBIOS
+14. HISTORIAL DE CAMBIOS
 ================================================================================
 
   1.0  13/11/2026  Primera version.
@@ -698,13 +988,69 @@ Todas las respuestas de error son JSON con "success": false.
                      nombre del local o distrito y la duracion en h:mm.
                    - `duracion_total_hhmm` y `espera_hhmm`.
                    - `planta_carga_nombre` con el distrito resuelto.
-                   - Traslado con Geoapify cuando no hay promedio medido, y tope
-                     del promedio cuando se dispara (fuente
-                     `ruta_medida_capado_geoapify`); nueva advertencia
-                     `traslado_geoapify`.
+                   - Traslado con Geoapify cuando no hay promedio medido; nueva
+                     advertencia `traslado_geoapify`.
                    - En la pantalla: local y ubigeo se eligen con buscador, y al
                      final se muestran el request y la respuesta JSON de esta
                      misma prediccion.
+
+  1.2  13/11/2026  - TRES FECHAS por prediccion: `presenta_rapido`,
+                     `presenta` (normal) y `presenta_tardado`, mas el arreglo
+                     `presentaciones` con las tres y `desde_ahora` en h:mm.
+                   - Historial: cada prediccion se guarda en la tabla
+                     `prediccion_resultados` (las tres fechas, evidencia,
+                     confianza, origen y desglose).
+                   - Acierto real de produccion en /lupita/prediccion/aciertos:
+                     % dentro de la ventana rapido-tardado y % a +/- 3 h.
+                   - Documentacion en pantalla:
+                     /lupita/prediccion/documentacion (incluye la explicacion de
+                     los tiempos muertos: descanso, dormir y almuerzo).
+
+  1.3  13/11/2026  - Geoapify se consulta UNICAMENTE cuando no hay ningun
+                     promedio compilado del tramo; se elimino el tope del
+                     promedio medido (ya no se llama a la API si hay dato).
+                   - El JSON publica `geoapify: {usado, min, km, tramo, motivo}`
+                     y en `historia` `geoapify_disponible` / `geoapify_usado`.
+                   - Declarar una ubicacion ya no reutiliza la ruta de la propia
+                     referencia como atajo: ese tramo no es el mismo, asi que va
+                     a Geoapify (o a los fallbacks).
+
+  1.4  13/11/2026  - CONTADOR de uso de Geoapify: cada peticion HTTP (tambien
+                     la fallida y la reintentada) suma en la tabla `geoapify_uso`
+                     por dia y por endpoint.
+                   - El JSON publica `geoapify.llamadas` (lo que gasto esa
+                     prediccion) y `geoapify.uso_hoy` (acumulado del dia).
+                   - Pantalla nueva /lupita/prediccion/geoapify con el detalle
+                     dia por dia, y acceso desde la calculadora.
+                   - Pantalla de aciertos: el limite de filas se elige entre 10,
+                     40, 80 y 100 (por defecto 10) y el rango por defecto es el
+                     dia actual. Cada fila tiene un acceso "Predecir" que abre
+                     /lupita/prediccion/api-ref: esa pantalla le pega al API y
+                     guarda la prediccion con origen "api".
+
+  1.5  13/11/2026  - El boton "Predecir" de la tabla de aciertos manda la ref a
+                     predecir, el corte de la fila y el ANCLA (la ultima ref
+                     hecha): antes solo mandaba ref + corte, asi que el motor
+                     podia elegir otro viaje y el resultado no era el evaluado.
+                   - Refs SIN RUTA: no se predicen. La API responde 409
+                     ("La referencia no tiene ruta asignada"), la pantalla lo
+                     explica y la tabla de aciertos las deja fuera contandolas
+                     aparte.
+                   - CALIBRACION: nuevo comando `prediccion:calibrar` (rejilla de
+                     parametros, entrenamiento + validacion, `--aplicar`) y
+                     seccion 12 explicando que se puede mover y que no.
+
+  1.6  13/11/2026  - Se quito la comparacion contra el metodo anterior: el
+                     endpoint 5 y la pantalla de aciertos publican SOLO las
+                     metricas del motor (sin `resumen_metodo_actual`,
+                     `comparacion`, `metodo_actual` ni `metodo_actual_error_min`).
+                   - El backtest ahora calibra con la MISMA regla que produccion
+                     (placa o conductor, ver 8.5) y publica `calibra_con` y
+                     `pares_calibracion` por fila; las metricas son las del motor
+                     real.
+                   - El endpoint 5 publica `sin_ruta` (refs sin ruta, fuera).
+                   - `historia` de cada prediccion trae `grupo`, `clave`,
+                     `conductor` y `n`: de quien salio el hueco.
 
 ================================================================================
  FIN

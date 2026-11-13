@@ -43,6 +43,19 @@ INSERT INTO `prediccion_config` (`clave`, `valor`) VALUES
     ('tope_etapa_min', '2880')
 ON DUPLICATE KEY UPDATE `valor` = VALUES(`valor`);
 
+-- Contador de llamadas a Geoapify (una fila por día y por endpoint).
+-- Migración equivalente: 2026_11_13_160000_create_geoapify_uso_table.php
+-- Sin esta tabla la predicción funciona igual: el contador falla en silencio.
+CREATE TABLE IF NOT EXISTS `geoapify_uso` (
+    `fecha` DATE NOT NULL,
+    `tipo` VARCHAR(20) NOT NULL,
+    `llamadas` INT UNSIGNED NOT NULL DEFAULT 0,
+    `exitosas` INT UNSIGNED NOT NULL DEFAULT 0,
+    `fallidas` INT UNSIGNED NOT NULL DEFAULT 0,
+    `actualizado_en` DATETIME NULL,
+    PRIMARY KEY (`fecha`, `tipo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Verificación después de aplicarlo:
 --   php artisan prediccion:diagnostico --dias=120
 -- Ese comando imprime cuántas referencias traen ruta_id, cuántos pares

@@ -334,6 +334,48 @@ class MotorPresentaTest extends TestCase
         $this->assertSame('1:40', $espera['duracion']);
     }
 
+    public function test_devuelve_tres_fechas_rapido_normal_y_tardado(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            // hueco medido 300 con p25 240 y p75 420
+            'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+        ]));
+
+        $this->assertSame('2026-11-14 13:00', $r->presenta_rapido->format('Y-m-d H:i'));   // 09:00 + 240
+        $this->assertSame('2026-11-14 14:00', $r->presenta->format('Y-m-d H:i'));          // 09:00 + 300
+        $this->assertSame('2026-11-14 16:00', $r->presenta_tardado->format('Y-m-d H:i'));  // 09:00 + 420
+
+        $this->assertCount(3, $r->presentaciones);
+        $this->assertSame(['rapido', 'normal', 'tardado'], array_column($r->presentaciones, 'clave'));
+        $this->assertSame('3:00', $r->presentaciones[0]['desde_ahora']);   // ahora 10:00 -> 13:00
+        $this->assertSame('4:00', $r->presentaciones[1]['desde_ahora']);
+        $this->assertSame('6:00', $r->presentaciones[2]['desde_ahora']);
+    }
+
+    public function test_sin_pares_las_tres_fechas_se_abren_por_porcentaje(): void
+    {
+        // cadena: traslado 180 + muerto 60 = 240; el spread es 30 %, pero el
+        // rápido no puede bajar del traslado (180), no de 168
+        $r = MotorPresenta::predecir($this->entrada(['calibrador' => null]));
+
+        $this->assertSame('2026-11-14 12:00', $r->presenta_rapido->format('Y-m-d H:i'));  // 09:00 + 180
+        $this->assertSame('2026-11-14 13:00', $r->presenta->format('Y-m-d H:i'));         // 09:00 + 240
+        $this->assertSame('2026-11-14 14:12', $r->presenta_tardado->format('Y-m-d H:i')); // 09:00 + 312
+    }
+
+    public function test_el_rapido_nunca_es_menor_que_el_traslado(): void
+    {
+        // p25 de 60 min pero el traslado medido son 180: no puede llegar antes de
+        // lo que tarda el viaje
+        $r = MotorPresenta::predecir($this->entrada([
+            'calibrador' => (object) ['gap_min' => 300, 'p25_min' => 60, 'p75_min' => 420,
+                                      'base_min' => 300, 'residual_min' => 0, 'n' => 6, 'nivel' => 'medido'],
+        ]));
+
+        $this->assertSame('2026-11-14 12:00', $r->presenta_rapido->format('Y-m-d H:i'));  // 09:00 + 180
+    }
+
     public function test_estado_del_conductor(): void
     {
         $enRuta = MotorPresenta::estado('inicio_ruta', Carbon::parse('2026-11-14 08:00'),

@@ -5,8 +5,8 @@ namespace App\Prediccion;
 use stdClass;
 
 /**
- * Métricas de acierto de una corrida de predicción: error medio absoluto, sesgo,
- * porcentajes dentro de tolerancias y comparación contra la línea base.
+ * Métricas de acierto de una corrida de predicción: error medio absoluto, sesgo
+ * y porcentajes dentro de tolerancias.
  *
  * Convención de signos: el error es `predicho - real`, así que un error positivo
  * significa que el motor se quedó corto (el camión llegó más tarde). El MAE y los
@@ -49,6 +49,7 @@ final class Aciertos
             'pct_360' => null,
             'pct_720' => null,
             'pct_ventana' => null,
+            'dentro_ventana' => 0,
         ];
 
         if ($n === 0) {
@@ -67,35 +68,9 @@ final class Aciertos
 
         $resultado = self::pct($dentroVentana, true, $n);
         $salida->pct_ventana = $dentroVentana === [] ? null : $resultado;
+        $salida->dentro_ventana = count(array_filter($dentroVentana, fn ($valor) => (bool) $valor));
 
         return $salida;
-    }
-
-    /** Compara motor contra línea base: gana quien tenga 30 min menos de MAE. */
-    public static function comparar(stdClass $motor, stdClass $base): stdClass
-    {
-        $maeMotor = $motor->mae_min ?? null;
-        $maeBase = $base->mae_min ?? null;
-        $pctMotor = $motor->pct_60 ?? null;
-        $pctBase = $base->pct_60 ?? null;
-
-        $deltaMae = ($maeMotor !== null && $maeBase !== null) ? (int) $maeMotor - (int) $maeBase : null;
-        $deltaPct = ($pctMotor !== null && $pctBase !== null) ? (int) $pctMotor - (int) $pctBase : null;
-
-        $gana = 'empate';
-        if ($deltaMae !== null) {
-            if ($deltaMae <= -30) {
-                $gana = 'motor';
-            } elseif ($deltaMae >= 30) {
-                $gana = 'base';
-            }
-        }
-
-        return (object) [
-            'delta_mae_min' => $deltaMae,
-            'delta_pct_60' => $deltaPct,
-            'gana' => $gana,
-        ];
     }
 
     /**

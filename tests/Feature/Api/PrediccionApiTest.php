@@ -2,6 +2,11 @@
 
 namespace Tests\Feature\Api;
 
+use App\Database\DBPrediccion;
+use App\Models\User;
+use App\Prediccion\Servicio;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -201,5 +206,224 @@ class PrediccionApiTest extends TestCase
         }
 
         $this->assertGreaterThan(0, $conError, 'la corrida no produjo ninguna predicción con error');
+    }
+
+    public function test_una_ref_sin_ruta_se_rechaza_con_409_y_no_se_predice(): void
+    {
+        // sin ruta no hay planta de carga: devolver una hora sería inventar el tramo
+        $fila = DB::table('referencias')
+            ->whereNotNull('presenta_para_carga')
+            ->where(fn ($q) => $q->whereNull('ruta_id')->orWhere('ruta_id', ''))
+            ->orderByDesc('presenta_para_carga')
+            ->first(['ref', 'presenta_para_carga']);
+
+        if ($fila === null) {
+            $this->markTestSkipped('la base no tiene referencias sin ruta');
+        }
+
+        $ahora = Carbon::parse($fila->presenta_para_carga)->subHours(8)->format('Y-m-d H:i');
+
+        $respuesta = $this->getJson('/api/prediccion/presenta?ref=' . $fila->ref . '&ahora=' . urlencode($ahora));
+
+        $respuesta->assertStatus(409)->assertJsonPath('success', false);
+        $this->assertStringContainsString('ruta', (string) $respuesta->json('error'));
+    }
+
+    public function test_las_refs_sin_ruta_quedan_fuera_de_la_tabla_de_aciertos(): void
+    {
+        $desde = '2026-10-20';
+        $hasta = '2026-10-27';
+
+        $pares = DBPrediccion::pares(null, Carbon::parse($desde)->startOfDay(),
+            Carbon::parse($hasta)->endOfDay(), null, null, 80);
+
+        if (count($pares) < 10) {
+            $this->markTestSkipped('el rango no tiene pares suficientes');
+        }
+
+        $corrida = Servicio::backtest(['desde' => $desde, 'hasta' => $hasta, 'limite' => 80]);
+
+        // cada par cae en un solo balde: fila evaluada, sin ruta o descartada
+        $this->assertIsInt($corrida->sin_ruta);
+        $this->assertSame(
+            count($pares),
+            count($corrida->filas) + $corrida->sin_ruta + $corrida->descartados
+        );
+    }
+
+    public function test_un_ancla_que_no_es_viaje_de_la_placa_se_avisa(): void
+    {
+        $fila = DB::table('referencias')
+            ->whereNotNull('ruta_id')->where('ruta_id', '<>', '')
+            ->whereNotNull('presenta_para_carga')
+            ->orderByDesc('presenta_para_carga')
+            ->first(['ref', 'presenta_para_carga']);
+
+        if ($fila === null) {
+            $this->markTestSkipped('la base no tiene referencias con ruta');
+        }
+
+        $ahora = Carbon::parse($fila->presenta_para_carga)->subHours(10)->format('Y-m-d H:i');
+
+        $respuesta = $this->getJson('/api/prediccion/presenta?ref=' . $fila->ref
+            . '&ahora=' . urlencode($ahora) . '&ancla=NOEXISTE1');
+
+        $respuesta->assertOk()->assertJsonPath('success', true);
+
+        $avisos = array_map(fn ($aviso) => explode(':', (string) $aviso)[0], (array) $respuesta->json('advertencias'));
+        $this->assertContains('ancla_no_encontrada', $avisos);
+    }
+
+    public function test_aciertos_publica_solo_las_metricas_del_motor(): void
+    {
+        $respuesta = $this->getJson('/api/prediccion/aciertos?desde=2026-10-20&hasta=2026-11-13&limit=5');
+        $respuesta->assertOk()->assertJsonPath('success', true);
+
+        $filas = $respuesta->json('filas');
+        $this->assertNotEmpty($filas);
+
+        $this->assertArrayHasKey('calibra_con', $filas[0]);
+        $this->assertContains($filas[0]['calibra_con'], ['placa', 'conductor']);
+        $this->assertArrayHasKey('pares_calibracion', $filas[0]);
+
+        // la comparación contra el método anterior ya no se publica
+        $this->assertArrayNotHasKey('comparacion', $respuesta->json());
+        $this->assertArrayNotHasKey('resumen_metodo_actual', $respuesta->json());
+        $this->assertArrayNotHasKey('metodo_actual', $filas[0]);
+        $this->assertArrayHasKey('sin_ruta', $respuesta->json());
+    }
+
+    public function test_la_tabla_calibra_con_el_conductor_cuando_es_minoritario(): void
+    {
+        $desde = '2026-10-20';
+        $hasta = '2026-10-27';
+
+        $corrida = Servicio::backtest(['desde' => $desde, 'hasta' => $hasta, 'limite' => 60]);
+
+        $porConductor = array_values(array_filter($corrida->filas, fn ($fila) => $fila->grupo === 'conductor'));
+        if ($porConductor === []) {
+            $this->markTestSkipped('el rango no tiene filas calibradas por conductor');
+        }
+
+        $fila = $porConductor[0];
+        $conductor = DB::table('referencias')->where('ref', $fila->ref)->value('conductor_id');
+        if ($conductor === null) {
+            $this->markTestSkipped('la ref no trae conductor');
+        }
+
+        // el grupo tiene que poder recalcularse con el historial anterior al ancla
+        $pares = DBPrediccion::pares(null, Carbon::parse($desde)->subDays(120),
+            Carbon::parse($hasta)->endOfDay(), $fila->placa, null, 20000);
+        $previos = Servicio::pares_previos($pares, $fila->ancla, 10000);
+        $pct = Servicio::pct_conductor($previos, (int) $conductor);
+
+        [$esperado] = Servicio::clave_calibracion($fila->placa, (int) $conductor, $pct);
+
+        $this->assertSame('conductor', $esperado);
+        $this->assertSame($esperado, $fila->grupo);
+        $this->assertIsInt($fila->pares_calibracion);
+    }
+
+    public function test_las_pantallas_de_prediccion_traen_su_javascript(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAs(User::query()->firstOrFail());
+
+        // api-ref: el botón "Generar predicción" es JS puro. Antes la vista usaba
+        // @push('scripts') y el layout sólo tiene @yield('scripts'), así que el
+        // script NUNCA llegaba a la página y el botón no hacía nada.
+        $html = (string) $this->get(route('lupita.prediccion.api_ref', [
+            'ref' => '1154197',
+            'ahora' => '2026-10-10 17:49',
+            'ancla' => '1153965',
+        ]))->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="btn-predecir"', $html);
+        $this->assertStringContainsString('pidiendo al API', $html);
+        $this->assertStringContainsString('addEventListener', $html);
+
+        // calculadora: el buscador de local/ubigeo también es JS
+        $html = (string) $this->get(route('lupita.prediccion.presenta', ['placa' => 'C7B804']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('function buscador(', $html);
+    }
+
+    public function test_una_ref_ya_en_curso_no_se_predice(): void
+    {
+        // la ref ya cargó y va camino del destino, pero le falta el presenta:
+        // predecir una presentación que ya ocurrió sería inventar la hora
+        $fila = DB::table('referencias')
+            ->where(fn ($q) => $q->whereNull('presenta_para_carga')->orWhere('presenta_para_carga', ''))
+            ->whereNotNull('inicio_ruta')
+            ->orderByDesc('inicio_ruta')
+            ->first(['ref']);
+
+        if ($fila === null) {
+            $this->markTestSkipped('la base no tiene refs en curso sin presenta');
+        }
+
+        $respuesta = $this->getJson('/api/prediccion/presenta?ref=' . $fila->ref);
+
+        $respuesta->assertStatus(409)->assertJsonPath('success', false);
+        $this->assertStringContainsString('presenta_para_carga', (string) $respuesta->json('error'));
+    }
+
+    public function test_la_fila_del_backtest_predice_lo_mismo_que_el_api(): void
+    {
+        // el botón "Predecir" de la tabla manda ref + corte + ancla: tiene que
+        // devolver la MISMA hora que mostró la fila
+        $dia = '2026-10-10';
+        $corrida = Servicio::backtest(['desde' => $dia, 'hasta' => $dia, 'limite' => 500]);
+
+        $fila = null;
+        foreach ($corrida->filas as $candidata) {
+            if ($candidata->predicho !== null) {
+                $fila = $candidata;
+                break;
+            }
+        }
+
+        if ($fila === null) {
+            $this->markTestSkipped('la corrida no produjo ninguna predicción');
+        }
+
+        $api = Servicio::predecir($fila->ref, [
+            'ahora' => $fila->ancla->format('Y-m-d H:i'),
+            'ancla_ref' => $fila->ancla_ref,
+        ]);
+
+        $this->assertNotNull($api->presenta);
+        $this->assertSame(
+            $fila->predicho->format('Y-m-d H:i'),
+            $api->presenta->format('Y-m-d H:i'),
+            'la fila del backtest y el API tienen que predecir la misma hora'
+        );
+    }
+
+    public function test_la_tabla_manda_ref_corte_y_ancla_en_el_boton_predecir(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAs(User::query()->firstOrFail());
+
+        $respuesta = $this->get(route('lupita.prediccion.aciertos', [
+            'fecha_inicio' => '2026-10-20',
+            'fecha_fin' => '2026-11-13',
+            'limite' => 10,
+        ]));
+
+        $respuesta->assertOk();
+        $html = (string) $respuesta->getContent();
+
+        // el botón tiene que llevar la ref a predecir, el corte y la última ref
+        // hecha (ancla): sin el ancla el motor elige otro viaje y el resultado
+        // no es el que evaluó esta fila
+        $this->assertMatchesRegularExpression('/api-ref\?ref=\d+[^"]*ancla=\d+/', $html);
+
+        // solo las metricas del motor, con la columna de a quien se calibro
+        $this->assertStringContainsString('Calibra<br>', $html);
+        $this->assertStringNotContainsString('Método actual', $html);
+        $this->assertStringNotContainsString('Quién gana', $html);
     }
 }
