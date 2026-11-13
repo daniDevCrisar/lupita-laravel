@@ -176,6 +176,27 @@ class MotorPresentaTest extends TestCase
         $this->assertContains('ancla_vieja', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
     }
 
+    public function test_el_desglose_suma_exactamente_lo_que_hay_hasta_presenta(): void
+    {
+        // con ancla cerrada, la hora sale de ancla + hueco + desplazamiento:
+        // si el desglose no suma eso, la explicación de la pantalla está mintiendo
+        $r = MotorPresenta::predecir($this->entrada([
+            'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+            'ventanas' => [['desde' => 1320, 'hasta' => 1440], ['desde' => 0, 'hasta' => 360]],
+        ]));
+
+        $suma = 0;
+        foreach ($r->desglose as $fila) {
+            if (in_array($fila['concepto'], ['restante_viaje', 'hueco_total', 'espera_ventana'], true)) {
+                $suma += $fila['min'];
+            }
+        }
+
+        $desdeAncla = (int) round(($r->presenta->getTimestamp() - $r->ancla->fecha->getTimestamp()) / 60);
+        $this->assertSame($desdeAncla, $suma);
+    }
+
     public function test_estado_del_conductor(): void
     {
         $enRuta = MotorPresenta::estado('inicio_ruta', Carbon::parse('2026-11-14 08:00'),
