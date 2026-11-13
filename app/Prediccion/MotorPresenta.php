@@ -127,14 +127,19 @@ final class MotorPresenta
             $fuenteHueco = 'cadena (traslado + muerto por defecto)';
             $evidencia = 'cadena';
         } else {
+            // El hueco medido ya contiene el regreso real: manda sobre el promedio
+            // de la ruta, aunque sea menor. Sólo se avisa, no se pisa.
             $hueco = (int) $gap;
             $fuenteHueco = 'medido (' . (int) ($cal->n ?? 0) . ' pares)';
             $evidencia = (string) ($cal->nivel ?? 'parcial');
+
+            if ($trasladoMin !== null && $hueco < $trasladoMin) {
+                $salida->advertencias[] = 'hueco_menor_que_traslado: el hueco medido (' . $hueco
+                    . ' min) es menor que el traslado promedio de la ruta (' . $trasladoMin
+                    . ' min); se respeta el medido';
+            }
         }
 
-        if ($trasladoMin !== null) {
-            $hueco = max($hueco, $trasladoMin);
-        }
         $hueco = max(1, min(max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO)), $hueco));
 
         // 4) fuera de las franjas inactivas del camión
@@ -211,7 +216,9 @@ final class MotorPresenta
             $total += min(self::TOPE_ETAPA, max(0, (int) round((float) $valor)));
         }
 
-        return $total;
+        // el remanente de un viaje tampoco puede superar el tope de una etapa:
+        // por encima de eso los promedios son basura, no un viaje largo
+        return min(self::TOPE_ETAPA, $total);
     }
 
     /**

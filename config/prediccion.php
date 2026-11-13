@@ -20,10 +20,17 @@ return [
     'min_pares_ruta' => 3,
     'min_pares_entidad' => 3,
 
+    // Pares más recientes por placa con los que se calibra el hueco (0 = toda la
+    // historia). El hueco mediano de la flota cae mes a mes: calibrar con 120 días
+    // parejos sobreestima la vuelta en casi medio día.
+    'pares_recientes_max' => 20,
+
     // Franjas de no-actividad: días mínimos para creerle al perfil propio y
-    // cobertura máxima (fracción de tiempo con actividad) para llamarla inactiva.
+    // cuántas marcas (hitos) tiene que haber en una franja de 30 min para que
+    // cuente como activa. Con 2, una franja donde el camión nunca hizo nada en
+    // todo el lookback es descanso o almuerzo.
     'min_dias_actividad' => 5,
-    'umbral_inactividad' => 0.10,
+    'min_hitos_bin' => 2,
     'granularidad_min' => 30,
 
     // Franjas de 3 h para la corrección del hueco por hora del ancla.

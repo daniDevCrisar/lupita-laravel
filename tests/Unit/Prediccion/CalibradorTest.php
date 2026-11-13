@@ -87,4 +87,29 @@ class CalibradorTest extends TestCase
         $this->assertSame('parcial', $est->nivel);
         $this->assertSame(300, $est->gap_min);
     }
+
+    public function test_calibra_con_los_pares_mas_recientes(): void
+    {
+        // 10 pares viejos de 1000 min y los 3 mas nuevos de 300 min: sin recencia
+        // la mediana seria 1000 y el motor sobreestimaria la vuelta
+        $viejos = [];
+        for ($i = 0; $i < 10; $i++) {
+            $ancla = Carbon::parse(sprintf('2026-07-%02d 08:00', $i + 1));
+            $viejos[] = (object) ['ancla' => $ancla, 'presenta' => $ancla->copy()->addMinutes(1000),
+                'ruta_ancla' => 'R1', 'ruta_siguiente' => 'R2', 'entidad' => 'ABC123'];
+        }
+        $nuevos = [];
+        for ($i = 0; $i < 3; $i++) {
+            $ancla = Carbon::parse(sprintf('2026-10-%02d 08:00', 21 + $i));
+            $nuevos[] = (object) ['ancla' => $ancla, 'presenta' => $ancla->copy()->addMinutes(300),
+                'ruta_ancla' => 'R1', 'ruta_siguiente' => 'R2', 'entidad' => 'ABC123'];
+        }
+        $pares = array_merge($viejos, $nuevos);
+
+        $sinRecencia = Calibrador::calibrar($pares);
+        $conRecencia = Calibrador::calibrar($pares, 3, 3, 8, 5);
+
+        $this->assertSame(1000, Calibrador::estimar($sinRecencia, 'R1', 'R2', 'ABC123', 8)->gap_min);
+        $this->assertSame(300, Calibrador::estimar($conRecencia, 'R1', 'R2', 'ABC123', 8)->gap_min);
+    }
 }

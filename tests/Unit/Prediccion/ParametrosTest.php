@@ -15,7 +15,7 @@ class ParametrosTest extends TestCase
         $this->assertSame(3, $p->min_pares_ruta);
         $this->assertSame(3, $p->min_pares_entidad);
         $this->assertSame(5, $p->min_dias_actividad);
-        $this->assertSame(0.10, $p->umbral_inactividad);
+        $this->assertSame(2, $p->min_hitos_bin);
         $this->assertSame(30, $p->granularidad_min);
         $this->assertSame(8, $p->bins_horarios);
         $this->assertSame(600, $p->max_desplazamiento_min);
@@ -34,6 +34,6 @@ class ParametrosTest extends TestCase
         $p = Parametros::cargar();
 
         $this->assertSame(3, $p->min_pares_ruta);
-        $this->assertSame(0.10, $p->umbral_inactividad);
+        $this->assertSame(2, $p->min_hitos_bin);
     }
 }

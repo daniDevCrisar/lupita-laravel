@@ -31,15 +31,20 @@ final class Calibrador
     /**
      * Agrupa los pares y calcula los niveles, la curva horaria y la base global.
      *
+     * `$max_por_entidad` se queda sólo con los pares más recientes de cada placa
+     * o chofer. No es un detalle: el hueco mediano de la flota pasó de ~1900 min
+     * en abril a ~540 min en noviembre, así que calibrar con 120 días parejos
+     * sobreestima la vuelta en casi medio día. Con 0 se usa toda la historia.
+     *
      * @param  array<int, object>  $pares  cada uno con ancla, presenta, ruta_ancla, ruta_siguiente, entidad
      */
-    public static function calibrar(array $pares, int $min_ruta = 3, int $min_entidad = 3, int $bins = 8): stdClass
+    public static function calibrar(array $pares, int $min_ruta = 3, int $min_entidad = 3, int $bins = 8,
+                                    int $max_por_entidad = 0): stdClass
     {
         $bins = max(1, min(24, $bins));
         $limpios = [];
         $por_clave = [];
         $por_entidad = [];
-        $todos = [];
 
         foreach ($pares as $par) {
             $ancla = self::carbon($par->ancla ?? null);
@@ -56,20 +61,26 @@ final class Calibrador
             $rutaAncla = self::texto($par->ruta_ancla ?? null);
             $rutaSig = self::texto($par->ruta_siguiente ?? null);
             $entidad = self::texto($par->entidad ?? null) ?: 'sin_entidad';
-            $clave = ($rutaAncla !== '' && $rutaSig !== '') ? $rutaAncla . '>' . $rutaSig : null;
 
-            $fila = [
+            $limpios[] = [
+                'ancla' => $ancla,
                 'hueco' => $hueco,
-                'clave' => $clave,
+                'clave' => ($rutaAncla !== '' && $rutaSig !== '') ? $rutaAncla . '>' . $rutaSig : null,
                 'entidad' => $entidad,
                 'bin' => Estadistica::bin_horario((int) $ancla->format('G'), $bins),
             ];
+        }
 
-            $limpios[] = $fila;
-            $todos[] = $hueco;
-            $por_entidad[$entidad][] = $hueco;
-            if ($clave !== null) {
-                $por_clave[$clave][] = $hueco;
+        if ($max_por_entidad > 0) {
+            $limpios = self::recientes_por_entidad($limpios, $max_por_entidad);
+        }
+
+        $todos = [];
+        foreach ($limpios as $fila) {
+            $todos[] = $fila['hueco'];
+            $por_entidad[$fila['entidad']][] = $fila['hueco'];
+            if ($fila['clave'] !== null) {
+                $por_clave[$fila['clave']][] = $fila['hueco'];
             }
         }
 
@@ -89,11 +100,36 @@ final class Calibrador
             'min_ruta' => max(1, $min_ruta),
             'min_entidad' => max(1, $min_entidad),
             'bins' => $bins,
+            'recientes_max' => max(0, $max_por_entidad),
             'par_rutas' => $par_rutas,
             'entidad' => $entidad,
-            'curva' => self::curva($limpios, $por_clave, $por_entidad, $todos, $min_ruta, $min_entidad, $bins),
+            'curva' => self::curva($limpios, $por_entidad, $todos, $min_entidad, $bins),
             'global' => $global,
         ];
+    }
+
+    /**
+     * Deja los `$max` pares más recientes de cada entidad.
+     *
+     * @param  array<int, array<string, mixed>>  $filas
+     * @return array<int, array<string, mixed>>
+     */
+    private static function recientes_por_entidad(array $filas, int $max): array
+    {
+        $porEntidad = [];
+        foreach ($filas as $fila) {
+            $porEntidad[$fila['entidad']][] = $fila;
+        }
+
+        $salida = [];
+        foreach ($porEntidad as $grupo) {
+            usort($grupo, fn (array $a, array $b) => $b['ancla']->getTimestamp() <=> $a['ancla']->getTimestamp());
+            foreach (array_slice($grupo, 0, $max) as $fila) {
+                $salida[] = $fila;
+            }
+        }
+
+        return $salida;
     }
 
     /**
@@ -151,13 +187,16 @@ final class Calibrador
     }
 
     /**
-     * Corrección por franja horaria: mediana del residuo (hueco real - base del
-     * nivel que le toca) de cada franja, con toda la base.
+     * Corrección por franja horaria: mediana del residuo `hueco real - mediana de
+     * la propia entidad` en cada franja.
+     *
+     * El residuo se mide contra la base de la ENTIDAD (no contra la del par de
+     * rutas) para que la corrección se pueda sumar a cualquier base, incluida la
+     * de una calibración hecha sólo con los pares recientes de una placa.
      *
      * @return array<int, array{n: int, residual_min: ?int}>
      */
-    private static function curva(array $limpios, array $por_clave, array $por_entidad, array $todos,
-                                  int $min_ruta, int $min_entidad, int $bins): array
+    private static function curva(array $limpios, array $por_entidad, array $todos, int $min_entidad, int $bins): array
     {
         $curva = [];
         for ($bin = 0; $bin < $bins; $bin++) {
@@ -167,9 +206,7 @@ final class Calibrador
         $residuos = [];
         foreach ($limpios as $fila) {
             $base = null;
-            if ($fila['clave'] !== null && count($por_clave[$fila['clave']] ?? []) >= $min_ruta) {
-                $base = Estadistica::mediana($por_clave[$fila['clave']]);
-            } elseif (count($por_entidad[$fila['entidad']] ?? []) >= $min_entidad) {
+            if (count($por_entidad[$fila['entidad']] ?? []) >= $min_entidad) {
                 $base = Estadistica::mediana($por_entidad[$fila['entidad']]);
             } elseif (count($todos) >= $min_entidad) {
                 $base = Estadistica::mediana($todos);

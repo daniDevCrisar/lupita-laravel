@@ -8,42 +8,64 @@ use Tests\TestCase;
 
 class VentanasTest extends TestCase
 {
-    /** @return array<int, object> intervalos diarios "desde -> fin" durante $dias */
-    private function jornada(int $dias = 10, string $desde = '06:00', string $fin = '22:00'): array
+    /**
+     * Marcas horarias diarias del camión: "un hito a las 07:00 todos los días".
+     *
+     * @param  array<int, string>  $horas
+     * @return array<int, Carbon>
+     */
+    private function hitos(array $horas, int $dias = 10): array
     {
-        $out = [];
+        $salida = [];
         for ($i = 0; $i < $dias; $i++) {
             $dia = Carbon::parse('2026-10-01 00:00')->addDays($i);
-            $out[] = (object) ['desde' => $dia->copy()->setTimeFromTimeString($desde),
-                               'fin' => $dia->copy()->setTimeFromTimeString($fin)];
+            foreach ($horas as $hora) {
+                $salida[] = $dia->copy()->setTimeFromTimeString($hora);
+            }
         }
 
-        return $out;
+        return $salida;
     }
 
     public function test_detecta_la_noche_sin_actividad(): void
     {
         $ventanas = Ventanas::inactivas(
-            $this->jornada(),
+            $this->hitos(['07:00', '11:00', '13:00', '18:00']),
             Carbon::parse('2026-10-01 00:00'),
             Carbon::parse('2026-10-11 00:00')
         );
 
-        $this->assertContains(['desde' => 1320, 'hasta' => 1440], $ventanas);
-        $this->assertContains(['desde' => 0, 'hasta' => 360], $ventanas);
+        $this->assertContains(['desde' => 0, 'hasta' => 420], $ventanas);      // 00:00 - 07:00
+        $this->assertContains(['desde' => 1110, 'hasta' => 1440], $ventanas); // 18:30 - 24:00
     }
 
-    public function test_detecta_el_almuerzo_cuando_la_jornada_se_parte(): void
+    public function test_detecta_el_almuerzo_sin_marcas(): void
     {
-        // jornada completa 06-22: el mediodia esta cubierto y no hay franja
-        $completa = Ventanas::inactivas($this->jornada(10), Carbon::parse('2026-10-01 00:00'), Carbon::parse('2026-10-11 00:00'));
-        $this->assertNotContains(['desde' => 720, 'hasta' => 780], $completa);
+        // come entre las 11:30 y las 14:00: en esa franja no hay ni una marca
+        $ventanas = Ventanas::inactivas(
+            $this->hitos(['07:00', '11:00', '14:00', '18:00']),
+            Carbon::parse('2026-10-01 00:00'),
+            Carbon::parse('2026-10-11 00:00')
+        );
 
-        // jornada partida 06-12 y 13-22: 12-13 queda inactivo
-        $partida = array_merge($this->jornada(10, '06:00', '12:00'), $this->jornada(10, '13:00', '22:00'));
-        $ventanas = Ventanas::inactivas($partida, Carbon::parse('2026-10-01 00:00'), Carbon::parse('2026-10-11 00:00'));
+        $this->assertContains(['desde' => 690, 'hasta' => 840], $ventanas);
+    }
 
-        $this->assertContains(['desde' => 720, 'hasta' => 780], $ventanas);
+    public function test_una_franja_con_una_sola_marca_cuenta_como_muerta(): void
+    {
+        $hitos = array_merge(
+            $this->hitos(['07:00', '18:00']),
+            [Carbon::parse('2026-10-03 12:10')]   // una sola marca al mediodía
+        );
+
+        $ventanas = Ventanas::inactivas($hitos, Carbon::parse('2026-10-01 00:00'), Carbon::parse('2026-10-11 00:00'));
+
+        $this->assertContains(['desde' => 450, 'hasta' => 1080], $ventanas);
+    }
+
+    public function test_sin_hitos_no_inventa_ventanas(): void
+    {
+        $this->assertSame([], Ventanas::inactivas([], Carbon::parse('2026-10-01 00:00'), Carbon::parse('2026-10-11 00:00')));
     }
 
     public function test_desplaza_una_fecha_dentro_de_la_noche(): void

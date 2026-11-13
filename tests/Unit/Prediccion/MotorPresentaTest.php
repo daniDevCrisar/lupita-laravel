@@ -130,6 +130,19 @@ class MotorPresentaTest extends TestCase
         $this->assertContains('etapa_vencida', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
     }
 
+    public function test_hueco_medido_menor_que_el_traslado_se_respeta_y_avisa(): void
+    {
+        // el hueco sale de 5 pares reales de la placa: manda sobre el promedio de ruta
+        $r = MotorPresenta::predecir($this->entrada([
+            'calibrador' => (object) ['gap_min' => 120, 'p25_min' => 90, 'p75_min' => 240,
+                                      'base_min' => 120, 'residual_min' => 0, 'n' => 5, 'nivel' => 'medido'],
+            'traslado' => (object) ['min' => 600, 'fuente' => 'ruta_medida'],
+        ]));
+
+        $this->assertSame('2026-11-14 11:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertContains('hueco_menor_que_traslado', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
+    }
+
     public function test_estado_del_conductor(): void
     {
         $enRuta = MotorPresenta::estado('inicio_ruta', Carbon::parse('2026-11-14 08:00'),

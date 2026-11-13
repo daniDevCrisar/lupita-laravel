@@ -16,8 +16,11 @@ use stdClass;
  */
 final class Parametros
 {
-    /** Claves que se castean a float (el resto a int). */
-    private const FLOTANTES = ['umbral_inactividad'];
+    /**
+     * Claves que se castean a float (el resto a int). Hoy todos los parámetros
+     * son minutos, días o conteos; el arreglo queda por si se agrega un ratio.
+     */
+    private const FLOTANTES = [];
 
     private static ?stdClass $cache = null;
 
