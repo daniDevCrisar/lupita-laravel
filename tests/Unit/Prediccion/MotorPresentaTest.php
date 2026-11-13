@@ -107,13 +107,15 @@ class MotorPresentaTest extends TestCase
 
     public function test_la_ventana_mueve_la_prediccion_nocturna(): void
     {
+        // el camión queda libre a las 20:00 y el hueco lo deja a la 01:00,
+        // dentro de su franja muerta: la predicción se corre a las 06:00
         $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-14 20:00'),
             'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
                                  'fecha' => Carbon::parse('2026-11-14 20:00')],
             'ventanas' => [['desde' => 1320, 'hasta' => 1440], ['desde' => 0, 'hasta' => 360]],
         ]));
 
-        // 20:00 + 300' = 01:00 (dentro de la ventana) -> 06:00
         $this->assertSame('2026-11-15 06:00', $r->presenta->format('Y-m-d H:i'));
         $this->assertSame(300, collect($r->desglose)->firstWhere('concepto', 'espera_ventana')['min']);
     }
@@ -141,6 +143,19 @@ class MotorPresentaTest extends TestCase
 
         $this->assertSame('2026-11-14 11:00', $r->presenta->format('Y-m-d H:i'));
         $this->assertContains('hueco_menor_que_traslado', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
+    }
+
+    public function test_ancla_en_el_futuro_se_acota_a_ahora(): void
+    {
+        // un hito mal cargado (fecha posterior al corte) no puede adelantar la predicción
+        $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-14 10:00'),
+            'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-12-01 09:00')],
+        ]));
+
+        $this->assertSame('2026-11-14 15:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertContains('ancla_futura', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
     }
 
     public function test_estado_del_conductor(): void

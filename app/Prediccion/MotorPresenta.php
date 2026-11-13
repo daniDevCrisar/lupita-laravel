@@ -86,6 +86,14 @@ final class MotorPresenta
             return $salida;
         }
 
+        // un hito mal cargado con fecha posterior al corte no puede correr la
+        // predicción hacia el futuro
+        if ($fechaAncla->greaterThan($ahora)) {
+            $fechaAncla = $ahora->copy();
+            $salida->advertencias[] = 'ancla_futura: el último hito del camión está fechado después del corte; '
+                . 'se usa el corte como ancla';
+        }
+
         // 2) t_fin: cuándo queda libre el camión
         $etapas = is_array($e->etapas ?? null) ? $e->etapas : (array) ($e->etapas ?? []);
         $restante = null;
