@@ -256,7 +256,9 @@ JSON;
                         <tr><td><code>duracion_total_hhmm</code></td><td>del ancla a la presentación normal (puede pasar de 24 h: <code>96:27</code>)</td></tr>
                         <tr><td><code>evidencia</code></td><td><code>medido</code> (3+ pares del mismo par de rutas) · <code>parcial</code> (de la placa) · <code>cadena</code> (sin historia) · <code>sin_datos</code></td></tr>
                         <tr><td><code>confianza</code></td><td>0–100. ≥60 planificar · 30–59 mostrar avisando · &lt;30 no comprometer</td></tr>
-                        <tr><td><code>pasos</code></td><td>los pasos en orden, con nombre de local/distrito y <code>h:mm</code></td></tr>
+                        <tr><td><code>pasos</code></td><td>los pasos en orden, cada uno con su <code>fecha</code>,
+                            <code>acumulado_min</code> y <code>h:mm</code>; la suma de duraciones (con
+                            <code>ajuste</code> si la hora se recortó) da <code>presenta − ancla.fecha</code></td></tr>
                         <tr><td><code>atrasado</code></td><td>el cálculo cayó antes de <code>ahora</code>: ya debería haber presentado</td></tr>
                         <tr><td><code>historia</code></td><td>cuántos pares se usaron, con quién se calibró
                             (<code>grupo</code> = <code>placa</code> o <code>conductor</code>), las franjas y si
@@ -307,6 +309,9 @@ JSON;
                         <li><strong>415</strong> — POST sin <code>Content-Type: application/json</code>.</li>
                         <li><strong>422</strong> — parámetro inválido, local inexistente, ubigeo que no es de 6 dígitos,
                             o <code>guardar</code> sin viaje/historia. Trae <code>detalle</code>.</li>
+                        <li><strong>422 · “Ubicación ambigua”</strong> — <code>ubicacion_texto</code> coincidió con varias
+                            ubicaciones (<code>candidatos</code> con <code>{id, texto}</code>): repetir con
+                            <code>ubicacion_id</code> o con el nombre más completo.</li>
                         <li><strong>500</strong> — falla del servidor: reintentar con espera.</li>
                     </ul>
                 </div>
@@ -386,6 +391,17 @@ php artisan prediccion:calibrar --aplicar   # guarda en prediccion_config</pre>
                 mediana de la flota · <code>cadena</code> sin pares: traslado + tiempo muerto por defecto) con la
                 confianza 0-100 debajo. Regla práctica: pares &gt; 0 con evidencia <code>medido</code>/<code>parcial</code>
                 = hora con historia real; <code>cadena</code> con 0 pares = estimación gruesa, no comprometer.
+                <br>
+                <strong>De dónde sale cada número (cruce de las APIs compiladas).</strong> El <em>viaje al destino</em>
+                sale del compilado de la ruta (<code>/api/tiempos/promedio</code>: <code>mediana_min</code>) mezclado
+                con lo que <em>esa placa</em> tarda en la misma ruta, con peso <code>w = n/(n+k)</code>
+                (<code>cruce_pares_k</code>, k=3: 1 viaje propio pesa 25 %, 3 pesan 50 %, 10 pesan 77 %). La
+                <em>cola en destino</em> y el <em>descargue</em> salen del compilado por planta
+                (<code>/api/tiempos/promedio/plantas</code>: <code>prom_fuera_descarga_min</code> +
+                <code>prom_dentro_descarga_min</code>); la <em>espera en la planta de carga</em>, de
+                <code>prom_fuera_carga_min</code> + <code>prom_dentro_carga_min</code>. El
+                <em>tiempo muerto/descanso</em> es el único que no existe en esas APIs: sale de los pares de la
+                placa/chofer. Todo queda en <code>historia.viaje_cruce</code> y en <code>historia.traslado_fuente</code>.
             </p>
             </div>
         </div>

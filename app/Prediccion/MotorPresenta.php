@@ -341,6 +341,24 @@ final class MotorPresenta
         $pasos = [];
         $planta = (string) ($e->planta_nombre ?? 'la planta de carga');
         $traslado = $e->traslado ?? null;
+        $acumulado = 0;
+
+        /** Cada paso de duración trae SU fecha (ancla + acumulado), para que una
+         *  línea de tiempo se arme sin recalcular nada y siempre cierre. */
+        $agregar = function (string $concepto, string $titulo, string $detalle, int $min) use (
+            &$pasos, &$acumulado, $fechaAncla
+        ): void {
+            $acumulado += $min;
+            $pasos[] = [
+                'concepto' => $concepto,
+                'titulo' => $titulo,
+                'detalle' => $detalle,
+                'fecha' => $fechaAncla->copy()->addMinutes($acumulado)->format('Y-m-d H:i:s'),
+                'min' => $min,
+                'duracion' => Tiempo::hhmm($min),
+                'acumulado_min' => $acumulado,
+            ];
+        };
 
         $pasos[] = [
             'concepto' => 'ancla',
@@ -349,68 +367,54 @@ final class MotorPresenta
             'fecha' => $fechaAncla->format('Y-m-d H:i:s'),
             'min' => 0,
             'duracion' => Tiempo::hhmm(0),
+            'acumulado_min' => 0,
         ];
 
         if (!$cerrada && $restante !== null && $restante > 0) {
-            $pasos[] = [
-                'concepto' => 'restante_viaje',
-                'titulo' => 'Termina el viaje en curso',
-                'detalle' => 'le faltan las etapas que siguen a ' . Tiempo::hito($salida->ancla->hito ?? null)
-                    . ' en su ruta',
-                'fecha' => null,
-                'min' => $restante,
-                'duracion' => Tiempo::hhmm($restante),
-            ];
+            $agregar('restante_viaje', 'Falta del viaje en curso',
+                'le faltan las etapas que siguen a ' . Tiempo::hito($salida->ancla->hito ?? null)
+                . ' en su ruta (medianas de la ruta)', $restante);
         }
 
-        $pasos[] = [
-            'concepto' => 'traslado',
-            'titulo' => 'Regreso hasta ' . $planta,
-            'detalle' => trim((string) ($traslado->texto ?? 'tramo estimado'))
-                . (isset($traslado->km) && $traslado->km !== null ? ' · ' . $traslado->km . ' km' : '')
-                . ' · fuente: ' . (string) ($traslado->fuente ?? 'sin dato'),
-            'fecha' => null,
-            'min' => (int) ($trasladoMin ?? 0),
-            'duracion' => Tiempo::hhmm((int) ($trasladoMin ?? 0)),
-        ];
+        $agregar('traslado', 'Traslado de regreso a ' . $planta,
+            trim((string) ($traslado->texto ?? 'tramo estimado'))
+            . (isset($traslado->km) && $traslado->km !== null ? ' · ' . $traslado->km . ' km' : '')
+            . ' · fuente: ' . (string) ($traslado->fuente ?? 'sin dato'),
+            (int) ($trasladoMin ?? 0));
 
-        $pasos[] = [
-            'concepto' => 'tiempo_muerto',
-            'titulo' => 'Espera y descanso del conductor',
-            'detalle' => 'diferencia entre el hueco real medido y el traslado estimado',
-            'fecha' => null,
-            'min' => $tiempoMuerto,
-            'duracion' => Tiempo::hhmm($tiempoMuerto),
-        ];
+        $agregar('tiempo_muerto', 'Espera y descanso del conductor',
+            'hueco real medido (' . Tiempo::hhmm($hueco) . ') menos el traslado', $tiempoMuerto);
 
         if ($esperaVentana > 0) {
-            $pasos[] = [
-                'concepto' => 'espera_ventana',
-                'titulo' => 'Fuera de su franja sin actividad',
-                'detalle' => 'la hora calculada caía en una franja de descanso o almuerzo',
-                'fecha' => null,
-                'min' => $esperaVentana,
-                'duracion' => Tiempo::hhmm($esperaVentana),
-            ];
+            $agregar('espera_ventana', 'Corrimiento por franja inactiva',
+                'la hora calculada caía en una franja de descanso o almuerzo', $esperaVentana);
+        }
+
+        // Si la hora calculada se recortó (atrasado) o la etapa ya estaba vencida,
+        // la suma de los pasos no llega sola a `presenta`: sin esta fila la línea
+        // de tiempo muestra fechas que no cierran (era el bug del "Se presenta").
+        $total = (int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60);
+        $ajuste = $total - $acumulado;
+        if ($ajuste !== 0) {
+            $agregar('ajuste', 'Recorte a la hora de corte',
+                'la hora calculada caía antes de "ahora" (atrasado) o la etapa ya estaba vencida',
+                $ajuste);
         }
 
         $pasos[] = [
             'concepto' => 'presenta',
             'titulo' => 'Se presenta en ' . $planta,
-            'detalle' => 'total desde el punto de partida',
+            'detalle' => 'suma de los pasos anteriores desde el punto de partida',
             'fecha' => $t->format('Y-m-d H:i:s'),
-            'min' => (int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60),
-            'duracion' => Tiempo::hhmm((int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60)),
+            'min' => $total,
+            'duracion' => Tiempo::hhmm($total),
+            'acumulado_min' => $total,
         ];
 
-        $pasos[] = [
-            'concepto' => 'espera_carga',
-            'titulo' => 'Espera para cargar en ' . $planta,
-            'detalle' => 'espera en planta (fuera + dentro)',
-            'fecha' => null,
-            'min' => $espera,
-            'duracion' => Tiempo::hhmm($espera),
-        ];
+        $acumulado = $total;
+
+        $agregar('espera_carga', 'Espera para cargar en ' . $planta,
+            'espera en planta (fuera + dentro)', $espera);
 
         $inicioCarga = $t->copy()->addMinutes($espera);
         $pasos[] = [
@@ -420,6 +424,7 @@ final class MotorPresenta
             'fecha' => $inicioCarga->format('Y-m-d H:i:s'),
             'min' => (int) round(($inicioCarga->getTimestamp() - $fechaAncla->getTimestamp()) / 60),
             'duracion' => Tiempo::hhmm((int) round(($inicioCarga->getTimestamp() - $fechaAncla->getTimestamp()) / 60)),
+            'acumulado_min' => (int) round(($inicioCarga->getTimestamp() - $fechaAncla->getTimestamp()) / 60),
         ];
 
         foreach ($pasos as $indice => $paso) {
@@ -614,7 +619,7 @@ final class MotorPresenta
 
         $supuestos[] = $cerrada
             ? 'el camión ya cerró su viaje anterior: el hueco se cuenta desde su fin de descargue'
-            : 'el camión sigue en viaje: se suman las etapas que le faltan con los promedios de su ruta';
+            : 'el camión sigue en viaje: se suman las etapas que le faltan con las medianas de su ruta (tiempo transcurrido, incluye paradas)';
 
         if ($esCadena) {
             $supuestos[] = 'sin pares medidos para esta placa: el regreso se estima con el traslado de la ruta más '

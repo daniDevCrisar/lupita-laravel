@@ -165,6 +165,92 @@ final class Geoapify
             return self::$rutas[$llave] = null;
         }
 
+        return self::$rutas[$llave] = self::routing($desde, $hasta);
+    }
+
+    /**
+     * Tiempo de manejo desde un PUNTO (lat/lng) hasta un ubigeo.
+     *
+     * Es el camino cuando el operador escribió el nombre del distrito y no está en
+     * el catálogo de ubigeos: se geocodifica el texto y se rutea desde ese punto.
+     */
+    public static function ruta_desde_coords(float $lat, float $lng, ?string $ubigeoDestino): ?object
+    {
+        if (!self::disponible()) {
+            return null;
+        }
+
+        $llave = 'punto|' . $lat . ',' . $lng . '>' . (string) $ubigeoDestino;
+        if (array_key_exists($llave, self::$rutas)) {
+            return self::$rutas[$llave];
+        }
+
+        $hasta = self::coord_ubigeo($ubigeoDestino);
+        if ($hasta === null) {
+            return self::$rutas[$llave] = null;
+        }
+
+        $desde = (object) ['lat' => $lat, 'lng' => $lng, 'texto' => 'el punto declarado'];
+
+        return self::$rutas[$llave] = self::routing($desde, $hasta);
+    }
+
+    /**
+     * Geocodifica TEXTO LIBRE ("chiclayo", "pasamayo"): devuelve TODOS los
+     * candidatos que encuentra en Perú, para que el que llama decida.
+     *
+     * Es a propósito una lista: "PASAMAYO" existe en Aucallama (Lima) y en
+     * Yantalo (San Martín); tomar el primero sin avisar sería adivinar.
+     *
+     * @return array<int, object{lat: float, lng: float, texto: string}>
+     */
+    public static function geocodificar_texto(string $texto, int $limite = 5): array
+    {
+        $texto = trim($texto);
+        if ($texto === '' || !self::disponible()) {
+            return [];
+        }
+
+        $llave = 'texto|' . mb_strtolower($texto) . '|' . $limite;
+        if (array_key_exists($llave, self::$coords)) {
+            return self::$coords[$llave] ?? [];
+        }
+
+        $respuesta = self::pedir(self::GEOCODE, [
+            'text' => $texto . ', Peru',
+            'filter' => 'countrycode:pe',
+            'limit' => max(1, min(10, $limite)),
+            'lang' => 'es',
+            'apiKey' => (string) config('geoapify.key', ''),
+        ], 'geocode');
+
+        if ($respuesta === null) {
+            return self::$coords[$llave] = [];
+        }
+
+        $salida = [];
+        foreach ((array) $respuesta->json('features') as $feature) {
+            $lat = $feature['properties']['lat'] ?? null;
+            $lon = $feature['properties']['lon'] ?? null;
+            if (!is_numeric($lat) || !is_numeric($lon)) {
+                continue;
+            }
+
+            $formateado = $feature['properties']['formatted'] ?? null;
+            $salida[] = (object) [
+                'lat' => (float) $lat,
+                'lng' => (float) $lon,
+                'texto' => is_string($formateado) && $formateado !== '' ? $formateado : $texto,
+                'nombre' => (string) ($feature['properties']['name'] ?? ''),
+            ];
+        }
+
+        return self::$coords[$llave] = $salida;
+    }
+
+    /** Una llamada de routing entre dos puntos (ya resueltos). */
+    private static function routing(object $desde, object $hasta): ?object
+    {
         $respuesta = self::pedir(self::ROUTING, [
             'waypoints' => $desde->lat . ',' . $desde->lng . '|' . $hasta->lat . ',' . $hasta->lng,
             'mode' => 'drive',
@@ -172,17 +258,17 @@ final class Geoapify
         ], 'routing');
 
         if ($respuesta === null) {
-            return self::$rutas[$llave] = null;
+            return null;
         }
 
         $segundos = $respuesta->json('features.0.properties.time');
         $metros = $respuesta->json('features.0.properties.distance');
 
         if (!is_numeric($segundos) || (float) $segundos <= 0) {
-            return self::$rutas[$llave] = null;
+            return null;
         }
 
-        return self::$rutas[$llave] = (object) [
+        return (object) [
             'min' => (int) round(((float) $segundos) / 60),
             'km' => is_numeric($metros) ? round(((float) $metros) / 1000, 1) : null,
             'desde' => $desde->texto,

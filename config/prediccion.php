@@ -44,6 +44,12 @@ return [
     // carga enseguida.
     'cerca_min' => 60,
 
+    // Cruce de fuentes para el VIAJE que le falta al camión: el compilado de la
+    // ruta (población) se mezcla con lo que esa placa/chofer tarda en la misma
+    // ruta (entidad) con peso w = n/(n+k). Con k=3: 1 viaje propio pesa 25 %, 3
+    // viajes 50 %, 10 viajes 77 %. Más k = más confianza en el compilado.
+    'cruce_pares_k' => 3,
+
     // Una franja necesita al menos `min_pares_entidad` pares para corregir: con
     // menos, la "mediana" de la franja es un par suelto y una noche de 54 h en la
     // franja de las 19 corría la predicción dos días (ver Calibrador::curva()).

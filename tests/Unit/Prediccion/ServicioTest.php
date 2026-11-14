@@ -123,4 +123,22 @@ class ServicioTest extends TestCase
         $this->assertTrue(isset($indice['LOC_B|LOC_A']), 'la cercanía es en los dos sentidos');
         $this->assertFalse(isset($indice['LOC_A|LOC_C']), 'e4 de 400 min no es cerca');
     }
+
+    public function test_mezclar_viaje_pondera_por_muestra(): void
+    {
+        // sin entidad o sin compilado, queda el que haya
+        $this->assertSame(1185, Servicio::mezclar_viaje(1185, null, 0));
+        $this->assertSame(1185, Servicio::mezclar_viaje(1185, null, 5));
+        $this->assertSame(2106, Servicio::mezclar_viaje(null, 2106, 5));
+        $this->assertNull(Servicio::mezclar_viaje(null, null, 0));
+
+        // w = n/(n+k): 3 viajes propios con k=3 pesan la mitad
+        $this->assertSame(1646, Servicio::mezclar_viaje(1185, 2106, 3, 3));
+        // 5 viajes: 62,5 % de la placa
+        $this->assertSame(1761, Servicio::mezclar_viaje(1185, 2106, 5, 3));
+        // k=0 = manda la entidad
+        $this->assertSame(2106, Servicio::mezclar_viaje(1185, 2106, 1, 0));
+        // k grande = manda el compilado
+        $this->assertSame(1194, Servicio::mezclar_viaje(1185, 2106, 1, 100));
+    }
 }

@@ -154,7 +154,9 @@ class Servicio
 
         $ubicacionTipo = (string) ($opciones['ubicacion_tipo'] ?? 'auto');
         $ubicacionId = trim((string) ($opciones['ubicacion_id'] ?? ''));
-        $ubicacionDeclarada = in_array($ubicacionTipo, ['local', 'ubigeo'], true) && $ubicacionId !== '';
+        $coords = self::coords_declaradas($opciones['ubicacion_coords'] ?? null);
+        $ubicacionDeclarada = (in_array($ubicacionTipo, ['local', 'ubigeo'], true) && $ubicacionId !== '')
+            || ($ubicacionTipo === 'geopunto' && $coords !== null);
 
         if ($ubicacionTipo === 'local' && $ubicacionId !== '') {
             $desdePlanta = $ubicacionId;
@@ -162,6 +164,11 @@ class Servicio
         } elseif ($ubicacionTipo === 'ubigeo' && $ubicacionId !== '') {
             $desdePlanta = '';
             $desdeUbigeo = $ubicacionId;
+        } elseif ($ubicacionTipo === 'geopunto' && $coords !== null) {
+            // el operador escribió un distrito que no está en el catálogo y se
+            // geocodificó con Geoapify: se trabaja con las coordenadas
+            $desdePlanta = '';
+            $desdeUbigeo = '';
         } elseif ($ubicacionTipo === 'indeterminado') {
             $desdePlanta = '';
             $desdeUbigeo = '';
@@ -190,12 +197,60 @@ class Servicio
             }
         }
 
+        $rutaAncla = $ancla !== null ? (string) ($ancla->ruta_id ?? '') : '';
+
         $traslado = $plantaCarga !== ''
             ? DBPrediccion::traslado($plantaCarga, $desdePlanta !== '' ? $desdePlanta : null,
                 $desdeUbigeo !== '' ? $desdeUbigeo : null, (string) ($fila->ubigeo_origen ?? ''),
                 $etapasPorRuta, $rutaRef !== '' ? $rutaRef : null, (int) $p->traslado_defecto_min,
                 $ubicacionDeclarada)
             : null;
+
+        // Posición geocodificada (texto libre que no estaba en el catálogo): el
+        // traslado sale del ruteo real de Geoapify desde ese punto a la planta.
+        if ($coords !== null && $plantaCarga !== '') {
+            $geo = Geoapify::ruta_desde_coords($coords->lat, $coords->lng,
+                (string) ($fila->ubigeo_origen ?? ''));
+
+            if ($geo !== null) {
+                $traslado = (object) [
+                    'min' => max(1, (int) $geo->min),
+                    'fuente' => 'geoapify',
+                    'ruta' => null,
+                    'texto' => $geo->desde . ' → ' . $geo->hasta,
+                    'km' => $geo->km,
+                    'min_medido' => null,
+                ];
+            }
+        }
+
+        // CRUCE de fuentes para el VIAJE que le falta al camión:
+        //  - población: el compilado de la ruta (módulo de tiempos);
+        //  - entidad: lo que ESTA placa tarda en esa misma ruta.
+        // Se mezclan por muestra: w = n/(n+k). Con pocos viajes propios manda el
+        // compilado; con muchos, la placa. Es la forma de que un camión que
+        // siempre tarda 10 % más no quede tapado por el promedio de la flota, sin
+        // que dos viajes raros muevan la aguja.
+        $etapasAncla = $etapasPorRuta[$rutaAncla] ?? [];
+        $cruceViaje = null;
+        $anclaAbierta = $ancla !== null && !($ancla->cerrado ?? false);
+
+        if ($rutaAncla !== '' && $anclaAbierta && !$anclaDeclarada) {
+            $viajeCompilado = $etapasAncla['e4'] ?? null;
+            $viajePlaca = DBPrediccion::viaje_placa($placa, $rutaAncla, $desde, $ahora);
+            $mezclado = self::mezclar_viaje($viajeCompilado, $viajePlaca['mediana'], (int) $viajePlaca['n'],
+                (int) ($p->cruce_pares_k ?? 3));
+
+            if ($mezclado !== null) {
+                $etapasAncla['e4'] = $mezclado;
+                $cruceViaje = (object) [
+                    'min' => $mezclado,
+                    'compilado' => $viajeCompilado,
+                    'placa' => $viajePlaca['mediana'],
+                    'n' => (int) $viajePlaca['n'],
+                ];
+            }
+        }
 
         // calibración: pares de la placa (o del chofer si concentra sus viajes)
         $conductorClave = $fila->conductor_clave !== null ? (int) $fila->conductor_clave : null;
@@ -249,12 +304,11 @@ class Servicio
                 (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max);
         }
 
-        $rutaAncla = $ancla !== null ? (string) ($ancla->ruta_id ?? '') : '';
         $horaAncla = self::hora_ancla(
             $ancla?->fecha,
             $ancla?->hito,
             (bool) ($ancla->cerrado ?? false),
-            $etapasPorRuta[$rutaAncla] ?? [],
+            $etapasAncla,
             $ahora
         );
 
@@ -271,11 +325,21 @@ class Servicio
         $plantaNombre = DBPrediccion::texto_ubicacion($plantaCarga !== '' ? $plantaCarga : null,
             (string) ($fila->ubigeo_origen ?? ''));
 
+        // texto legible de la posición declarada (local, ubigeo o el texto que se
+        // geocodificó); se reusa en el ancla, en el desglose y en `ubicacion`
+        $ubicacionTexto = trim((string) ($opciones['ubicacion_texto'] ?? ''));
+        if ($ubicacionTexto === '') {
+            $ubicacionTexto = DBPrediccion::texto_ubicacion($desdePlanta !== '' ? $desdePlanta : null,
+                $desdeUbigeo !== '' ? $desdeUbigeo : null);
+        }
+        if ($coords !== null && $coords->texto !== '') {
+            $ubicacionTexto = $coords->texto;
+        }
+
         if ($anclaDeclarada) {
             $anclaTexto = 'Ubicación declarada: ' . ($plantaNombre !== '' && $desdePlanta === $plantaCarga
                 ? $plantaNombre
-                : DBPrediccion::texto_ubicacion($desdePlanta !== '' ? $desdePlanta : null,
-                    $desdeUbigeo !== '' ? $desdeUbigeo : null));
+                : ($ubicacionTexto !== '' ? $ubicacionTexto : 'sin ubicación'));
         } elseif ($ancla !== null) {
             $anclaTexto = 'Viaje ' . $ancla->ref . ' · ' . Tiempo::hito($ancla->hito)
                 . ($ancla->fecha !== null ? ' del ' . $ancla->fecha->format('d/m H:i') : '');
@@ -298,7 +362,7 @@ class Servicio
                 'fecha' => $ancla?->fecha,
                 'cerrada' => (bool) ($ancla->cerrado ?? false),
             ],
-            'etapas' => $etapasPorRuta[$rutaAncla] ?? [],
+            'etapas' => $etapasAncla,
             'calibrador' => $calibrador,
             'traslado' => $traslado,
             'ventanas' => $ventanas['ventanas'],
@@ -344,12 +408,26 @@ class Servicio
             'pares_cerca' => $paresCerca,
             'calibrado_cerca' => $condicionado,
             'cerca_regimen' => $regimenUsado,
+            // cruce del viaje: compilado de la ruta + lo que hace esta placa
+            'viaje_cruce' => $cruceViaje,
             'ventanas' => $ventanas['ventanas'],
             'ventanas_origen' => $ventanas['origen'],
             'calibrador_usado' => !$anclaDeclarada,
             'geoapify_disponible' => \App\Prediccion\Geoapify::disponible(),
             'geoapify_usado' => $usoGeo,
             'traslado_fuente' => (string) ($traslado->fuente ?? 'sin_dato'),
+        ];
+
+        // de dónde salió la posición del camión: local/ubigeo del catálogo, o un
+        // texto libre geocodificado con Geoapify (tipo "geopunto")
+        $resultado->ubicacion = (object) [
+            'tipo' => $ubicacionTipo,
+            'id' => $ubicacionId !== '' ? $ubicacionId : null,
+            'texto' => $ubicacionTexto !== '' ? $ubicacionTexto : null,
+            'fuente' => $coords !== null ? 'geoapify' : ($ubicacionDeclarada ? 'catalogo' : 'deducida'),
+            'lat' => $coords?->lat,
+            'lng' => $coords?->lng,
+            'declarada' => $ubicacionDeclarada,
         ];
 
         if ($condicionado) {
@@ -361,6 +439,12 @@ class Servicio
                 . (int) ($traslado->min ?? 0) . ' min): el hueco sale del régimen medido en la flota para '
                 . 'los viajes en que queda cerca (' . $regimenUsado . ', '
                 . (int) ($calibrador->n ?? 0) . ' pares)';
+        }
+
+        if ($cruceViaje !== null && $cruceViaje->placa !== null && $cruceViaje->n > 0) {
+            $resultado->supuestos[] = 'viaje de la ruta: compilado ' . Tiempo::hhmm((int) $cruceViaje->compilado)
+                . ' mezclado con ' . $cruceViaje->n . ' viajes de esta placa ('
+                . Tiempo::hhmm((int) $cruceViaje->placa) . ')';
         }
 
         if ($anclaDeclarada) {
@@ -759,6 +843,154 @@ class Servicio
     }
 
     /**
+     * Resuelve la ubicación que el operador escribió como TEXTO LIBRE.
+     *
+     * Primero busca en el catálogo (ubigeo por nombre de distrito, o local por
+     * nombre). Si no aparece, geocodifica el texto con Geoapify y devuelve un
+     * punto (lat/lng) para rutear desde ahí. Si el texto es ambiguo (p. ej. "SAN
+     * JOSE", hay tres distritos) devuelve la lista de candidatos: adivinar es peor
+     * que preguntar.
+     *
+     * @return array{encontrada: bool, ambigua: bool, tipo: ?string, id: ?string, texto: string,
+     *               fuente: ?string, lat?: float, lng?: float,
+     *               candidatos: array<int, array{id: string, texto: string}>}
+     */
+    public static function resolver_ubicacion_texto(string $texto): array
+    {
+        $texto = trim($texto);
+        $resolucion = DBPrediccion::resolver_ubicacion($texto);
+
+        if (($resolucion['ambigua'] ?? false) === true) {
+            $resolucion['detalle'] = 'coincide con varios distritos/locales: usá el ubigeo o el nombre completo';
+
+            return $resolucion;
+        }
+
+        if (($resolucion['encontrada'] ?? false) === true) {
+            return $resolucion;
+        }
+
+        $geos = Geoapify::geocodificar_texto($texto);
+
+        if ($geos === []) {
+            return $resolucion;   // no está y no se pudo geocodificar
+        }
+
+        // un solo lugar: listo
+        $distintos = self::lugares_distintos($geos, $texto);
+
+        if (count($distintos) === 1) {
+            return [
+                'encontrada' => true,
+                'ambigua' => false,
+                'tipo' => 'geopunto',
+                'id' => null,
+                'texto' => $distintos[0]->texto,
+                'fuente' => 'geoapify',
+                'lat' => $distintos[0]->lat,
+                'lng' => $distintos[0]->lng,
+                'candidatos' => [],
+            ];
+        }
+
+        // varios lugares de verdad (a más de 50 km): no se adivina
+        $candidatos = [];
+        foreach ($distintos as $geo) {
+            $candidatos[] = ['id' => '', 'texto' => $geo->texto];
+        }
+
+        return [
+            'encontrada' => false,
+            'ambigua' => true,
+            'tipo' => 'geopunto',
+            'id' => null,
+            'texto' => $texto,
+            'fuente' => 'geoapify',
+            'detalle' => 'Geoapify encontró varios lugares con ese nombre: agregá la provincia o el departamento',
+            'candidatos' => $candidatos,
+        ];
+    }
+
+    /** Distancia aproximada entre dos puntos, en km (haversine). */
+    public static function distancia_km(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $radio = 6371.0;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+
+        return 2 * $radio * asin(min(1.0, sqrt($a)));
+    }
+
+    /**
+     * Los resultados de Geoapify que son LUGARES DISTINTOS.
+     *
+     * Geoapify devuelve varias "variantes" del mismo punto (la carretera, el
+     * centro poblado, el distrito): si están a menos de 50 km es el mismo lugar y
+     * se toma el primero. Cuando hay dos de verdad lejos (PASAMAYO en Lima y en
+     * San Martín) se devuelven los dos. Además se priorizan los resultados cuyo
+     * nombre contiene lo que se escribió (para "PASAMAYO, HUARAL" no quedarse con
+     * la ciudad de Huaral).
+     *
+     * @param  array<int, object>  $geos
+     * @return array<int, object>
+     */
+    private static function lugares_distintos(array $geos, string $texto): array
+    {
+        $termino = trim(explode(',', $texto)[0]);
+
+        if ($termino !== '') {
+            $conNombre = array_values(array_filter($geos, function (object $geo) use ($termino): bool {
+                return mb_stripos((string) ($geo->nombre ?? ''), $termino) !== false
+                    || mb_stripos((string) $geo->texto, $termino) !== false;
+            }));
+
+            if ($conNombre !== []) {
+                $geos = $conNombre;
+            }
+        }
+
+        $distintos = [];
+        foreach ($geos as $geo) {
+            $cerca = false;
+            foreach ($distintos as $elegido) {
+                if (self::distancia_km($geo->lat, $geo->lng, $elegido->lat, $elegido->lng) <= 50) {
+                    $cerca = true;
+                    break;
+                }
+            }
+
+            if (!$cerca) {
+                $distintos[] = $geo;
+            }
+        }
+
+        return $distintos;
+    }
+
+    /**
+     * Coordenadas declaradas (las devuelve resolver_ubicacion_texto cuando hubo
+     * que geocodificar): se aceptan como array u objeto.
+     */
+    public static function coords_declaradas($valor): ?object
+    {
+        if (is_object($valor)) {
+            $valor = (array) $valor;
+        }
+
+        if (!is_array($valor) || !isset($valor['lat'], $valor['lng'])
+            || !is_numeric($valor['lat']) || !is_numeric($valor['lng'])) {
+            return null;
+        }
+
+        return (object) [
+            'lat' => (float) $valor['lat'],
+            'lng' => (float) $valor['lng'],
+            'texto' => (string) ($valor['texto'] ?? ''),
+        ];
+    }
+
+    /**
      * Qué porcentaje de esos pares previos los hizo ese conductor.
      *
      * Versión as-of de la regla de grupo: en producción se cuenta sobre las
@@ -785,6 +1017,29 @@ class Servicio
 
     /** Minutos de traslado a partir de los cuales el camión ya no quedó "cerca". */
     public const CERCA_MIN_DEFECTO = 60;
+
+    /**
+     * Mezcla el viaje COMPILADO de la ruta con el de la placa/chofer.
+     *
+     * `w = n/(n+k)`: con pocos viajes propios manda el compilado (población); con
+     * muchos, lo que hace la placa. Así un camión que siempre tarda 10 % más no
+     * queda tapado por el promedio de la flota, y dos viajes raros no mueven la
+     * aguja.
+     */
+    public static function mezclar_viaje(?int $compilado, ?int $entidad, int $n, int $k = 3): ?int
+    {
+        if ($entidad === null || $n <= 0) {
+            return $compilado;
+        }
+        if ($compilado === null) {
+            return $entidad;
+        }
+
+        $k = max(0, $k);
+        $w = $k === 0 ? 1.0 : $n / ($n + $k);
+
+        return (int) round($w * $entidad + (1 - $w) * $compilado);
+    }
 
     public static function cerca_minutos(?object $p = null): int
     {

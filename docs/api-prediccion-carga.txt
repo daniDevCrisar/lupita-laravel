@@ -40,7 +40,10 @@ devuelve dos horas:
 
 Para calcularlo se apoya en:
   - el ULTIMO HITO CONOCIDO del camion (el viaje anterior, cerrado o en curso);
-  - las etapas E2..E6 de su ruta (promedios medidos sobre `referencias`);
+  - las etapas E2..E6 de su ruta: el VIAJE sale del compilado del modulo de
+    tiempos (lo mismo que /api/tiempos/promedio) y las esperas/descarga son
+    MEDIANAS de `referencias` (el viaje tipico, no el promedio que inflan las
+    colas y los viajes raros);
   - el HUECO REAL medido de esa placa: cuanto tarda desde su `fin_descargue`
     hasta su `presenta_para_carga` siguiente, con los 20 pares mas recientes;
   - sus franjas de descanso/almuerzo, inferidas de su propia actividad;
@@ -102,6 +105,30 @@ PARAMETROS (query string)
   ubicacion_tipo opcional. auto | local | ubigeo | indeterminado  (def: auto)
   ubicacion_id   opcional. Si tipo=local  -> id del local (ej. LOC_CARAL)
                           Si tipo=ubigeo -> 6 digitos (ej. 140101)
+  ubicacion_texto opcional. El distrito o el local ESCRITO A MANO ("Chiclayo",
+                 "San Juan de Lurigancho", "Babel Maxo", "140101"). El backend lo
+                 resuelve solo y reemplaza a `ubicacion_tipo`/`ubicacion_id`:
+
+                   1. si es un ubigeo de 6 digitos, se usa ese;
+                   2. si es el nombre EXACTO de un distrito -> ese ubigeo;
+                   3. si es el nombre EXACTO de un local -> ese local;
+                   4. si CONTIENE el nombre de un distrito o de un local -> ese;
+                   5. si no esta en el catalogo -> geocodifica el texto con
+                      Geoapify y calcula la ruta desde ese punto hasta la planta
+                      de carga (tipo interno "geopunto"). Si Geoapify encuentra
+                      VARIOS lugares distintos con ese nombre (p. ej. "PASAMAYO"
+                      existe en Aucallama/Lima y en Yantalo/San Martin, a ~630 km)
+                      responde 422 "Ubicacion ambigua" con los candidatos: hay que
+                      agregar la provincia o el departamento ("PASAMAYO, HUARAL").
+                      Las variantes del MISMO lugar (a menos de 50 km, como la
+                      carretera y el centro poblado) cuentan como una sola y se
+                      prioriza el resultado cuyo nombre contiene lo escrito.
+
+                 Si hay VARIAS coincidencias (p. ej. "SAN JOSE", hay tres
+                 distritos) responde 422 "Ubicacion ambigua" con `candidatos`
+                 para que se elija: adivinar es peor que preguntar.
+                 La respuesta publica como se resolvio en `ubicacion`
+                 (tipo, id, texto, fuente: catalogo|geoapify, lat, lng).
 
 REFS QUE NO SE PREDICEN (409)
   - Sin ruta: si la referencia no tiene `ruta_id`, no hay planta de carga
@@ -514,30 +541,42 @@ puntos. Un consumidor puede filtrar por clave sin parsear el texto.
 
 `pasos` es una lista ordenada. Cada paso tiene:
 
-  n         numero de paso (1..N)
-  concepto  ancla | restante_viaje | traslado | tiempo_muerto | espera_ventana |
-            presenta | espera_carga | inicio_carga
-  titulo    frase corta con el NOMBRE del local o del distrito, segun corresponda
-            ("Regreso hasta PLANTA CHICLAYO (Chiclayo, Chiclayo, Lambayeque)")
-  detalle   de donde salio el dato: el tramo con sus dos puntas y los km, la
-            fuente del traslado, o el aviso de que es una diferencia medida
-  fecha     cuando ocurre ese paso (null en las duraciones)
-  min       duracion en minutos (para sumar o graficar)
-  duracion  la misma duracion en h:mm (ver 8.2)
+  n              numero de paso (1..N)
+  concepto       ancla | restante_viaje | traslado | tiempo_muerto |
+                 espera_ventana | ajuste | presenta | espera_carga | inicio_carga
+  titulo         frase corta con el NOMBRE del local o del distrito, segun
+                 corresponda ("Traslado de regreso a PLANTA CHICLAYO (...)")
+  detalle        de donde salio el dato: el tramo con sus dos puntas y los km, la
+                 fuente del traslado, o el aviso de que es una diferencia medida
+  fecha          cuando ocurre ese paso. TODOS los pasos traen fecha (ancla +
+                 acumulado), asi una linea de tiempo se arma sin recalcular nada
+  acumulado_min  minutos desde el ancla hasta ese paso (para graficar)
+  min            duracion del paso en minutos
+  duracion       la misma duracion en h:mm (ver 8.2)
+
+  La linea de tiempo CIERRA SIEMPRE:
+     suma(restante_viaje, traslado, tiempo_muerto, espera_ventana, ajuste)
+       = presenta - ancla.fecha
+  `ajuste` aparece solo cuando la hora calculada se recorto: cayo antes de
+  "ahora" (atrasado) o la etapa del viaje ya estaba vencida. Es negativo y es lo
+  que faltaba para que las fechas de la linea de tiempo cuadraran.
 
 Ejemplo abreviado:
 
   "pasos": [
     { "concepto": "ancla", "titulo": "Punto de partida",
       "detalle": "Viaje 1180352 · fin de descargue del 11/11 09:00",
-      "fecha": "2026-11-11 09:00:00", "min": 0, "duracion": "0:00", "n": 1 },
+      "fecha": "2026-11-11 09:00:00", "min": 0, "duracion": "0:00",
+      "acumulado_min": 0, "n": 1 },
     { "concepto": "traslado",
-      "titulo": "Regreso hasta PLANTA CHICLAYO (Chiclayo, Chiclayo, Lambayeque)",
+      "titulo": "Traslado de regreso a PLANTA CHICLAYO (Chiclayo, Chiclayo, Lambayeque)",
       "detalle": "PLANTA CARAL (Huaral, Huaral, Lima) → PLANTA CHICLAYO (...) · fuente: ruta_medida",
-      "fecha": null, "min": 774, "duracion": "12:54", "n": 2 },
+      "fecha": "2026-11-11 21:54:00", "min": 774, "duracion": "12:54",
+      "acumulado_min": 774, "n": 2 },
     { "concepto": "tiempo_muerto", "titulo": "Espera y descanso del conductor",
-      "detalle": "diferencia entre el hueco real medido y el traslado estimado",
-      "fecha": null, "min": 5013, "duracion": "83:33", "n": 3 },
+      "detalle": "hueco real medido (96:27) menos el traslado",
+      "fecha": "2026-11-15 09:27:00", "min": 5013, "duracion": "83:33",
+      "acumulado_min": 5787, "n": 3 },
     { "concepto": "presenta", "titulo": "Se presenta en PLANTA CHICLAYO (...)",
       "detalle": "total desde el punto de partida",
       "fecha": "2026-11-15 09:27:00", "min": 5787, "duracion": "96:27", "n": 4 },
@@ -555,7 +594,7 @@ Como se leen los pasos:
     ya sumado en `min`; los que vienen despues (espera_carga, inicio_carga) se
     cuentan desde el ancla, no desde `presenta`.
   - `restante_viaje` aparece solo si el ancla es un viaje en curso. Se arma con
-    los promedios medidos de la ruta del viaje, y son exactamente las etapas que
+    las medianas medidas de la ruta del viaje, y son exactamente las etapas que
     le faltan segun el ultimo hito registrado. El "ultimo hito" es el EVENTO con
     la fecha mas actual (se resuelve por fecha, no por el orden del ciclo), y se
     aceptan todas las etapas: `inicio_de_carga`, `fin_de_carga`, `inicio_ruta`,
@@ -584,6 +623,21 @@ Como se leen los pasos:
     el `hueco_total`). Si la ruta no tiene e4..e6 medidos, el paso no se puede
     armar: se avisa con `etapas_incompletas` y se asume que el camion queda
     libre ahora.
+
+    EL VIAJE (e4) SALE DEL COMPILADO del modulo de tiempos
+    (`tiempos_ruta_promedio`, lo mismo que sirve GET /api/tiempos/promedio) cuando
+    existe: su `mediana_min` y, si falta, su `prom_min`. Asi el paso coincide con
+    el numero que se ve en la pantalla de tiempos. El resto de las etapas (cola en
+    destino e5, descarga e6) son MEDIANAS de `referencias` con el tope por etapa.
+
+    OJO — de QUE viaje es la "falta": es la del VIAJE DEL ANCLA, no la de la ref
+    que se quiere cargar. Si el camion viene volviendo de HUANCAVELICA y la ref a
+    predecir es CARAL -> CODISAL HUANCAYO, la falta es la de HUANCAVELICA
+    (compilado mediana 1.997 min = 33 h) y no las ~20 h del recorrido a CODISAL
+    HUANCAYO (compilado mediana 1.185 = 19 h 45 -> la falta con cola y descarga
+    queda en 1.259 min = 21 h). Ademas e4 se mide de `inicio_ruta` a
+    `qr_llegada_destino`: es tiempo TRANSCURRIDO (incluye las paradas y el
+    descanso en ruta), no el tiempo de manejo puro.
   - `espera_ventana` aparece solo si la hora calculada caia en una franja sin
     actividad del camion (descanso o almuerzo) y hubo que correrla.
 
@@ -791,6 +845,44 @@ Ese porcentaje es el "acierto real de produccion" y se ve en
 La misma informacion de este archivo, en pantalla:
 /lupita/prediccion/documentacion (requiere sesion y el permiso "ver tiempos").
 
+8.9 De donde sale cada numero (cruce de las APIs compiladas)
+-------------------------------------------------------------
+La prediccion NO recalcula todo desde cero: usa lo compilado del modulo de
+tiempos (las mismas tablas que sirven `/api/tiempos/promedio` y
+`/api/tiempos/promedio/plantas`) y lo cruza con lo que hizo ESA placa/chofer.
+Cada componente tiene una fuente y una regla:
+
+  COMPONENTE               POBLACION (API compilada)          ENTIDAD (placa/chofer)              CRUCE
+  viaje al destino (e4)    tiempos_ruta_promedio.mediana_min  mediana de los e4 de la placa      mezcla w=n/(n+k)
+                           (si falta, prom_min)               en esa misma ruta                  (config cruce_pares_k, k=3)
+  cola en destino (e5)     tiempos_planta_promedio            mediana de refs (si no hay planta)  planta manda si existe
+                           .prom_fuera_descarga_min
+  descargue (e6)           tiempos_planta_promedio            mediana de refs (si no hay planta)  planta manda si existe
+                           .prom_dentro_descarga_min
+  espera en planta de      tiempos_planta_promedio            —                                   planta manda
+  carga (presenta->inicio) .prom_fuera_carga_min + .prom_dentro_carga_min
+  tiempo muerto / descanso el REGIMEN medido en los pares     hueco propio de la placa/chofer     entidad, condicionada
+  (fin_descargue->presenta) (cerca/lejos, hora del dia)       con sus ultimos 20 pares            por cerca/lejos y hora
+
+  Como se mezcla el viaje (ejemplo real, placa ALN796 en CARAL -> HUANCAVELICA):
+    compilado (poblacion) ............ 1.997 min (33 h 17)
+    mediana de esta placa en esa ruta . 2.106 min (5 viajes)
+    w = 5/(5+3) = 0,625 -> 0,625*2.106 + 0,375*1.997 = 2.065 min (34 h 25)
+  Con 1 viaje propio pesa 25 %, con 3 pesa 50 %, con 10 pesa 77 %. Asi un camion
+  que siempre tarda mas no queda tapado por el promedio, y dos viajes raros no
+  mueven la aguja. El resultado queda en `historia.viaje_cruce` =
+  {min, compilado, placa, n}.
+
+  Que NO se mezcla:
+    - el traslado de vuelta usa el compilado de la ruta (poblacion), igual que
+      el backtest, para que la tabla de aciertos mida el mismo motor;
+    - el tiempo muerto/descanso no existe en las APIs compiladas: sale de los
+      pares de la placa (es el numero que ningun otro lado mide).
+
+  Actualizacion: las tablas compiladas las refresca el modulo de tiempos
+  (Compilar promedios). La prediccion toma lo ultimo compilado y, cuando una
+  ruta o planta no tiene fila, cae a la mediana de `referencias`.
+
 
 ================================================================================
 9. CASOS DE USO TIPICOS
@@ -887,6 +979,13 @@ Todas las respuestas de error son JSON con "success": false.
        Parametro faltante, con formato invalido, local inexistente, ubigeo que
        no es de 6 digitos, o "guardar" sin viaje/historia. `detalle` trae el
        campo y el mensaje.
+  422  {"success": false, "error": "Ubicacion ambigua", "candidatos": [...]}
+       `ubicacion_texto` coincidio con varias ubicaciones (p. ej. "SAN JOSE"):
+       cada candidato trae {id, texto}. Repetir con `ubicacion_id` (o con el
+       nombre mas completo) para desambiguar.
+  422  {"success": false, "error": "No se pudo ubicar \"...\": ..."}
+       El texto no esta en el catalogo y no se pudo geocodificar (sin key de
+       Geoapify o sin resultado).
   500  {"success": false, "error": "No se pudo predecir: ..."}
        Falla del servidor o de la base. Reintentar con espera; si persiste,
        avisar (no es un problema del request).
@@ -1102,6 +1201,20 @@ evidencia. Hay tres niveles.
                    - El endpoint 5 publica `sin_ruta` (refs sin ruta, fuera).
                    - `historia` de cada prediccion trae `grupo`, `clave`,
                      `conductor` y `n`: de quien salio el hueco.
+
+  1.7  14/11/2026  - `pasos` con FECHA en todos los pasos y `acumulado_min`, mas
+                     el paso `ajuste` cuando la hora se recorta: la linea de
+                     tiempo cierra siempre (suma = presenta - ancla).
+                   - Las etapas usan el compilado del modulo de tiempos (viaje por
+                     ruta) y el de plantas (cola y descargue); el resto son
+                     medianas de refs. El viaje se mezcla con lo que hace la placa.
+                   - `ubicacion_texto`: la ubicacion se puede escribir a mano
+                     (distrito o local). Se resuelve contra el catalogo de
+                     ubigeos/locales y, si no esta, se geocodifica con Geoapify y
+                     se rutea desde ese punto hasta la planta de carga.
+                   - La respuesta publica `ubicacion` {tipo, id, texto, fuente,
+                     lat, lng, declarada}; si el texto es ambiguo, 422 con
+                     `candidatos`.
 
 ================================================================================
  FIN

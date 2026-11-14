@@ -19,7 +19,8 @@
             <h1><i class="bi bi-clock-history"></i> Predecir presenta para carga</h1>
             <p class="text-muted small mb-1">
                 Se ancla en el <strong>último hito conocido</strong> del camión (el viaje anterior, cerrado o en curso) y
-                se le suma lo que falta: las etapas que le quedan del viaje actual con los promedios de su ruta, el
+                se le suma lo que falta: las etapas que le quedan del viaje actual con las medianas de su ruta (tiempo
+                transcurrido, incluye las paradas), el
                 <strong>hueco real</strong> medido entre su último <em>fin de descargue</em> y la presentación siguiente
                 de esa misma placa, corregido por la hora del día, y el <strong>descanso o almuerzo</strong> inferido de
                 sus propias franjas sin actividad. La espera en la planta de carga se suma aparte para estimar el
@@ -201,6 +202,44 @@
                         </div>
                     </div>
                     <div class="col-md-4 small text-muted align-self-end" id="ayuda_ubicacion"></div>
+
+                    {{-- atajo: escribir el distrito/local a mano. Se resuelve contra el
+                         catálogo de ubigeos y locales; si no está, se geocodifica con
+                         Geoapify y se rutea desde ese punto --}}
+                    <div class="col-12">
+                        <hr class="my-1">
+                        <label class="form-label mb-0">…o escribí el distrito / local a mano</label>
+                        <div class="row g-2 align-items-start">
+                            <div class="col-md-8">
+                                <input type="text" name="ubicacion_texto" class="form-control"
+                                       value="{{ $ubicacion_texto ?? '' }}" maxlength="120"
+                                       placeholder="ej. Chiclayo · San José · Babel Maxo · 140101">
+                                <div class="text-muted" style="font-size:.7rem">
+                                    se busca en el catálogo de ubigeos y locales; si no está, se geocodifica con
+                                    Geoapify y se calcula la ruta hasta la planta de carga
+                                </div>
+                            </div>
+                            <div class="col-md-4 small text-muted">
+                                @if(!empty($ubicacion_texto_resuelta))
+                                    <div class="alert alert-info py-1 px-2 mb-0">
+                                        <i class="bi bi-check2-circle"></i> {{ $ubicacion_texto_resuelta }}
+                                    </div>
+                                @endif
+                                @if(!empty($ubicacion_error))
+                                    <div class="alert alert-warning py-1 px-2 mb-0">
+                                        {{ $ubicacion_error }}
+                                        @if(!empty($candidatos_ubicacion))
+                                            <ul class="mb-0 mt-1">
+                                                @foreach($candidatos_ubicacion as $candidato)
+                                                    <li><code>{{ $candidato['id'] }}</code> — {{ $candidato['texto'] }}</li>
+                                                @endforeach
+                                            </ul>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

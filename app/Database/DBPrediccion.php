@@ -52,6 +52,9 @@ class DBPrediccion
 
     private static array $pares = [];
 
+    /** @var array<string, array{n: int, mediana: ?int}> viaje por placa+ruta (cruce con el compilado) */
+    private static array $viajesPlaca = [];
+
     /** Expresión SQL del último hito con fecha: 1970-01-01 si no hay ninguno. */
     public static function ultimo_hito_sql(string $alias = 'r'): string
     {
@@ -322,8 +325,19 @@ class DBPrediccion
     //------------------- promedios y etapas -------------------
 
     /**
-     * Etapas E2..E6 promedio por ruta, calculadas desde `referencias` con las
-     * mismas expresiones del módulo de tiempos (las negativas se descartan).
+     * Etapas E2..E6 por ruta.
+     *
+     * EL VIAJE (e4) SALE DEL COMPILADO del módulo de tiempos
+     * (`tiempos_ruta_promedio`, lo que sirve `/api/tiempos/promedio`) cuando hay
+     * fila: es el número que el usuario ve en esa pantalla, calculado con topes y
+     * descarte de viajes raros. Sin compilado, se usa la mediana de `referencias`.
+     *
+     * El resto de las etapas (e2, e3, e5, e6) se calculan desde `referencias` y se
+     * resumen con la MEDIANA, no con el promedio: el promedio lo mueven los casos
+     * raros y acá los casos raros son enormes (la cola en el destino, e5, de la
+     * ruta CARAL → HUANCAVELICA tiene viajes de 17-22 h que subían el promedio a
+     * 264 min cuando la mediana es 147). Las negativas y las que pasan el tope se
+     * descartan, igual que en el módulo de tiempos.
      *
      * @return array<string, array{e2: ?int, e3: ?int, e4: ?int, e5: ?int, e6: ?int, ciclo: ?int, n: int}>
      */
@@ -335,54 +349,165 @@ class DBPrediccion
         }
 
         $tope = self::TOPE_ETAPA;
-        $sql = "SELECT t.ruta_id, COUNT(*) AS n,
-                   ROUND(AVG(CASE WHEN t.e2 BETWEEN 0 AND $tope THEN t.e2 END)) AS e2,
-                   ROUND(AVG(CASE WHEN t.e3 BETWEEN 0 AND $tope THEN t.e3 END)) AS e3,
-                   ROUND(AVG(CASE WHEN t.e4 BETWEEN 0 AND $tope THEN t.e4 END)) AS e4,
-                   ROUND(AVG(CASE WHEN t.e5 BETWEEN 0 AND $tope THEN t.e5 END)) AS e5,
-                   ROUND(AVG(CASE WHEN t.e6 BETWEEN 0 AND $tope THEN t.e6 END)) AS e6
-                FROM (
-                    SELECT r.ruta_id,
-                           TIMESTAMPDIFF(MINUTE, r.presenta_para_carga, r.inicio_de_carga) AS e2,
-                           TIMESTAMPDIFF(MINUTE, r.inicio_de_carga, r.inicio_ruta) AS e3,
-                           TIMESTAMPDIFF(MINUTE, r.inicio_ruta, r.qr_llegada_destino) AS e4,
-                           TIMESTAMPDIFF(MINUTE, r.qr_llegada_destino, r.inicio_descargue) AS e5,
-                           TIMESTAMPDIFF(MINUTE, r.inicio_descargue, r.fin_descargue) AS e6
-                    FROM referencias r
-                    WHERE r.ruta_id IS NOT NULL AND r.ruta_id <> ''
-                      AND r.presenta_para_carga BETWEEN ? AND ?
-                ) t
-                GROUP BY t.ruta_id";
+        $etapasClaves = ['e2', 'e3', 'e4', 'e5', 'e6'];
+
+        // una fila por viaje: hace falta para la mediana de cada etapa
+        $filas = DB::select("
+            SELECT r.ruta_id,
+                   TIMESTAMPDIFF(MINUTE, r.presenta_para_carga, r.inicio_de_carga) AS e2,
+                   TIMESTAMPDIFF(MINUTE, r.inicio_de_carga, r.inicio_ruta) AS e3,
+                   TIMESTAMPDIFF(MINUTE, r.inicio_ruta, r.qr_llegada_destino) AS e4,
+                   TIMESTAMPDIFF(MINUTE, r.qr_llegada_destino, r.inicio_descargue) AS e5,
+                   TIMESTAMPDIFF(MINUTE, r.inicio_descargue, r.fin_descargue) AS e6
+            FROM referencias r
+            WHERE r.ruta_id IS NOT NULL AND r.ruta_id <> ''
+              AND r.presenta_para_carga BETWEEN ? AND ?
+        ", [$desde->toDateTimeString(), $hasta->toDateTimeString()]);
+
+        $porRuta = [];
+        foreach ($filas as $fila) {
+            $ruta = (string) $fila->ruta_id;
+            $porRuta[$ruta] = $porRuta[$ruta] ?? ['n' => 0, 'valores' => array_fill_keys($etapasClaves, [])];
+            $porRuta[$ruta]['n']++;
+
+            foreach ($etapasClaves as $clave) {
+                $valor = $fila->{$clave};
+                if ($valor === null) {
+                    continue;
+                }
+                $valor = (int) $valor;
+                if ($valor < 0 || $valor > $tope) {
+                    continue;
+                }
+                $porRuta[$ruta]['valores'][$clave][] = $valor;
+            }
+        }
 
         $salida = [];
-        foreach (DB::select($sql, [$desde->toDateTimeString(), $hasta->toDateTimeString()]) as $fila) {
-            $etapas = [
-                'e2' => $fila->e2 !== null ? (int) $fila->e2 : null,
-                'e3' => $fila->e3 !== null ? (int) $fila->e3 : null,
-                'e4' => $fila->e4 !== null ? (int) $fila->e4 : null,
-                'e5' => $fila->e5 !== null ? (int) $fila->e5 : null,
-                'e6' => $fila->e6 !== null ? (int) $fila->e6 : null,
-                'n' => (int) $fila->n,
-                'ciclo' => null,
-            ];
+        foreach ($porRuta as $ruta => $datos) {
+            $etapas = ['n' => (int) $datos['n'], 'ciclo' => null];
 
-            $completas = true;
+            foreach ($etapasClaves as $clave) {
+                $lista = $datos['valores'][$clave];
+                $etapas[$clave] = $lista === []
+                    ? null
+                    : (int) round((float) \App\Prediccion\Estadistica::mediana($lista));
+            }
+
+            $salida[$ruta] = $etapas;
+        }
+
+        // El VIAJE (e4) se toma del compilado del módulo de tiempos
+        // (`tiempos_ruta_promedio`, lo que sirve /api/tiempos/promedio) cuando
+        // existe: es el numero que ve el usuario en esa pantalla, calculado con
+        // topes y descarte de viajes raros. Sin compilado queda la mediana de refs.
+        $compilados = self::promedios_ruta();
+        foreach ($salida as $ruta => $etapas) {
+            $fila = $compilados[(string) $ruta] ?? null;
+            if ($fila === null || (int) ($fila->viajes ?? 0) < 3) {
+                continue;
+            }
+
+            $viaje = $fila->mediana_min ?? null;
+            if ($viaje === null || (float) $viaje <= 0) {
+                $viaje = $fila->prom_min ?? null;
+            }
+            if ($viaje === null || (float) $viaje <= 0) {
+                continue;
+            }
+
+            $salida[$ruta]['e4'] = (int) round((float) $viaje);
+        }
+
+        // La COLA Y EL DESCARGUE (e5 + e6) salen del compilado por PLANTA
+        // (`tiempos_planta_promedio`, lo que sirve /api/tiempos/promedio/plantas)
+        // cuando la ruta termina en una planta del catalogo: `prom_fuera_descarga`
+        // es la cola y `prom_dentro_descarga` el descargue, con la muestra de
+        // todas las rutas que entran a esa planta.
+        $plantas = self::promedios_planta();
+        $catalogoRutas = self::rutas();
+        foreach ($salida as $ruta => $etapas) {
+            $destino = (string) ($catalogoRutas[(string) $ruta]->destino_id ?? '');
+            $planta = $destino !== '' ? ($plantas[$destino] ?? null) : null;
+            if ($planta === null) {
+                continue;
+            }
+
+            $fuera = $planta->prom_fuera_descarga_min ?? null;
+            $dentro = $planta->prom_dentro_descarga_min ?? null;
+            if ($fuera === null || $dentro === null) {
+                continue;
+            }
+
+            $salida[$ruta]['e5'] = (int) round((float) $fuera);
+            $salida[$ruta]['e6'] = (int) round((float) $dentro);
+        }
+
+        // ciclo = E2..E6, con las etapas ya definitivas (compilado de ruta + planta)
+        foreach ($salida as $ruta => $etapas) {
             $suma = 0;
-            foreach (['e2', 'e3', 'e4', 'e5', 'e6'] as $clave) {
+            foreach ($etapasClaves as $clave) {
                 if ($etapas[$clave] === null) {
-                    $completas = false;
+                    $suma = null;
                     break;
                 }
                 $suma += $etapas[$clave];
             }
-            if ($completas) {
-                $etapas['ciclo'] = $suma;
-            }
-
-            $salida[(string) $fila->ruta_id] = $etapas;
+            $salida[$ruta]['ciclo'] = $suma;
         }
 
         return self::$etapas[$llave] = $salida;
+    }
+
+    /**
+     * Viaje (e4) que hizo UNA placa en UNA ruta: mediana y cantidad de viajes.
+     *
+     * Es la mitad "entidad" del cruce con el compilado de la ruta. Memoizado por
+     * request: el backtest pide la misma placa/ruta muchas veces.
+     *
+     * @return array{n: int, mediana: ?int}
+     */
+    public static function viaje_placa(string $placa, string $ruta, Carbon $desde, Carbon $hasta): array
+    {
+        $placa = trim($placa);
+        $ruta = trim($ruta);
+        $vacio = ['n' => 0, 'mediana' => null];
+
+        if ($placa === '' || $ruta === '') {
+            return $vacio;
+        }
+
+        $llave = $placa . '|' . $ruta . '|' . $desde->toDateTimeString() . '|' . $hasta->toDateTimeString();
+        if (isset(self::$viajesPlaca[$llave])) {
+            return self::$viajesPlaca[$llave];
+        }
+
+        try {
+            $filas = DB::select(
+                "SELECT TIMESTAMPDIFF(MINUTE, inicio_ruta, qr_llegada_destino) AS e4
+                 FROM referencias
+                 WHERE placa = ? AND ruta_id = ? AND presenta_para_carga BETWEEN ? AND ?
+                   AND inicio_ruta IS NOT NULL AND qr_llegada_destino IS NOT NULL",
+                [$placa, $ruta, $desde->toDateTimeString(), $hasta->toDateTimeString()]
+            );
+        } catch (\Throwable $e) {
+            return self::$viajesPlaca[$llave] = $vacio;
+        }
+
+        $valores = [];
+        foreach ($filas as $fila) {
+            $valor = (int) $fila->e4;
+            if ($valor >= 0 && $valor <= self::TOPE_ETAPA) {
+                $valores[] = $valor;
+            }
+        }
+
+        return self::$viajesPlaca[$llave] = [
+            'n' => count($valores),
+            'mediana' => $valores === []
+                ? null
+                : (int) round((float) \App\Prediccion\Estadistica::mediana($valores)),
+        ];
     }
 
     /**
@@ -635,6 +760,183 @@ class DBPrediccion
         return self::$locales = $salida;
     }
 
+    /**
+     * Resuelve un TEXTO LIBRE a una ubicación del catálogo: ubigeo, local, o nada.
+     *
+     * Orden (el primero que da un único candidato gana):
+     *   1. ubigeo de 6 dígitos;
+     *   2. distrito con ese nombre exacto;
+     *   3. local con ese nombre exacto;
+     *   4. distrito que lo contenga (prefijo/substring);
+     *   5. local que lo contenga.
+     * Si un paso da VARIOS candidatos, se devuelve ambiguo con la lista: adivinar
+     * "SAN JOSE" (hay tres) es peor que preguntar.
+     *
+     * @return array{encontrada: bool, ambigua: bool, tipo: ?string, id: ?string, texto: string,
+     *               fuente: ?string, candidatos: array<int, array{id: string, texto: string}>}
+     */
+    public static function resolver_ubicacion(string $texto): array
+    {
+        $texto = trim($texto);
+        $normalizado = mb_strtoupper(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
+
+        $vacio = ['encontrada' => false, 'ambigua' => false, 'tipo' => null, 'id' => null,
+                  'texto' => $texto, 'fuente' => null, 'candidatos' => []];
+
+        if ($normalizado === '') {
+            return $vacio;
+        }
+
+        // 1) ya es un ubigeo
+        if (preg_match('/^\d{6}$/', $normalizado) === 1) {
+            $distrito = self::ubigeo_texto($normalizado);
+
+            return $distrito === null
+                ? $vacio
+                : ['encontrada' => true, 'ambigua' => false, 'tipo' => 'ubigeo', 'id' => $normalizado,
+                   'texto' => $distrito . ' · ' . $normalizado, 'fuente' => 'ubigeo', 'candidatos' => []];
+        }
+
+        try {
+            // 2) distrito exacto
+            $porNombre = fn (string $like) => DB::select("
+                SELECT d.ubigeo, d.distrito, p.provincia, dep.departamento
+                FROM ubigeo_distritos d
+                LEFT JOIN ubigeo_provincias p ON p.id = d.provincia_id
+                LEFT JOIN ubigeo_departamentos dep ON dep.id = d.departamento_id
+                WHERE UPPER(d.distrito) LIKE ?
+                ORDER BY d.distrito, dep.departamento
+                LIMIT 9
+            ", [$like]);
+
+            $distritos = $porNombre($normalizado);
+
+            if (count($distritos) === 1) {
+                $fila = $distritos[0];
+
+                return ['encontrada' => true, 'ambigua' => false, 'tipo' => 'ubigeo', 'id' => (string) $fila->ubigeo,
+                        'texto' => self::texto_distrito($fila), 'fuente' => 'ubigeo', 'candidatos' => []];
+            }
+            if (count($distritos) > 1) {
+                $candidatos = [];
+                foreach ($distritos as $fila) {
+                    $candidatos[] = ['id' => (string) $fila->ubigeo, 'texto' => self::texto_distrito($fila)];
+                }
+
+                return ['encontrada' => false, 'ambigua' => true, 'tipo' => 'ubigeo', 'id' => null,
+                        'texto' => $texto, 'fuente' => 'ubigeo', 'candidatos' => $candidatos];
+            }
+
+            // 3) local exacto
+            $locales = self::locales_por_texto($normalizado, true);
+            if (count($locales) === 1) {
+                return ['encontrada' => true, 'ambigua' => false, 'tipo' => 'local', 'id' => $locales[0]['id'],
+                        'texto' => $locales[0]['texto'], 'fuente' => 'local', 'candidatos' => []];
+            }
+            if (count($locales) > 1) {
+                return ['encontrada' => false, 'ambigua' => true, 'tipo' => 'local', 'id' => null,
+                        'texto' => $texto, 'fuente' => 'local', 'candidatos' => $locales];
+            }
+
+            // 4) distrito que lo contenga
+            $distritos = $porNombre('%' . $normalizado . '%');
+            if (count($distritos) === 1) {
+                $fila = $distritos[0];
+
+                return ['encontrada' => true, 'ambigua' => false, 'tipo' => 'ubigeo', 'id' => (string) $fila->ubigeo,
+                        'texto' => self::texto_distrito($fila), 'fuente' => 'ubigeo', 'candidatos' => []];
+            }
+            if (count($distritos) > 1) {
+                $candidatos = [];
+                foreach ($distritos as $fila) {
+                    $candidatos[] = ['id' => (string) $fila->ubigeo, 'texto' => self::texto_distrito($fila)];
+                }
+
+                return ['encontrada' => false, 'ambigua' => true, 'tipo' => 'ubigeo', 'id' => null,
+                        'texto' => $texto, 'fuente' => 'ubigeo', 'candidatos' => $candidatos];
+            }
+
+            // 5) local que lo contenga
+            $locales = self::locales_por_texto($normalizado, false);
+            if (count($locales) === 1) {
+                return ['encontrada' => true, 'ambigua' => false, 'tipo' => 'local', 'id' => $locales[0]['id'],
+                        'texto' => $locales[0]['texto'], 'fuente' => 'local', 'candidatos' => []];
+            }
+            if (count($locales) > 1) {
+                return ['encontrada' => false, 'ambigua' => true, 'tipo' => 'local', 'id' => null,
+                        'texto' => $texto, 'fuente' => 'local', 'candidatos' => $locales];
+            }
+        } catch (\Throwable $e) {
+            return $vacio;
+        }
+
+        return $vacio;
+    }
+
+    /**
+     * Locales activos por nombre (exacto) o que contengan el texto (también por
+     * palabra clave, que es como el catálogo guarda "BABEL CAMPOY|CAMPOY").
+     *
+     * @return array<int, array{id: string, texto: string}>
+     */
+    private static function locales_por_texto(string $normalizado, bool $exacto): array
+    {
+        $filas = DB::select("
+            SELECT id, nombre, palabra_clave, distrito_ubigeo
+            FROM locales
+            WHERE activo = 1
+              AND (
+                    UPPER(nombre) = ?
+                 OR (? = 0 AND (UPPER(nombre) LIKE ? OR UPPER(palabra_clave) LIKE ?))
+              )
+            ORDER BY (UPPER(nombre) = ?) DESC, nombre
+            LIMIT 9
+        ", [
+            $normalizado,
+            $exacto ? 1 : 0,
+            '%' . $normalizado . '%',
+            '%' . $normalizado . '%',
+            $normalizado,
+        ]);
+
+        $salida = [];
+        foreach ($filas as $fila) {
+            $ubicacion = self::texto_ubicacion((string) $fila->id, (string) ($fila->distrito_ubigeo ?? ''));
+            $salida[] = ['id' => (string) $fila->id, 'texto' => $ubicacion];
+        }
+
+        return $salida;
+    }
+
+    /** Texto de un ubigeo de distrito ("Chiclayo, Chiclayo, Lambayeque") o null. */
+    private static function ubigeo_texto(string $ubigeo): ?string
+    {
+        try {
+            $fila = DB::selectOne("
+                SELECT d.ubigeo, d.distrito, p.provincia, dep.departamento
+                FROM ubigeo_distritos d
+                LEFT JOIN ubigeo_provincias p ON p.id = d.provincia_id
+                LEFT JOIN ubigeo_departamentos dep ON dep.id = d.departamento_id
+                WHERE d.ubigeo = ?
+            ", [$ubigeo]);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $fila === null ? null : self::texto_distrito($fila);
+    }
+
+    private static function texto_distrito(object $fila): string
+    {
+        $partes = array_filter([
+            trim((string) ($fila->distrito ?? '')),
+            trim((string) ($fila->provincia ?? '')),
+            trim((string) ($fila->departamento ?? '')),
+        ], fn (string $parte) => $parte !== '');
+
+        return implode(', ', $partes);
+    }
+
     /** Minutos de tránsito medidos de una ruta: primero las refs, después el compilado. */
     private static function minutos_ruta(?string $ruta, array $etapas, array $compilados): ?int
     {
@@ -868,6 +1170,7 @@ class DBPrediccion
         self::$etapas = [];
         self::$hitos = [];
         self::$pares = [];
+        self::$viajesPlaca = [];
         self::$locales = null;
         self::$ubigeos_texto = [];
     }

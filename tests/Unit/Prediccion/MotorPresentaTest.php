@@ -291,8 +291,67 @@ class MotorPresentaTest extends TestCase
         $this->assertSame(360, $suma);
     }
 
-    public function test_los_pasos_explican_la_prediccion_con_nombres_y_hhmm(): void
+    public function test_la_linea_de_tiempo_cierra_siempre(): void
     {
+        $casos = [
+            'normal' => [],
+            'atrasado' => [
+                'ahora' => Carbon::parse('2026-11-16 10:00'),
+                'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                     'fecha' => Carbon::parse('2026-11-14 09:00')],
+            ],
+            'etapa vencida' => [
+                'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                     'fecha' => Carbon::parse('2026-11-13 09:00')],
+            ],
+        ];
+
+        foreach ($casos as $nombre => $over) {
+            $r = MotorPresenta::predecir($this->entrada($over));
+            $ancla = $r->ancla->fecha;
+            $presenta = null;
+            $inicio = null;
+
+            foreach ($r->pasos as $paso) {
+                // cada paso trae su fecha y su acumulado: la línea de tiempo se
+                // arma sin recalcular y no puede "fallar en las fechas"
+                $this->assertNotNull($paso['fecha'], $nombre . ': ' . $paso['concepto'] . ' sin fecha');
+
+                $fecha = Carbon::parse($paso['fecha']);
+                $this->assertSame(
+                    (int) round(($fecha->getTimestamp() - $ancla->getTimestamp()) / 60),
+                    $paso['acumulado_min'],
+                    $nombre . ': acumulado de ' . $paso['concepto']
+                );
+
+                if ($paso['concepto'] === 'presenta') {
+                    $presenta = $fecha;
+                }
+                if ($paso['concepto'] === 'inicio_carga') {
+                    $inicio = $fecha;
+                }
+            }
+
+            $this->assertSame($r->presenta->format('Y-m-d H:i'), $presenta?->format('Y-m-d H:i'), $nombre);
+            $this->assertSame($r->inicio_carga->format('Y-m-d H:i'), $inicio?->format('Y-m-d H:i'), $nombre);
+
+            // la suma de las duraciones (con el ajuste, si hubo recorte) = presenta - ancla
+            $suma = 0;
+            foreach ($r->pasos as $paso) {
+                if (in_array($paso['concepto'], ['ancla', 'presenta', 'espera_carga', 'inicio_carga'], true)) {
+                    continue;
+                }
+                $suma += $paso['min'];
+            }
+            $this->assertSame(
+                (int) round(($r->presenta->getTimestamp() - $ancla->getTimestamp()) / 60),
+                $suma,
+                $nombre . ': los pasos tienen que sumar hasta presenta'
+            );
+        }
+    }
+
+    public function test_los_pasos_explican_la_prediccion_con_nombres_y_hhmm(): void    {
         $r = MotorPresenta::predecir($this->entrada([
             'planta_nombre' => 'PLANTA CARAL',
             'ancla_texto' => 'Fin de descargue del viaje 1180352',

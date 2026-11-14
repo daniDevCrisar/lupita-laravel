@@ -45,7 +45,7 @@ class PrediccionController extends Controller
             'placa' => 'nullable|string|max:20',
             'ahora' => 'nullable|date',
             'ancla' => 'nullable|string|max:10',
-            'ubicacion_tipo' => 'nullable|in:auto,local,ubigeo,indeterminado',
+            'ubicacion_tipo' => 'nullable|in:auto,local,ubigeo,geopunto,indeterminado',
             'ubicacion_id' => [
                 'nullable', 'string', 'max:20',
                 function (string $atributo, $valor, \Closure $falla) use ($request) {
@@ -58,6 +58,7 @@ class PrediccionController extends Controller
                     }
                 },
             ],
+            'ubicacion_texto' => 'nullable|string|max:120',
         ]);
 
         $ref = mb_strtoupper(trim((string) $request->input('ref', '')));
@@ -70,6 +71,43 @@ class PrediccionController extends Controller
             'ubicacion_tipo' => (string) $request->input('ubicacion_tipo', 'auto'),
             'ubicacion_id' => trim((string) $request->input('ubicacion_id', '')),
         ];
+
+        // Distrito/local escrito a mano: se resuelve contra el catálogo y, si no
+        // está, se geocodifica con Geoapify (el traslado sale del ruteo real).
+        $ubicacionTexto = trim((string) $request->input('ubicacion_texto', ''));
+        $ubicacionTextoResuelta = '';
+        $ubicacionError = null;
+        $candidatosUbicacion = [];
+
+        if ($ubicacionTexto !== '') {
+            $resolucion = Servicio::resolver_ubicacion_texto($ubicacionTexto);
+
+            if (($resolucion['ambigua'] ?? false) === true) {
+                $ubicacionError = $resolucion['detalle']
+                    ?? ('Hay varias coincidencias para "' . $ubicacionTexto . '": elegí una de la lista.');
+                $candidatosUbicacion = $resolucion['candidatos'] ?? [];
+            } elseif (($resolucion['encontrada'] ?? false) !== true) {
+                $ubicacionError = 'No se pudo ubicar "' . $ubicacionTexto
+                    . '": no está en el catálogo de ubigeos/locales y no se pudo geocodificar.';
+            } else {
+                $opciones['ubicacion_tipo'] = (string) $resolucion['tipo'];
+                $opciones['ubicacion_id'] = (string) ($resolucion['id'] ?? '');
+                $opciones['ubicacion_texto'] = (string) ($resolucion['texto'] ?? $ubicacionTexto);
+                $opciones['ubicacion_resuelta'] = $resolucion;
+                $ubicacionTextoResuelta = (($resolucion['fuente'] ?? '') === 'geoapify'
+                        ? 'geocodificado con Geoapify: ' : 'del catálogo: ')
+                    . $opciones['ubicacion_texto'];
+
+                if (($resolucion['tipo'] ?? '') === 'geopunto') {
+                    $opciones['ubicacion_id'] = '';
+                    $opciones['ubicacion_coords'] = [
+                        'lat' => $resolucion['lat'],
+                        'lng' => $resolucion['lng'],
+                        'texto' => (string) $resolucion['texto'],
+                    ];
+                }
+            }
+        }
 
         $resultado = null;
         if ($ref !== '') {
@@ -107,6 +145,10 @@ class PrediccionController extends Controller
             'candidatos' => $candidatos,
             'local_texto' => $localTexto,
             'ubigeo_texto' => $ubigeoTexto,
+            'ubicacion_texto' => $ubicacionTexto,
+            'ubicacion_texto_resuelta' => $ubicacionTextoResuelta,
+            'ubicacion_error' => $ubicacionError,
+            'candidatos_ubicacion' => $candidatosUbicacion,
             'geoapify_hoy' => \App\Database\DBGeoapify::hoy(),
         ]));
     }
