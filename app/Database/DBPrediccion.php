@@ -611,7 +611,8 @@ class DBPrediccion
      */
     public static function traslado(?string $plantaCarga, ?string $desdePlanta, ?string $desdeUbigeo,
                                     ?string $plantaUbigeo, array $etapas, ?string $rutaPropia = null,
-                                    ?int $defectoMin = null, bool $posicionDeclarada = false): ?object
+                                    ?int $defectoMin = null, bool $posicionDeclarada = false,
+                                    ?Carbon $salida = null): ?object
     {
         if ($plantaCarga === null || $plantaCarga === '') {
             return null;
@@ -668,7 +669,9 @@ class DBPrediccion
         }
 
         // 4: Geoapify. SÓLO acá: no hay ningún promedio compilado para ese par.
-        $geo = \App\Prediccion\Geoapify::ruta($desdeUbigeo, $plantaUbigeo);
+        // `$salida` es la hora a la que el camión sale de verdad: si cae en hora
+        // pico el tiempo se pide con tráfico (ver App\Prediccion\HoraPico).
+        $geo = \App\Prediccion\Geoapify::ruta($desdeUbigeo, $plantaUbigeo, $salida);
         if ($geo !== null) {
             return (object) [
                 'min' => max(1, (int) $geo->min),

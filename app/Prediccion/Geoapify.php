@@ -2,6 +2,7 @@
 
 namespace App\Prediccion;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
@@ -15,6 +16,9 @@ use Illuminate\Support\Facades\Http;
  *    hay colas y descansos, y un AVG se los come): Caral -> Chiclayo promedia
  *    1371 min en la base mientras el manejo real son 547 min;
  *  - para un par que nunca se corrió no hay promedio: ahí entra Geoapify.
+ *
+ * El tiempo de manejo se pide como CAMIÓN y con el tráfico de la hora de salida
+ * (`HoraPico`): en hora pico, sin tráfico, el número se queda corto por horas.
  *
  * Las coordenadas sí se guardan (`geo_coordenadas`, una fila por ubigeo): es un
  * dato estable y evita geocodificar en cada request. Los TIEMPOS no se guardan:
@@ -33,6 +37,21 @@ final class Geoapify
     private const GEOCODE = 'https://api.geoapify.com/v1/geocode/search';
 
     private const ROUTING = 'https://api.geoapify.com/v1/routing';
+
+    /** Modo de ruteo por defecto: la flota son camiones. */
+    public const MODO_RUTA_DEFECTO = 'truck';
+
+    /** Modos que se aceptan en `geoapify.modo_ruta` (los de vehículo pesado + drive). */
+    public const MODOS_RUTA = [
+        'truck', 'light_truck', 'medium_truck', 'heavy_truck', 'long_truck',
+        'truck_dangerous_goods', 'truck_traffic_approximated', 'drive',
+    ];
+
+    /** Tráfico con el que se pide el ruteo por defecto (`geoapify.trafico`). */
+    public const TRAFICO_DEFECTO = 'approximated';
+
+    /** @var array{0: string, 1: string|null}|null el escalón que funcionó en este proceso */
+    private static ?array $escalon = null;
 
     /** @var array<string, object|null> rutas ya pedidas en este request */
     private static array $rutas = [];
@@ -65,6 +84,119 @@ final class Geoapify
         return self::$activo && trim((string) config('geoapify.key', '')) !== '';
     }
 
+    /**
+     * Modo de ruteo configurado (`geoapify.modo_ruta`, por defecto `truck`).
+     *
+     * Todos los viajes son de camiones: con `truck` el proveedor respeta las
+     * restricciones de vehículo pesado y el tiempo de manejo deja de ser el de un
+     * auto (en el Serpentín de Pasamayo son 36 km / 51 min, contra 32,6 km /
+     * 30 min en `drive`).
+     */
+    public static function modo_ruta(): string
+    {
+        $modo = mb_strtolower(trim((string) config('geoapify.modo_ruta', self::MODO_RUTA_DEFECTO)));
+
+        return in_array($modo, self::MODOS_RUTA, true) ? $modo : self::MODO_RUTA_DEFECTO;
+    }
+
+    /**
+     * Tráfico configurado (`geoapify.trafico`): `approximated` pide el tiempo con
+     * el tráfico estimado para esa hora, null pide vía libre.
+     *
+     * Es la diferencia entre 51 min y 134 min en el mismo tramo del Serpentín.
+     */
+    public static function trafico(): ?string
+    {
+        $trafico = mb_strtolower(trim((string) config('geoapify.trafico', self::TRAFICO_DEFECTO)));
+
+        return in_array($trafico, ['approximated', 'free_flow'], true) ? $trafico : null;
+    }
+
+    /**
+     * ¿Este tramo se pide CON tráfico?
+     *
+     * Tres condiciones: que el tráfico no esté apagado en la configuración, que
+     * `trafico_siempre` no fuerce pedirlo, y que la hora de salida caiga en una
+     * franja pico de la zona del viaje (App\Prediccion\HoraPico).
+     *
+     * Sin hora de salida se pide vía libre: si no se sabe cuándo sale el camión,
+     * no se adivina el tráfico (y no se gasta la llamada con tráfico).
+     */
+    public static function trafico_para(?Carbon $salida, ?string $ubigeoOrigen, ?string $ubigeoDestino): ?string
+    {
+        $pedido = self::trafico();
+
+        if ($pedido === null) {
+            return null;   // tráfico apagado: vía libre siempre
+        }
+
+        if ((bool) config('geoapify.trafico_siempre', false)) {
+            return $pedido;
+        }
+
+        if ($salida === null) {
+            return null;
+        }
+
+        return HoraPico::es_pico($salida, HoraPico::zona($ubigeoOrigen, $ubigeoDestino))
+            ? $pedido
+            : null;
+    }
+
+    /** El modo con el que realmente se están pidiendo las rutas en este proceso. */
+    public static function modo_ruta_usado(): string
+    {
+        return self::$escalon[0] ?? self::modo_ruta();
+    }
+
+    /** El tráfico con el que realmente se piden las rutas en este proceso. */
+    public static function trafico_usado(): ?string
+    {
+        return self::$escalon === null ? self::trafico() : self::$escalon[1];
+    }
+
+    /**
+     * Escalones de ruteo, del más específico al más simple.
+     *
+     * Se prueban en orden y el primero que el proveedor acepta queda para todo el
+     * proceso: así un plan que no incluye tráfico o camiones no rompe el cálculo
+     * ni duplica llamadas en cada request.
+     *
+     * `$trafico` es lo que decidió `trafico_para()` para ESTE tramo (hora pico o
+     * vía libre); si viene null no se agrega el escalón con tráfico.
+     *
+     * @return array<int, array{0: string, 1: string|null}>
+     */
+    private static function escalones(?string $trafico = null): array
+    {
+        $modo = self::modo_ruta();
+
+        $escalones = [];
+        if ($trafico !== null) {
+            $escalones[] = [$modo, $trafico];   // camión + tráfico aproximado
+        }
+        $escalones[] = [$modo, null];           // camión, vía libre
+
+        $base = str_replace('_traffic_approximated', '', $modo);
+        if ($base !== $modo) {
+            $escalones[] = [$base, null];       // sin la variante con tráfico del nombre
+        }
+        if ($base !== 'truck') {
+            $escalones[] = ['truck', null];
+        }
+        $escalones[] = ['drive', null];         // último recurso
+
+        $unicos = [];
+        foreach ($escalones as $escalon) {
+            $llave = $escalon[0] . '|' . (string) $escalon[1];
+            if (!isset($unicos[$llave])) {
+                $unicos[$llave] = $escalon;
+            }
+        }
+
+        return array_values($unicos);
+    }
+
     /** Cuántas peticiones HTTP se le hicieron a Geoapify en este proceso. */
     public static function llamadas(): int
     {
@@ -82,8 +214,12 @@ final class Geoapify
      *
      * Se cuenta antes de mandarla y se registra en `geoapify_uso` (ver
      * App\Database\DBGeoapify): cada request, exitoso o no, es lo que el
-     * proveedor descuenta del plan. Devuelve null si la llamada falló, así los
-     * llamadores siguen con sus fallbacks sin repetir el manejo de errores.
+     * proveedor descuenta del plan.
+     *
+     * Devuelve la respuesta (exista o no el recurso) o null si NO hubo respuesta
+     * — sin red, timeout o key rechazada por conexión. La diferencia importa en
+     * `routing()`: sólo un rechazo del proveedor (HTTP 4xx/5xx) hace que se
+     * reintente con otro modo de ruteo; un problema de red no.
      */
     private static function pedir(string $url, array $parametros, string $tipo): ?\Illuminate\Http\Client\Response
     {
@@ -100,7 +236,7 @@ final class Geoapify
 
         \App\Database\DBGeoapify::registrar($tipo, $respuesta->successful());
 
-        return $respuesta->successful() ? $respuesta : null;
+        return $respuesta;
     }
 
     /**
@@ -142,9 +278,13 @@ final class Geoapify
     /**
      * Tiempo de manejo entre dos ubigeos.
      *
-     * @return object{min: int, km: float|null, desde: string, hasta: string}|null
+     * `$salida` es la hora a la que el camión sale de verdad: con eso se decide
+     * si se pide el tiempo CON tráfico (hora pico) o de vía libre (ver
+     * App\Prediccion\HoraPico). Sin hora, se pide vía libre: no se adivina.
+     *
+     * @return object{min: int, km: float|null, desde: string, hasta: string, modo: string, trafico: string|null}|null
      */
-    public static function ruta(?string $origen, ?string $destino): ?object
+    public static function ruta(?string $origen, ?string $destino, ?Carbon $salida = null): ?object
     {
         $origen = trim((string) $origen);
         $destino = trim((string) $destino);
@@ -153,7 +293,8 @@ final class Geoapify
             return null;
         }
 
-        $llave = $origen . '>' . $destino;
+        $trafico = self::trafico_para($salida, $origen, $destino);
+        $llave = $origen . '>' . $destino . '|' . ($trafico ?? 'libre');
         if (array_key_exists($llave, self::$rutas)) {
             return self::$rutas[$llave];
         }
@@ -165,7 +306,7 @@ final class Geoapify
             return self::$rutas[$llave] = null;
         }
 
-        return self::$rutas[$llave] = self::routing($desde, $hasta);
+        return self::$rutas[$llave] = self::routing($desde, $hasta, $trafico);
     }
 
     /**
@@ -173,14 +314,20 @@ final class Geoapify
      *
      * Es el camino cuando el operador escribió el nombre del distrito y no está en
      * el catálogo de ubigeos: se geocodifica el texto y se rutea desde ese punto.
+     *
+     * `$ubigeoOrigen` no se usa para rutear (el punto ya tiene coordenadas): sirve
+     * sólo para saber si el viaje toca la capital y, con `$salida`, decidir si
+     * corresponde pedir tráfico.
      */
-    public static function ruta_desde_coords(float $lat, float $lng, ?string $ubigeoDestino): ?object
+    public static function ruta_desde_coords(float $lat, float $lng, ?string $ubigeoDestino,
+                                             ?Carbon $salida = null, ?string $ubigeoOrigen = null): ?object
     {
         if (!self::disponible()) {
             return null;
         }
 
-        $llave = 'punto|' . $lat . ',' . $lng . '>' . (string) $ubigeoDestino;
+        $trafico = self::trafico_para($salida, $ubigeoOrigen, $ubigeoDestino);
+        $llave = 'punto|' . $lat . ',' . $lng . '>' . (string) $ubigeoDestino . '|' . ($trafico ?? 'libre');
         if (array_key_exists($llave, self::$rutas)) {
             return self::$rutas[$llave];
         }
@@ -192,7 +339,7 @@ final class Geoapify
 
         $desde = (object) ['lat' => $lat, 'lng' => $lng, 'texto' => 'el punto declarado'];
 
-        return self::$rutas[$llave] = self::routing($desde, $hasta);
+        return self::$rutas[$llave] = self::routing($desde, $hasta, $trafico);
     }
 
     /**
@@ -224,7 +371,7 @@ final class Geoapify
             'apiKey' => (string) config('geoapify.key', ''),
         ], 'geocode');
 
-        if ($respuesta === null) {
+        if ($respuesta === null || !$respuesta->successful()) {
             return self::$coords[$llave] = [];
         }
 
@@ -248,19 +395,68 @@ final class Geoapify
         return self::$coords[$llave] = $salida;
     }
 
-    /** Una llamada de routing entre dos puntos (ya resueltos). */
-    private static function routing(object $desde, object $hasta): ?object
+    /**
+     * Una llamada de routing entre dos puntos (ya resueltos).
+     *
+     * Se pide como camión y con el tráfico estimado de esa hora
+     * (`geoapify.modo_ruta` = truck, `geoapify.trafico` = approximated): un auto
+     * en vía libre no se parece a un tracto en hora punta (Serpentín de Pasamayo
+     * -> San Martín de Porres: 134 min con tráfico, 51 min sin tráfico y 30 min
+     * como auto).
+     *
+     * Si el proveedor RECHAZA el escalón —contesta 400 con "mode must be one of
+     * [...]", que es lo que hace cuando el plan no incluye ese modo o el
+     * tráfico— se prueba el siguiente escalón (sin tráfico, luego camión simple,
+     * luego `drive`) y el primero que anda queda para todo el proceso: así no se
+     * duplican llamadas en cada request.
+     *
+     * Un 500, un 429 o una caída de red NO bajan de escalón: no son un rechazo
+     * del plan, son problemas del proveedor.
+     */
+    private static function routing(object $desde, object $hasta, ?string $trafico = null): ?object
     {
-        $respuesta = self::pedir(self::ROUTING, [
-            'waypoints' => $desde->lat . ',' . $desde->lng . '|' . $hasta->lat . ',' . $hasta->lng,
-            'mode' => 'drive',
-            'apiKey' => (string) config('geoapify.key', ''),
-        ], 'routing');
+        $waypoints = $desde->lat . ',' . $desde->lng . '|' . $hasta->lat . ',' . $hasta->lng;
+        $parametros = function (string $modo, ?string $trafico) use ($waypoints): array {
+            $pedido = [
+                'waypoints' => $waypoints,
+                'mode' => $modo,
+                'apiKey' => (string) config('geoapify.key', ''),
+            ];
 
-        if ($respuesta === null) {
+            if ($trafico !== null) {
+                $pedido['traffic'] = $trafico;
+            }
+
+            return $pedido;
+        };
+
+        $respuesta = null;
+        $elegido = null;
+
+        foreach (self::escalones($trafico) as $escalon) {
+            [$modo, $traficoEscalon] = $escalon;
+
+            $respuesta = self::pedir(self::ROUTING, $parametros($modo, $traficoEscalon), 'routing');
+
+            if ($respuesta === null) {
+                return null;   // sin red: no tiene sentido seguir probando
+            }
+
+            if ($respuesta->successful()) {
+                $elegido = $escalon;
+                break;
+            }
+
+            if (!in_array($respuesta->status(), [400, 422], true)) {
+                return null;   // 500 / 429: es el proveedor, no el escalón
+            }
+        }
+
+        if ($elegido === null) {
             return null;
         }
 
+        self::$escalon = $elegido;
         $segundos = $respuesta->json('features.0.properties.time');
         $metros = $respuesta->json('features.0.properties.distance');
 
@@ -273,6 +469,8 @@ final class Geoapify
             'km' => is_numeric($metros) ? round(((float) $metros) / 1000, 1) : null,
             'desde' => $desde->texto,
             'hasta' => $hasta->texto,
+            'modo' => self::modo_ruta_usado(),
+            'trafico' => self::trafico_usado(),
         ];
     }
 
@@ -335,7 +533,7 @@ final class Geoapify
                 'apiKey' => (string) config('geoapify.key', ''),
             ], 'geocode');
 
-            if ($respuesta === null) {
+            if ($respuesta === null || !$respuesta->successful()) {
                 continue;
             }
 
@@ -377,6 +575,7 @@ final class Geoapify
         self::$rutas = [];
         self::$coords = [];
         self::$activo = true;
+        self::$escalon = null;
         self::$llamadas = 0;
         self::$llamadasPorTipo = ['geocode' => 0, 'routing' => 0];
     }

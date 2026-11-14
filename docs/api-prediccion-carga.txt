@@ -2,8 +2,8 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.8
-Fecha         : 15/11/2026
+Version       : 1.10
+Fecha         : 14/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
 Autenticacion : NINGUNA (API publica, igual que el resto de /api)
@@ -276,9 +276,10 @@ CAMPOS DE LA RESPUESTA
   pasos            los pasos que arman la hora, EN ORDEN, con nombres y tiempos
                    en h:mm (ver seccion 8). Es lo que hay que mostrarle al
                    despachador.
-  geoapify         {usado, para, min, km, tramo, tramo_en_curso, motivo}: si se
-                   llamo a Geoapify y PARA QUE (tramo del viaje / traslado)
-                   (ver 8.4).
+  geoapify         {usado, para, min, km, tramo, tramo_en_curso, modo_ruta,
+                   trafico, motivo}: si se llamo a Geoapify y PARA QUE (tramo del
+                   viaje / traslado), en que modo de ruteo (truck) y con que
+                   trafico (approximated) (ver 8.4).
   ubicacion        que posicion se declaro y QUE SE HIZO CON ELLA (ver 8.10):
                    pedida (lo que mando el cliente), usada (true/false), modo
                    (hacia_destino | hacia_planta | no_usada | deducida |
@@ -713,6 +714,55 @@ tramo: ni la ruta entre los dos locales, ni el mismo par de distritos, ni (si no
 se declaro ubicacion) la ruta de la propia referencia. Si hay dato de la flota,
 ese dato manda y la API no se llama.
 
+Los tiempos de manejo se piden como CAMION y CON TRAFICO, pero el trafico SOLO
+en hora pico:
+
+    mode=truck
+    traffic=approximated     <- solo si la hora de salida cae en hora pico
+
+A las 03:00 el trafico aproximado del proveedor es casi via libre: la llamada no
+aporta nada y se paga. En hora pico, en cambio, cambia el resultado: Serpentin de
+Pasamayo -> San Martin de Porres son 134 min con trafico, 51 min sin trafico y
+30 min como auto (con 32,6 km en vez de 34,3).
+
+Franjas de hora pico (config `geoapify.franjas_pico`, en minutos desde
+medianoche):
+
+    capital    06:30-09:30 y 17:30-21:00      (departamento de Lima, 15xxxx)
+    provincia  06:00-09:00 y 17:00-20:00      (el resto del pais)
+
+Zona: si CUALQUIERA de las dos puntas del viaje es del departamento de Lima,
+manda el reloj de la capital (la congestion esta en la ciudad, no en la ruta).
+Los departamentos salen de `geoapify.departamentos_capital` (env
+GEOAPIFY_DEPTOS_CAPITAL, por defecto `15`): para sumar el Callao, `15,07`.
+
+La hora que decide es la de SALIDA real de cada tramo: lo que le falta al viaje
+en curso usa el corte (`ahora`), y el traslado de regreso usa el fin de viaje
+estimado (ancla + etapas que le faltan). Sin hora conocida se pide via libre.
+
+Lo que se midio con los viajes reales (17.534 con `inicio_ruta` -> `qr_llegada`):
+el pico que el dato sostiene es el de la TARDE (17:00-23:00, +8 % en Lima y
++35 % en provincia); las 07:00-09:00 aparecen como las horas MAS RAPIDAS, porque
+el E4 incluye paradas y casi todas las salidas son de planta, fuera de la ciudad.
+El pico de la manana es calendario de la ciudad, no algo que el dato pruebe: por
+eso las franjas son configurables y se ajustan sin tocar codigo.
+
+Configuracion (env GEOAPIFY_MODO_RUTA / GEOAPIFY_TRAFICO /
+GEOAPIFY_TRAFICO_SIEMPRE / GEOAPIFY_DEPTOS_CAPITAL):
+
+    modo_ruta         truck (defecto) | light_truck | medium_truck | heavy_truck |
+                      long_truck | truck_dangerous_goods |
+                      truck_traffic_approximated | drive
+    trafico           approximated (defecto) | vacio = nunca se pide trafico
+    trafico_siempre   true = pedir trafico siempre, sin mirar la hora
+    departamentos     los que usan el reloj de la capital (defecto 15)
+
+Escalones: si el plan no incluye el trafico o el modo, el proveedor contesta 400
+("mode must be one of [...]") y la API prueba el escalon siguiente (camion sin
+trafico -> camion simple -> drive). El primero que anda queda para todo el
+proceso, asi no se gastan llamadas de mas. Un 500, un 429 o un corte de red no
+bajan de escalon: la prediccion sigue con los promedios medidos.
+
 El JSON lo dice explicito, sin tener que leer advertencias:
 
   "geoapify": {
@@ -726,6 +776,13 @@ El JSON lo dice explicito, sin tener que leer advertencias:
       "km": 118.4,                      (null si no aplica)
       "fuente": "geoapify"
     },
+    "modo_ruta": "truck",               modo con el que se pidieron los tiempos
+    "trafico": "approximated",          trafico usado en la ultima llamada
+                                        (null = via libre)
+    "hora_pico": true,                  la hora del corte o la salida del regreso
+                                        cae en hora pico de esa zona
+    "zona_pico": "capital",             capital | provincia
+    "franjas_pico": "06:30-09:30 y 17:30-21:00",
     "motivo": "no habia promedio compilado para ese par de ubicaciones",
     "llamadas": 2,
     "uso_hoy": 17
@@ -952,9 +1009,9 @@ AHORA. Que se hace con eso depende de lo que el camion este haciendo:
      de las medianas. En `pasos` aparece en "Falta del viaje en curso", y en
      `desglose` la fila `restante_viaje` queda con fuente
      "ubicacion declarada -> destino (...)".
-     OJO: el ruteo es manejo de carretera; las medianas de la flota incluyen
-     paradas y colas, asi que este tramo suele quedar algo corto. Se avisa en
-     `supuestos`.
+     OJO: el ruteo es manejo de camion (`mode=truck`, sin paradas), mientras que
+     las medianas de la flota incluyen paradas y colas: este tramo suele quedar
+     algo corto. Se avisa en `supuestos`.
 
      La fuente del tramo puede ser:
        geoapify        ruteo real desde el punto hasta el destino
@@ -1335,7 +1392,7 @@ evidencia. Hay tres niveles.
                      lat, lng, declarada}; si el texto es ambiguo, 422 con
                      `candidatos`.
 
-  1.8  15/11/2026  - La ubicacion declarada YA NO se aplica siempre al regreso:
+  1.8  14/11/2026  - La ubicacion declarada YA NO se aplica siempre al regreso:
                      si el camion va en medio de un viaje (su ultimo hito es
                      presenta_para_carga, inicio_de_carga, fin_de_carga o
                      inicio_ruta) se calcula el tramo que le falta desde esa
@@ -1358,6 +1415,43 @@ evidencia. Hay tres niveles.
                      igual con las medianas de la ruta.
                    - `pasos` y `desglose` dicen de donde salio el tramo (fuente
                      del ruteo o del promedio compilado).
+
+  1.9  14/11/2026  - Los tiempos de manejo de Geoapify se piden como camion y con
+                     trafico: `mode=truck` + `traffic=approximated` (toda la
+                     flota son camiones). El proveedor respeta las restricciones
+                     de vehiculo pesado y usa el trafico estimado para esa hora.
+                     En el Serpentin de Pasamayo, el mismo tramo son 134 min con
+                     trafico, 51 min sin trafico y 30 min como auto.
+                     Se configura con `geoapify.modo_ruta` (env
+                     GEOAPIFY_MODO_RUTA, defecto `truck`) y `geoapify.trafico`
+                     (env GEOAPIFY_TRAFICO, defecto `approximated`; vacio = via
+                     libre). Si el plan del proveedor no incluye el trafico o el
+                     modo, se baja de escalon (camion sin trafico -> camion
+                     simple -> drive) y el escalon que anda queda para todo el
+                     proceso: nunca se queda sin dato. Un 500, un 429 o un corte
+                     de red no bajan de escalon.
+                   - `geoapify` publica `modo_ruta` y `trafico` (con que se
+                     pidieron los tiempos).
+
+  1.10 14/11/2026  - El trafico se pide SOLO en hora pico (clase
+                     App\Prediccion\HoraPico): a las 03:00 el proveedor devuelve
+                     casi via libre, asi que la llamada con trafico no aportaba y
+                     se pagaba. Las franjas viven en `geoapify.franjas_pico`:
+                     capital (departamento de Lima) 06:30-09:30 y 17:30-21:00;
+                     provincia 06:00-09:00 y 17:00-20:00.
+                   - La zona la decide el viaje: si cualquiera de las dos puntas
+                     es del departamento de Lima, manda el reloj de la capital.
+                     Los departamentos se configuran con
+                     `geoapify.departamentos_capital` (env
+                     GEOAPIFY_DEPTOS_CAPITAL, defecto `15`; para sumar el Callao
+                     `15,07`).
+                   - La hora que decide es la de salida real: el corte (`ahora`)
+                     para lo que le falta al viaje en curso, y el fin de viaje
+                     estimado para el traslado de regreso.
+                   - `geoapify` agrega `hora_pico`, `zona_pico` y `franjas_pico`
+                     para que se vea por que se pidio (o no) el trafico.
+                   - Las franjas se pueden forzar con `trafico_siempre` (env
+                     GEOAPIFY_TRAFICO_SIEMPRE) sin tocar codigo.
 
 ================================================================================
  FIN

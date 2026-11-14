@@ -220,11 +220,26 @@ class Servicio
 
         $rutaAncla = $ancla !== null ? (string) ($ancla->ruta_id ?? '') : '';
 
+        // Hora a la que el camión SALE hacia la planta de carga: si va en viaje,
+        // cuando termine (ancla + las etapas que le faltan); si ya está libre,
+        // ahora. Con eso se decide si el regreso se pide con tráfico o de vía
+        // libre (App\Prediccion\HoraPico): no es lo mismo volver a las 20:00 que
+        // a las 03:00.
+        $salidaRegreso = $ahora->copy();
+        if ($viajeEnCurso && $ancla->fecha instanceof Carbon) {
+            $restanteAncla = MotorPresenta::faltantes((string) ($ancla->hito ?? ''),
+                $etapasPorRuta[$rutaAncla] ?? []) ?? 0;
+            $salidaEstimada = $ancla->fecha->copy()->addMinutes($restanteAncla);
+            if ($salidaEstimada->greaterThan($ahora)) {
+                $salidaRegreso = $salidaEstimada;
+            }
+        }
+
         $traslado = $plantaCarga !== ''
             ? DBPrediccion::traslado($plantaCarga, $desdePlanta !== '' ? $desdePlanta : null,
                 $desdeUbigeo !== '' ? $desdeUbigeo : null, (string) ($fila->ubigeo_origen ?? ''),
                 $etapasPorRuta, $rutaRef !== '' ? $rutaRef : null, (int) $p->traslado_defecto_min,
-                $ubicacionDeclarada && !$viajeEnCurso)
+                $ubicacionDeclarada && !$viajeEnCurso, $salidaRegreso)
             : null;
 
         // Posición geocodificada (texto libre que no estaba en el catálogo): el
@@ -233,7 +248,7 @@ class Servicio
         // primero llega a su destino), así que no se usa acá.
         if ($coords !== null && $plantaCarga !== '' && !$viajeEnCurso) {
             $geo = Geoapify::ruta_desde_coords($coords->lat, $coords->lng,
-                (string) ($fila->ubigeo_origen ?? ''));
+                (string) ($fila->ubigeo_origen ?? ''), $salidaRegreso, $ubicacionUbigeo);
 
             if ($geo !== null) {
                 $traslado = (object) [
@@ -283,7 +298,7 @@ class Servicio
         $tramoDeclarado = null;
         if ($viajeEnCurso && $ubicacionDeclarada) {
             $tramoDeclarado = self::tramo_hacia_destino($coords, $ubicacionUbigeo, $ubicacionResueltaTexto,
-                $ancla, $etapasAncla, $rutaAncla !== '' ? $rutaAncla : null);
+                $ancla, $etapasAncla, $rutaAncla !== '' ? $rutaAncla : null, $ahora);
 
             if ($tramoDeclarado !== null) {
                 $tramoDeclarado->resto_min = MotorPresenta::faltantes_sin_viaje(
@@ -426,6 +441,12 @@ class Servicio
         $usoGeoTramo = ($tramoDeclarado->fuente ?? '') === 'geoapify';
         $usoGeo = $usoGeoTraslado || $usoGeoTramo;
         $llamadas = Geoapify::llamadas() - $llamadasGeo;
+
+        // ¿la hora del corte o la salida del regreso caen en hora pico de la zona
+        // del viaje? Es lo que decide si el ruteo se pide CON tráfico.
+        $zonaPico = HoraPico::zona((string) ($fila->ubigeo_origen ?? ''), (string) ($fila->ubigeo_destino ?? ''));
+        $enHoraPico = HoraPico::es_pico($ahora, $zonaPico) || HoraPico::es_pico($salidaRegreso, $zonaPico);
+
         $resultado->geoapify = (object) [
             'usado' => $usoGeo,
             'para' => $usoGeoTramo && $usoGeoTraslado ? 'tramo y traslado'
@@ -440,6 +461,12 @@ class Servicio
                     'fuente' => (string) ($tramoDeclarado->fuente ?? 'sin_dato'),
                 ]
                 : null,
+            // con qué modo de ruteo y con qué tráfico se pidieron los tiempos
+            'modo_ruta' => Geoapify::modo_ruta_usado(),
+            'trafico' => Geoapify::trafico_usado(),
+            'hora_pico' => $enHoraPico,
+            'zona_pico' => $zonaPico,
+            'franjas_pico' => HoraPico::texto($zonaPico),
             'motivo' => $usoGeo
                 ? ($usoGeoTramo
                     ? 'el tramo que le falta al viaje salió del ruteo desde la ubicación declarada'
@@ -1106,7 +1133,8 @@ class Servicio
      * @param  array<string, array<string, int|null>>  $etapas  salida de etapas_por_ruta()
      */
     private static function tramo_hacia_destino(?object $coords, string $desdeUbigeo, string $desdeTexto,
-                                                ?object $ancla, array $etapas, ?string $rutaAncla): ?object
+                                                ?object $ancla, array $etapas, ?string $rutaAncla,
+                                                ?Carbon $salida = null): ?object
     {
         if ($ancla === null) {
             return null;
@@ -1136,10 +1164,13 @@ class Servicio
             ];
         };
 
-        // 1) punto geocodificado: lo que hay que manejar desde ahí
+        // 1) punto geocodificado: lo que hay que manejar desde ahí. El ubigeo de
+        // la punta conocida del viaje (su origen) es lo que dice si toca la
+        // capital y, con la hora, si corresponde pedir el tiempo con tráfico.
         if ($coords !== null) {
             $geo = Geoapify::ruta_desde_coords($coords->lat, $coords->lng,
-                $destinoUbigeo !== '' ? $destinoUbigeo : null);
+                $destinoUbigeo !== '' ? $destinoUbigeo : null, $salida,
+                $desdeUbigeo !== '' ? $desdeUbigeo : (string) ($ancla->ubigeo_origen ?? ''));
 
             return $geo !== null ? $respuesta((int) $geo->min, $geo->km, 'geoapify') : null;
         }
@@ -1150,7 +1181,7 @@ class Servicio
 
         // 2) local/ubigeo declarado: ruteo entre los dos ubigeos
         if ($destinoUbigeo !== '') {
-            $geo = Geoapify::ruta($desdeUbigeo, $destinoUbigeo);
+            $geo = Geoapify::ruta($desdeUbigeo, $destinoUbigeo, $salida);
             if ($geo !== null) {
                 return $respuesta((int) $geo->min, $geo->km, 'geoapify');
             }
@@ -1158,7 +1189,8 @@ class Servicio
 
         // 3) sin Geoapify: lo medido para ese par (o su mediana por departamentos)
         $medido = DBPrediccion::traslado($destinoLocal !== '' ? $destinoLocal : null, null,
-            $desdeUbigeo, $destinoUbigeo !== '' ? $destinoUbigeo : null, $etapas, $rutaAncla, null, true);
+            $desdeUbigeo, $destinoUbigeo !== '' ? $destinoUbigeo : null, $etapas, $rutaAncla, null, true,
+            $salida);
 
         if ($medido !== null && (string) ($medido->fuente ?? '') !== 'defecto') {
             return $respuesta((int) $medido->min, $medido->km ?? null, (string) $medido->fuente);

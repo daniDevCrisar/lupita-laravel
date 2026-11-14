@@ -700,7 +700,7 @@ final class MotorPresenta
             $supuestos[] = 'lo que le falta del viaje se cuenta desde la ubicación declarada hasta '
                 . (string) ($tramo->hasta ?? 'el destino') . ' (' . Tiempo::hhmm((int) ($tramo->min ?? 0))
                 . (isset($tramo->km) && $tramo->km !== null ? ', ' . $tramo->km . ' km' : '')
-                . '): es manejo de la ruta, sin las paradas que incluye la mediana de la flota';
+                . '): es manejo de camión por carretera, sin las paradas que incluye la mediana de la flota';
         }
 
         if ($esCadena) {
