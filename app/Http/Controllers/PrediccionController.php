@@ -696,6 +696,9 @@ class PrediccionController extends Controller
 
         return view('lupita.prediccion_parametros', array_merge(self::comunes(), [
             'en_uso' => $enUso,
+            // lo que dice `config/prediccion.php`, para que la pantalla muestre
+            // cuánto se apartó el valor guardado del de fábrica
+            'por_defecto' => Parametros::por_defecto(),
             'calibrables' => self::PARAMETROS_CALIBRABLES,
             'rejilla_cruce' => self::REJILLA_CRUCE,
             // lo que el motor mira y no se toca desde acá (se mide o se calibra solo)
