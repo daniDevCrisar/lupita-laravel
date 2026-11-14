@@ -283,7 +283,12 @@ Accept: application/json</pre>
         </div>
     @endif
 
-    @include('lupita.partials.prediccion_parametros')
+    {{-- Los parámetros del motor viven en su propia pantalla: acá sólo el acceso --}}
+    <div class="text-end mb-3">
+        <a class="btn btn-sm btn-outline-secondary" href="{{ route('lupita.prediccion.parametros.ver') }}">
+            <i class="bi bi-sliders"></i> Parámetros del motor y calibración
+        </a>
+    </div>
 @endsection
 
 @section('scripts')

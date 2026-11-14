@@ -2,7 +2,7 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.15
+Version       : 1.18
 Fecha         : 14/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
@@ -1327,17 +1327,28 @@ evidencia. Hay tres niveles.
     angosta para la dispersion real del hueco. Se mide con el boton de 12.5.
 
 12.4 CALIBRAR `cruce_pares_k` DESDE LA PANTALLA
-  En "Parametros del motor" esta el boton **Calibrar `cruce_pares_k`**: corre
-  1 - 2 - 3 - 5 - 8 - 12 sobre la tabla de aciertos (entrena y valida) y muestra
-  la recomendacion con el MAE de validacion de cada valor, el que esta en uso y
-  cuanto mejora. Al lado, el boton **Aplicar** lo guarda en `prediccion_config`
-  (POST a /lupita/prediccion/parametros).
+  En "Parametros del motor" esta el boton **Calibrar `cruce_pares_k`**. OJO: NO se
+  mide con la tabla de aciertos. Esa tabla evalua refs con el viaje anterior
+  CERRADO (`fin_descargue`) y ahi `restante_viaje` no se usa, asi que el cruce
+  compilado/placa no cambia nada y TODOS los valores empatan: por eso recomendaba
+  siempre 1 (el primero de la lista).
 
-  La corrida son 6 valores x 2 ventanas (entrenamiento y validacion): tarda
-  decenas de segundos y se cachea 10 minutos. El boton con la flecha (refrescar)
-  ignora la cache y vuelve a medir. Es el mismo motor que
-  `prediccion:calibrar`, con la misma ventana por defecto (ultimos 30 dias, los
-  ultimos 7 como validacion).
+  La medicion correcta esta en `Servicio::calibrar_cruce()`: se toma la duracion
+  real de cada viaje (inicio de ruta -> llegada al destino) y se predice
+  w·(mediana de la placa) + (1−w)·(compilado de la ruta) con w = n/(n+k), usando la
+  mediana de los OTROS viajes de la placa (leave-one-out: sin filtrar el futuro ni
+  el viaje que se esta prediciendo). Se prueban 1 - 2 - 3 - 5 - 8 - 12 y gana el de
+  menor error medio. Si la diferencia con el valor en uso es menos de 1 minuto la
+  recomendacion es NO cambiarlo (la pantalla lo dice: "la diferencia es ruido").
+
+  Con los datos del 14/11/2026 (11.310 viajes, 128 rutas) el MAE da 88 min para
+  k=1..5 y 89-90 para 8 y 12: en esta flota el parametro casi no mueve el viaje,
+  asi que no hay que esperar una mejora grande. La corrida son ~11.000 viajes sin
+  tabla de aciertos: tarda segundos y se cachea 10 minutos.
+
+  OJO con `prediccion:calibrar --preset=viaje`: ese comando mueve el parametro con
+  la tabla de aciertos, asi que para `cruce_pares_k` no sirve; el que mide bien es
+  el boton de la pantalla (o `Servicio::calibrar_cruce()` desde codigo).
 
 12.5 LA VENTANA RAPIDO/TARDADO SE MIDE, NO SE DEDUCE
   El p25-p75 del hueco parecia una ventana, pero no lo es: contiene la hora real
@@ -1381,12 +1392,26 @@ evidencia. Hay tres niveles.
       desglose completo con supuestos y advertencias. Requiere sesion y permiso
       "ver tiempos". Sirve para depurar un caso concreto antes de integrar.
 
+  https://calls.pedrosotelo.fun/lupita/prediccion/guardadas
+      Predicciones guardadas (v1.17): el historial de `prediccion_resultados` en su
+      propia pantalla, con filtros de rango, origen (api | aciertos | pantalla) y
+      filas, el acierto real de lo guardado y la tabla ref por ref. Antes estaba al
+      final de la tabla de aciertos; ahora esa pantalla solo tiene el acceso.
+
+  https://calls.pedrosotelo.fun/lupita/prediccion/parametros
+      Parametros del motor en su propia pantalla (v1.16): los ocho editables, los
+      dos botones de calibracion (cruce_pares_k y ventana rapido/tardado), la tabla
+      de "que mueve cada parametro" y las advertencias. Antes estaba incrustado
+      abajo de la calculadora y de la tabla de aciertos; ahora esas pantallas solo
+      tienen el acceso.
+
   https://calls.pedrosotelo.fun/lupita/prediccion/aciertos
       La tabla de aciertos con los mismos numeros del endpoint 5, fila por fila
       (rapido, predicho, tardado, real, error). Trae solo las metricas del motor
       y, por fila, con que historia se calibro ("Calibra con": placa o
-      conductor). El limite de filas se elige entre 10, 40, 80 y 100; el rango
-      por defecto es el dia actual. Cada fila trae dos accesos directos:
+      conductor). El limite de filas se elige entre 10 y 1000 (con pocas filas la
+      validacion de la calibracion queda chica y cualquier valor gana por suerte);
+      el rango por defecto es el dia actual. Cada fila trae dos accesos directos:
       "Predecir" (abre la pantalla que llama al API, mandando la ref, el corte de
       esa fila Y el ancla = la ultima ref hecha) y el icono de llaves (el JSON
       crudo del API con esos mismos tres parametros).
@@ -1702,6 +1727,33 @@ evidencia. Hay tres niveles.
                      el alias es `presenta_real` y el panel ve lo guardado (por el
                      API y por el boton nuevo). El rango se mira sobre la
                      presentacion real de la ref o sobre el corte de la prediccion.
+
+  1.16 14/11/2026  - "Parametros del motor" pasa a una PANTALLA PROPIA
+                     (/lupita/prediccion/parametros): los ocho editables, los dos
+                     botones de calibracion, la tabla de "que mueve cada
+                     parametro" y las advertencias, con la explicacion de como se
+                     usa (mirar, calibrar, aplicar, comprobar). Antes estaba
+                     incrustado abajo de la calculadora y de la tabla de aciertos;
+                     esas pantallas ahora solo tienen el acceso.
+
+  1.17 14/11/2026  - Las PREDICCIONES GUARDADAS pasan a una pantalla propia
+                     (/lupita/prediccion/guardadas): historial de
+                     `prediccion_resultados` con filtros de rango, origen
+                     (api | aciertos | pantalla) y filas, el acierto real de lo
+                     guardado y la tabla ref por ref. Antes era una tarjeta al
+                     final de la tabla de aciertos; ahora esa pantalla tiene solo el
+                     acceso.
+
+  1.18 14/11/2026  - ARREGLO: el boton "Calibrar cruce_pares_k" recomendaba siempre
+                     1. La causa: se medía con la tabla de aciertos, que sólo
+                     evalua anclas CERRADAS, donde el viaje (y por lo tanto el
+                     cruce compilado/placa) no se usa: todos los valores empataban
+                     y ganaba el primero. Ahora se mide contra la duracion real de
+                     cada viaje con leave-one-out (`Servicio::calibrar_cruce()`), y
+                     la recomendacion se queda con el valor en uso cuando la
+                     diferencia es menos de 1 minuto. Con los datos del 14/11 el MAE
+                     es 88 min para k=1..5 y 89-90 para 8 y 12: el parametro casi
+                     no mueve el viaje en esta flota, y la pantalla lo dice.
 
 ================================================================================
  FIN

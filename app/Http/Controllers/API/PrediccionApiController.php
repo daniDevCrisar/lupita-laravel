@@ -453,6 +453,9 @@ class PrediccionApiController extends Controller
             'ventana' => [
                 'desde' => self::fecha($resultado->ventana['desde'] ?? null),
                 'hasta' => self::fecha($resultado->ventana['hasta'] ?? null),
+                // de dónde salió: residuos medidos del backtest o p25-p75 del hueco
+                'fuente' => $resultado->ventana_fuente ?? null,
+                'cobertura' => $resultado->ventana_cobertura ?? null,
             ],
             'evidencia' => $resultado->evidencia,
             'confianza' => $resultado->confianza,
@@ -469,6 +472,10 @@ class PrediccionApiController extends Controller
                 'cerrada' => (bool) ($resultado->ancla->cerrada ?? false),
             ],
             'pasos' => $resultado->pasos ?? [],
+            // C2: si la hora publicada se corrigió por el día de la semana
+            'factor_dia' => $resultado->factor_dia ?? null,
+            // C1: cola de la planta de carga al corte (informativo + espera)
+            'planta_cola' => $resultado->planta_cola ?? null,
             'geoapify' => $resultado->geoapify ?? (object) ['usado' => false],
             'ubicacion' => $resultado->ubicacion ?? null,
             'desglose' => $resultado->desglose,

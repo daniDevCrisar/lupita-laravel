@@ -168,13 +168,22 @@ class DBPrediccionResultados
      * @return array{n: int, dentro_ventana: int, dentro_tolerancia: int, pct_ventana: ?int,
      *               pct_tolerancia: ?int, error_mediano: ?int, filas: array, guardadas: int}
      */
-    public static function resumen(?Carbon $desde = null, ?Carbon $hasta = null, int $limite = 500): array
+    public static function resumen(?Carbon $desde = null, ?Carbon $hasta = null, int $limite = 500,
+                                   ?string $origen = null, int $filasMax = 50): array
     {
         $vacio = ['n' => 0, 'dentro_ventana' => 0, 'dentro_tolerancia' => 0, 'pct_ventana' => null,
                   'pct_tolerancia' => null, 'error_mediano' => null, 'filas' => [], 'guardadas' => 0];
 
         $desde = ($desde ?? Carbon::now()->subDays(90))->copy()->startOfDay();
         $hasta = ($hasta ?? Carbon::now())->copy()->endOfDay();
+        $origen = trim((string) $origen);
+        $filtroOrigen = $origen !== '' ? ' AND p.origen = ?' : '';
+        $parametros = [$desde->toDateTimeString(), $hasta->toDateTimeString(),
+                       $desde->toDateTimeString(), $hasta->toDateTimeString()];
+
+        if ($origen !== '') {
+            $parametros[] = $origen;
+        }
 
         try {
             $filas = DB::select(
@@ -184,12 +193,11 @@ class DBPrediccionResultados
                         TIMESTAMPDIFF(MINUTE, p.presenta, r.presenta_para_carga) AS error_min
                  FROM prediccion_resultados p
                  LEFT JOIN referencias r ON r.ref = p.ref
-                 WHERE (r.presenta_para_carga BETWEEN ? AND ?)
-                    OR (p.ahora BETWEEN ? AND ?)
+                 WHERE ((r.presenta_para_carga BETWEEN ? AND ?)
+                    OR (p.ahora BETWEEN ? AND ?))" . $filtroOrigen . "
                  ORDER BY p.ahora DESC
                  LIMIT " . max(1, $limite),
-                [$desde->toDateTimeString(), $hasta->toDateTimeString(),
-                 $desde->toDateTimeString(), $hasta->toDateTimeString()]
+                $parametros
             );
         } catch (\Throwable $e) {
             return $vacio;
@@ -267,7 +275,7 @@ class DBPrediccionResultados
             'pct_ventana' => $n > 0 ? (int) round(100 * $dentroVentana / $n) : null,
             'pct_tolerancia' => $n > 0 ? (int) round(100 * $dentroTolerancia / $n) : null,
             'error_mediano' => $errores === [] ? null : (int) round((float) \App\Prediccion\Estadistica::mediana($errores)),
-            'filas' => array_slice($detalle, 0, 50),
+            'filas' => array_slice($detalle, 0, max(1, $filasMax)),
             'guardadas' => count($filas),
         ];
     }

@@ -72,6 +72,29 @@ class GuardarAciertosTest extends TestCase
         $this->assertNotNull($resumen['filas'][0]->corte);
     }
 
+    public function test_el_boton_guarda_y_vuelve_a_la_tabla_con_aviso(): void
+    {
+        $maximo = (int) DB::table('prediccion_resultados')->max('id');
+
+        $peticion = \Illuminate\Http\Request::create('/lupita/prediccion/aciertos/guardar', 'POST', [
+            'fecha_inicio' => '2026-11-07',
+            'fecha_fin' => '2026-11-13',
+            'limite' => '40',
+        ]);
+        $peticion->setLaravelSession(app('session.store'));
+
+        try {
+            $respuesta = \App\Http\Controllers\PrediccionController::guardar_aciertos($peticion);
+
+            // vuelve a la MISMA tabla con los mismos filtros (no con back())
+            $this->assertStringContainsString('/lupita/prediccion/aciertos', $respuesta->getTargetUrl());
+            $this->assertStringContainsString('limite=40', $respuesta->getTargetUrl());
+            $this->assertNotNull(session('estado'), 'el POST tiene que dejar un aviso visible');
+        } finally {
+            DB::table('prediccion_resultados')->where('origen', 'aciertos')->where('id', '>', $maximo)->delete();
+        }
+    }
+
     public function test_sin_hora_predicha_no_se_guarda_nada(): void
     {
         $filas = [

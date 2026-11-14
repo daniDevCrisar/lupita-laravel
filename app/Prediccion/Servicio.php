@@ -711,6 +711,197 @@ class Servicio
     }
 
     /**
+     * Mide `cruce_pares_k` donde el parámetro ACTÚA: el viaje al destino.
+     *
+     * La tabla de aciertos NO sirve para esto: evalúa refs con el viaje anterior
+     * CERRADO (`fin_descargue`) y ahí `restante_viaje` ni se usa, así que el cruce
+     * compilado/placa no cambia nada y todos los valores empatan (por eso el botón
+     * recomendaba siempre 1, el primero de la lista).
+     *
+     * Acá se mide contra el **e4 real** de cada viaje (inicio_ruta -> llegada al
+     * destino): para cada viaje se predice w·(mediana de la placa) + (1−w)·(compilado
+     * de la ruta), con w = n/(n+k) y n = los viajes de la placa en esa ruta
+     * EXCLUYENDO el que se predice (leave-one-out: sin filtración del futuro ni del
+     * propio viaje, que es justo lo que hace trampa).
+     *
+     * @param  array{desde?: mixed, hasta?: mixed, valores?: array<int, int>}  $opciones
+     * @return array<string, mixed>
+     */
+    public static function calibrar_cruce(array $opciones = []): array
+    {
+        $fecha = function ($valor, bool $fin = false): ?Carbon {
+            if ($valor instanceof Carbon) {
+                return $fin ? $valor->copy()->endOfDay() : $valor->copy()->startOfDay();
+            }
+
+            $valor = trim((string) $valor);
+            if ($valor === '') {
+                return null;
+            }
+
+            try {
+                $carbon = Carbon::parse($valor);
+            } catch (\Throwable $e) {
+                return null;
+            }
+
+            return $fin ? $carbon->endOfDay() : $carbon->startOfDay();
+        };
+
+        $hasta = $fecha($opciones['hasta'] ?? null, true) ?? Carbon::now()->endOfDay();
+        $desde = $fecha($opciones['desde'] ?? null) ?? $hasta->copy()->subDays(89)->startOfDay();
+        $valores = array_values(array_filter(array_map('intval', $opciones['valores'] ?? [1, 2, 3, 5, 8, 12]),
+            fn (int $k) => $k >= 0));
+
+        $salida = [
+            'ok' => false,
+            'error' => null,
+            'desde' => $desde->toDateString(),
+            'hasta' => $hasta->toDateString(),
+            'n' => 0,
+            'rutas' => 0,
+            'placas' => 0,
+            'valores' => [],
+            'mejor' => null,
+            'actual' => null,
+            'recomendacion' => null,
+        ];
+
+        try {
+            $filas = DB::select(
+                "SELECT r.placa, r.ruta_id,
+                        TIMESTAMPDIFF(MINUTE, r.inicio_ruta, r.qr_llegada_destino) AS e4
+                 FROM referencias r
+                 WHERE r.inicio_ruta BETWEEN ? AND ?
+                   AND r.qr_llegada_destino > r.inicio_ruta
+                   AND TIMESTAMPDIFF(MINUTE, r.inicio_ruta, r.qr_llegada_destino) BETWEEN 5 AND 720
+                   AND r.placa IS NOT NULL AND r.placa <> ''
+                   AND r.ruta_id IS NOT NULL AND r.ruta_id <> ''",
+                [$desde->toDateTimeString(), $hasta->toDateTimeString()]
+            );
+
+            // compilado por ruta (población): mediana del módulo de tiempos
+            $compilados = DBPrediccion::promedios_ruta();
+        } catch (\Throwable $e) {
+            $salida['error'] = 'No se pudieron leer los viajes: ' . $e->getMessage();
+
+            return $salida;
+        }
+
+        if ($filas === []) {
+            $salida['error'] = 'No hay viajes medibles (inicio_ruta -> llegada) en ese rango.';
+
+            return $salida;
+        }
+
+        // por ruta: todos los e4 (para el fallback) y, por placa, la lista de e4
+        $porRuta = [];
+        $porPlaca = [];
+        foreach ($filas as $fila) {
+            $ruta = (string) $fila->ruta_id;
+            $e4 = (int) $fila->e4;
+            $porRuta[$ruta][] = $e4;
+            $porPlaca[$ruta . '|' . (string) $fila->placa][] = $e4;
+        }
+
+        $poblacion = [];
+        foreach ($porRuta as $ruta => $e4s) {
+            $mediana = $compilados[$ruta]->mediana_min ?? null;
+            $poblacion[$ruta] = $mediana !== null && (float) $mediana > 0
+                ? (int) round((float) $mediana)
+                : (int) round((float) Estadistica::mediana($e4s));
+        }
+
+        // acumuladores por k: |real - prediccion|
+        $errores = [];
+        foreach ($valores as $k) {
+            $errores[$k] = [];
+        }
+
+        $n = 0;
+        foreach ($porPlaca as $clave => $e4s) {
+            [$ruta] = explode('|', $clave, 2);
+            $nPlaca = count($e4s);
+
+            // con un solo viaje no hay mediana de la placa: no aporta al cruce
+            if ($nPlaca < 2 || !isset($poblacion[$ruta])) {
+                continue;
+            }
+
+            foreach ($e4s as $i => $real) {
+                // leave-one-out: la mediana de los OTROS viajes de la placa
+                $otros = $e4s;
+                unset($otros[$i]);
+                $medianaPlaca = Estadistica::mediana(array_values($otros));
+                if ($medianaPlaca === null) {
+                    continue;
+                }
+
+                $n++;
+
+                foreach ($valores as $k) {
+                    $mezcla = self::mezclar_viaje($poblacion[$ruta], (int) round($medianaPlaca),
+                        count($otros), $k);
+
+                    if ($mezcla !== null) {
+                        $errores[$k][] = abs($real - $mezcla);
+                    }
+                }
+            }
+        }
+
+        if ($n === 0) {
+            $salida['error'] = 'Ningún viaje tiene al menos 2 viajes de la misma placa en su ruta: '
+                . 'sin muestra propia el cruce no se puede medir.';
+
+            return $salida;
+        }
+
+        $mae = fn (array $v) => $v === [] ? null : round(array_sum($v) / count($v), 2);
+
+        $mejor = null;
+        foreach ($valores as $k) {
+            $valor = $mae($errores[$k]);
+            $salida['valores'][] = ['k' => $k, 'mae' => $valor, 'n' => count($errores[$k])];
+
+            if ($valor !== null && ($mejor === null || $valor < $mejor['mae'])) {
+                $mejor = ['k' => $k, 'mae' => $valor, 'n' => count($errores[$k])];
+            }
+        }
+
+        $actual = max(0, (int) (Parametros::cargar()->cruce_pares_k ?? 3));
+        $maeActual = $mae($errores[$actual] ?? []);
+
+        // si la diferencia entre el mejor y el que está en uso es menos de 1 minuto,
+        // es ruido: se recomienda NO cambiarlo (recomendar 1 porque empata en el
+        // redondeo es hacerle perder el tiempo al despachador)
+        $ruido = $mejor === null || $maeActual === null || ($maeActual - $mejor['mae']) < 1.0;
+        $recomendado = $ruido ? $actual : $mejor['k'];
+
+        $salida['n'] = $n;
+        $salida['rutas'] = count($porRuta);
+        $salida['placas'] = count($porPlaca);
+        $salida['mejor'] = $mejor;
+        $salida['ruido'] = $ruido;
+        $salida['actual'] = ['k' => $actual, 'mae' => $maeActual];
+        $salida['recomendacion'] = [
+            'clave' => 'cruce_pares_k',
+            'actual' => $actual,
+            'recomendado' => $recomendado,
+            'mae_actual' => $maeActual,
+            'mae_recomendado' => $ruido ? $maeActual : $mejor['mae'],
+            'mejora' => ($maeActual !== null && $mejor !== null) ? round($maeActual - $mejor['mae'], 2) : null,
+        ];
+        $salida['ok'] = $mejor !== null;
+
+        if (!$salida['ok']) {
+            $salida['error'] = 'Ninguna combinación pudo medirse.';
+        }
+
+        return $salida;
+    }
+
+    /**
      * Corre una rejilla de parámetros con entrenamiento + validación.
      *
      * Es la mitad "de cálculo" del comando `prediccion:calibrar` y de la pantalla

@@ -15,6 +15,15 @@
         $coloresEvidencia = ['medido' => 'success', 'parcial' => 'warning text-dark', 'cadena' => 'danger', 'sin_datos' => 'secondary'];
     @endphp
 
+    {{-- avisos de las acciones (guardar predicciones, etc.): sin esto el POST
+         volvía a la misma pantalla y parecía que no hacía nada --}}
+    @if(session('estado'))
+        <div class="alert alert-success py-2">{{ session('estado') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger py-2">{{ session('error') }}</div>
+    @endif
+
     <div class="row mb-2">
         <div class="col-12">
             <h1><i class="bi bi-bullseye"></i> Aciertos de la predicción de carga</h1>
@@ -138,116 +147,12 @@
         </div>
     </div>
 
-    {{-- ================= PREDICCIONES GUARDADAS (historial real) ================= --}}
-    @php $g = $guardadas ?? []; @endphp
-    <div class="card mb-3 border-success">
-        <div class="card-header bg-success text-white d-flex flex-wrap justify-content-between gap-2">
-            <strong><i class="bi bi-database-check"></i> Predicciones guardadas</strong>
-            <span class="small">
-                tabla <code class="text-white">prediccion_resultados</code> ·
-                {{ $g['guardadas'] ?? 0 }} registros pedidos en el rango
-            </span>
-        </div>
-        <div class="card-body">
-            <div class="row g-3 mb-2">
-                <div class="col-md-3">
-                    <div class="text-muted small">Éxito dentro de rápido–tardado</div>
-                    <div class="display-6 fw-bold text-success">{{ $g['pct_ventana'] ?? '—' }}%</div>
-                    <div class="small text-muted">
-                        {{ $g['dentro_ventana'] ?? 0 }} de {{ $g['n'] ?? 0 }} ya presentadas
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="text-muted small">Éxito a ±3 h</div>
-                    <div class="display-6 fw-bold">{{ $g['pct_tolerancia'] ?? '—' }}%</div>
-                    <div class="small text-muted">
-                        {{ $g['dentro_tolerancia'] ?? 0 }} de {{ $g['n'] ?? 0 }}
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="text-muted small">Error mediano</div>
-                    <div class="fs-3 fw-bold">
-                        {{ $g['error_mediano'] === null ? '—' : (($g['error_mediano'] > 0 ? '+' : '') . $g['error_mediano']) }}
-                    </div>
-                    <div class="small text-muted">minutos</div>
-                </div>
-                <div class="col-md-4">
-                    <div class="text-muted small">
-                        Dónde se guardan los resultados
-                    </div>
-                    <div class="small">
-                        Cada vez que la pantalla o el API predicen, queda una fila en
-                        <code>prediccion_resultados</code> con las <strong>tres fechas</strong>
-                        (rápido / normal / tardado), el corte, la evidencia y la confianza.
-                        Cuando la referencia consigue su <em>presenta para carga</em> real, se compara
-                        contra lo guardado (se toma la última predicción hecha antes de presentar) y
-                        sale el porcentaje de arriba.
-                    </div>
-                </div>
-            </div>
-
-            @if(!empty($g['filas']))
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0 align-middle">
-                        <thead class="table-light">
-                        <tr>
-                            <th>Ref</th>
-                            <th>Placa</th>
-                            <th>Corte</th>
-                            <th class="text-success">Rápido</th>
-                            <th class="text-primary">Predicho</th>
-                            <th class="text-warning">Tardado</th>
-                            <th class="text-success">Real<br><span class="fw-normal small">presenta_para_carga</span></th>
-                            <th class="text-end">Error</th>
-                            <th>Acierto</th>
-                            <th>Origen</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($g['filas'] as $fila)
-                            <tr>
-                                <td><code>{{ $fila->ref }}</code></td>
-                                <td class="small">{{ $fila->placa ?: '—' }}</td>
-                                <td class="small">{{ $fila->corte->format('d/m H:i') }}</td>
-                                <td class="small text-success">{{ $fila->rapido ? $fila->rapido->format('d/m H:i') : '—' }}</td>
-                                <td class="small text-primary fw-bold">{{ $fila->predicho ? $fila->predicho->format('d/m H:i') : '—' }}</td>
-                                <td class="small text-warning">{{ $fila->tardado ? $fila->tardado->format('d/m H:i') : '—' }}</td>
-                                <td class="small text-success fw-bold">
-                                    {{ $fila->real ? $fila->real->format('d/m/Y H:i') : 'sin presentar' }}
-                                </td>
-                                <td class="small text-end">
-                                    @if($fila->error_min === null)
-                                        —
-                                    @else
-                                        <span class="badge bg-{{ abs($fila->error_min) <= 180 ? 'success' : 'danger' }}">
-                                            {{ ($fila->error_min > 0 ? '+' : '') . $fila->error_min }}
-                                        </span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($fila->en_ventana === null)
-                                        <span class="badge bg-secondary">pendiente</span>
-                                    @elseif($fila->en_ventana)
-                                        <span class="badge bg-success">en ventana</span>
-                                    @else
-                                        <span class="badge bg-danger">fuera</span>
-                                    @endif
-                                </td>
-                                <td class="small text-muted">{{ $fila->origen }}</td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @else
-                <div class="text-muted small">
-                    Todavía no hay predicciones guardadas en el rango. Se llenan solas al usar
-                    <a href="{{ route('lupita.prediccion.presenta') }}">la calculadora</a> o el API.
-                </div>
-            @endif
-        </div>
+    {{-- El historial de predicciones guardadas tiene su propia pantalla --}}
+    <div class="text-end mb-3">
+        <a class="btn btn-sm btn-outline-success" href="{{ route('lupita.prediccion.guardadas') }}">
+            <i class="bi bi-database-check"></i> Ver las predicciones guardadas
+        </a>
     </div>
-
     <div class="card">
         <div class="card-header d-flex flex-wrap justify-content-between gap-2">
             <div>
@@ -401,5 +306,10 @@
         </div>
     </div>
 
-    @include('lupita.partials.prediccion_parametros')
+    {{-- Los parámetros del motor viven en su propia pantalla: acá sólo el acceso --}}
+    <div class="text-end mb-3">
+        <a class="btn btn-sm btn-outline-secondary" href="{{ route('lupita.prediccion.parametros.ver') }}">
+            <i class="bi bi-sliders"></i> Parámetros del motor y calibración
+        </a>
+    </div>
 @endsection

@@ -59,13 +59,15 @@
                 <div>
                     <div class="small fw-semibold">Calibrar <code>cruce_pares_k</code></div>
                     <div class="text-muted" style="font-size:.7rem">
-                        prueba 1 · 2 · 3 · 5 · 8 · 12 sobre la tabla de aciertos (entrena y valida) y recomienda
+                        mide 1 · 2 · 3 · 5 · 8 · 12 contra la duración REAL de cada viaje (no con la tabla de
+                        aciertos: ahí el viaje no se usa y todos empatan)
                     </div>
                 </div>
-                <select name="limite" class="form-select form-select-sm" style="width:auto">
-                    <option value="80">80 filas</option>
-                    <option value="100" selected>100 filas</option>
-                    <option value="200">200 filas</option>
+                <select name="dias" class="form-select form-select-sm" style="width:auto">
+                    <option value="30">30 días</option>
+                    <option value="90" selected>90 días</option>
+                    <option value="180">180 días</option>
+                    <option value="365">365 días</option>
                 </select>
                 <button class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-sliders"></i> Calibrar
@@ -91,7 +93,10 @@
                     $actualVal = $calibracion['actual']['validacion'] ?? null;
                     $maeMejor = $mejor['validacion']->mae_min ?? null;
                     $maeActual = $actualVal->mae_min ?? null;
-                    $mejora = $maeMejor !== null && $maeActual !== null && (float) $maeMejor < (float) $maeActual;
+                    $esViaje = ($calibracion['fuente'] ?? '') === 'viaje';
+                    $ruido = (bool) ($calibracion['ruido'] ?? false);
+                    $mejora = !$ruido && $maeMejor !== null && $maeActual !== null
+                        && (float) $maeMejor < (float) $maeActual;
                 @endphp
 
                 <div class="alert {{ $mejora ? 'alert-success' : 'alert-info' }} mt-3 mb-0">
@@ -100,22 +105,37 @@
                             <strong>Recomendación: <code>cruce_pares_k = {{ $rec['recomendado'] ?? '—' }}</code></strong>
                             <span class="small">(en uso: {{ $rec['actual'] ?? '—' }})</span>
                             <div class="small mt-1">
-                                MAE en validación <strong>{{ $numero($maeMejor) }} min</strong>
+                                MAE {{ $esViaje ? 'del viaje' : 'en validación' }} <strong>{{ $numero($maeMejor) }} min</strong>
                                 @if($maeActual !== null)
                                     contra <strong>{{ $numero($maeActual) }} min</strong> con lo que está en uso
                                     @if($mejora)
-                                        → mejora <strong>{{ $numero((float) $maeActual - (float) $maeMejor) }} min</strong>
+                                        → mejora <strong>{{ number_format((float) $maeActual - (float) $maeMejor, 1, ',', '.') }} min</strong>
+                                    @elseif($ruido)
+                                        → no hay diferencia real
                                     @else
                                         → no mejora
                                     @endif
                                 @endif
-                                · ±3 h {{ $numero($mejor['validacion']->pct_180 ?? null) }} %
-                                · n = {{ (int) ($mejor['validacion']->n ?? 0) }}
+                                @if($esViaje)
+                                    · {{ number_format((int) $calibracion['n'], 0, ',', '.') }} viajes
+                                    · {{ (int) $calibracion['rutas'] }} rutas
+                                @else
+                                    · ±3 h {{ $numero($mejor['validacion']->pct_180 ?? null) }} %
+                                    · n = {{ (int) ($mejor['validacion']->n ?? 0) }}
+                                @endif
                             </div>
                             <div class="text-muted" style="font-size:.7rem">
-                                entrenamiento {{ $calibracion['entrenamiento']['desde'] }} → {{ $calibracion['entrenamiento']['hasta'] }}
-                                · validación {{ $calibracion['validacion']['desde'] }} → {{ $calibracion['validacion']['hasta'] }}
-                                · {{ $calibracion['combinaciones'] }} combinaciones · {{ $calibracion['limite'] }} filas por corrida
+                                @if($esViaje)
+                                    rango {{ $calibracion['entrenamiento']['desde'] }} → {{ $calibracion['entrenamiento']['hasta'] }}
+                                    · se predice cada viaje con la mediana de los OTROS viajes de la placa (sin filtrar el futuro)
+                                    @if($calibracion['ruido'] ?? false)
+                                        · <strong>la diferencia es ruido (&lt; 1 min): quedate con el que está</strong>
+                                    @endif
+                                @else
+                                    entrenamiento {{ $calibracion['entrenamiento']['desde'] }} → {{ $calibracion['entrenamiento']['hasta'] }}
+                                    · validación {{ $calibracion['validacion']['desde'] }} → {{ $calibracion['validacion']['hasta'] }}
+                                    · {{ $calibracion['combinaciones'] }} combinaciones · {{ $calibracion['limite'] }} filas por corrida
+                                @endif
                             </div>
                         </div>
                         <form method="POST" action="{{ route('lupita.prediccion.parametros') }}">
@@ -135,12 +155,14 @@
                             <thead>
                                 <tr class="text-muted">
                                     <th>parámetro probado</th>
-                                    <th class="text-end">MAE entrena</th>
+                                    <th class="text-end">{{ $esViaje ? 'MAE viaje' : 'MAE entrena' }}</th>
                                     <th class="text-end">n</th>
-                                    <th class="text-end">MAE valida</th>
-                                    <th class="text-end">n</th>
-                                    <th class="text-end">±3 h</th>
-                                    <th class="text-end">% ventana</th>
+                                    @unless($esViaje)
+                                        <th class="text-end">MAE valida</th>
+                                        <th class="text-end">n</th>
+                                        <th class="text-end">±3 h</th>
+                                        <th class="text-end">% ventana</th>
+                                    @endunless
                                 </tr>
                             </thead>
                             <tbody>
@@ -154,10 +176,12 @@
                                         @else
                                             <td class="text-end">{{ $numero($fila['entrenamiento']->mae_min ?? null) }}</td>
                                             <td class="text-end">{{ (int) ($fila['entrenamiento']->n ?? 0) }}</td>
-                                            <td class="text-end">{{ $numero($fila['validacion']->mae_min ?? null) }}</td>
-                                            <td class="text-end">{{ (int) ($fila['validacion']->n ?? 0) }}</td>
-                                            <td class="text-end">{{ $numero($fila['validacion']->pct_180 ?? null) }} %</td>
-                                            <td class="text-end">{{ $numero($fila['validacion']->pct_ventana ?? null) }} %</td>
+                                            @unless($esViaje)
+                                                <td class="text-end">{{ $numero($fila['validacion']->mae_min ?? null) }}</td>
+                                                <td class="text-end">{{ (int) ($fila['validacion']->n ?? 0) }}</td>
+                                                <td class="text-end">{{ $numero($fila['validacion']->pct_180 ?? null) }} %</td>
+                                                <td class="text-end">{{ $numero($fila['validacion']->pct_ventana ?? null) }} %</td>
+                                            @endunless
                                         @endif
                                     </tr>
                                 @endforeach
@@ -165,8 +189,15 @@
                         </table>
                     </div>
                     <div class="text-muted mt-1" style="font-size:.7rem">
-                        Se elige por el MAE de la <strong>validación</strong> (el tramo final, que no se usó para entrenar):
-                        ganar en entrenamiento siempre es trampa.
+                        @if($esViaje)
+                            Se mide contra la duración real de cada viaje (inicio de ruta → llegada al destino):
+                            para cada viaje se predice w·(mediana de la placa) + (1−w)·(compilado de la ruta) con
+                            w = n/(n+k), usando la mediana de los OTROS viajes de la placa. No usa la tabla de
+                            aciertos a propósito: esa tabla sólo evalúa viajes ya CERRADOS, donde el cruce no se usa.
+                        @else
+                            Se elige por el MAE de la <strong>validación</strong> (el tramo final, que no se usó para entrenar):
+                            ganar en entrenamiento siempre es trampa.
+                        @endif
                     </div>
                 </div>
             @endif

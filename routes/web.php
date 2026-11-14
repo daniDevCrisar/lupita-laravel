@@ -104,6 +104,8 @@ Route::middleware(['auth'])->group(function () {
         //--- Prediccion de la hora de presenta para carga (ver docs/superpowers) ---
         Route::get('/prediccion/presenta', [PrediccionController::class, 'presenta'])->name('lupita.prediccion.presenta')
             ->middleware('permission:ver tiempos');
+        Route::get('/prediccion/parametros', [PrediccionController::class, 'parametros'])->name('lupita.prediccion.parametros.ver')
+            ->middleware('permission:ver tiempos');
         Route::post('/prediccion/parametros', [PrediccionController::class, 'guardar_parametros'])->name('lupita.prediccion.parametros')
             ->middleware('permission:ver tiempos');
         // calibra cruce_pares_k con entrenamiento + validación y deja la recomendación
@@ -116,6 +118,9 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:ver tiempos');
         // guarda las predicciones de la corrida de aciertos en prediccion_resultados
         Route::post('/prediccion/aciertos/guardar', [PrediccionController::class, 'guardar_aciertos'])->name('lupita.prediccion.aciertos.guardar')
+            ->middleware('permission:ver tiempos');
+        // historial de predicciones guardadas (prediccion_resultados) en su pantalla
+        Route::get('/prediccion/guardadas', [PrediccionController::class, 'guardadas'])->name('lupita.prediccion.guardadas')
             ->middleware('permission:ver tiempos');
         // buscador de los inputs de local/ubigeo (JSON para el typeahead)
         Route::get('/prediccion/buscar', [PrediccionController::class, 'buscar'])->name('lupita.prediccion.buscar')

@@ -60,6 +60,12 @@ class PrediccionController extends Controller
      */
     public const FILAS_ACIERTOS = [10, 40, 80, 100, 300, 600, 1000];
 
+    /** Filas que se pueden mostrar en la pantalla de predicciones guardadas. */
+    public const FILAS_GUARDADAS = [50, 100, 300, 600];
+
+    /** Orígenes con los que se guarda una predicción (`prediccion_resultados.origen`). */
+    public const ORIGENES_GUARDADAS = ['api', 'aciertos', 'pantalla'];
+
     public static function presenta(Request $request)
     {
         $request->validate([
@@ -289,14 +295,30 @@ class PrediccionController extends Controller
         $resultado = \App\Database\DBPrediccionResultados::guardar_filas($aciertos->filas);
 
         if ($resultado['error'] !== null) {
-            return back()->with('error', 'No se guardó nada: ' . $resultado['error']);
+            return redirect()->route('lupita.prediccion.aciertos', self::filtros_query($filtros))
+                ->with('error', 'No se guardó nada: ' . $resultado['error']);
         }
 
         $mensaje = 'Se guardaron ' . $resultado['guardadas'] . ' predicciones'
             . ($resultado['saltadas'] > 0 ? ' (' . $resultado['saltadas'] . ' ya estaban o no tenían hora)' : '')
-            . '. Se ven más abajo, en "Acierto real de lo que se predijo".';
+            . '. Se ven en la pantalla "Predicciones guardadas".';
 
-        return back()->with('estado', $mensaje);
+        // se vuelve EXPLÍCITAMENTE a la misma tabla y con los mismos filtros (con
+        // `back()` dependíamos del referer: si el navegador no lo manda, el POST
+        // caía en / y la sensación era "el botón no hace nada")
+        return redirect()->route('lupita.prediccion.aciertos', self::filtros_query($filtros))
+            ->with('estado', $mensaje);
+    }
+
+    /** Filtros de la tabla de aciertos listos para la query string (sin vacíos). */
+    private static function filtros_query(array $filtros): array
+    {
+        return array_filter([
+            'fecha_inicio' => $filtros['desde'] ?? null,
+            'fecha_fin' => $filtros['hasta'] ?? null,
+            'placa' => $filtros['placa'] ?? null,
+            'limite' => $filtros['limite'] ?? null,
+        ], fn ($valor) => $valor !== null && $valor !== '');
     }
 
     /** Llave de caché de la tabla de aciertos (misma para mostrar y para guardar). */
@@ -404,6 +426,81 @@ class PrediccionController extends Controller
         return response()->json(['resultados' => $resultados]);
     }
 
+    /**
+     * Predicciones guardadas (`prediccion_resultados`) en su propia pantalla.
+     *
+     * Antes esta tarjeta estaba al final de la tabla de aciertos; ahora tiene su
+     * página, con filtros propios (rango, origen y filas) y la explicación de cómo
+     * se llena.
+     */
+    public static function guardadas(Request $request)
+    {
+        $request->validate([
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date',
+            'origen' => 'nullable|string|max:10',
+            'limite' => 'nullable|integer|in:' . implode(',', self::FILAS_GUARDADAS),
+        ]);
+
+        $desde = (string) $request->input('fecha_inicio', '') ?: now()->subDays(29)->toDateString();
+        $hasta = (string) $request->input('fecha_fin', '') ?: now()->toDateString();
+
+        $limite = (int) $request->input('limite', self::FILAS_GUARDADAS[0]);
+        if (!in_array($limite, self::FILAS_GUARDADAS, true)) {
+            $limite = self::FILAS_GUARDADAS[0];
+        }
+
+        $filtros = [
+            'desde' => $desde,
+            'hasta' => $hasta,
+            'origen' => trim((string) $request->input('origen', '')),
+            'limite' => $limite,
+        ];
+
+        return view('lupita.prediccion_guardadas', array_merge(self::comunes(), [
+            'filtros' => $filtros,
+            'origenes' => self::ORIGENES_GUARDADAS,
+            'limites' => self::FILAS_GUARDADAS,
+            'resumen' => \App\Database\DBPrediccionResultados::resumen(
+                Carbon::parse($desde), Carbon::parse($hasta), 2000, $filtros['origen'], $limite),
+        ]));
+    }
+
+    /**
+     * Pantalla de parámetros del motor (vista propia).
+     *
+     * Reúne lo que antes estaba incrustado abajo de la calculadora y de la tabla de
+     * aciertos, con la explicación de cómo se usa: qué se puede tocar a mano, qué se
+     * calibra con un botón, qué queda como está y qué pasa cuando aplicás.
+     */
+    public static function parametros()
+    {
+        $enUso = Parametros::cargar();
+
+        return view('lupita.prediccion_parametros', array_merge(self::comunes(), [
+            'en_uso' => $enUso,
+            'calibrables' => self::PARAMETROS_CALIBRABLES,
+            'rejilla_cruce' => self::REJILLA_CRUCE,
+            // lo que el motor mira y no se toca desde acá (se mide o se calibra solo)
+            'fijos' => [
+                ['clave' => 'horario_activo', 'valor' => (int) ($enUso->horario_activo ?? 1),
+                 'texto' => 'El viaje sale del compilado POR HORA de la ruta (tiempos_ruta_horario)'],
+                ['clave' => 'horario_viajes_k', 'valor' => (int) ($enUso->horario_viajes_k ?? 3),
+                 'texto' => 'Peso de la celda día/hora: w = viajes/(viajes+k)'],
+                ['clave' => 'descontar_transcurrido', 'valor' => (int) ($enUso->descontar_transcurrido ?? 1),
+                 'texto' => 'Descuenta el tiempo ya manejado y, si la mediana se consumió, espera hasta el p75'],
+                ['clave' => 'dia_activo', 'valor' => (int) ($enUso->dia_activo ?? 1),
+                 'texto' => 'El hueco se multiplica por el factor del día en que presenta (lunes 2,68 · domingo 1,41)'],
+                ['clave' => 'feriado_activo', 'valor' => (int) ($enUso->feriado_activo ?? 1),
+                 'texto' => 'Un feriado usa el peor factor de la semana'],
+                ['clave' => 'cola_activa', 'valor' => (int) ($enUso->cola_activa ?? 1),
+                 'texto' => 'Con 11+ llegadas por hora a la planta se suman minutos a la espera para cargar'],
+                ['clave' => 'ventana_residuos', 'valor' => (int) ($enUso->ventana_residuos ?? 0),
+                 'texto' => 'La ventana rápido/tardado sale de los residuos medidos, no del p25-p75 del hueco'],
+            ],
+        ]));
+    }
+
     /** Guarda los parámetros editables en `prediccion_config`. */
     public static function guardar_parametros(Request $request)
     {
@@ -488,52 +585,119 @@ class PrediccionController extends Controller
     }
 
     /**
-     * Calibra `cruce_pares_k` contra la tabla de aciertos (entrenamiento +
-     * validación) y deja la recomendación en pantalla.
+     * Calibra `cruce_pares_k` y deja la recomendación en pantalla.
      *
-     * No guarda nada: la recomendación se aplica con el botón "Aplicar", que
-     * reusa `guardar_parametros`. La corrida son 6 valores × 2 ventanas de la
-     * tabla de aciertos, así que se cachea 10 minutos igual que esa pantalla.
+     * OJO: NO se mide con la tabla de aciertos. Esa tabla sólo evalúa refs con el
+     * viaje anterior CERRADO, y ahí `restante_viaje` no se usa: el cruce
+     * compilado/placa no cambia nada y todos los valores empatan (por eso antes
+     * recomendaba siempre 1, el primero de la lista). Se mide contra el e4 real de
+     * cada viaje (`Servicio::calibrar_cruce()`), con leave-one-out.
      */
     public static function calibrar_cruce(Request $request)
     {
-        $request->validate(['limite' => 'nullable|integer|min:10|max:300']);
+        $request->validate(['dias' => 'nullable|integer|min:7|max:365']);
 
-        // en el servidor son decenas de segundos: el default de PHP (30 s) puede
-        // cortar la corrida a la mitad
         if (function_exists('set_time_limit')) {
-            @set_time_limit(240);
+            @set_time_limit(120);
         }
 
-        $opciones = [
-            'rejilla' => ['cruce_pares_k' => self::REJILLA_CRUCE],
-            'limite' => (int) $request->input('limite', 100),
-            'metrica' => 'mae',
+        $filtros = [
+            'desde' => now()->subDays(max(7, (int) $request->input('dias', 90)))->toDateString(),
+            'hasta' => now()->toDateString(),
         ];
 
-        $llave = 'prediccion:calibrar:cruce:v1:' . md5(json_encode($opciones)
-            . json_encode((array) Parametros::cargar()));
+        $llave = 'prediccion:calibrar:cruce:v2:' . md5(json_encode($filtros));
 
         if ($request->boolean('refrescar')) {
             \Illuminate\Support\Facades\Cache::forget($llave);
         }
 
         try {
-            $calibracion = \Illuminate\Support\Facades\Cache::remember(
+            $medicion = \Illuminate\Support\Facades\Cache::remember(
                 $llave,
                 now()->addMinutes(10),
-                fn () => Servicio::calibrar($opciones)
+                fn () => Servicio::calibrar_cruce($filtros)
             );
         } catch (\Throwable $e) {
-            $calibracion = ['ok' => false, 'error' => 'No se pudo calibrar: ' . $e->getMessage()];
+            $medicion = ['ok' => false, 'error' => 'No se pudo medir: ' . $e->getMessage()];
         }
 
-        // vuelve a la pantalla desde donde se disparó (calculadora o aciertos)
+        $calibracion = self::calibracion_para_vista($medicion);
+
+        // vuelve a la pantalla desde donde se disparó
         $destino = url()->previous();
         $valido = str_contains($destino, '/lupita/prediccion/');
 
-        return ($valido ? redirect()->to($destino) : redirect()->route('lupita.prediccion.presenta'))
+        return ($valido ? redirect()->to($destino) : redirect()->route('lupita.prediccion.parametros.ver'))
             ->with('calibracion_cruce', $calibracion);
+    }
+
+    /**
+     * Traduce la medición de `cruce_pares_k` a la forma que dibuja la pantalla.
+     *
+     * @param  array<string, mixed>  $m  salida de Servicio::calibrar_cruce()
+     * @return array<string, mixed>
+     */
+    private static function calibracion_para_vista(array $m): array
+    {
+        if (!($m['ok'] ?? false)) {
+            return ['ok' => false, 'error' => $m['error'] ?? 'No se pudo medir.'];
+        }
+
+        $mejor = $m['mejor'];
+        $rec = $m['recomendacion'];
+        $resumen = fn (array $fila) => (object) [
+            'mae_min' => $fila['mae'],
+            'n' => $fila['n'],
+            'pct_180' => null,
+            'pct_ventana' => null,
+        ];
+
+        $resultados = [];
+        foreach ($m['valores'] as $fila) {
+            $resultados[] = [
+                'valores' => ['cruce_pares_k' => $fila['k']],
+                'etiqueta' => 'cruce_pares_k=' . $fila['k'],
+                'entrenamiento' => $resumen($fila),
+                'validacion' => $resumen($fila),
+                'puntaje' => $fila['mae'],
+                'error' => null,
+                'elegido' => $fila['k'] === $mejor['k'],
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'error' => null,
+            'fuente' => 'viaje',
+            'n' => $m['n'],
+            'rutas' => $m['rutas'],
+            'placas' => $m['placas'],
+            'ruido' => $m['ruido'],            'combinaciones' => count($m['valores']),
+            'limite' => $m['n'],
+            'metrica' => 'mae',
+            'entrenamiento' => ['desde' => $m['desde'], 'hasta' => $m['hasta']],
+            'validacion' => ['desde' => $m['desde'], 'hasta' => $m['hasta']],
+            'actual' => [
+                'entrenamiento' => $resumen(['mae' => $m['actual']['mae'], 'n' => $m['n']]),
+                'validacion' => $resumen(['mae' => $m['actual']['mae'], 'n' => $m['n']]),
+            ],
+            'mejor' => [
+                'valores' => ['cruce_pares_k' => $mejor['k']],
+                'etiqueta' => 'cruce_pares_k=' . $mejor['k'],
+                'entrenamiento' => $resumen($mejor),
+                'validacion' => $resumen($mejor),
+                'puntaje' => $mejor['mae'],
+            ],
+            'recomendacion' => [[
+                'clave' => 'cruce_pares_k',
+                'actual' => $rec['actual'],
+                'recomendado' => $rec['recomendado'],
+                'difiere' => $rec['recomendado'] !== $rec['actual'],
+                'mejora' => $rec['mejora'],
+            ]],
+            'resultados' => $resultados,
+        ];
     }
 
     private static function carbon(?string $valor): ?Carbon
