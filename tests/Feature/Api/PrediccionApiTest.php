@@ -293,7 +293,7 @@ class PrediccionApiTest extends TestCase
         $this->assertArrayHasKey('sin_ruta', $respuesta->json());
     }
 
-    public function test_la_tabla_calibra_con_el_conductor_cuando_es_minoritario(): void
+    public function test_la_tabla_calibra_con_el_conductor_cuando_tiene_muestra(): void
     {
         $desde = '2026-10-20';
         $hasta = '2026-10-27';
@@ -312,12 +312,15 @@ class PrediccionApiTest extends TestCase
         }
 
         // el grupo tiene que poder recalcularse con el historial anterior al ancla
+        // y con la MISMA regla de muestra que producción (C3)
         $pares = DBPrediccion::pares(null, Carbon::parse($desde)->subDays(120),
             Carbon::parse($hasta)->endOfDay(), $fila->placa, null, 20000);
         $previos = Servicio::pares_previos($pares, $fila->ancla, 10000);
-        $pct = Servicio::pct_conductor($previos, (int) $conductor);
+        $nChofer = count(array_filter($previos,
+            fn ($previo) => (int) ($previo->conductor ?? 0) === (int) $conductor));
 
-        [$esperado] = Servicio::clave_calibracion($fila->placa, (int) $conductor, $pct);
+        [$esperado] = Servicio::clave_calibracion($fila->placa, (int) $conductor,
+            $nChofer, count($previos), 3);
 
         $this->assertSame('conductor', $esperado);
         $this->assertSame($esperado, $fila->grupo);

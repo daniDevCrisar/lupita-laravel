@@ -48,6 +48,7 @@ Artisan::command(
      {--metrica=mae : mae | pct_1h | pct_3h | pct_ventana}
      {--n-minimo=20 : filas mínimas para que una corrida cuente}
      {--rejilla= : JSON con la rejilla, ej. {"spread_cadena":[0.2,0.3,0.5]}}
+     {--preset= : rejilla con nombre: viaje | ventana | hueco (ver Calibracion::PRESETS)}
      {--aplicar : guarda los mejores valores en prediccion_config}',
     function () {
         $fecha = function (?string $valor, bool $fin = false): ?Carbon {
@@ -92,6 +93,19 @@ Artisan::command(
         $nMinimo = max(1, (int) $this->option('n-minimo'));
 
         $rejilla = Calibracion::REJILLA;
+
+        // rejilla con nombre: no hace falta escribir JSON en la consola
+        $preset = trim((string) $this->option('preset'));
+        if ($preset !== '') {
+            if (!isset(Calibracion::PRESETS[$preset])) {
+                $this->error('--preset desconocido: ' . $preset . '. Usá: '
+                    . implode(', ', array_keys(Calibracion::PRESETS)));
+
+                return 1;
+            }
+            $rejilla = Calibracion::PRESETS[$preset];
+        }
+
         $json = trim((string) $this->option('rejilla'));
         if ($json !== '') {
             $rejilla = json_decode($json, true);

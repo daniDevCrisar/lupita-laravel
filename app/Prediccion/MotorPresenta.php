@@ -58,6 +58,9 @@ final class MotorPresenta
     /** Tope por etapa, en minutos (mismo valor que el módulo de tiempos). */
     private const TOPE_ETAPA = 2880;
 
+    /** Días de la semana para los textos (índice 0 = lunes). */
+    private const DIA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
     /** @see self::predecir() */
     public static function predecir(stdClass $e): stdClass
     {
@@ -121,6 +124,9 @@ final class MotorPresenta
         $etapas = is_array($e->etapas ?? null) ? $e->etapas : (array) ($e->etapas ?? []);
         $restante = null;
 
+        // se agrega a los supuestos cuando se descuenta el tiempo transcurrido
+        $notaRestante = null;
+
         // El operador declaró dónde está el camión AHORA y se ruteó desde ahí
         // hasta el destino del viaje. Eso manda sobre las medianas de la ruta:
         // la mediana cuenta el viaje entero desde el último hito, no lo que le
@@ -137,9 +143,52 @@ final class MotorPresenta
             $restante = max(0, (int) round($fechaAncla->diffInMinutes($tFin)));
         } else {
             $restante = self::faltantes($hito, $etapas);
+            $faltaron = [];
+
+            // D1: si falta UNA etapa no se tira todo. Antes, una ruta sin E5 (la cola
+            // en el destino) hacía que el motor asumiera "libre ahora" y perdiera E4
+            // y E6, que sí estaban medidos.
+            if ($restante === null) {
+                $parcial = self::faltantes_parcial($hito, $etapas);
+                if ($parcial !== null && $parcial['min'] > 0) {
+                    $restante = $parcial['min'];
+                    $faltaron = $parcial['faltan'];
+                }
+            }
+
+            if ($faltaron !== [] && $restante !== null) {
+                $salida->advertencias[] = 'etapas_incompletas: la ruta del viaje en curso no tiene '
+                    . implode(' + ', $faltaron) . '; se sumó lo que hay (' . Tiempo::hhmm($restante) . ')';
+            }
+
             if ($restante === null) {
                 $tFin = $ahora->copy();
                 $salida->advertencias[] = 'etapas_incompletas: la ruta del viaje en curso no tiene los promedios E2..E6; se asume que el camión queda libre ahora';
+            } elseif ((int) ($p->descontar_transcurrido ?? 1) === 1) {
+                // Lo que el camión YA lleva manejado se descuenta: lo que le falta
+                // es la mediana de la etapa menos lo transcurrido. (Antes se sumaba
+                // la etapa entera desde el hito y, si ya estaba vencida, se
+                // recortaba a 0, o sea "ya llegó".)
+                $edad = max(0, (int) round($fechaAncla->diffInMinutes($ahora)));
+                $queda = $restante - $edad;
+
+                if ($queda > 0) {
+                    $tFin = $ahora->copy()->addMinutes($queda);
+                    $notaRestante = 'al viaje le faltan ' . Tiempo::hhmm($queda) . ': la mediana de su ruta ('
+                        . Tiempo::hhmm($restante) . ') menos ' . Tiempo::hhmm($edad) . ' ya transcurridos';
+                } else {
+                    // la mediana ya se consumió: se espera hasta el p75 medido de la
+                    // etapa en vez de dar por hecho que ya descargó
+                    $tope = self::faltantes_p75($hito, $etapas) ?? $restante;
+                    $espera = max(0, $tope - $edad);
+                    $tFin = $ahora->copy()->addMinutes($espera);
+                    $salida->advertencias[] = 'etapa_vencida: la mediana de la etapa (' . Tiempo::hhmm($restante)
+                        . ') se consumió hace ' . Tiempo::hhmm($edad - $restante)
+                        . '; se espera hasta el p75 de la etapa (' . Tiempo::hhmm($tope) . ')'
+                        . ($espera > 0 ? ': ' . Tiempo::hhmm($espera) . ' más' : ' y tampoco alcanza, se cuenta desde ahora');
+                }
+
+                $restante = max(0, (int) round($fechaAncla->diffInMinutes($tFin)));
             } else {
                 $tFin = $fechaAncla->copy()->addMinutes($restante);
                 if ($tFin->lessThanOrEqualTo($ahora)) {
@@ -185,6 +234,39 @@ final class MotorPresenta
 
         $hueco = max(1, min(max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO)), $hueco));
 
+        // C2 — EL DÍA EN QUE PRESENTA MUEVE EL HUECO. Medido con 13.387 huecos
+        // reales: el lunes la mediana es 2,53 veces la global y el domingo 1,45
+        // (el fin de semana acumula y el lunes se paga). El factor viene medido de
+        // la placa (o del prior de la flota si no hay muestra de ese día) y se
+        // aplica al hueco; un feriado usa el peor factor de la semana.
+        $notaDia = null;
+        $factoresDia = is_array($e->factor_dia ?? null) ? $e->factor_dia : [];
+        if ($factoresDia !== []) {
+            $diaPresenta = $tFin->copy()->addMinutes($hueco);
+            $indice = (int) $diaPresenta->format('N') - 1;
+            $factor = (float) ($factoresDia[$indice] ?? 1.0);
+
+            $feriado = (int) ($e->feriado_activo ?? 1) === 1 && Feriados::es_feriado($diaPresenta);
+            if ($feriado) {
+                $factor = max($factor, (float) ($factoresDia[0] ?? 1.0));
+            }
+
+            if ($factor > 0.0 && abs($factor - 1.0) > 0.005) {
+                $hueco = max(1, min(max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO)),
+                    (int) round($hueco * $factor)));
+                $fuenteHueco .= ' · día ' . self::DIA[$indice] . ($feriado ? ' (feriado)' : '')
+                    . ' ×' . number_format($factor, 2);
+                $notaDia = 'el día en que presenta (' . self::DIA[$indice] . ($feriado ? ', feriado' : '')
+                    . ') tiene el hueco ×' . number_format($factor, 2)
+                    . ' según los viajes reales de esa placa o de la flota';
+                $salida->factor_dia = (object) [
+                    'dia' => $indice,
+                    'factor' => $factor,
+                    'feriado' => $feriado,
+                ];
+            }
+        }
+
         // 4) fuera de las franjas inactivas del camión
         $t = $tFin->copy()->addMinutes($hueco);
         $desplazado = Ventanas::desplazar($t, $ventanas, max(0, (int) ($p->max_desplazamiento_min ?? 600)));
@@ -204,8 +286,12 @@ final class MotorPresenta
             $salida->advertencias[] = 'atrasado: la predicción cayó antes de ahora; el camión está fuera de su patrón';
         }
 
-        // las otras dos fechas: rápido y tardado (mismo recorrido, otro hueco)
-        $extremos = self::huecos_extremos($hueco, $cal, $trasladoMin, $p);
+        // las otras dos fechas: rápido y tardado.
+        // Fuente preferida: los RESIDUOS medidos del backtest (radio alrededor de
+        // la hora publicada), que sí contienen el valor real; si no hay medición,
+        // los cuantiles del hueco (p25/p75) o el porcentaje de la cadena.
+        $ventanaMedida = is_object($e->ventana_residuos ?? null) ? $e->ventana_residuos : null;
+        $extremos = self::huecos_extremos($hueco, $cal, $trasladoMin, $p, $ventanaMedida, $evidencia);
         $rapido = self::fecha_con_hueco($tFin, $extremos['rapido'], $ventanas, $p, $ahora);
         $tardado = self::fecha_con_hueco($tFin, $extremos['tardado'], $ventanas, $p, $ahora);
 
@@ -234,7 +320,8 @@ final class MotorPresenta
         $salida->presenta = $t;
         $salida->presenta_rapido = $rapido;
         $salida->presenta_tardado = $tardado;
-        $salida->presentaciones = self::presentaciones($ahora, $rapido, $t, $tardado, $cal);
+        $salida->presentaciones = self::presentaciones($ahora, $rapido, $t, $tardado, $cal,
+            $ventanaMedida !== null ? 'residuos' : null);
         $salida->inicio_carga = $t->copy()->addMinutes($espera);
         $salida->espera_min = $espera;
         $salida->evidencia = $evidencia;
@@ -261,8 +348,19 @@ final class MotorPresenta
                 'fuente' => 'recorte a la hora de corte',
             ];
         }
-        $salida->ventana = self::ventana($t, $cal);
+        $salida->ventana = $ventanaMedida !== null
+            ? ['desde' => $rapido->copy(), 'hasta' => $tardado->copy()]
+            : self::ventana($t, $cal);
+        // de dónde salió la ventana: se mide la del backtest o el p25-p75 del hueco
+        $salida->ventana_fuente = $ventanaMedida !== null ? 'residuos' : 'p25_p75_hueco';
+        $salida->ventana_cobertura = $ventanaMedida !== null ? ($ventanaMedida->cobertura ?? null) : null;
         $salida->supuestos = self::supuestos($cerrada, $esCadena, $cal, $traslado, $espera, $p, $tramo);
+        if ($notaRestante !== null) {
+            $salida->supuestos[] = $notaRestante;
+        }
+        if ($notaDia !== null) {
+            $salida->supuestos[] = $notaDia;
+        }
         $salida->pasos = self::pasos($e, $salida, $fechaAncla, $t, $restante, $hueco, $trasladoMin, $tiempoMuerto,
             $esperaVentana, $espera, $cerrada);
         $salida->duracion_total = Tiempo::hhmm((int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60));
@@ -271,20 +369,39 @@ final class MotorPresenta
     }
 
     /**
-     * Los dos huecos extremos, a partir del calibrador o de un porcentaje.
+     * Los dos huecos extremos (rápido y tardado).
      *
-     * Con pares medidos se usan los cuantiles reales (p25 y p75). Sin pares no hay
-     * distribución, así que se abre el hueco de la cadena por `spread_cadena`
-     * (30 % por defecto) y el rápido nunca queda por debajo del traslado: el
-     * camión no puede llegar antes de lo que tarda el viaje.
+     * Tres fuentes, en orden de preferencia:
+     *  1. `$ventana` (residuos medidos en el backtest): la hora publicada menos el
+     *     adelanto medido y más el atraso medido. Es la única que se midió contra
+     *     el resultado real, así que es la que manda cuando existe.
+     *  2. los cuantiles del hueco de la placa/chofer (p25 y p75);
+     *  3. el porcentaje de la cadena (`spread_cadena`) cuando no hay pares.
+     *
+     * En los tres casos el rápido nunca queda por debajo del traslado (el camión
+     * no puede presentarse antes de lo que tarda volver) ni el tardado por debajo
+     * del hueco.
      *
      * @return array{rapido: int, tardado: int}
      */
-    private static function huecos_extremos(int $hueco, ?object $cal, ?int $trasladoMin, object $p): array
+    private static function huecos_extremos(int $hueco, ?object $cal, ?int $trasladoMin, object $p,
+                                            ?object $ventana = null, string $evidencia = 'cadena'): array
     {
         $tope = max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO));
 
-        if ($cal !== null && ($cal->p25_min ?? null) !== null && ($cal->p75_min ?? null) !== null) {
+        if ($ventana !== null && ((int) ($ventana->adelanto ?? 0) + (int) ($ventana->atraso ?? 0)) > 0) {
+            $adelanto = max(0, (int) ($ventana->adelanto ?? 0));
+            $atraso = max(0, (int) ($ventana->atraso ?? 0));
+
+            // la cadena (sin pares medidos) tiene su propia banda, si se midió
+            if ($evidencia === 'cadena') {
+                $adelanto = max(0, (int) ($ventana->adelanto_cadena ?? 0)) ?: $adelanto;
+                $atraso = max(0, (int) ($ventana->atraso_cadena ?? 0)) ?: $atraso;
+            }
+
+            $rapido = $hueco - $adelanto;
+            $tardado = $hueco + $atraso;
+        } elseif ($cal !== null && ($cal->p25_min ?? null) !== null && ($cal->p75_min ?? null) !== null) {
             $rapido = (int) $cal->p25_min;
             $tardado = (int) $cal->p75_min;
         } else {
@@ -317,10 +434,12 @@ final class MotorPresenta
      * @return array<int, array<string, mixed>>
      */
     private static function presentaciones(Carbon $ahora, Carbon $rapido, Carbon $normal, Carbon $tardado,
-                                          ?object $cal): array
+                                          ?object $cal, ?string $fuente = null): array
     {
         $desde = fn (Carbon $fecha) => Tiempo::hhmm((int) round(($fecha->getTimestamp() - $ahora->getTimestamp()) / 60));
-        $nivel = $cal !== null ? 'cuantiles medidos (p25 / mediana / p75)' : 'porcentaje sobre la cadena';
+        $nivel = $fuente === 'residuos'
+            ? 'medido con el error real del motor'
+            : ($cal !== null ? 'cuantiles medidos (p25 / mediana / p75)' : 'porcentaje sobre la cadena');
 
         return [
             [
@@ -340,7 +459,8 @@ final class MotorPresenta
             [
                 'clave' => 'tardado',
                 'etiqueta' => 'Tardado',
-                'descripcion' => 'si se le cruza un descanso largo, una cola o un viaje que se estira',
+                'descripcion' => 'si se le cruza un descanso largo, una cola o un viaje que se estira'
+                    . ($fuente === 'residuos' ? ' (' . $nivel . ')' : ''),
                 'fecha' => $tardado->format('Y-m-d H:i:s'),
                 'desde_ahora' => $desde($tardado),
             ],
@@ -508,6 +628,51 @@ final class MotorPresenta
     }
 
     /**
+     * Lo mismo que `faltantes()` pero sin exigir todas las etapas: suma las que
+     * existen y dice cuáles faltaron (D1).
+     *
+     * Antes, si la ruta no tenía una sola etapa (por ejemplo E5, la cola en el
+     * destino), el motor asumía que el camión quedaba libre ahora y perdía las
+     * otras cuatro, que sí estaban medidas. Devuelve null sólo si no hay ninguna.
+     *
+     * @param  array<string, int|float|string|null>  $etapas
+     * @return array{min: int, faltan: array<int, string>}|null
+     */
+    public static function faltantes_parcial(?string $hito, array $etapas): ?array
+    {
+        if ($hito === null) {
+            return null;
+        }
+
+        $claves = self::FALTANTES[$hito] ?? null;
+        if ($claves === null) {
+            return null;
+        }
+
+        $total = 0;
+        $faltan = [];
+        $usadas = 0;
+
+        foreach ($claves as $clave) {
+            $valor = $etapas[$clave] ?? null;
+            if ($valor === null || !is_numeric($valor)) {
+                $faltan[] = strtoupper($clave);
+
+                continue;
+            }
+
+            $usadas++;
+            $total += min(self::TOPE_ETAPA, max(0, (int) round((float) $valor)));
+        }
+
+        if ($usadas === 0) {
+            return null;
+        }
+
+        return ['min' => min(self::TOPE_ETAPA, $total), 'faltan' => $faltan];
+    }
+
+    /**
      * Minutos de las etapas que siguen a la ida al destino (descarga y vuelta),
      * sin contar la etapa E4. Se usan cuando la ida se calcula desde la posición
      * declarada del camión: esa etapa ya no sale de la mediana.
@@ -531,6 +696,40 @@ final class MotorPresenta
         $total = 0;
         foreach (array_diff($claves, ['e4']) as $clave) {
             $valor = $etapas[$clave] ?? null;
+            if ($valor === null || !is_numeric($valor)) {
+                return null;
+            }
+            $total += min(self::TOPE_ETAPA, max(0, (int) round((float) $valor)));
+        }
+
+        return min(self::TOPE_ETAPA, $total);
+    }
+
+    /**
+     * Lo mismo que `faltantes()` pero con el P75 de cada etapa cuando el
+     * compilado lo trae (`e4_p75` del viaje por ruta, `e5_p75`/`e6_p75` de la
+     * planta).
+     *
+     * Es el techo con el que se espera cuando la mediana ya se consumió: un
+     * camión que va más lento que la mediana no "ya llegó", va con retraso.
+     * NULL si falta algún promedio, igual que `faltantes()`.
+     *
+     * @param  array<string, int|float|string|null>  $etapas
+     */
+    public static function faltantes_p75(?string $hito, array $etapas): ?int
+    {
+        if ($hito === null) {
+            return null;
+        }
+
+        $claves = self::FALTANTES[$hito] ?? null;
+        if ($claves === null) {
+            return null;
+        }
+
+        $total = 0;
+        foreach ($claves as $clave) {
+            $valor = $etapas[$clave . '_p75'] ?? $etapas[$clave] ?? null;
             if ($valor === null || !is_numeric($valor)) {
                 return null;
             }

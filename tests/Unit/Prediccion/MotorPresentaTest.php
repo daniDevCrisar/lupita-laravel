@@ -94,8 +94,133 @@ class MotorPresentaTest extends TestCase
         $this->assertNotEmpty(array_filter($r->supuestos, fn ($s) => str_contains($s, 'ubicación declarada')));
     }
 
-    public function test_lo_que_sigue_al_viaje_son_solo_las_etapas_posteriores(): void
+    public function test_si_la_mediana_ya_se_consumio_se_espera_hasta_el_p75(): void
     {
+        // 6 h desde inicio_ruta y la mediana de las etapas es 285' (e4 180 +
+        // e5 60 + e6 45): la mediana ya venció. Con el p75 medido (420') todavía
+        // le faltarían 60', que es lo que separa "va con retraso" de "ya descargó".
+        $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-14 15:00'),
+            'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+            'etapas' => ['e2' => 90, 'e3' => 60, 'e4' => 180, 'e5' => 60, 'e6' => 45,
+                         'e4_p75' => 280, 'e5_p75' => 80, 'e6_p75' => 60],
+        ]));
+
+        // 15:00 + (420 - 360) = 16:00 de fin de viaje, + hueco 300' = 21:00
+        $this->assertSame('2026-11-14 21:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertContains('etapa_vencida', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
+        // el desglose sigue contando desde el ancla: 09:00 -> 16:00 = 420'
+        $this->assertSame(420, collect($r->desglose)->firstWhere('concepto', 'restante_viaje')['min']);
+    }
+
+    public function test_sin_el_descuento_queda_el_comportamiento_viejo(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-14 15:00'),
+            'parametros' => $this->parametros(['descontar_transcurrido' => 0]),
+            'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+            'etapas' => ['e2' => 90, 'e3' => 60, 'e4' => 180, 'e5' => 60, 'e6' => 45,
+                         'e4_p75' => 280, 'e5_p75' => 80, 'e6_p75' => 60],
+        ]));
+
+        // viejo: etapa vencida -> se cuenta desde ahora (15:00) + hueco 300'
+        $this->assertSame('2026-11-14 20:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame(0, collect($r->desglose)->firstWhere('concepto', 'restante_viaje')['min']);
+    }
+
+    public function test_si_falta_una_etapa_se_suma_lo_que_hay(): void
+    {
+        // ruta sin E5 (la cola en el destino): antes el motor asumía "libre ahora"
+        // y perdía E4 (180) y E6 (45); ahora suma lo que tiene y lo avisa
+        $r = MotorPresenta::predecir($this->entrada([
+            'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+            'etapas' => ['e2' => 90, 'e3' => 60, 'e4' => 180, 'e5' => null, 'e6' => 45],
+        ]));
+
+        // 09:00 + (180 + 45) = 12:45 de fin de viaje, + hueco 300 = 17:45
+        $this->assertSame('2026-11-14 17:45', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame(225, collect($r->desglose)->firstWhere('concepto', 'restante_viaje')['min']);
+        $aviso = implode(' | ', $r->advertencias);
+        $this->assertStringContainsString('etapas_incompletas', $aviso);
+        $this->assertStringContainsString('E5', $aviso);
+
+        // y lo que dice la función, sin pasar por el motor
+        $parcial = MotorPresenta::faltantes_parcial('inicio_ruta',
+            ['e4' => 180, 'e5' => null, 'e6' => 45]);
+        $this->assertSame(225, $parcial['min']);
+        $this->assertSame(['E5'], $parcial['faltan']);
+
+        // sin ninguna etapa no se inventa nada
+        $this->assertNull(MotorPresenta::faltantes_parcial('inicio_ruta', []));
+        $this->assertNull(MotorPresenta::faltantes_parcial('fin_descargue', ['e4' => 180]));
+    }
+
+    public function test_la_ventana_medida_manda_sobre_los_cuantiles_del_hueco(): void
+    {
+        // residuos medidos: ±10 min de adelanto y +15 h de atraso (el hueco es 300')
+        $r = MotorPresenta::predecir($this->entrada([
+            'ventana_residuos' => (object) ['adelanto' => 600, 'atraso' => 900, 'cobertura' => 0.7],
+        ]));
+
+        // presenta 09:00 + 300' = 14:00
+        $this->assertSame('2026-11-14 14:00', $r->presenta->format('Y-m-d H:i'));
+        // rápido = 300 - 600 < traslado 180 -> queda en el traslado: 09:00 + 180' = 12:00
+        $this->assertSame('2026-11-14 12:00', $r->presenta_rapido->format('Y-m-d H:i'));
+        // tardado = 300 + 900 = 1200' -> 09:00 + 1200' = 05:00 del día siguiente
+        $this->assertSame('2026-11-15 05:00', $r->presenta_tardado->format('Y-m-d H:i'));
+        // la ventana publicada es la misma banda, y se dice de dónde salió
+        $this->assertSame('residuos', $r->ventana_fuente);
+        $this->assertSame('2026-11-14 12:00', $r->ventana['desde']->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-15 05:00', $r->ventana['hasta']->format('Y-m-d H:i'));
+        $this->assertEqualsWithDelta(0.7, (float) $r->ventana_cobertura, 0.001);
+        $this->assertStringContainsString('error real', $r->presentaciones[0]['descripcion']);
+    }
+
+    public function test_la_cadena_usa_su_propia_banda_cuando_esta_medida(): void
+    {
+        // sin pares medidos (calibrador null) el motor arma la cadena; la banda de
+        // la cadena es mucho más ancha que la general, así que tiene que usarla
+        $r = MotorPresenta::predecir($this->entrada([
+            'calibrador' => null,
+            'ventana_residuos' => (object) [
+                'adelanto' => 600, 'atraso' => 600,
+                'adelanto_cadena' => 3000, 'atraso_cadena' => 3000,
+                'cobertura' => 0.7,
+            ],
+        ]));
+
+        $this->assertSame('cadena', $r->evidencia);
+        // cadena: t_fin 09:00 (ancla cerrada) + traslado 180 + muerto 60 = 13:00
+        $this->assertSame('2026-11-14 13:00', $r->presenta->format('Y-m-d H:i'));
+        // tardado = 240' + 3000' = 3240' desde las 09:00 -> 16/11 15:00
+        $this->assertSame('2026-11-16 15:00', $r->presenta_tardado->format('Y-m-d H:i'));
+    }
+
+    public function test_sin_ventana_medida_siguen_los_cuantiles_del_hueco(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada());
+
+        $this->assertSame('p25_p75_hueco', $r->ventana_fuente);
+        // el calibrador del test trae p25=240 y p75=420
+        $this->assertSame('2026-11-14 13:00', $r->presenta_rapido->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 16:00', $r->presenta_tardado->format('Y-m-d H:i'));
+    }
+
+    public function test_el_p75_de_las_etapas_es_el_techo_cuando_ya_existe(): void    {
+        $etapas = ['e4' => 180, 'e5' => 60, 'e6' => 45, 'e4_p75' => 280, 'e5_p75' => 80, 'e6_p75' => 60];
+
+        $this->assertSame(420, MotorPresenta::faltantes_p75('inicio_ruta', $etapas));
+        // sin p75 compilado cae a la mediana, no inventa
+        $this->assertSame(285, MotorPresenta::faltantes_p75('inicio_ruta', ['e4' => 180, 'e5' => 60, 'e6' => 45]));
+        // hitos sin etapas
+        $this->assertNull(MotorPresenta::faltantes_p75('fin_descargue', $etapas));
+        $this->assertNull(MotorPresenta::faltantes_p75(null, $etapas));
+    }
+
+    public function test_lo_que_sigue_al_viaje_son_solo_las_etapas_posteriores(): void    {
         $etapas = $this->entrada()->etapas;   // e2 90, e3 60, e4 180, e5 60, e6 45
 
         // desde inicio_ruta falta la ida (e4) + descarga; sin la ida quedan 105'

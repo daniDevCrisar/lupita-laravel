@@ -30,9 +30,10 @@
                 su propia presentación. Las filas con un hueco real de más de 7 días o negativo se descartan
                 ({{ $b->descartados }} en esta corrida): están fuera del dominio del modelo.
                 Si el rango tiene más filas que el límite, se evalúan <strong>las más recientes</strong>: subí el
-                límite para ver el rango completo.
+                límite (hasta 1000) para ver el rango completo y calibrar con muestra suficiente.
                 La columna <strong>Calibra con</strong> dice de quién sale el hueco: la <em>placa</em>, o el
-                <em>conductor</em> cuando ese chofer concentra menos de la mitad de los viajes previos de la placa
+                <em>conductor</em> cuando ese chofer tiene al menos {{ (int) ($b->parametros->min_pares_entidad ?? 3) }}
+                pares propios y al menos la mitad de los pares de la placa
                 (misma regla que usa la calculadora y el API).
                 <a href="{{ route('lupita.prediccion.presenta') }}">&larr; Volver a la calculadora</a>
             </p>
@@ -57,7 +58,7 @@
                 <div class="col-md-2">
                     <label class="form-label">Filas</label>
                     <select name="limite" class="form-select">
-                        @foreach([10, 40, 80, 100] as $opcion)
+                        @foreach(\App\Http\Controllers\PrediccionController::FILAS_ACIERTOS as $opcion)
                             <option value="{{ $opcion }}" @selected((int) $filtros['limite'] === $opcion)>{{ $opcion }}</option>
                         @endforeach
                     </select>
@@ -76,6 +77,30 @@
                     </div>
                 </div>
             </form>
+
+            {{-- Guardar las predicciones de ESTA corrida en prediccion_resultados --}}
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
+                <form method="POST" action="{{ route('lupita.prediccion.aciertos.guardar') }}" class="d-flex align-items-center gap-2">
+                    @csrf
+                    <input type="hidden" name="fecha_inicio" value="{{ $filtros['desde'] }}">
+                    <input type="hidden" name="fecha_fin" value="{{ $filtros['hasta'] }}">
+                    <input type="hidden" name="placa" value="{{ $filtros['placa'] }}">
+                    <input type="hidden" name="limite" value="{{ $filtros['limite'] }}">
+                    <button class="btn btn-sm btn-success">
+                        <i class="bi bi-database-add"></i> Guardar estas predicciones
+                    </button>
+                </form>
+                <div class="text-muted small">
+                    guarda lo que el motor dijo para cada ref (con el corte que usa la tabla) en
+                    <code>prediccion_resultados</code>, para comparar después contra la hora real.
+                    Se puede apretar varias veces: no duplica.
+                    @if(($guardadas['guardadas'] ?? 0) > 0)
+                        <span class="badge bg-secondary">ya hay {{ $guardadas['guardadas'] }} guardadas en este rango</span>
+                    @else
+                        <span class="badge bg-warning text-dark">no hay nada guardado en este rango</span>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 

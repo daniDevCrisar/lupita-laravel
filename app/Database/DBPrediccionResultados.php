@@ -58,8 +58,112 @@ class DBPrediccionResultados
     }
 
     /**
-     * Acierto real de lo que se predijo en el rango: se toma la última predicción
-     * de cada ref anterior a su presentación real (la que "valía") y se compara.
+     * Guarda de una vez las predicciones de una corrida de la tabla de aciertos.
+     *
+     * Es lo que hace el botón "Guardar estas predicciones": deja en
+     * `prediccion_resultados` lo que el motor dijo para cada ref, con el CORTE que
+     * usó la tabla, para poder responder después "¿qué dijimos de esta ref y
+     * cuándo?" y comparar contra la presentación real cuando llegue.
+     *
+     * No duplica: si ya hay una fila con la misma ref, el mismo corte y el mismo
+     * origen, no la vuelve a insertar (el botón se puede apretar dos veces).
+     * Tampoco inventa: las filas sin hora predicha (evidencia `sin_datos`) se
+     * saltean.
+     *
+     * @param  array<int, object>  $filas  filas de Servicio::backtest()
+     * @return array{guardadas: int, saltadas: int, error: ?string}
+     */
+    public static function guardar_filas(array $filas, string $origen = 'aciertos'): array
+    {
+        $salida = ['guardadas' => 0, 'saltadas' => 0, 'error' => null];
+        $origen = mb_substr($origen, 0, 10);
+
+        $preparadas = [];
+        foreach ($filas as $fila) {
+            $predicho = $fila->predicho ?? null;
+            $corte = $fila->ancla ?? null;
+
+            if ($predicho === null || $corte === null || empty($fila->ref)) {
+                $salida['saltadas']++;
+
+                continue;
+            }
+
+            $preparadas[] = [
+                'ref' => mb_substr((string) $fila->ref, 0, 10),
+                'placa' => isset($fila->placa) ? mb_substr((string) $fila->placa, 0, 10) : null,
+                'ruta_id' => null,
+                'ahora' => self::fechaSql($corte),
+                'presenta' => self::fechaSql($predicho),
+                'presenta_rapido' => self::fechaSql($fila->rapido ?? null),
+                'presenta_tardado' => self::fechaSql($fila->tardado ?? null),
+                'inicio_carga' => null,
+                'evidencia' => mb_substr((string) ($fila->evidencia ?? 'sin_datos'), 0, 20),
+                'confianza' => (int) ($fila->confianza ?? 0),
+                'origen' => $origen,
+                'desglose' => json_encode([], JSON_UNESCAPED_UNICODE),
+                'advertencias' => json_encode([], JSON_UNESCAPED_UNICODE),
+                'pedido_en' => now(),
+            ];
+        }
+
+        if ($preparadas === []) {
+            return $salida;
+        }
+
+        // dedupe contra lo que ya está guardado (misma ref, mismo corte, mismo origen)
+        $existentes = [];
+        try {
+            $refs = array_values(array_unique(array_column($preparadas, 'ref')));
+            foreach (array_chunk($refs, 500) as $lote) {
+                $guardadas = DB::table('prediccion_resultados')
+                    ->whereIn('ref', $lote)
+                    ->where('origen', $origen)
+                    ->get(['ref', 'ahora']);
+
+                foreach ($guardadas as $fila) {
+                    $existentes[$fila->ref . '|' . $fila->ahora] = true;
+                }
+            }
+        } catch (\Throwable $e) {
+            $salida['error'] = 'no se pudo leer `prediccion_resultados`: ¿corriste `php artisan migrate`?';
+
+            return $salida;
+        }
+
+        $nuevas = [];
+        foreach ($preparadas as $fila) {
+            $llave = $fila['ref'] . '|' . $fila['ahora'];
+            if (isset($existentes[$llave])) {
+                $salida['saltadas']++;
+
+                continue;
+            }
+
+            $nuevas[] = $fila;
+            $existentes[$llave] = true;
+        }
+
+        try {
+            foreach (array_chunk($nuevas, 200) as $lote) {
+                DB::table('prediccion_resultados')->insert($lote);
+                $salida['guardadas'] += count($lote);
+            }
+        } catch (\Throwable $e) {
+            $salida['error'] = 'no se pudo guardar: ' . $e->getMessage();
+        }
+
+        return $salida;
+    }
+
+    /**
+     * Acierto real de lo que se predijo en el rango.
+     *
+     * El rango se mira sobre el CORTE de la predicción (`ahora`), no sobre cuándo
+     * se pidió: así una tanda guardada desde la tabla de aciertos (que predice
+     * cortes pasados) aparece en el rango que se está mirando. De cada ref se toma
+     * la última predicción anterior a su presentación real (la que "valía") y se
+     * compara.
      *
      * @return array{n: int, dentro_ventana: int, dentro_tolerancia: int, pct_ventana: ?int,
      *               pct_tolerancia: ?int, error_mediano: ?int, filas: array, guardadas: int}
@@ -76,14 +180,16 @@ class DBPrediccionResultados
             $filas = DB::select(
                 "SELECT p.ref, p.placa, p.ahora, p.presenta, p.presenta_rapido, p.presenta_tardado,
                         p.evidencia, p.confianza, p.origen, p.pedido_en,
-                        r.presenta_para_carga AS real,
+                        r.presenta_para_carga AS presenta_real,
                         TIMESTAMPDIFF(MINUTE, p.presenta, r.presenta_para_carga) AS error_min
                  FROM prediccion_resultados p
                  LEFT JOIN referencias r ON r.ref = p.ref
-                 WHERE p.pedido_en >= ? AND p.pedido_en <= ?
-                 ORDER BY p.pedido_en DESC
+                 WHERE (r.presenta_para_carga BETWEEN ? AND ?)
+                    OR (p.ahora BETWEEN ? AND ?)
+                 ORDER BY p.ahora DESC
                  LIMIT " . max(1, $limite),
-                [$desde->toDateTimeString(), $hasta->toDateTimeString()]
+                [$desde->toDateTimeString(), $hasta->toDateTimeString(),
+                 $desde->toDateTimeString(), $hasta->toDateTimeString()]
             );
         } catch (\Throwable $e) {
             return $vacio;
@@ -93,7 +199,7 @@ class DBPrediccionResultados
         // presentara: es la que el despachador vio
         $porRef = [];
         foreach ($filas as $fila) {
-            $real = $fila->real !== null ? Carbon::parse($fila->real) : null;
+            $real = $fila->presenta_real !== null ? Carbon::parse($fila->presenta_real) : null;
             $corte = Carbon::parse($fila->ahora);
 
             if ($real !== null && $corte->greaterThan($real)) {
@@ -113,7 +219,7 @@ class DBPrediccionResultados
         $detalle = [];
 
         foreach ($porRef as $clave => $fila) {
-            $real = $fila->real !== null ? Carbon::parse($fila->real) : null;
+            $real = $fila->presenta_real !== null ? Carbon::parse($fila->presenta_real) : null;
             $predicho = $fila->presenta !== null ? Carbon::parse($fila->presenta) : null;
             $rapido = $fila->presenta_rapido !== null ? Carbon::parse($fila->presenta_rapido) : null;
             $tardado = $fila->presenta_tardado !== null ? Carbon::parse($fila->presenta_tardado) : null;

@@ -2,7 +2,7 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.10
+Version       : 1.15
 Fecha         : 14/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
@@ -250,9 +250,11 @@ CAMPOS DE LA RESPUESTA
                    nombre legible de esa planta con su distrito
                    ("PLANTA CARAL (Huaral, Huaral, Lima)").
   presenta         hora estimada de presentacion (la "normal", mediana).
-  presenta_rapido  si vuelve como sus mejores viajes (cuantil 25 del hueco).
-  presenta_tardado si se le cruza un descanso largo, una cola o un viaje que se
-                   estira (cuantil 75 del hueco).
+  presenta_rapido  la hora menos el adelanto medido. Antes era el cuantil 25 del
+                   hueco; ahora sale de los RESIDUOS del backtest (ver 12.5):
+                   con la ventana medida el `rapido`/`tardado` cubre el 70 % de
+                   los casos, con el p25-p75 del hueco cubria el 31-35 %.
+  presenta_tardado la hora mas el atraso medido (misma fuente que el rapido).
   presentaciones   las tres fechas con etiqueta y `desde_ahora` en h:mm:
                    [{clave: rapido|normal|tardado, etiqueta, descripcion,
                      fecha, desde_ahora}]. El rapido nunca es menor que el
@@ -263,7 +265,10 @@ CAMPOS DE LA RESPUESTA
   duracion_total_hhmm
                    desde el ancla hasta la presentacion, en h:mm. Puede pasar de
                    24 h (96:27 = cuatro dias y 27 minutos).
-  ventana          rango p25-p75 del hueco medido (null si no hay medicion).
+  ventana          la banda publicada: {desde, hasta, fuente, cobertura}.
+                   `fuente` = residuos (medida contra el error real) o
+                   p25_p75_hueco (cuando no hay medicion aplicada); `cobertura`
+                   es la que se pidio al medir (0.70 = 70 %).
   evidencia        medido | parcial | cadena | sin_datos   (ver seccion 6).
   confianza        0 a 100 (ver seccion 6).
   confianza_motivo texto con los castigos aplicados.
@@ -276,6 +281,12 @@ CAMPOS DE LA RESPUESTA
   pasos            los pasos que arman la hora, EN ORDEN, con nombres y tiempos
                    en h:mm (ver seccion 8). Es lo que hay que mostrarle al
                    despachador.
+  factor_dia       {dia, factor, feriado} cuando la hora se corrigio por el dia de
+                   la semana de la presentacion (C2, ver 12.6); null si no se
+                   aplico.
+  planta_cola      {esperando, llegadas_hora, espera_base_min, espera_extra_min}:
+                   la cola de la planta de carga al corte (C1, ver 12.6); mueve
+                   `inicio_carga`, no `presenta`.
   geoapify         {usado, para, min, km, tramo, tramo_en_curso, modo_ruta,
                    trafico, motivo}: si se llamo a Geoapify y PARA QUE (tramo del
                    viaje / traslado), en que modo de ruteo (truck) y con que
@@ -294,6 +305,9 @@ CAMPOS DE LA RESPUESTA
                    donde salieron (`ventanas_origen` =
                    perfil_del_camion | defecto_sin_hitos |
                    defecto_historia_corta | defecto_perfil_absurdo),
+                   viaje_cruce (compilado + lo que hace esta placa) y
+                   viaje_horario (el compilado de la celda dia/hora que se aplico,
+                   null si no habia muestra: ver 12.1),
                    calibrador_usado (false si se predijo desde una ubicacion
                    declarada).
   candidatos       hasta 10 viajes que se podrian usar como ancla (ref, ruta,
@@ -529,11 +543,18 @@ puntos. Un consumidor puede filtrar por clave sin parsear el texto.
   ancla_futura            El ultimo hito esta fechado DESPUES del corte (dato
                           mal cargado). Se usa el corte como ancla.
                           -> Revisar el hito en origen.
-  etapa_vencida           El viaje en curso ya consumio el promedio de su etapa
-                          sin hitos nuevos: se cuenta desde `ahora`.
+  etapa_vencida           El viaje en curso ya consumio la MEDIANA de su etapa sin
+                          hitos nuevos. Ya no se cuenta desde `ahora`: se espera
+                          hasta el P75 medido de esa etapa (un camion que va mas
+                          lento que la mediana va con retraso, no "ya descargo").
+                          La advertencia dice cuantos minutos faltan hasta ese p75
+                          y, si ni el p75 alcanza, se cuenta desde ahora.
                           -> Pedir actualizacion de hitos al despachador.
-  etapas_incompletas      La ruta del viaje en curso no tiene los promedios
-                          E2..E6: se asume libre ahora.
+  etapas_incompletas      La ruta del viaje en curso no tiene alguna de las etapas
+                          E2..E6. Si falta UNA, se suma lo que hay y la advertencia
+                          dice cual falto (D1): antes se asumia "libre ahora" y se
+                          perdian las etapas que si estaban medidas. Solo cuando no
+                          hay ninguna etapa se cuenta desde `ahora`.
                           -> No hay accion; baja la calidad de la estimacion.
   hueco_menor_que_traslado
                           El hueco medido es menor que el traslado promedio de
@@ -621,8 +642,11 @@ Como se leen los pasos:
     ya sumado en `min`; los que vienen despues (espera_carga, inicio_carga) se
     cuentan desde el ancla, no desde `presenta`.
   - `restante_viaje` aparece solo si el ancla es un viaje en curso. Se arma con
-    las medianas medidas de la ruta del viaje, y son exactamente las etapas que
-    le faltan segun el ultimo hito registrado. El "ultimo hito" es el EVENTO con
+    las medianas medidas de la ruta del viaje MENOS el tiempo que el camion ya
+    lleva manejando (`descontar_transcurrido`): lo que le falta, no la etapa
+    entera. Si esa mediana ya se consumio, se espera hasta el P75 de la etapa
+    (ver `etapa_vencida`). Las etapas que le faltan segun el ultimo hito son las
+    de la tabla de abajo. El "ultimo hito" es el EVENTO con
     la fecha mas actual (se resuelve por fecha, no por el orden del ciclo), y se
     aceptan todas las etapas: `inicio_de_carga`, `fin_de_carga`, `inicio_ruta`,
     `qr_llegada_destino`, `inicio_descargue`, `fin_descargue`. El
@@ -962,6 +986,12 @@ Cada componente tiene una fuente y una regla:
   mueven la aguja. El resultado queda en `historia.viaje_cruce` =
   {min, compilado, placa, n}.
 
+  Despues de ese cruce se aplica el de la HORA DE SALIDA: `tiempos_ruta_horario`
+  (dia de la semana + hora de `inicio_ruta`) se mezcla con el viaje que ya quedo,
+  con w = viajes/(viajes+horario_viajes_k). Queda en `historia.viaje_horario` =
+  {min, horario, viajes, dia, hora}; medido contra la llegada real baja el error
+  medio de 99 a 82 min (ver 12.1).
+
   Que NO se mezcla:
     - el traslado de vuelta usa el compilado de la ruta (poblacion), igual que
       el backtest, para que la tabla de aciertos mida el mismo motor;
@@ -1206,11 +1236,17 @@ El motor no "aprende solo": lo que se calibra es con que parametros interpreta l
 evidencia. Hay tres niveles.
 
 12.1 PARAMETROS, SIN TOCAR CODIGO
-  Las 17 claves de `config/prediccion.php` se pisan una por una con una fila en la
+  Las 36 claves de `config/prediccion.php` se pisan una por una con una fila en la
   tabla `prediccion_config` (clave/valor). La pantalla de parametros edita ocho;
   el resto (lookback_dias, bins_horarios, spread_cadena, min_dias_actividad,
   granularidad_min, frescura_horizonte_h, edad_ancla_max_h, tope_hueco_min,
-  tope_etapa_min) se cambia insertando la fila o con `--aplicar` (12.2).
+  tope_etapa_min, horario_activo, horario_viajes_k, horario_viajes_min,
+  descontar_transcurrido, ventana_residuos, ventana_cobertura,
+  ventana_adelanto_min, ventana_atraso_min, ventana_adelanto_cadena,
+  ventana_atraso_cadena, ventana_min_filas, dia_activo, dia_min_pares,
+  feriado_activo, cola_activa, cola_llegadas_min, cola_espera_extra_min) se
+  cambia insertando la fila, con `--aplicar` (12.2) o con los botones de 12.4 y
+  12.5.
 
   Las que mas mueven el resultado:
     pares_recientes_max   con cuantos huecos recientes de la placa se calibra
@@ -1219,6 +1255,25 @@ evidencia. Hay tres niveles.
     bins_horarios         franjas del dia de la correccion horaria del hueco
     spread_cadena         ancho de rapido/tardado cuando no hay pares
     lookback_dias         cuanta historia se mira (calibracion y franjas)
+    cruce_pares_k         peso de la placa contra el compilado en el VIAJE
+                          (w = n/(n+k)); se calibra con 12.4
+    horario_activo        usar `tiempos_ruta_horario` para el viaje segun la
+                          hora de salida (1 = si, 0 = solo la mediana diaria)
+    horario_viajes_k      peso de la celda dia/hora: w = viajes/(viajes+k)
+    horario_viajes_min    viajes minimos de la celda para que cuente
+    descontar_transcurrido  descontar lo que el camion ya lleva manejado y, si
+                          la mediana se consumio, esperar hasta el p75 (1 = si)
+
+  El viaje (e4) tiene DOS fuentes compiladas y se usan las dos:
+    - `tiempos_ruta_promedio.mediana_min`: un numero por ruta (el de la pantalla
+      de tiempos);
+    - `tiempos_ruta_horario`: por dia de la semana y hora de `inicio_ruta` (el
+      mismo de /api/tiempos/promedio/horario), que trae la demora de la hora
+      pico. En RUT_CARAL-BABEL_MAXO el martes a las 04 h son 358 min y a las
+      23 h 233.
+    Se mezclan por muestra (w = viajes/(viajes+horario_viajes_k)). Medido contra
+    la llegada real de 5.559 viajes, el error medio pasa de 99 a 82 minutos y
+    los aciertos a +-2 h de 73 % a 80 %. Queda en `historia.viaje_horario`.
 
 12.2 CALIBRACION AUTOMATICA (comando)
   `php artisan prediccion:calibrar` corre la MISMA tabla de aciertos del endpoint
@@ -1227,6 +1282,9 @@ evidencia. Hay tres niveles.
   asi el ganador no es el que mejor memorizo el pasado.
 
     php artisan prediccion:calibrar                    rejilla por defecto (27)
+    php artisan prediccion:calibrar --preset=viaje     cruce_pares_k 1-2-3-5-8
+    php artisan prediccion:calibrar --preset=ventana   cobertura de la ventana
+    php artisan prediccion:calibrar --preset=hueco     pares recientes + minimos
     php artisan prediccion:calibrar --metrica=pct_3h   optimizar aciertos a 3 h
     php artisan prediccion:calibrar --metrica=pct_ventana
     php artisan prediccion:calibrar --rejilla='{"spread_cadena":[0.2,0.3,0.5]}'
@@ -1245,6 +1303,11 @@ evidencia. Hay tres niveles.
   incompletos, huecos de varios dias, refs sin ruta), no en los parametros: antes
   de calibrar conviene correr `php artisan prediccion:diagnostico`.
 
+  OJO: la tabla de aciertos evalua refs con el viaje anterior CERRADO
+  (`fin_descargue`), que es el unico caso en que se conoce la presentacion real
+  de la siguiente. Las mejoras que tocan el VIAJE EN CURSO (restante_viaje) no se
+  pueden medir ahi: se validan contra la llegada real (`qr_llegada_destino`).
+
 12.3 LO QUE TAMBIEN ES CALIBRACION (y no es una perilla)
   - Cuantiles del hueco: p25/mediana/p75 se miden con los pares reales de la
     placa (o del conductor) y se corrigen por hora del dia. `spread_cadena` es el
@@ -1261,7 +1324,52 @@ evidencia. Hay tres niveles.
     perfil del camion se cree o se usa el de defecto (22:00-06:00).
   - La ventana rapido-tardado: su cobertura real (% de veces que la hora real cae
     adentro) esta en la tabla de aciertos; si esta muy abajo, la ventana es muy
-    angosta para la dispersion real del hueco.
+    angosta para la dispersion real del hueco. Se mide con el boton de 12.5.
+
+12.4 CALIBRAR `cruce_pares_k` DESDE LA PANTALLA
+  En "Parametros del motor" esta el boton **Calibrar `cruce_pares_k`**: corre
+  1 - 2 - 3 - 5 - 8 - 12 sobre la tabla de aciertos (entrena y valida) y muestra
+  la recomendacion con el MAE de validacion de cada valor, el que esta en uso y
+  cuanto mejora. Al lado, el boton **Aplicar** lo guarda en `prediccion_config`
+  (POST a /lupita/prediccion/parametros).
+
+  La corrida son 6 valores x 2 ventanas (entrenamiento y validacion): tarda
+  decenas de segundos y se cachea 10 minutos. El boton con la flecha (refrescar)
+  ignora la cache y vuelve a medir. Es el mismo motor que
+  `prediccion:calibrar`, con la misma ventana por defecto (ultimos 30 dias, los
+  ultimos 7 como validacion).
+
+12.5 LA VENTANA RAPIDO/TARDADO SE MIDE, NO SE DEDUCE
+  El p25-p75 del hueco parecia una ventana, pero no lo es: contiene la hora real
+  solo el 31-35 % de las veces (tabla de aciertos), porque el error no viene solo
+  de la dispersion del hueco. Desde v1.12 la ventana sale de los RESIDUOS del
+  backtest:
+
+    radio = cuantil(|error|, ventana_cobertura)    # 0.70 por defecto
+    rapido  = presenta - adelanto
+    tardado = presenta + atraso
+
+  Es SIMETRICA a proposito: la mediana del error salta cientos de minutos segun
+  la ventana que se mire (con 237 filas el sesgo daba -524 min; con las mismas
+  filas partidas en entrenamiento/validacion, +14 min), asi que correr la banda
+  con el sesgo seria calzar ruido. El sesgo se informa aparte en la pantalla.
+
+  La cadena (sin pares medidos) tiene su propia banda porque se equivoca mucho
+  mas: medido con 788 filas, el radio del 70 % es 1.550 min en general y
+  3.175 min en la cadena.
+
+  Como se aplica: boton **Medir ventana** en "Parametros del motor" (elige
+  cobertura 50/70/80 % y 200/600/1000 filas), que muestra el radio medido, la
+  cobertura lograda, la que cubre la ventana actual y el sesgo; **Aplicar
+  ventana** lo guarda en `prediccion_config` (`ventana_residuos = 1`,
+  `ventana_adelanto_min`/`ventana_atraso_min` y las dos de `cadena`). Con
+  `ventana_residuos = 0` se vuelve al p25-p75 del hueco.
+
+  OJO: si se pide 70 % y el modelo es el que es, la banda queda ancha
+  (~±26 h, y ±53 h en cadena). Es el precio de que la hora real caiga adentro;
+  para una banda mas angosta hay que bajar la cobertura (50 % da ~±10 h) y
+  aceptar que cubre la mitad de los casos. El JSON lo dice en
+  `ventana.fuente` y `ventana.cobertura`.
 
 
 ================================================================================
@@ -1452,6 +1560,148 @@ evidencia. Hay tres niveles.
                      para que se vea por que se pidio (o no) el trafico.
                    - Las franjas se pueden forzar con `trafico_siempre` (env
                      GEOAPIFY_TRAFICO_SIEMPRE) sin tocar codigo.
+
+  1.11 14/11/2026  - El VIAJE (e4) usa tambien `tiempos_ruta_horario`: el
+                     compilado por dia de la semana y hora de `inicio_ruta` (el
+                     mismo de /api/tiempos/promedio/horario), que trae la demora
+                     de la hora pico. Se mezcla por muestra con la mediana diaria
+                     (w = viajes/(viajes+horario_viajes_k)) y queda en
+                     `historia.viaje_horario`. Medido contra la llegada real de
+                     5.559 viajes: error medio 99 -> 82 min, aciertos a +-2 h
+                     73 % -> 80 %. Parametros nuevos: `horario_activo`,
+                     `horario_viajes_k`, `horario_viajes_min`.
+                   - `restante_viaje` DESCUENTA el tiempo ya transcurrido
+                     (`descontar_transcurrido`): antes se sumaba la etapa entera
+                     desde el hito y, si ya estaba vencida, se recortaba a 0 (o
+                     sea "ya llego"). Cuando la mediana se consumio se espera
+                     hasta el P75 medido de la etapa: `etapa_vencida` ahora dice
+                     cuantos minutos faltan hasta ese p75.
+                   - Pantalla "Parametros del motor": boton **Calibrar
+                     `cruce_pares_k`** (rejilla 1-2-3-5-8-12, entrena y valida
+                     con la tabla de aciertos) que deja la recomendacion a la
+                     vista, con el MAE de validacion de cada valor y un boton
+                     para aplicarla a `prediccion_config` (12.4). `Servicio::calibrar()`
+                     es el motor compartido con `prediccion:calibrar`.
+                   - Aclaracion en 12.2: la tabla de aciertos evalua refs con el
+                     viaje anterior CERRADO, asi que lo que toca el viaje en
+                     curso no se mide ahi.
+
+  1.12 14/11/2026  - La ventana rapido/tardado se arma con los RESIDUOS del
+                     backtest, no con el p25-p75 del hueco: esa ventana cubria la
+                     hora real solo el 31-35 % de las veces. Ahora
+                     rapido/tardado = presenta -/+ `ventana_adelanto_min` /
+                     `ventana_atraso_min`, calculados como
+                     cuantil(|error|, ventana_cobertura) (70 % por defecto) y con
+                     banda propia para la cadena (sin pares medidos), que se
+                     equivoca mucho mas: con 788 filas el radio del 70 % es
+                     1.550 min general y 3.175 min en cadena.
+                   - `ventana` publica `fuente` (residuos | p25_p75_hueco) y
+                     `cobertura`; `presentaciones[].descripcion` dice de donde
+                     salio la banda.
+                   - Pantalla "Parametros del motor": boton **Medir ventana**
+                     (cobertura 50/70/80 %, 200/600/1000 filas) que corre la tabla
+                     de aciertos, muestra el radio medido, la cobertura lograda, la
+                     que cubre la ventana actual y el sesgo, y **Aplicar ventana**
+                     para dejarlo en `prediccion_config` (12.5).
+                   - Parametros nuevos: `ventana_residuos`, `ventana_cobertura`,
+                     `ventana_adelanto_min`, `ventana_atraso_min`,
+                     `ventana_adelanto_cadena`, `ventana_atraso_cadena`,
+                     `ventana_min_filas` (30 claves en total).
+
+12.6 SEÑALES NUEVAS DEL MOTOR (C1, C2, C3)
+  Tres cosas que el motor mira y antes no:
+
+  C1 - COLA DE LA PLANTA (`cola_activa`)
+    Al corte se cuentan los camiones de esa planta ya presentados y sin cargar y,
+    sobre todo, cuantos llegaron en la ULTIMA HORA. Medido con 10.293 refs: la
+    espera para cargar (presenta -> inicio_de_carga) tiene mediana 36 min con 1-2
+    llegadas por hora y 55 min con 11 o mas (p90 139 contra 102). Con
+    `cola_llegadas_min` (11) o mas se suman `cola_espera_extra_min` (19) a la
+    espera en planta, o sea que mueve `inicio_carga`, NO la presentacion: el
+    camion presenta igual, lo que cambia es cuando entra a cargar.
+    La cola "esperando" sola no discrimina (hay plantas donde casi nadie registra
+    el inicio de carga): se publica como informacion.
+    En el JSON: `planta_cola` = {esperando, llegadas_hora, espera_base_min,
+    espera_extra_min}. Se apaga solo en la tabla de aciertos (no evalua el inicio
+    de carga y seria una consulta por fila).
+
+  C2 - DIA DE LA SEMANA Y FERIADOS (`dia_activo`, `dia_min_pares`,
+       `feriado_activo`)
+    El hueco depende del dia en que el camion presenta. Medido con huecos reales
+    de refs consecutivas, dos veces y en periodos distintos, y es estable:
+
+      dia    jun->sep (n=8.391)   oct->nov (n=4.681)   factor de flota
+      lun        2,38                2,98                2,68
+      mar        0,89                1,04                0,97
+      mie        0,78                1,04                0,91
+      jue        0,85                0,83                0,84
+      vie        0,82                0,79                0,81
+      sab        0,99                0,86                0,93
+      dom        1,45                1,36                1,41
+
+    El factor sale de los pares de la PROPIA placa cuando ese dia tiene al menos
+    `dia_min_pares` (5) pares; si no, se usa el de la flota. Un feriado usa el
+    peor factor de la semana (supuesto conservador: son pocos dias al ano y no
+    hay muestra). El calendario de feriados esta en App\Prediccion\Feriados
+    (fijos + moviles 2025-2027).
+    En el JSON: `factor_dia` = {dia, factor, feriado} cuando se aplico.
+    Efecto medido en la tabla de aciertos: en la semana de validacion el MAE pasa
+    de 1.540 a 1.481 y la ventana cubre de 33 % a 39 %; en entrenamiento queda
+    igual o un poco peor (1.058 vs 979). Es un ajuste chico: con `dia_activo = 0`
+    se apaga.
+
+  C3 - DE QUIEN SALE EL HUECO, POR MUESTRA (`min_pares_entidad`)
+    Antes el grupo (placa o chofer) se decidia por el porcentaje de viajes del
+    chofer; ahora se decide por muestra: se usa el chofer cuando tiene al menos
+    `min_pares_entidad` pares propios Y al menos la mitad de los pares de la
+    placa. Con la regla vieja un chofer con 2 pares podia fijar el hueco de un
+    camion con 40, y un camion que cambio de chofer quedaba calibrado por alguien
+    que ya no lo maneja.
+    Efecto medido: es la mejora mas grande de las tres. En la semana de
+    validacion el MAE pasa de 1.876 a 1.540 y la ventana de 16 % a 33 %.
+
+  1.13 14/11/2026  - C1, C2 y C3 en el motor (seccion 12.6):
+                     C1 COLA DE LA PLANTA: al corte se cuentan las llegadas de la
+                     ultima hora a esa planta y, con 11 o mas, se suman 19 min a la
+                     espera en planta (medido: mediana 36 min con 1-2 llegadas y 55
+                     con 11+). Mueve `inicio_carga`, no `presenta`. Se publica
+                     `planta_cola`.
+                     C2 DIA DE LA SEMANA: el hueco se multiplica por el factor del
+                     dia en que presenta (lunes 2,68 · domingo 1,41 · resto
+                     0,81-0,97, estable en dos periodos), medido de la propia placa
+                     o del prior de la flota; los feriados usan el peor factor. Se
+                     publica `factor_dia`.
+                     C3 GRUPO POR MUESTRA: la placa o el chofer se elige por pares
+                     disponibles (>= min_pares_entidad y >= la mitad de los pares de
+                     la placa), no por el porcentaje de viajes del chofer.
+                     Efecto en la semana de validacion: MAE 1.876 -> 1.481 y la
+                     ventana de 16 % a 33 % (C3 es la que mas aporta).
+                   - 6 parametros nuevos (`dia_activo`, `dia_min_pares`,
+                     `feriado_activo`, `cola_activa`, `cola_llegadas_min`,
+                     `cola_espera_extra_min`): 36 en total.
+
+  1.14 14/11/2026  - Pantalla de aciertos: el limite de filas llega hasta 1000
+                     (antes 100). Con 100 filas la validacion queda con 10-20 y
+                     cualquier parametro "gana" por suerte; con 1000 la calibracion
+                     tiene muestra. La corrida se cachea 10 minutos.
+                   - `prediccion:calibrar --preset=viaje|ventana|hueco`: rejillas
+                     con nombre para no escribir JSON en la consola.
+                   - D1 etapas parciales: si a la ruta del viaje en curso le falta
+                     UNA etapa, se suman las que hay y la advertencia dice cual
+                     falto. Antes se asumia "libre ahora" y se perdian las etapas
+                     que si estaban medidas.
+
+  1.15 14/11/2026  - Pantalla de aciertos: boton **Guardar estas predicciones**, que
+                     deja en `prediccion_resultados` lo que el motor dijo para cada
+                     ref con el corte de la tabla (`origen = aciertos`). No duplica:
+                     apretarlo dos veces no vuelve a insertar. Reusa la corrida
+                     cacheada, no recalcula.
+                   - ARREGLO: el panel "Acierto real de lo que se predijo" mostraba
+                     siempre cero porque la consulta usaba `AS real`, que es palabra
+                     reservada en MySQL 8: la excepcion se tragaba en silencio. Ahora
+                     el alias es `presenta_real` y el panel ve lo guardado (por el
+                     API y por el boton nuevo). El rango se mira sobre la
+                     presentacion real de la ref o sobre el corte de la prediccion.
 
 ================================================================================
  FIN

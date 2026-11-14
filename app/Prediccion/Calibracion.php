@@ -34,6 +34,19 @@ final class Calibracion
     ];
 
     /**
+     * Rejillas con nombre, para no escribir JSON en la consola.
+     *
+     * `--preset=viaje` mueve el cruce compilado/placa del VIAJE (lo mismo que el
+     * botón "Calibrar cruce_pares_k" de la pantalla); `ventana` la cobertura de la
+     * ventana rápido/tardado; `hueco` cómo se calibra el tiempo muerto.
+     */
+    public const PRESETS = [
+        'viaje' => ['cruce_pares_k' => [1, 2, 3, 5, 8]],
+        'ventana' => ['ventana_cobertura' => [0.5, 0.7, 0.8]],
+        'hueco' => ['pares_recientes_max' => [10, 20, 40], 'min_pares_entidad' => [2, 3, 5]],
+    ];
+
+    /**
      * Métricas que se pueden optimizar.
      *
      * 'menor' dice para dónde se optimiza: el MAE cuanto más bajo mejor, los
@@ -101,7 +114,7 @@ final class Calibracion
             }
 
             // las claves que el motor trata como float se guardan como float
-            $copia->{$clave} = in_array((string) $clave, ['spread_cadena'], true)
+            $copia->{$clave} = in_array((string) $clave, ['spread_cadena', 'ventana_cobertura'], true)
                 ? (float) $valor
                 : (int) $valor;
         }

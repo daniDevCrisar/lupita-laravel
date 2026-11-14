@@ -35,8 +35,30 @@ class PrediccionController extends Controller
         'espera_carga_defecto_min',
     ];
 
+    /**
+     * Claves que NO se editan a mano: se calibran con la tabla de aciertos
+     * (entrenamiento + validación) desde los botones de la pantalla.
+     */
+    public const PARAMETROS_CALIBRABLES = [
+        'cruce_pares_k',
+        'ventana_residuos',
+        'ventana_adelanto_min',
+        'ventana_atraso_min',
+        'ventana_adelanto_cadena',
+        'ventana_atraso_cadena',
+    ];
+
+    /** Rejilla del botón "Calibrar cruce_pares_k". */
+    public const REJILLA_CRUCE = [1, 2, 3, 5, 8, 12];
+
     /** Calculadora: referencia a predecir + viaje ancla + ubicación declarada. */
-    public const FILAS_ACIERTOS = [10, 40, 80, 100];
+    /**
+     * Filas que se pueden pedir a la tabla de aciertos. Hasta 1000: calibrar con
+     * 100 filas es ruido (la tabla de validación queda con 10-20 filas y cualquier
+     * parámetro gana por suerte). El backtest tarda ~3 s cada 300 filas, así que
+     * 1000 son ~10 s la primera vez y después sale de la caché de 10 minutos.
+     */
+    public const FILAS_ACIERTOS = [10, 40, 80, 100, 300, 600, 1000];
 
     public static function presenta(Request $request)
     {
@@ -199,11 +221,8 @@ class PrediccionController extends Controller
         ];
 
         // La corrida tarda ~3-4 s (300 filas): se cachea 10 minutos. Con
-        // `?refrescar=1` se fuerza de nuevo. El número de versión sube cuando
-        // cambia la forma de las filas o de la corrida (v5: sin línea base, con
-        // grupo de calibración y cercanía a la planta de carga).
-        $parametros = Parametros::cargar();
-        $llave = 'prediccion:aciertos:v5:' . md5(json_encode([$filtros, (array) $parametros]));
+        // `?refrescar=1` se fuerza de nuevo.
+        $llave = self::llave_aciertos($filtros);
 
         if ($request->boolean('refrescar')) {
             \Illuminate\Support\Facades\Cache::forget($llave);
@@ -223,6 +242,69 @@ class PrediccionController extends Controller
             'calculo_ms' => $calculoMs,
             'guardadas' => \App\Database\DBPrediccionResultados::resumen($aciertos->desde, $aciertos->hasta, 500),
         ]));
+    }
+
+    /**
+     * Guarda en `prediccion_resultados` las predicciones de la corrida actual.
+     *
+     * Es el botón "Guardar estas predicciones" de la tabla de aciertos: sin esto
+     * la tabla sólo se llena cuando alguien predice por el API, así que la pantalla
+     * de historial queda vacía y no hay con qué comparar "qué dijimos".
+     *
+     * Reusa la corrida cacheada (misma llave que `aciertos()`), así que apretarlo
+     * después de correr la tabla no vuelve a calcular.
+     */
+    public static function guardar_aciertos(Request $request)
+    {
+        $request->validate([
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date',
+            'placa' => 'nullable|string|max:20',
+            'limite' => 'nullable|in:' . implode(',', self::FILAS_ACIERTOS),
+        ]);
+
+        $filtros = [
+            'desde' => $request->input('fecha_inicio'),
+            'hasta' => $request->input('fecha_fin'),
+            'placa' => trim((string) $request->input('placa', '')),
+            'limite' => (int) $request->input('limite', self::FILAS_ACIERTOS[0]),
+        ];
+
+        if (!in_array($filtros['limite'], self::FILAS_ACIERTOS, true)) {
+            $filtros['limite'] = self::FILAS_ACIERTOS[0];
+        }
+
+        $llave = self::llave_aciertos($filtros);
+
+        try {
+            $aciertos = \Illuminate\Support\Facades\Cache::remember(
+                $llave,
+                now()->addMinutes(10),
+                fn () => Servicio::backtest($filtros)
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo correr la tabla: ' . $e->getMessage());
+        }
+
+        $resultado = \App\Database\DBPrediccionResultados::guardar_filas($aciertos->filas);
+
+        if ($resultado['error'] !== null) {
+            return back()->with('error', 'No se guardó nada: ' . $resultado['error']);
+        }
+
+        $mensaje = 'Se guardaron ' . $resultado['guardadas'] . ' predicciones'
+            . ($resultado['saltadas'] > 0 ? ' (' . $resultado['saltadas'] . ' ya estaban o no tenían hora)' : '')
+            . '. Se ven más abajo, en "Acierto real de lo que se predijo".';
+
+        return back()->with('estado', $mensaje);
+    }
+
+    /** Llave de caché de la tabla de aciertos (misma para mostrar y para guardar). */
+    private static function llave_aciertos(array $filtros): string
+    {
+        // El número de versión sube cuando cambia la forma de las filas o de la
+        // corrida (v5: sin línea base, con grupo de calibración y cercanía).
+        return 'prediccion:aciertos:v5:' . md5(json_encode([$filtros, (array) Parametros::cargar()]));
     }
 
     /** Documentación del API de predicción (para quien lo consume). */
@@ -326,7 +408,7 @@ class PrediccionController extends Controller
     public static function guardar_parametros(Request $request)
     {
         $valores = [];
-        foreach (self::PARAMETROS_EDITABLES as $clave) {
+        foreach (array_merge(self::PARAMETROS_EDITABLES, self::PARAMETROS_CALIBRABLES) as $clave) {
             if ($request->filled($clave)) {
                 $valores[$clave] = (int) $request->input($clave);
             }
@@ -348,6 +430,54 @@ class PrediccionController extends Controller
             ->with('estado', $mensaje);
     }
 
+    /**
+     * Calcula la ventana rápido/tardado con los RESIDUOS del backtest y deja la
+     * recomendación en pantalla (mismo patrón que `calibrar_cruce`).
+     *
+     * El p25-p75 del hueco contiene el valor real ~35 % de las veces; el radio
+     * medido sobre el error real cubre la cobertura pedida (70 % por defecto).
+     */
+    public static function calibrar_ventana(Request $request)
+    {
+        $request->validate([
+            'limite' => 'nullable|integer|min:10|max:300',
+            'cobertura' => 'nullable|numeric|min:0.3|max:0.95',
+        ]);
+
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(240);
+        }
+
+        $parametros = Parametros::cargar();
+        $cobertura = (float) $request->input('cobertura', $parametros->ventana_cobertura ?? 0.7);
+        $cobertura = max(0.3, min(0.95, $cobertura));
+
+        $filtros = ['limite' => (int) $request->input('limite', 600)];
+        $llave = 'prediccion:ventana:v1:' . md5(json_encode([$filtros, $cobertura]));
+
+        if ($request->boolean('refrescar')) {
+            \Illuminate\Support\Facades\Cache::forget($llave);
+        }
+
+        try {
+            $medicion = \Illuminate\Support\Facades\Cache::remember(
+                $llave,
+                now()->addMinutes(10),
+                fn () => Servicio::ventana_residuos($filtros, $cobertura,
+                    (int) ($parametros->ventana_min_filas ?? 40))
+            );
+        } catch (\Throwable $e) {
+            $medicion = ['ok' => false, 'error' => 'No se pudo medir: ' . $e->getMessage()];
+        }
+
+        // vuelve a la pantalla desde donde se disparó (calculadora o aciertos)
+        $destino = url()->previous();
+        $valido = str_contains($destino, '/lupita/prediccion/');
+
+        return ($valido ? redirect()->to($destino) : redirect()->route('lupita.prediccion.presenta'))
+            ->with('ventana_medida', $medicion);
+    }
+
     /** Catálogos y parámetros que comparten las dos pantallas. */
     private static function comunes(): array
     {
@@ -355,6 +485,55 @@ class PrediccionController extends Controller
             'catalogos' => Servicio::catalogos(),
             'parametros_editables' => self::PARAMETROS_EDITABLES,
         ];
+    }
+
+    /**
+     * Calibra `cruce_pares_k` contra la tabla de aciertos (entrenamiento +
+     * validación) y deja la recomendación en pantalla.
+     *
+     * No guarda nada: la recomendación se aplica con el botón "Aplicar", que
+     * reusa `guardar_parametros`. La corrida son 6 valores × 2 ventanas de la
+     * tabla de aciertos, así que se cachea 10 minutos igual que esa pantalla.
+     */
+    public static function calibrar_cruce(Request $request)
+    {
+        $request->validate(['limite' => 'nullable|integer|min:10|max:300']);
+
+        // en el servidor son decenas de segundos: el default de PHP (30 s) puede
+        // cortar la corrida a la mitad
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(240);
+        }
+
+        $opciones = [
+            'rejilla' => ['cruce_pares_k' => self::REJILLA_CRUCE],
+            'limite' => (int) $request->input('limite', 100),
+            'metrica' => 'mae',
+        ];
+
+        $llave = 'prediccion:calibrar:cruce:v1:' . md5(json_encode($opciones)
+            . json_encode((array) Parametros::cargar()));
+
+        if ($request->boolean('refrescar')) {
+            \Illuminate\Support\Facades\Cache::forget($llave);
+        }
+
+        try {
+            $calibracion = \Illuminate\Support\Facades\Cache::remember(
+                $llave,
+                now()->addMinutes(10),
+                fn () => Servicio::calibrar($opciones)
+            );
+        } catch (\Throwable $e) {
+            $calibracion = ['ok' => false, 'error' => 'No se pudo calibrar: ' . $e->getMessage()];
+        }
+
+        // vuelve a la pantalla desde donde se disparó (calculadora o aciertos)
+        $destino = url()->previous();
+        $valido = str_contains($destino, '/lupita/prediccion/');
+
+        return ($valido ? redirect()->to($destino) : redirect()->route('lupita.prediccion.presenta'))
+            ->with('calibracion_cruce', $calibracion);
     }
 
     private static function carbon(?string $valor): ?Carbon

@@ -106,7 +106,16 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:ver tiempos');
         Route::post('/prediccion/parametros', [PrediccionController::class, 'guardar_parametros'])->name('lupita.prediccion.parametros')
             ->middleware('permission:ver tiempos');
+        // calibra cruce_pares_k con entrenamiento + validación y deja la recomendación
+        Route::post('/prediccion/calibrar', [PrediccionController::class, 'calibrar_cruce'])->name('lupita.prediccion.calibrar')
+            ->middleware('permission:ver tiempos');
+        // mide la ventana rápido/tardado contra los residuos reales del backtest
+        Route::post('/prediccion/ventana', [PrediccionController::class, 'calibrar_ventana'])->name('lupita.prediccion.ventana')
+            ->middleware('permission:ver tiempos');
         Route::get('/prediccion/aciertos', [PrediccionController::class, 'aciertos'])->name('lupita.prediccion.aciertos')
+            ->middleware('permission:ver tiempos');
+        // guarda las predicciones de la corrida de aciertos en prediccion_resultados
+        Route::post('/prediccion/aciertos/guardar', [PrediccionController::class, 'guardar_aciertos'])->name('lupita.prediccion.aciertos.guardar')
             ->middleware('permission:ver tiempos');
         // buscador de los inputs de local/ubigeo (JSON para el typeahead)
         Route::get('/prediccion/buscar', [PrediccionController::class, 'buscar'])->name('lupita.prediccion.buscar')

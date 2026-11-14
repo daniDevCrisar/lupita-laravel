@@ -19,7 +19,7 @@ final class Parametros
     /**
      * Claves que se castean a float (el resto a int).
      */
-    private const FLOTANTES = ['spread_cadena'];
+    private const FLOTANTES = ['spread_cadena', 'ventana_cobertura'];
 
     private static ?stdClass $cache = null;
 

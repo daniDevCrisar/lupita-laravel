@@ -54,9 +54,68 @@ return [
     // menos, la "mediana" de la franja es un par suelto y una noche de 54 h en la
     // franja de las 19 corría la predicción dos días (ver Calibrador::curva()).
 
+    // El viaje compilado tiene versión POR HORA de salida (`tiempos_ruta_horario`,
+    // lo que sirve /api/tiempos/promedio/horario): ahí está la demora de la hora
+    // pico, que la mediana diaria no tiene. En RUT_CARAL-BABEL_MAXO el martes a
+    // las 04 h el promedio es 358 min y a las 23 h 233: más de 2 h de diferencia.
+    // Se mezcla con el viaje que ya se calculó igual que el resto (w = n/(n+k)),
+    // donde n son los viajes de esa celda día/hora. Con `horario_viajes_min` se
+    // exige muestra: una celda con 1 viaje no mueve nada.
+    'horario_activo' => 1,
+    'horario_viajes_k' => 3,
+    'horario_viajes_min' => 3,
+
+    // Descontar el tiempo que el camión ya lleva en el viaje: lo que le falta es
+    // la mediana de la etapa MENOS lo transcurrido (antes se sumaba la etapa
+    // completa desde el hito y, si ya estaba vencida, se recortaba a 0 = "ya
+    // llegó"). Cuando la mediana ya se consumió se espera hasta el p75 medido de
+    // esa etapa, que es lo que separa "va con retraso" de "ya descargó".
+    'descontar_transcurrido' => 1,
+
+    // C2 - El día en que el camión presenta mueve el hueco: medido con 13.387
+    // huecos reales, el lunes la mediana es 2,53 veces la global y el domingo 1,45
+    // (el fin de semana acumula y el lunes se paga); de martes a sábado, 0,81-0,96.
+    // El factor sale de los pares de la propia placa y, si un día no tiene muestra,
+    // del prior de la flota (Calibrador::FACTOR_DIA_FLOTA). Un feriado usa el peor
+    // factor de la semana. `dia_min_pares` es la muestra mínima por día.
+    'dia_activo' => 1,
+    'dia_min_pares' => 5,
+    'feriado_activo' => 1,
+
+    // C1 - Cola de la planta de carga: cuántos camiones llegaron en la última hora.
+    // Medido con 10.293 refs, la espera para cargar tiene mediana 36 min con 1-2
+    // llegadas por hora y 55 con 11 o más (p90 139 contra 102): con muchas
+    // llegadas se suma `cola_espera_extra_min` a la espera en planta. Se apaga solo
+    // en la tabla de aciertos (no evalúa el inicio de carga).
+    'cola_activa' => 1,
+    'cola_llegadas_min' => 11,
+    'cola_espera_extra_min' => 19,
+
     // Sin pares medidos no hay cuantiles: la fecha "rápido" y "tardado" se abren
     // este porcentaje alrededor de la cadena (0.30 = -30 % / +30 %).
     'spread_cadena' => 0.30,
+
+    // La ventana rápido/tardado se arma con los RESIDUOS del backtest, no con los
+    // cuantiles del hueco: el p25-p75 del hueco contiene el valor real sólo el
+    // 35 % de las veces (medido en la tabla de aciertos), porque el error viene de
+    // todo el modelo y no sólo de la dispersión del hueco.
+    //   radio = cuantil(|error|, ventana_cobertura) alrededor de la hora publicada
+    //
+    // Los valores de abajo se midieron el 14/11/2026 con 788 filas del tramo
+    // 15-oct -> 13-nov: con 70 % de cobertura el radio es 1.550 min en general y
+    // 3.175 min cuando no hay pares medidos (evidencia "cadena", que se equivoca
+    // mucho más). El botón "Medir ventana" de la pantalla de parámetros lo vuelve
+    // a medir con los datos del servidor y lo aplica con "Aplicar ventana".
+    //
+    // Con `ventana_residuos` = 0 se vuelve a los cuantiles del hueco.
+    'ventana_residuos' => 1,
+    'ventana_cobertura' => 0.70,
+    'ventana_adelanto_min' => 1550,
+    'ventana_atraso_min' => 1550,
+    'ventana_adelanto_cadena' => 3175,
+    'ventana_atraso_cadena' => 3175,
+    // filas mínimas del backtest para creerle a la medición
+    'ventana_min_filas' => 40,
 
     // Cuánto puede moverse una predicción para salir de una franja inactiva.
     'max_desplazamiento_min' => 600,

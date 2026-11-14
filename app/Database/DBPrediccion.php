@@ -55,6 +55,9 @@ class DBPrediccion
     /** @var array<string, array{n: int, mediana: ?int}> viaje por placa+ruta (cruce con el compilado) */
     private static array $viajesPlaca = [];
 
+    /** @var array<string, object|null> celdas de `tiempos_ruta_horario` ya leídas */
+    private static array $horarios = [];
+
     /** Expresión SQL del último hito con fecha: 1970-01-01 si no hay ninguno. */
     public static function ultimo_hito_sql(string $alias = 'r'): string
     {
@@ -339,7 +342,8 @@ class DBPrediccion
      * 264 min cuando la mediana es 147). Las negativas y las que pasan el tope se
      * descartan, igual que en el módulo de tiempos.
      *
-     * @return array<string, array{e2: ?int, e3: ?int, e4: ?int, e5: ?int, e6: ?int, ciclo: ?int, n: int}>
+     * @return array<string, array{e2: ?int, e3: ?int, e4: ?int, e5: ?int, e6: ?int,
+     *                              e4_p75?: ?int, e5_p75?: ?int, e6_p75?: ?int, ciclo: ?int, n: int}>
      */
     public static function etapas_por_ruta(Carbon $desde, Carbon $hasta): array
     {
@@ -417,6 +421,13 @@ class DBPrediccion
             }
 
             $salida[$ruta]['e4'] = (int) round((float) $viaje);
+
+            // p75 del viaje: es el techo que usa el motor cuando la mediana de la
+            // etapa ya se consumió (el camión va con retraso, no "ya llegó").
+            $p75 = $fila->p75_min ?? null;
+            if ($p75 !== null && (float) $p75 > 0) {
+                $salida[$ruta]['e4_p75'] = (int) round((float) $p75);
+            }
         }
 
         // La COLA Y EL DESCARGUE (e5 + e6) salen del compilado por PLANTA
@@ -441,6 +452,16 @@ class DBPrediccion
 
             $salida[$ruta]['e5'] = (int) round((float) $fuera);
             $salida[$ruta]['e6'] = (int) round((float) $dentro);
+
+            // el compilado de planta trae p82 (no p75): es el techo disponible
+            $fueraP82 = $planta->p82_fuera_min ?? null;
+            $dentroP82 = $planta->p82_dentro_min ?? null;
+            if ($fueraP82 !== null && (float) $fueraP82 > 0) {
+                $salida[$ruta]['e5_p75'] = (int) round((float) $fueraP82);
+            }
+            if ($dentroP82 !== null && (float) $dentroP82 > 0) {
+                $salida[$ruta]['e6_p75'] = (int) round((float) $dentroP82);
+            }
         }
 
         // ciclo = E2..E6, con las etapas ya definitivas (compilado de ruta + planta)
@@ -457,6 +478,58 @@ class DBPrediccion
         }
 
         return self::$etapas[$llave] = $salida;
+    }
+
+    /**
+     * El viaje (e4) compilado POR HORA de salida: `tiempos_ruta_horario`.
+     *
+     * El módulo de tiempos compila cada ruta por día de la semana y hora de
+     * `inicio_ruta` (MySQL WEEKDAY: 0 = lunes) y ahí está la demora de la hora
+     * pico, que la mediana diaria del compilado no tiene: en
+     * RUT_CARAL-BABEL_MAXO el martes a las 04 h el promedio es 358 min y a las
+     * 23 h 233. Es el mismo dato que sirve `/api/tiempos/promedio/horario`.
+     *
+     * Devuelve null si la tabla no existe (servidor sin compilar), si la ruta no
+     * tiene esa celda o si la celda tiene menos viajes que `$minViajes`.
+     *
+     * @return object{min: int, viajes: int, dia: int, hora: int}|null
+     */
+    public static function viaje_horario(string $ruta, Carbon $fecha, int $minViajes = 3): ?object
+    {
+        $ruta = trim($ruta);
+        if ($ruta === '') {
+            return null;
+        }
+
+        $dia = (int) $fecha->format('N') - 1;   // MySQL WEEKDAY: 0 = lunes
+        $hora = (int) $fecha->format('G');
+        $llave = $ruta . '|' . $dia . '|' . $hora . '|' . $minViajes;
+
+        if (array_key_exists($llave, self::$horarios)) {
+            return self::$horarios[$llave];
+        }
+
+        try {
+            $fila = DB::table('tiempos_ruta_horario')
+                ->where('ruta_id', $ruta)
+                ->where('dia', $dia)
+                ->where('hora', $hora)
+                ->first(['viajes', 'prom_min']);
+        } catch (\Throwable $e) {
+            return self::$horarios[$llave] = null;   // tabla sin crear todavía
+        }
+
+        if ($fila === null || (float) ($fila->prom_min ?? 0) <= 0
+            || (int) ($fila->viajes ?? 0) < max(1, $minViajes)) {
+            return self::$horarios[$llave] = null;
+        }
+
+        return self::$horarios[$llave] = (object) [
+            'min' => (int) round((float) $fila->prom_min),
+            'viajes' => (int) $fila->viajes,
+            'dia' => $dia,
+            'hora' => $hora,
+        ];
     }
 
     /**
@@ -967,6 +1040,63 @@ class DBPrediccion
     }
 
     /**
+     * Cola de una planta de carga en un momento dado (C1).
+     *
+     * Dos números, los dos medidos sobre `referencias`:
+     *  - `esperando`: camiones de esa planta ya presentados y todavía sin cargar;
+     *  - `llegadas_hora`: cuántos se presentaron en la hora anterior al corte.
+     *
+     * Medido con 10.293 refs (sept-nov 2026): la espera para cargar
+     * (`presenta` -> `inicio_de_carga`) tiene mediana 36 min cuando llegan 1-2 por
+     * hora y 55 min con 11 o más (p90 139 contra 102). La cola "esperando" sola no
+     * discrimina: hay plantas donde casi nadie registra el inicio de carga.
+     *
+     * @return object{esperando: int, llegadas_hora: int}
+     */
+    public static function cola_planta(?string $plantaLocal, ?string $ubigeo, Carbon $corte): object
+    {
+        $vacio = (object) ['esperando' => 0, 'llegadas_hora' => 0];
+
+        $columna = null;
+        $valor = null;
+        if (trim((string) $plantaLocal) !== '') {
+            $columna = 'ru.origen_id';
+            $valor = trim((string) $plantaLocal);
+        } elseif (trim((string) $ubigeo) !== '') {
+            $columna = 'ru.ubigeo_origen';
+            $valor = trim((string) $ubigeo);
+        }
+
+        if ($columna === null) {
+            return $vacio;
+        }
+
+        try {
+            $esperando = (int) (DB::selectOne(
+                "SELECT COUNT(*) AS n
+                 FROM referencias r
+                 JOIN rutas ru ON ru.id = r.ruta_id
+                 WHERE {$columna} = ?
+                   AND r.presenta_para_carga IS NOT NULL AND r.presenta_para_carga <= ?
+                   AND (r.inicio_de_carga IS NULL OR r.inicio_de_carga > ?)",
+                [$valor, $corte->toDateTimeString(), $corte->toDateTimeString()]
+            )->n ?? 0);
+
+            $llegadas = (int) (DB::selectOne(
+                "SELECT COUNT(*) AS n
+                 FROM referencias r
+                 JOIN rutas ru ON ru.id = r.ruta_id
+                 WHERE {$columna} = ? AND r.presenta_para_carga BETWEEN ? AND ?",
+                [$valor, $corte->copy()->subHour()->toDateTimeString(), $corte->toDateTimeString()]
+            )->n ?? 0);
+        } catch (\Throwable $e) {
+            return $vacio;
+        }
+
+        return (object) ['esperando' => $esperando, 'llegadas_hora' => $llegadas];
+    }
+
+    /**
      * Espera en la planta de carga (fuera + dentro), del compilado por planta
      * (API `/api/tiempos/promedio/plantas`) y, si no hay, del compilado por ruta.
      */
@@ -1174,6 +1304,7 @@ class DBPrediccion
         self::$hitos = [];
         self::$pares = [];
         self::$viajesPlaca = [];
+        self::$horarios = [];
         self::$locales = null;
         self::$ubigeos_texto = [];
     }

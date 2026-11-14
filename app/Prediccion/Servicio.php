@@ -290,6 +290,37 @@ class Servicio
             }
         }
 
+        // El viaje compilado tiene versión POR HORA de salida
+        // (`tiempos_ruta_horario`, la misma que sirve /api/tiempos/promedio/horario):
+        // ahí está la demora de la hora pico, que la mediana diaria no tiene. Se
+        // mezcla con lo que ya se calculó usando la muestra de la celda, igual
+        // que el resto: una celda con 2 viajes no mueve la aguja.
+        $viajeHorario = null;
+        if ((int) ($p->horario_activo ?? 1) === 1 && $rutaAncla !== '' && ($etapasAncla['e4'] ?? null) !== null) {
+            // hora de salida: la del propio hito si ya arrancó, si no la del corte
+            $salidaViaje = ((string) ($ancla->hito ?? '') === 'inicio_ruta' && $ancla->fecha instanceof Carbon)
+                ? $ancla->fecha
+                : $ahora;
+
+            $celda = DBPrediccion::viaje_horario($rutaAncla, $salidaViaje, (int) ($p->horario_viajes_min ?? 3));
+
+            if ($celda !== null) {
+                $conHorario = self::mezclar_viaje((int) $etapasAncla['e4'], $celda->min,
+                    (int) $celda->viajes, (int) ($p->horario_viajes_k ?? 3));
+
+                if ($conHorario !== null && $conHorario !== (int) $etapasAncla['e4']) {
+                    $etapasAncla['e4'] = $conHorario;
+                    $viajeHorario = (object) [
+                        'min' => $conHorario,
+                        'horario' => (int) $celda->min,
+                        'viajes' => (int) $celda->viajes,
+                        'dia' => (int) $celda->dia,
+                        'hora' => (int) $celda->hora,
+                    ];
+                }
+            }
+        }
+
         // Lo que le falta al viaje en curso desde la posición declarada hasta el
         // DESTINO del viaje. Es la etapa que se reemplaza: la mediana de la ruta
         // cuenta el viaje entero desde el último hito, no lo que falta desde
@@ -306,15 +337,29 @@ class Servicio
             }
         }
 
-        // calibración: pares de la placa (o del chofer si concentra sus viajes)
+        // calibración: pares de la placa. De quién sale el hueco (placa o chofer)
+        // se decide por MUESTRA, después de tener los pares (ver C3 en
+        // clave_calibracion()).
         $conductorClave = $fila->conductor_clave !== null ? (int) $fila->conductor_clave : null;
+
+        $pares = DBPrediccion::pares($ref, $desde, $ahora, $placa, null, 5000);
+
+        $nChofer = 0;
+        if ($conductorClave !== null) {
+            foreach ($pares as $par) {
+                if ((int) ($par->conductor ?? 0) === $conductorClave) {
+                    $nChofer++;
+                }
+            }
+        }
+
         [$grupoCalibracion, $claveCalibracion] = self::clave_calibracion(
             $placa,
             $conductorClave,
-            self::pct_chofer_habitual($fila, $desde, $ahora)
+            $nChofer,
+            count($pares),
+            (int) ($p->min_pares_entidad ?? 3)
         );
-
-        $pares = DBPrediccion::pares($ref, $desde, $ahora, $placa, null, 5000);
 
         // Si el camión quedó CERCA de la planta de carga (mismo local, mismo
         // distrito o traslado medido corto), el hueco se calibra con los viajes en
@@ -376,6 +421,55 @@ class Servicio
 
         $ventanas = self::ventanas($placa, $desde, $ahora, $p);
 
+        // C2: factor del hueco por día de la semana de la presentación. Sale de los
+        // pares de la propia placa y, cuando un día no tiene muestra, del prior de
+        // la flota medido (Calibrador::FACTOR_DIA_FLOTA).
+        $factoresDia = null;
+        if ((int) ($p->dia_activo ?? 1) === 1) {
+            $factoresDia = Calibrador::factores_dia($pares, (int) ($p->dia_min_pares ?? 5));
+        }
+
+        // C1: cola de la planta de carga en este momento (cuántos esperan y cuántos
+        // llegaron en la última hora). Se apaga en el backtest: la tabla de
+        // aciertos no evalúa el inicio de carga y sería una consulta por fila.
+        $cola = null;
+        if ((int) ($p->cola_activa ?? 1) === 1 && $plantaCarga !== '') {
+            $cola = DBPrediccion::cola_planta($plantaCarga, (string) ($fila->ubigeo_origen ?? ''), $ahora);
+        }
+
+        // Ventana rápido/tardado: si está medida (residuos del backtest), se le
+        // pasa al motor tal cual; si no, el motor usa los cuantiles del hueco.
+        // La medición la guarda el botón "Calcular ventana" (ventana_*_min).
+        $ventanaMedida = null;
+        if ((int) ($p->ventana_residuos ?? 0) === 1) {
+            $adelanto = max(0, (int) ($p->ventana_adelanto_min ?? 0));
+            $atraso = max(0, (int) ($p->ventana_atraso_min ?? 0));
+
+            if ($adelanto + $atraso > 0) {
+                $ventanaMedida = (object) [
+                    'adelanto' => $adelanto,
+                    'atraso' => $atraso,
+                    // la cadena (sin pares medidos) se equivoca mucho más
+                    'adelanto_cadena' => max(0, (int) ($p->ventana_adelanto_cadena ?? 0)),
+                    'atraso_cadena' => max(0, (int) ($p->ventana_atraso_cadena ?? 0)),
+                    'cobertura' => (float) ($p->ventana_cobertura ?? 0.7),
+                ];
+            }
+        }
+
+        // C1 aplicado: si la planta recibió muchas llegadas en la última hora, la
+        // espera para cargar se estira. Medido: mediana 36 min con 1-2 llegadas por
+        // hora y 55 con 11 o más.
+        $esperaBase = DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
+            $rutaRef !== '' ? $rutaRef : null);
+        $esperaExtra = 0;
+        $esperaCarga = $esperaBase;
+        if ($esperaBase !== null && $cola !== null
+            && (int) $cola->llegadas_hora >= max(1, (int) ($p->cola_llegadas_min ?? 11))) {
+            $esperaExtra = max(0, (int) ($p->cola_espera_extra_min ?? 19));
+            $esperaCarga = $esperaBase + $esperaExtra;
+        }
+
         $plantaNombre = DBPrediccion::texto_ubicacion($plantaCarga !== '' ? $plantaCarga : null,
             (string) ($fila->ubigeo_origen ?? ''));
 
@@ -420,9 +514,11 @@ class Servicio
             'calibrador' => $calibrador,
             'traslado' => $traslado,
             'tramo_en_curso' => $tramoDeclarado,
+            'ventana_residuos' => $ventanaMedida,
+            'factor_dia' => $factoresDia,
+            'feriado_activo' => (int) ($p->feriado_activo ?? 1),
             'ventanas' => $ventanas['ventanas'],
-            'espera_carga_min' => DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
-                $rutaRef !== '' ? $rutaRef : null),
+            'espera_carga_min' => $esperaCarga,
             'parametros' => $p,
         ]);
 
@@ -432,6 +528,16 @@ class Servicio
         $resultado->planta_carga = $plantaCarga;
         $resultado->planta_carga_nombre = $plantaNombre;
         $resultado->candidatos = $candidatos;
+
+        // C1: lo que se miró de la cola de la planta y cuánto se sumó a la espera
+        $resultado->planta_cola = $cola !== null
+            ? (object) [
+                'esperando' => (int) $cola->esperando,
+                'llegadas_hora' => (int) $cola->llegadas_hora,
+                'espera_base_min' => $esperaBase,
+                'espera_extra_min' => $esperaExtra,
+            ]
+            : null;
 
         // ¿se usó Geoapify? Sólo pasa cuando NO hay ningún promedio compilado del
         // par; el consumidor tiene que poder verlo sin leer las advertencias.
@@ -490,6 +596,8 @@ class Servicio
             'cerca_regimen' => $regimenUsado,
             // cruce del viaje: compilado de la ruta + lo que hace esta placa
             'viaje_cruce' => $cruceViaje,
+            // y el ajuste por hora de salida (tiempos_ruta_horario), si se aplicó
+            'viaje_horario' => $viajeHorario,
             'ventanas' => $ventanas['ventanas'],
             'ventanas_origen' => $ventanas['origen'],
             'calibrador_usado' => !$anclaDeclarada,
@@ -570,6 +678,12 @@ class Servicio
                 . Tiempo::hhmm((int) $cruceViaje->placa) . ')';
         }
 
+        if ($viajeHorario !== null) {
+            $resultado->supuestos[] = 'viaje de la ruta por hora de salida: el compilado de esa franja ('
+                . Tiempo::hhmm((int) $viajeHorario->horario) . ', ' . $viajeHorario->viajes . ' viajes)'
+                . ' dejó el viaje en ' . Tiempo::hhmm((int) $viajeHorario->min);
+        }
+
         if ($anclaDeclarada) {
             $resultado->advertencias[] = 'ancla_declarada: no hay un viaje en curso utilizable (o su último hito '
                 . 'es de hace más de ' . intdiv($topeAncla, 60) . ' h); el cálculo arranca ahora desde la ubicación '
@@ -597,6 +711,315 @@ class Servicio
     }
 
     /**
+     * Corre una rejilla de parámetros con entrenamiento + validación.
+     *
+     * Es la mitad "de cálculo" del comando `prediccion:calibrar` y de la pantalla
+     * de parámetros: mismos filtros, misma métrica, mismo criterio de desempate.
+     * No imprime ni guarda nada: devuelve todo lo medido para que el que llama
+     * decida (consola: tabla + `--aplicar`; pantalla: recomendación).
+     *
+     * @param  array{desde?: mixed, hasta?: mixed, validar_desde?: mixed, validar_hasta?: mixed,
+     *               limite?: int, metrica?: string, n_minimo?: int,
+     *               rejilla?: array<string, array<int, int|float>>, parametros?: ?stdClass}  $opciones
+     * @return array<string, mixed>
+     */
+    public static function calibrar(array $opciones = []): array
+    {
+        $fecha = function ($valor, bool $fin = false): ?Carbon {
+            if ($valor instanceof Carbon) {
+                return $fin ? $valor->copy()->endOfDay() : $valor->copy()->startOfDay();
+            }
+
+            $valor = trim((string) $valor);
+            if ($valor === '') {
+                return null;
+            }
+
+            try {
+                $carbon = Carbon::parse($valor);
+            } catch (\Throwable $e) {
+                return null;
+            }
+
+            return $fin ? $carbon->endOfDay() : $carbon->startOfDay();
+        };
+
+        $hasta = $fecha($opciones['hasta'] ?? null, true) ?? Carbon::now()->endOfDay();
+        $desde = $fecha($opciones['desde'] ?? null) ?? $hasta->copy()->subDays(29)->startOfDay();
+        $valDesde = $fecha($opciones['validar_desde'] ?? null) ?? $hasta->copy()->subDays(6)->startOfDay();
+        $valHasta = $fecha($opciones['validar_hasta'] ?? null, true) ?? $hasta->copy();
+        $entHasta = $valDesde->copy()->subDay()->endOfDay();
+
+        $metrica = (string) ($opciones['metrica'] ?? 'mae');
+
+        $salida = [
+            'ok' => false,
+            'error' => null,
+            'metrica' => $metrica,
+            'metrica_etiqueta' => Calibracion::METRICAS[$metrica]['etiqueta'] ?? $metrica,
+            'limite' => max(10, min(1000, (int) ($opciones['limite'] ?? 200))),
+            'n_minimo' => max(1, (int) ($opciones['n_minimo'] ?? 20)),
+            'rejilla' => [],
+            'combinaciones' => 0,
+            'entrenamiento' => ['desde' => $desde->toDateString(), 'hasta' => $entHasta->toDateString()],
+            'validacion' => ['desde' => $valDesde->toDateString(), 'hasta' => $valHasta->toDateString()],
+            'actual' => null,
+            'resultados' => [],
+            'mejor' => null,
+            'recomendacion' => [],
+            'puntaje_actual' => null,
+        ];
+
+        if (!isset(Calibracion::METRICAS[$metrica])) {
+            $salida['error'] = 'Métrica desconocida: ' . $metrica;
+
+            return $salida;
+        }
+
+        if ($desde->greaterThan($entHasta)) {
+            $salida['error'] = 'La ventana de entrenamiento quedó vacía: tiene que empezar antes del '
+                . $valDesde->toDateString() . '.';
+
+            return $salida;
+        }
+
+        if ($valDesde->greaterThan($valHasta)) {
+            [$valDesde, $valHasta] = [$valHasta->copy()->startOfDay(), $valDesde->copy()->endOfDay()];
+            $salida['validacion'] = ['desde' => $valDesde->toDateString(), 'hasta' => $valHasta->toDateString()];
+        }
+
+        $base = $opciones['parametros'] ?? Parametros::cargar();
+        $rejilla = $opciones['rejilla'] ?? Calibracion::REJILLA;
+
+        $desconocidas = array_diff(array_keys($rejilla), array_keys((array) $base));
+        if ($desconocidas !== []) {
+            $salida['error'] = 'Claves desconocidas en la rejilla: ' . implode(', ', $desconocidas);
+
+            return $salida;
+        }
+
+        try {
+            $combos = Calibracion::combinaciones($rejilla);
+        } catch (\Throwable $e) {
+            $salida['error'] = $e->getMessage();
+
+            return $salida;
+        }
+
+        $salida['rejilla'] = $rejilla;
+        $salida['combinaciones'] = count($combos);
+
+        $filtrosEnt = ['desde' => $desde->toDateString(), 'hasta' => $entHasta->toDateString(),
+                       'limite' => $salida['limite']];
+        $filtrosVal = ['desde' => $valDesde->toDateString(), 'hasta' => $valHasta->toDateString(),
+                       'limite' => $salida['limite']];
+
+        try {
+            // referencia: los parámetros que están en uso ahora mismo
+            $actualEnt = self::backtest($filtrosEnt, $base);
+            $actualVal = self::backtest($filtrosVal, $base);
+            $salida['actual'] = [
+                'entrenamiento' => $actualEnt->resumen_motor,
+                'validacion' => $actualVal->resumen_motor,
+            ];
+            $puntajeActual = Calibracion::puntaje($actualVal->resumen_motor, $metrica);
+            $salida['puntaje_actual'] = $puntajeActual === INF ? null : $puntajeActual;
+        } catch (\Throwable $e) {
+            $salida['error'] = 'No se pudo correr la tabla de aciertos: ' . $e->getMessage();
+
+            return $salida;
+        }
+
+        $objetos = [];
+        foreach ($combos as $valores) {
+            $parametros = Calibracion::con($base, $valores);
+
+            try {
+                $ent = self::backtest($filtrosEnt, $parametros);
+                $val = self::backtest($filtrosVal, $parametros);
+            } catch (\Throwable $e) {
+                $salida['resultados'][] = [
+                    'valores' => $valores,
+                    'etiqueta' => Calibracion::etiqueta($valores),
+                    'entrenamiento' => null,
+                    'validacion' => null,
+                    'puntaje' => null,
+                    'error' => $e->getMessage(),
+                ];
+
+                continue;
+            }
+
+            $objetos[] = (object) [
+                'valores' => $valores,
+                'etiqueta' => Calibracion::etiqueta($valores),
+                'entrenamiento' => $ent->resumen_motor,
+                'validacion' => $val->resumen_motor,
+            ];
+        }
+
+        $mejor = Calibracion::mejor($objetos, $metrica, true, $salida['n_minimo']);
+
+        $filas = [];
+        foreach ($objetos as $objeto) {
+            $filas[] = [
+                'valores' => $objeto->valores,
+                'etiqueta' => $objeto->etiqueta,
+                'entrenamiento' => $objeto->entrenamiento,
+                'validacion' => $objeto->validacion,
+                'puntaje' => Calibracion::puntaje($objeto->validacion, $metrica),
+                'error' => null,
+                'elegido' => $mejor !== null && $objeto->etiqueta === $mejor->etiqueta,
+            ];
+        }
+
+        usort($filas, fn (array $a, array $b) => ($a['puntaje'] ?? INF) <=> ($b['puntaje'] ?? INF));
+
+        foreach ($salida['resultados'] as $fallado) {
+            $filas[] = $fallado + ['elegido' => false];
+        }
+
+        $salida['resultados'] = $filas;
+
+        if ($mejor === null) {
+            $salida['error'] = 'Ninguna corrida llegó a ' . $salida['n_minimo'] . ' filas en la validación: '
+                . 'no hay con qué elegir. Probá un rango más largo.';
+
+            return $salida;
+        }
+
+        $salida['mejor'] = [
+            'valores' => $mejor->valores,
+            'etiqueta' => $mejor->etiqueta,
+            'entrenamiento' => $mejor->entrenamiento,
+            'validacion' => $mejor->validacion,
+            'puntaje' => Calibracion::puntaje($mejor->validacion, $metrica),
+        ];
+
+        foreach (array_keys($rejilla) as $clave) {
+            $actual = $base->{$clave} ?? null;
+            $recomendado = $mejor->valores[$clave] ?? null;
+
+            $salida['recomendacion'][] = [
+                'clave' => (string) $clave,
+                'actual' => $actual,
+                'recomendado' => $recomendado,
+                'difiere' => $actual !== $recomendado,
+            ];
+        }
+
+        $salida['ok'] = true;
+
+        return $salida;
+    }
+
+    /**
+     * Mide la ventana rápido/tardado contra los RESIDUOS reales del backtest.
+     *
+     * El p25-p75 del hueco no es una ventana: contiene el valor real ~35 % de las
+     * veces (medido en la tabla de aciertos). Esta medición corre esa misma tabla
+     * y calcula el radio `cuantil(|error|, cobertura)` alrededor de la hora
+     * publicada, que es lo que pide un despachador: "presenta entre estas dos".
+     *
+     * Devuelve SIMÉTRICO (adelanto = atraso = radio) a propósito: la mediana del
+     * error salta cientos de minutos según la ventana, así que correr la banda con
+     * el sesgo sería calzar ruido. Informa el sesgo y la cobertura que logra para
+     * que se vea qué tan lejos está de la cobertura pedida.
+     *
+     * @param  array<string, mixed>  $filtros  igual que Servicio::backtest()
+     * @return array<string, mixed>
+     */
+    public static function ventana_residuos(array $filtros = [], float $cobertura = 0.70,
+                                            int $minimo = 40): array
+    {
+        $cobertura = max(0.05, min(0.99, $cobertura));
+
+        $salida = [
+            'ok' => false,
+            'error' => null,
+            'adelanto' => 0,
+            'atraso' => 0,
+            'radio' => 0,
+            'cadena_radio' => 0,
+            'cadena_n' => 0,
+            'cadena_cobertura' => null,
+            'cobertura' => $cobertura,
+            'cobertura_lograda' => null,
+            'cobertura_actual' => null,
+            'n' => 0,
+            'mae' => null,
+            'sesgo' => null,
+            'desde' => null,
+            'hasta' => null,
+            'minimo' => max(1, $minimo),
+            'limite' => (int) ($filtros['limite'] ?? 200),
+        ];
+
+        try {
+            $corrida = self::backtest($filtros);
+        } catch (\Throwable $e) {
+            $salida['error'] = 'No se pudo correr la tabla de aciertos: ' . $e->getMessage();
+
+            return $salida;
+        }
+
+        $errores = [];
+        $erroresCadena = [];
+        foreach ($corrida->filas as $fila) {
+            if ($fila->error_min === null) {
+                continue;
+            }
+
+            $error = (int) $fila->error_min;
+            $errores[] = $error;
+
+            if (($fila->evidencia ?? '') === 'cadena') {
+                $erroresCadena[] = $error;
+            }
+        }
+
+        $salida['n'] = count($errores);
+        $salida['desde'] = $corrida->desde->toDateString();
+        $salida['hasta'] = $corrida->hasta->toDateString();
+        $salida['mae'] = $corrida->resumen_motor->mae_min ?? null;
+        $salida['cobertura_actual'] = $corrida->resumen_motor->pct_ventana ?? null;
+
+        if (count($errores) < $salida['minimo']) {
+            $salida['error'] = 'La corrida tiene ' . count($errores) . ' filas y el mínimo es '
+                . $salida['minimo'] . ': alargá el rango antes de creerle a la ventana.';
+
+            return $salida;
+        }
+
+        $absolutos = array_map(fn (int $error) => abs($error), $errores);
+        $radio = (int) round((float) Estadistica::cuantil($absolutos, $cobertura));
+        $dentro = count(array_filter($absolutos, fn (int $error) => $error <= $radio));
+
+        $salida['radio'] = $radio;
+        $salida['adelanto'] = $radio;
+        $salida['atraso'] = $radio;
+        $salida['cobertura_lograda'] = (int) round(100 * $dentro / count($errores));
+        $salida['sesgo'] = (int) round((float) Estadistica::mediana($errores));
+
+        // La CADENA (sin pares medidos) se equivoca mucho más: su banda va aparte
+        // y sólo si hay muestra suficiente para creerle.
+        $minimoCadena = max(10, (int) round($salida['minimo'] / 2));
+        $salida['cadena_n'] = count($erroresCadena);
+        if (count($erroresCadena) >= $minimoCadena) {
+            $absolutosCadena = array_map(fn (int $error) => abs($error), $erroresCadena);
+            $radioCadena = (int) round((float) Estadistica::cuantil($absolutosCadena, $cobertura));
+            $dentroCadena = count(array_filter($absolutosCadena, fn (int $error) => $error <= $radioCadena));
+
+            $salida['cadena_radio'] = $radioCadena;
+            $salida['cadena_cobertura'] = (int) round(100 * $dentroCadena / count($erroresCadena));
+        }
+
+        $salida['ok'] = true;
+
+        return $salida;
+    }
+
+    /**
      * Tabla de aciertos: corre el motor sobre las referencias ya cerradas del
      * rango y compara contra el `presenta_para_carga` real.
      *
@@ -610,6 +1033,11 @@ class Servicio
         // $parametros permite calibrar: correr la misma ventana con distintos
         // valores sin tocar `prediccion_config` (ver App\Prediccion\Calibracion)
         $p = $parametros ?? Parametros::cargar();
+
+        // la cola de la planta (C1) no se evalúa en la tabla de aciertos y sería una
+        // consulta por fila: se apaga acá, no en la configuración
+        $p = clone $p;
+        $p->cola_activa = 0;
         // El rango se cierra por DÍA: si llega "2026-11-13" como hasta, tiene que
         // incluir todo ese día, no la medianoche (con un instante el rango
         // hoy/hoy devolvía 0 filas).
@@ -703,8 +1131,26 @@ class Servicio
             $conductorFila = $par->conductor !== null ? (int) $par->conductor : null;
             $previosTodos = self::pares_previos($historialPorPlaca[$par->placa] ?? [], $par->ancla, 10000);
 
+            // C2: el factor por día se mide con TODOS los pares previos (producción
+            // usa también los de la placa sin filtrar), no con el subconjunto
+            // "cerca" que se arma más abajo
+            $factoresFila = (int) ($p->dia_activo ?? 1) === 1
+                ? Calibrador::factores_dia($previosTodos, (int) ($p->dia_min_pares ?? 5))
+                : null;
+
+            // C3: el grupo se decide por muestra, con la misma regla que producción
+            $nChoferFila = 0;
+            if ($conductorFila !== null) {
+                foreach ($previosTodos as $previo) {
+                    if ((int) ($previo->conductor ?? 0) === $conductorFila) {
+                        $nChoferFila++;
+                    }
+                }
+            }
+
             [$grupoCalibracion, $claveCalibracion] = self::clave_calibracion(
-                $par->placa, $conductorFila, self::pct_conductor($previosTodos, $conductorFila));
+                $par->placa, $conductorFila, $nChoferFila, count($previosTodos),
+                (int) ($p->min_pares_entidad ?? 3));
 
             // misma regla de cercanía que producción: si esta fila quedó cerca de
             // la planta de carga, se calibra con los pares en que también quedó
@@ -777,6 +1223,10 @@ class Servicio
                 'etapas' => $etapas[$rutaAncla] ?? [],
                 'calibrador' => $calibrador,
                 'traslado' => $traslado,
+                // C2: la tabla de aciertos tiene que predecir con la MISMA regla
+                // que producción (si no, la fila y el API dan horas distintas)
+                'factor_dia' => $factoresFila,
+                'feriado_activo' => (int) ($p->feriado_activo ?? 1),
                 'ventanas' => $ventanasCache[$llaveVentana]['ventanas'],
                 'espera_carga_min' => DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
                     $rutaSiguiente !== '' ? $rutaSiguiente : null),
@@ -1391,14 +1841,19 @@ class Servicio
     }
 
     /**
-     * Con qué clave se calibra el hueco: la placa manda, salvo que un conductor
-     * concentre menos de la mitad de sus viajes (misma regla que
-     * `ComportamientoController::chofer_habitual`), en cuyo caso los promedios de
-     * la placa no describen a nadie.
+     * De quién sale el hueco: del chofer o de la placa (C3).
+     *
+     * Se decide por MUESTRA, no por el porcentaje de viajes del chofer. Se usa el
+     * chofer cuando tiene al menos `$minimo` pares propios Y al menos la mitad de
+     * los pares de la placa; si no, manda la placa. Con la regla anterior (el
+     * chofer "habitual" con menos de la mitad de los viajes de la placa) un chofer
+     * con 2 pares podía fijar el hueco de un camión con 40, y un camión que cambió
+     * de chofer quedaba calibrado por alguien que ya no lo maneja.
      *
      * @return array{0: string, 1: string} [grupo, clave]
      */
-    public static function clave_calibracion(?string $placa, ?int $conductorId, ?float $pctHabitual): array
+    public static function clave_calibracion(?string $placa, ?int $conductorId, int $nChofer = 0,
+                                            int $nPlaca = 0, int $minimo = 3): array
     {
         $placa = trim((string) $placa);
 
@@ -1406,7 +1861,8 @@ class Servicio
             return ['placa', ''];
         }
 
-        if ($conductorId !== null && $conductorId > 0 && $pctHabitual !== null && $pctHabitual < 50.0) {
+        if ($conductorId !== null && $conductorId > 0 && $nChofer >= max(1, $minimo)
+            && $nChofer * 2 >= max(1, $nPlaca)) {
             return ['conductor', (string) $conductorId];
         }
 

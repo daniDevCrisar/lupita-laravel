@@ -8,13 +8,18 @@ use Tests\TestCase;
 
 class ServicioTest extends TestCase
 {
-    public function test_clave_calibracion_respeta_el_50_por_ciento(): void
+    public function test_clave_calibracion_se_decide_por_muestra(): void
     {
-        $this->assertSame(['placa', 'ABC123'], Servicio::clave_calibracion('ABC123', 7, 80.0));
-        $this->assertSame(['placa', 'ABC123'], Servicio::clave_calibracion('ABC123', 7, 50.0));
-        $this->assertSame(['conductor', '7'], Servicio::clave_calibracion('ABC123', 7, 49.9));
-        $this->assertSame(['placa', 'ABC123'], Servicio::clave_calibracion('ABC123', null, null));
-        $this->assertSame(['placa', ''], Servicio::clave_calibracion(null, 7, 10.0));
+        // el chofer tiene muestra (>= 3) y al menos la mitad de los pares de la placa
+        $this->assertSame(['conductor', '7'], Servicio::clave_calibracion('ABC123', 7, 5, 8, 3));
+        $this->assertSame(['conductor', '7'], Servicio::clave_calibracion('ABC123', 7, 4, 8, 3));
+        // el chofer tiene muestra pero la placa es mucho más grande: manda la placa
+        $this->assertSame(['placa', 'ABC123'], Servicio::clave_calibracion('ABC123', 7, 4, 40, 3));
+        // pocos pares del chofer: manda la placa
+        $this->assertSame(['placa', 'ABC123'], Servicio::clave_calibracion('ABC123', 7, 2, 4, 3));
+        // sin chofer o sin placa
+        $this->assertSame(['placa', 'ABC123'], Servicio::clave_calibracion('ABC123', null, 0, 10, 3));
+        $this->assertSame(['placa', ''], Servicio::clave_calibracion(null, 7, 10, 10, 3));
     }
 
     public function test_pares_previos_no_deja_pasar_el_futuro(): void

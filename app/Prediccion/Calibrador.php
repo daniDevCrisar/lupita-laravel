@@ -29,6 +29,83 @@ final class Calibrador
     public const TOPE_HUECO = 10080;
 
     /**
+     * Factor del hueco por día de la semana en que el camión PRESENTA (C2).
+     *
+     * Medido dos veces con huecos reales (refs consecutivas) y es estable:
+     *
+     *   día    jun→sep (n=8.391)   oct→nov (n=4.681)   prior
+     *   lun        2,38                2,98            2,68
+     *   mar        0,89                1,04            0,97
+     *   mié        0,78                1,04            0,91
+     *   jue        0,85                0,83            0,84
+     *   vie        0,82                0,79            0,81
+     *   sáb        0,99                0,86            0,93
+     *   dom        1,45                1,36            1,41
+     *
+     * O sea: el fin de semana acumula y el lunes se paga (casi el triple). Sirve
+     * de prior de la flota cuando la placa no tiene muestra de ese día
+     * (`factores_dia()`), y el motor lo aplica al hueco de producción.
+     *
+     * Índice 0 = lunes (igual que MySQL WEEKDAY y Carbon->format('N') - 1).
+     *
+     * @var array<int, float>
+     */
+    public const FACTOR_DIA_FLOTA = [2.68, 0.97, 0.91, 0.84, 0.81, 0.93, 1.41];
+
+    /**
+     * Factor del hueco por día de la semana de ESTA placa.
+     *
+     * De los pares que ya están en memoria (los de la placa) se saca la mediana de
+     * cada día y se divide por la mediana general: si un camión siempre presenta
+     * los lunes, su lunes ya está en su mediana y no hay que inflarla. Con menos
+     * de `$minimo` pares en ese día se usa el prior de la flota, y si la placa
+     * tiene pocos pares en total se devuelve el prior entero.
+     *
+     * @param  array<int, object>  $pares  con ->presenta (Carbon) y ->hueco_min
+     * @return array<int, float> índice 0 = lunes
+     */
+    public static function factores_dia(array $pares, int $minimo = 5): array
+    {
+        $todos = [];
+        $porDia = [];
+
+        foreach ($pares as $par) {
+            $presenta = $par->presenta ?? null;
+            $hueco = $par->hueco_min ?? null;
+
+            if (!$presenta instanceof Carbon || !is_numeric($hueco)) {
+                continue;
+            }
+
+            $dia = (int) $presenta->format('N') - 1;
+            $todos[] = (int) $hueco;
+            $porDia[$dia][] = (int) $hueco;
+        }
+
+        $base = Estadistica::mediana($todos);
+        if ($base === null || $base <= 0 || count($todos) < $minimo) {
+            return self::FACTOR_DIA_FLOTA;
+        }
+
+        $factores = self::FACTOR_DIA_FLOTA;
+        foreach ($porDia as $dia => $valores) {
+            if (count($valores) < $minimo) {
+                continue;
+            }
+
+            $mediana = Estadistica::mediana($valores);
+            if ($mediana === null || $mediana <= 0) {
+                continue;
+            }
+
+            // se acota: un día con pocos pares no puede mover el hueco 5 veces
+            $factores[$dia] = round(max(0.5, min(3.0, $mediana / $base)), 2);
+        }
+
+        return $factores;
+    }
+
+    /**
      * Agrupa los pares y calcula los niveles, la curva horaria y la base global.
      *
      * `$max_por_entidad` se queda sólo con los pares más recientes de cada placa
