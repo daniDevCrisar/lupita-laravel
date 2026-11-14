@@ -2,7 +2,7 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.18
+Version       : 1.19
 Fecha         : 14/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
@@ -1393,10 +1393,41 @@ evidencia. Hay tres niveles.
       "ver tiempos". Sirve para depurar un caso concreto antes de integrar.
 
   https://calls.pedrosotelo.fun/lupita/prediccion/guardadas
-      Predicciones guardadas (v1.17): el historial de `prediccion_resultados` en su
-      propia pantalla, con filtros de rango, origen (api | aciertos | pantalla) y
-      filas, el acierto real de lo guardado y la tabla ref por ref. Antes estaba al
-      final de la tabla de aciertos; ahora esa pantalla solo tiene el acceso.
+      Predicciones guardadas (v1.17, tablero completo desde v1.19): el historial de
+      `prediccion_resultados` en su propia pantalla, con filtros de rango, origen
+      (api | aciertos | pantalla) y filas, y el TABLERO del motor en tres varas que
+      no se mezclan:
+
+        PRODUCCION - lo guardado que ya presento. n, exito en la ventana rapido-
+          tardado, exito a +-180 min, MAE, sesgo, error mediano, p50 y p90,
+          cuantas veces se adelanto y cuantas se quedo corto, y una barra con
+          donde cayo la presentacion REAL (antes de la fecha rapida / entre
+          rapido y normal / entre normal y tardado / despues del tardado). Con
+          n < 30 la pantalla avisa que la muestra no alcanza.
+
+        MOTOR - la misma corrida de la tabla de aciertos (300 filas, cacheada 10
+          minutos, boton "Medir motor" para refrescar): MAE, sesgo, mediana,
+          antelacion mediana con la que predice, exitos a +-30m/1h/2h/3h/6h/12h,
+          exito en la ventana, y desgloses por EVIDENCIA (medido | parcial |
+          cadena | sin_datos), por HORIZONTE (hasta 1 h | 1-6 h | 6-24 h | mas
+          de 24 h) y por CONFIANZA declarada (0-20 | 21-40 | 41-70 | 71-95 |
+          96-100). Si la confianza no baja el error al subir de estrato, ese
+          numero del JSON no informa nada.
+
+        MONITORISTA - `compromiso_carga`, la hora que se promete a mano, contra
+          la presentacion real: n, % que cumplio (presento antes o justo), MAE,
+          error mediano y la antelacion con la que promete (despacho ->
+          compromiso). Mas un CARA A CARA contra el motor sobre las MISMAS
+          referencias (MAE de cada uno, cuantas gana cada uno y la diferencia).
+          La cobertura (que % de las refs del rango trae compromiso cargado) se
+          informa arriba: sin eso el acierto se leeria como de toda la
+          operacion. Los compromisos que se apartan mas de 7 dias de la
+          presentacion real se descartan (hay fechas cargadas con año 0 o con
+          meses de diferencia) y se informa cuantos.
+
+      Al pie, los parametros con los que esta corriendo el motor y la tabla ref
+      por ref. Antes estaba al final de la tabla de aciertos; ahora esa pantalla
+      solo tiene el acceso.
 
   https://calls.pedrosotelo.fun/lupita/prediccion/parametros
       Parametros del motor en su propia pantalla (v1.16): los ocho editables, los
@@ -1754,6 +1785,40 @@ evidencia. Hay tres niveles.
                      diferencia es menos de 1 minuto. Con los datos del 14/11 el MAE
                      es 88 min para k=1..5 y 89-90 para 8 y 12: el parametro casi
                      no mueve el viaje en esta flota, y la pantalla lo dice.
+
+  1.19 14/11/2026  - TABLERO COMPLETO en "Predicciones guardadas": los tres KPI que
+                     habia se quedaban cortos (y el acierto de produccion se
+                     calculaba sobre n = 6 refs sin decirlo). Ahora la pantalla
+                     muestra las tres varas separadas:
+                       - produccion: MAE, sesgo, p50/p75/p90, tope, adelantos vs
+                         atrasos, donde cayo la presentacion real dentro de
+                         rapido-normal-tardado, desgloses por evidencia /
+                         horizonte / confianza / origen, y aviso cuando n < 30;
+                       - motor: la corrida de aciertos (300 filas, cacheada) con
+                         los exitos a +-30m..12h, la ventana, las metricas del
+                         motor y los mismos desgloses, mas la antelacion mediana
+                         con la que predice;
+                       - monitorista: `compromiso_carga` contra la presentacion
+                         real (cobertura, % que cumplio, MAE, error mediano,
+                         antelacion con la que promete) y CARA A CARA contra el
+                         motor sobre las mismas refs.
+                     Clase nueva `App\Prediccion\Tablero` (pura, con 11 tests) y
+                     datos nuevos en `DBPrediccion::compromisos()`,
+                     `compromisos_por_ref()` y `refs_presentadas()`.
+                     Medido con los datos del 14/11:
+                       - monitorista 16-oct..14-nov: 3.008 refs, cobertura 71 %,
+                         cumple 72 %, MAE 180 min;
+                       - 01-sep..10-oct: 4.825 refs, cobertura 86 %, cumple 64 %,
+                         MAE 239 min; cara a cara con 194 refs en comun: MAE motor
+                         1.679 min contra 164 del compromiso (el motor gana en el
+                         19 % de los casos). El motor predice con ~32 h de
+                         antelacion y el compromiso se escribe con ~5,5 h: el
+                         humano le gana igual, y eso es la senal mas fuerte que
+                         dejo este tablero.
+                     OJO datos: `compromiso_carga` viene con `0000-00-00` en las
+                     refs viejas (se descarta) y dejo de cargarse a partir del
+                     10/11 (Nov 11-13 en 0 %): la comparacion necesita un rango
+                     anterior.
 
 ================================================================================
  FIN

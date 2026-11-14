@@ -172,6 +172,134 @@ class DBPrediccion
         return DB::select($sql, $params);
     }
 
+    //------------------- compromiso del monitorista -------------------
+
+    /**
+     * Compromisos de carga del monitorista (`compromiso_carga`) contra la
+     * presentación real, en el rango.
+     *
+     * `compromiso_carga` es la hora que el monitorista promete a mano, mucho antes
+     * del viaje; `presenta_para_carga` es lo que pasó de verdad. Compararlos da la
+     * vara contra la que se mira el motor.
+     *
+     * El rango se mira sobre la presentación real o sobre el propio compromiso,
+     * igual que `DBPrediccionResultados::resumen()`, para que una ref con la
+     * presentación fuera del rango pero el compromiso adentro no se pierda.
+     *
+     * La columna viene con `0000-00-00 00:00:00` en las refs viejas (MySQL acepta
+     * la fecha cero), así que se exige `FECHA_MINIMA` para no meterla como si
+     * fuera un compromiso de verdad.
+     *
+     * @return array<int, object> ref, placa, ruta_id, compromiso, real, despacho
+     */
+    public static function compromisos(Carbon $desde, Carbon $hasta, int $limite = 20000): array
+    {
+        try {
+            $filas = DB::select(
+                "SELECT r.ref, r.placa, r.ruta_id,
+                        r.compromiso_carga AS compromiso,
+                        r.presenta_para_carga AS presenta_real,
+                        r.fecha_despachador AS despacho
+                 FROM referencias r
+                 WHERE r.compromiso_carga >= ?
+                   AND ((r.presenta_para_carga BETWEEN ? AND ?) OR (r.compromiso_carga BETWEEN ? AND ?))
+                 ORDER BY r.compromiso_carga DESC
+                 LIMIT " . max(1, min(50000, $limite)),
+                [self::FECHA_MINIMA, $desde->toDateTimeString(), $hasta->toDateTimeString(),
+                 $desde->toDateTimeString(), $hasta->toDateTimeString()]
+            );
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        foreach ($filas as $fila) {
+            $fila->compromiso = self::a_carbon($fila->compromiso);
+            $fila->real = self::a_carbon($fila->presenta_real);
+            $fila->despacho = self::a_carbon($fila->despacho);
+        }
+
+        return $filas;
+    }
+
+    /**
+     * Cuántas referencias presentaron para carga en el rango (denominador de la
+     * cobertura del compromiso).
+     */
+    public static function refs_presentadas(Carbon $desde, Carbon $hasta): int
+    {
+        try {
+            $fila = DB::selectOne(
+                "SELECT COUNT(*) AS c FROM referencias r WHERE r.presenta_para_carga BETWEEN ? AND ?",
+                [$desde->toDateTimeString(), $hasta->toDateTimeString()]
+            );
+        } catch (\Throwable $e) {
+            return 0;
+        }
+
+        return (int) ($fila->c ?? 0);
+    }
+
+    /**
+     * Compromiso y presentación real de un conjunto de referencias, por `ref`.
+     *
+     * Sirve para enfrentar el motor contra el monitorista sobre las MISMAS refs:
+     * la corrida de aciertos ya sabe qué predijo el motor para cada una, esto
+     * agrega lo que prometió el humano.
+     *
+     * @param  array<int, string>  $refs
+     * @return array<string, object> ref => (compromiso, real, despacho)
+     */
+    public static function compromisos_por_ref(array $refs): array
+    {
+        $salida = [];
+        $refs = array_values(array_filter(array_map('strval', $refs), static fn (string $ref) => $ref !== ''));
+
+        foreach (array_chunk($refs, 500) as $lote) {
+            try {
+                $filas = DB::select(
+                    "SELECT r.ref, r.compromiso_carga AS compromiso,
+                            r.presenta_para_carga AS presenta_real, r.fecha_despachador AS despacho
+                     FROM referencias r
+                     WHERE r.compromiso_carga >= ?
+                       AND r.ref IN (" . implode(',', array_fill(0, count($lote), '?')) . ")",
+                    array_merge([self::FECHA_MINIMA], $lote)
+                );
+            } catch (\Throwable $e) {
+                return $salida;
+            }
+
+            foreach ($filas as $fila) {
+                $salida[(string) $fila->ref] = (object) [
+                    'compromiso' => self::a_carbon($fila->compromiso),
+                    'real' => self::a_carbon($fila->presenta_real),
+                    'despacho' => self::a_carbon($fila->despacho),
+                ];
+            }
+        }
+
+        return $salida;
+    }
+
+    /** Fecha de MySQL (o nula) como Carbon. La fecha cero de MySQL queda nula. */
+    private static function a_carbon($valor): ?Carbon
+    {
+        if ($valor instanceof Carbon) {
+            return $valor;
+        }
+
+        if ($valor === null || $valor === '' || str_starts_with((string) $valor, '0000-00-00')) {
+            return null;
+        }
+
+        try {
+            $fecha = Carbon::parse($valor);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $fecha->year < 1990 ? null : $fecha;
+    }
+
     //------------------- pares (calibración y tabla de aciertos) -------------------
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Prediccion\Parametros;
 use App\Prediccion\Servicio;
+use App\Prediccion\Tablero;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +63,15 @@ class PrediccionController extends Controller
 
     /** Filas que se pueden mostrar en la pantalla de predicciones guardadas. */
     public const FILAS_GUARDADAS = [50, 100, 300, 600];
+
+    /**
+     * Filas con las que se miden los KPIs del motor en "Predicciones guardadas".
+     *
+     * Es fijo y no sigue al selector de filas de la tabla: el número de arriba
+     * tiene que ser comparable entre visitas, y 300 filas dan ~3-4 s (se cachea
+     * 10 minutos igual que la tabla de aciertos).
+     */
+    public const FILAS_MOTOR = 300;
 
     /** Orígenes con los que se guarda una predicción (`prediccion_resultados.origen`). */
     public const ORIGENES_GUARDADAS = ['api', 'aciertos', 'pantalla'];
@@ -457,13 +467,220 @@ class PrediccionController extends Controller
             'limite' => $limite,
         ];
 
+        $resumen = \App\Database\DBPrediccionResultados::resumen(
+            Carbon::parse($desde), Carbon::parse($hasta), 2000, $filtros['origen'], $limite);
+
         return view('lupita.prediccion_guardadas', array_merge(self::comunes(), [
             'filtros' => $filtros,
             'origenes' => self::ORIGENES_GUARDADAS,
             'limites' => self::FILAS_GUARDADAS,
-            'resumen' => \App\Database\DBPrediccionResultados::resumen(
-                Carbon::parse($desde), Carbon::parse($hasta), 2000, $filtros['origen'], $limite),
+            'resumen' => $resumen,
+            'tablero' => self::tablero_guardadas($desde, $hasta, $resumen, $request->boolean('refrescar')),
         ]));
+    }
+
+    /**
+     * Arma los KPIs de "Predicciones guardadas".
+     *
+     * Son tres varas distintas y se muestran separadas a propósito:
+     *
+     *  - producción: lo que se guardó y ya presentó. Muestra chica (y se avisa),
+     *    porque el historial tiene pocas referencias distintas;
+     *  - motor: la misma corrida de la tabla de aciertos (MAE, tolerancias,
+     *    ventana, y cómo se equivoca por evidencia / horizonte / confianza);
+     *  - monitorista: `compromiso_carga` contra la presentación real, más el cara
+     *    a cara contra el motor sobre las MISMAS referencias.
+     *
+     * @param  array<string, mixed>  $resumen  salida de DBPrediccionResultados::resumen()
+     * @return array<string, mixed>
+     */
+    private static function tablero_guardadas(string $desde, string $hasta, array $resumen,
+                                              bool $refrescar = false): array
+    {
+        $tolerancia = \App\Database\DBPrediccionResultados::TOLERANCIA_ACEPTADA;
+        $comparables = $resumen['comparables'] ?? [];
+        $inicio = Carbon::parse($desde)->startOfDay();
+        $fin = Carbon::parse($hasta)->endOfDay();
+
+        // ---- producción: lo guardado que ya presentó -------------------------
+        $produccion = [
+            'errores' => Tablero::errores(array_column($comparables, 'error_min'), $tolerancia),
+            'por_evidencia' => Tablero::por_evidencia($comparables, $tolerancia),
+            'por_origen' => Tablero::por_origen($comparables, $tolerancia),
+            'por_confianza' => Tablero::por_confianza($comparables, $tolerancia),
+            'por_horizonte' => Tablero::por_horizonte($comparables, $tolerancia),
+            'posicion' => Tablero::posicion($comparables),
+            'refs' => (int) ($resumen['refs'] ?? 0),
+            'sin_ref' => (int) ($resumen['sin_ref'] ?? 0),
+            'muestra_suficiente' => (int) ($resumen['n'] ?? 0) >= Tablero::MUESTRA_MINIMA,
+        ];
+
+        // ---- motor: la corrida de aciertos (cacheada 10 min) -----------------
+        $llave = 'prediccion:guardadas:motor:v1:' . md5($inicio->toDateString() . '|' . $fin->toDateString());
+
+        if ($refrescar) {
+            \Illuminate\Support\Facades\Cache::forget($llave);
+        }
+
+        $corrida = null;
+        $errorCorrida = null;
+
+        try {
+            $corrida = \Illuminate\Support\Facades\Cache::remember(
+                $llave,
+                now()->addMinutes(10),
+                fn () => Servicio::backtest([
+                    'desde' => $inicio->toDateString(),
+                    'hasta' => $fin->toDateString(),
+                    'limite' => self::FILAS_MOTOR,
+                ])
+            );
+        } catch (\Throwable $e) {
+            $errorCorrida = 'No se pudo medir el motor: ' . $e->getMessage();
+        }
+
+        $motor = null;
+        $errorMotorPorRef = [];
+        $horizonteMotor = [];
+
+        if ($corrida !== null) {
+            $motor = [
+                'n' => count($corrida->filas),
+                'resumen' => $corrida->resumen_motor,
+                'por_evidencia' => Tablero::por_evidencia($corrida->filas, $tolerancia),
+                'por_horizonte' => Tablero::por_horizonte($corrida->filas, $tolerancia, 'ancla', 'dentro'),
+                'por_confianza' => Tablero::por_confianza($corrida->filas, $tolerancia),
+                'posicion' => Tablero::posicion($corrida->filas),
+                'desde' => (string) $corrida->desde,
+                'hasta' => (string) $corrida->hasta,
+                'sin_ruta' => (int) $corrida->sin_ruta,
+                'descartados' => (int) $corrida->descartados,
+            ];
+
+            foreach ($corrida->filas as $fila) {
+                if ($fila->error_min === null) {
+                    continue;
+                }
+
+                $errorMotorPorRef[(string) $fila->ref] = (int) $fila->error_min;
+            }
+
+            // cuántas horas antes del hecho predice el motor (contra las 25 h de
+            // antelación del compromiso): sin esto el cara a cara engaña
+            $motor['horizonte_min'] = self::mediana_minutos($corrida->filas, 'ancla', 'real');
+        }
+
+        // ---- monitorista: compromiso_carga contra la realidad -----------------
+        $compromisos = \App\Database\DBPrediccion::compromisos($inicio, $fin);
+
+        $errorCompromisoPorRef = [];
+        $validos = [];
+        $descartados = 0;
+        $conCompromiso = 0;
+        $ultimoCompromiso = null;
+
+        foreach ($compromisos as $fila) {
+            if ($fila->compromiso === null || $fila->real === null) {
+                continue;
+            }
+
+            // se mide sobre la presentación REAL del rango: una ref cuyo compromiso
+            // cae en el rango pero que presentó fuera (o al revés) no aporta
+            if ($fila->real->lessThan($inicio) || $fila->real->greaterThan($fin)) {
+                continue;
+            }
+
+            $minutos = (int) round(($fila->real->getTimestamp() - $fila->compromiso->getTimestamp()) / 60);
+
+            // compromiso imposible (fechas del año cero o promesas de dentro de
+            // meses): contamina el MAE y el "% cumplió", así que no se mide
+            if (abs($minutos) > Tablero::TOPE_COMPROMISO_MIN) {
+                $descartados++;
+
+                continue;
+            }
+
+            $validos[] = $fila;
+            $errorCompromisoPorRef[(string) $fila->ref] = $minutos;
+
+            // cobertura: de las refs que presentaron en el rango, cuántas traen
+            // compromiso cargado. Sin esto el acierto del monitorista se lee como
+            // si fuera de toda la operación y no de una parte.
+            $conCompromiso++;
+
+            if ($ultimoCompromiso === null || $fila->compromiso->greaterThan($ultimoCompromiso)) {
+                $ultimoCompromiso = $fila->compromiso;
+            }
+        }
+
+        $monitorista = Tablero::monitorista($validos, $tolerancia);
+
+        $refsRango = \App\Database\DBPrediccion::refs_presentadas($inicio, $fin);
+
+        $monitorista['refs_rango'] = $refsRango;
+        $monitorista['con_compromiso'] = $conCompromiso;
+        $monitorista['cobertura'] = $refsRango > 0 ? (int) round(100 * $conCompromiso / $refsRango) : null;
+        $monitorista['ultimo_compromiso'] = $ultimoCompromiso?->toDateString();
+        $monitorista['descartados'] = $descartados;
+        $monitorista['muestra_suficiente'] = $monitorista['n'] >= Tablero::MUESTRA_MINIMA;
+
+        // ---- parámetros en uso: con qué está corriendo el motor ---------------
+        $p = Parametros::cargar();
+
+        return [
+            'tolerancia' => $tolerancia,
+            'desde' => $inicio->toDateString(),
+            'hasta' => $fin->toDateString(),
+            'produccion' => $produccion,
+            'motor' => $motor,
+            'error_motor' => $errorCorrida,
+            'monitorista' => $monitorista,
+            'cara_a_cara' => Tablero::cara_a_cara($errorMotorPorRef, $errorCompromisoPorRef),
+            'parametros' => [
+                ['clave' => 'cruce_pares_k', 'valor' => $p->cruce_pares_k ?? null,
+                 'texto' => 'peso del viaje propio de la placa contra el compilado de la ruta'],
+                ['clave' => 'ventana_adelanto_min', 'valor' => $p->ventana_adelanto_min ?? null,
+                 'texto' => 'minutos antes de la hora publicada en que se abre la fecha "rápida"'],
+                ['clave' => 'ventana_atraso_min', 'valor' => $p->ventana_atraso_min ?? null,
+                 'texto' => 'minutos después en que se cierra la "tardada"'],
+                ['clave' => 'ventana_cobertura', 'valor' => $p->ventana_cobertura ?? null,
+                 'texto' => 'cobertura que se le pide a esa ventana (medida sobre el error real)'],
+                ['clave' => 'dia_min_pares', 'valor' => $p->dia_min_pares ?? null,
+                 'texto' => 'muestra mínima por día de la semana para creerle al factor propio'],
+                ['clave' => 'cola_llegadas_min', 'valor' => $p->cola_llegadas_min ?? null,
+                 'texto' => 'llegadas por hora a la planta desde las que se suma espera'],
+                ['clave' => 'cola_espera_extra_min', 'valor' => $p->cola_espera_extra_min ?? null,
+                 'texto' => 'minutos extra de espera cuando hay cola'],
+                ['clave' => 'horario_viajes_k', 'valor' => $p->horario_viajes_k ?? null,
+                 'texto' => 'peso de la celda día/hora del viaje: w = viajes/(viajes+k)'],
+                ['clave' => 'pares_recientes_max', 'valor' => $p->pares_recientes_max ?? null,
+                 'texto' => 'cuántos huecos recientes de la placa se usan para calibrar'],
+            ],
+        ];
+    }
+
+    /**
+     * Mediana de la diferencia en minutos entre dos fechas de un campo de las
+     * filas del backtest (sirve para saber con cuánta antelación predice el motor).
+     *
+     * @param  array<int, object>  $filas
+     */
+    private static function mediana_minutos(array $filas, string $desde, string $hasta): ?int
+    {
+        $valores = [];
+        foreach ($filas as $fila) {
+            $a = $fila->{$desde} ?? null;
+            $b = $fila->{$hasta} ?? null;
+            if (!$a instanceof Carbon || !$b instanceof Carbon) {
+                continue;
+            }
+
+            $valores[] = ($b->getTimestamp() - $a->getTimestamp()) / 60;
+        }
+
+        $mediana = \App\Prediccion\Estadistica::mediana($valores);
+
+        return $mediana === null ? null : (int) round($mediana);
     }
 
     /**

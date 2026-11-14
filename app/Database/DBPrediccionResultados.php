@@ -166,13 +166,15 @@ class DBPrediccionResultados
      * compara.
      *
      * @return array{n: int, dentro_ventana: int, dentro_tolerancia: int, pct_ventana: ?int,
-     *               pct_tolerancia: ?int, error_mediano: ?int, filas: array, guardadas: int}
+     *               pct_tolerancia: ?int, error_mediano: ?int, filas: array, guardadas: int,
+     *               refs: int, sin_ref: int, comparables: array}
      */
     public static function resumen(?Carbon $desde = null, ?Carbon $hasta = null, int $limite = 500,
                                    ?string $origen = null, int $filasMax = 50): array
     {
         $vacio = ['n' => 0, 'dentro_ventana' => 0, 'dentro_tolerancia' => 0, 'pct_ventana' => null,
-                  'pct_tolerancia' => null, 'error_mediano' => null, 'filas' => [], 'guardadas' => 0];
+                  'pct_tolerancia' => null, 'error_mediano' => null, 'filas' => [], 'guardadas' => 0,
+                  'refs' => 0, 'sin_ref' => 0, 'comparables' => []];
 
         $desde = ($desde ?? Carbon::now()->subDays(90))->copy()->startOfDay();
         $hasta = ($hasta ?? Carbon::now())->copy()->endOfDay();
@@ -189,6 +191,7 @@ class DBPrediccionResultados
             $filas = DB::select(
                 "SELECT p.ref, p.placa, p.ahora, p.presenta, p.presenta_rapido, p.presenta_tardado,
                         p.evidencia, p.confianza, p.origen, p.pedido_en,
+                        r.ref AS ref_existe,
                         r.presenta_para_carga AS presenta_real,
                         TIMESTAMPDIFF(MINUTE, p.presenta, r.presenta_para_carga) AS error_min
                  FROM prediccion_resultados p
@@ -206,7 +209,12 @@ class DBPrediccionResultados
         // nos quedamos con la última predicción de cada ref hecha ANTES de que
         // presentara: es la que el despachador vio
         $porRef = [];
+        $sinRef = 0;
         foreach ($filas as $fila) {
+            if ($fila->ref_existe === null) {
+                $sinRef++;      // ref que no está en `referencias` (pruebas, typos)
+            }
+
             $real = $fila->presenta_real !== null ? Carbon::parse($fila->presenta_real) : null;
             $corte = Carbon::parse($fila->ahora);
 
@@ -276,7 +284,13 @@ class DBPrediccionResultados
             'pct_tolerancia' => $n > 0 ? (int) round(100 * $dentroTolerancia / $n) : null,
             'error_mediano' => $errores === [] ? null : (int) round((float) \App\Prediccion\Estadistica::mediana($errores)),
             'filas' => array_slice($detalle, 0, max(1, $filasMax)),
+            // todas las comparables (no sólo las que se dibujan): con esto el
+            // tablero saca los desgloses sin volver a consultar
+            'comparables' => array_values(array_filter($detalle,
+                static fn (object $fila) => $fila->error_min !== null)),
             'guardadas' => count($filas),
+            'refs' => count($porRef),
+            'sin_ref' => $sinRef,
         ];
     }
 
