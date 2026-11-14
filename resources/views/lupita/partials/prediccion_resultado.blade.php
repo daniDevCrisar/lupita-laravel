@@ -132,7 +132,13 @@
                         — {{ $r->estado->motivo ?? '' }}
                         @if($r->geoapify->usado ?? false)
                             · <span class="badge bg-info text-dark" title="{{ $r->geoapify->motivo }}">
-                                traslado con Geoapify
+                                @if(($r->geoapify->para ?? '') === 'tramo_en_curso')
+                                    tramo del viaje con Geoapify
+                                @elseif(($r->geoapify->para ?? '') === 'tramo y traslado')
+                                    tramo y traslado con Geoapify
+                                @else
+                                    traslado con Geoapify
+                                @endif
                                 @if($r->geoapify->km)
                                     · {{ $r->geoapify->km }} km
                                 @endif
@@ -145,6 +151,43 @@
                         @if($r->ventana['desde'])
                             · ventana p25–p75:
                             {{ $r->ventana['desde']->format('d/m H:i') }} – {{ $r->ventana['hasta']->format('d/m H:i') }}
+                        @endif
+                    </div>
+                    {{-- qué se hizo con la ubicación que se escribió (o de dónde salió la posición) --}}
+                    <div class="small text-muted">
+                        Ubicación del camión:
+                        <strong>{{ $r->ubicacion->texto ?? '—' }}</strong>
+                        @if(!empty($r->ubicacion->pedida) && $r->ubicacion->pedida !== ($r->ubicacion->texto ?? null))
+                            <span class="text-muted">(se escribió «{{ $r->ubicacion->pedida }}»)</span>
+                        @endif
+                        @switch($r->ubicacion->modo ?? '')
+                            @case('hacia_destino')
+                                <span class="badge bg-success"
+                                      title="el camión sigue en viaje: se ruteó lo que le falta desde esa ubicación hasta el destino del viaje">
+                                    usada: tramo hasta el destino
+                                    @if(($r->ubicacion->tramo->min ?? null) !== null)
+                                        · {{ \App\Prediccion\Tiempo::hhmm($r->ubicacion->tramo->min) }}
+                                        @if(($r->ubicacion->tramo->km ?? null) !== null)
+                                            · {{ $r->ubicacion->tramo->km }} km
+                                        @endif
+                                    @endif
+                                </span>
+                                @break
+                            @case('hacia_planta')
+                                <span class="badge bg-success"
+                                      title="no hay viaje en curso: el cálculo arranca en esa ubicación y suma el traslado hasta la planta de carga">
+                                    usada: hacia la planta de carga
+                                </span>
+                                @break
+                            @case('no_usada')
+                                <span class="badge bg-warning text-dark"
+                                      title="no se pudo rutear desde esa ubicación hasta el destino del viaje: la hora sale de las medianas de la ruta">
+                                    no se pudo usar
+                                </span>
+                                @break
+                        @endswitch
+                        @if(!empty($r->ubicacion->detalle))
+                            — {{ $r->ubicacion->detalle }}
                         @endif
                     </div>
                 </div>

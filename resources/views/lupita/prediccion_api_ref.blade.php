@@ -152,6 +152,18 @@ Accept: application/json</pre>
                     '</div></div>';
                 fechas.appendChild(inicio);
 
+                // si se mandó `ubicacion_texto`: se usó o no, y para qué
+                let ubicacionBadge = '';
+                if (datos.ubicacion && datos.ubicacion.pedida) {
+                    const u = datos.ubicacion;
+                    const clase = u.usada ? 'bg-success' : 'bg-warning text-dark';
+                    let textoU = 'ubicación ' + escapar(String(u.modo || '')) + ' · ' + escapar(String(u.texto || u.pedida));
+                    if (u.tramo && u.tramo.min) {
+                        textoU += ' · tramo ' + escapar(String(u.tramo.min)) + ' min';
+                    }
+                    ubicacionBadge = ' · <span class="badge ' + clase + '">' + textoU + '</span>';
+                }
+
                 document.getElementById('res-resumen').innerHTML =
                     'Corte ' + fecha(datos.ahora) +
                     ' · total desde el ancla <strong>' + escapar(datos.duracion_total_hhmm) + '</strong>' +
@@ -161,7 +173,7 @@ Accept: application/json</pre>
                         ? ' · <span class="badge bg-info text-dark">Geoapify ' + (datos.geoapify.km || '') + ' km'
                             + (datos.geoapify.llamadas ? ' · ' + datos.geoapify.llamadas + ' llamada(s) al API' : '')
                             + '</span>'
-                        : '');
+                        : '') + ubicacionBadge;
 
                 const avisos = document.getElementById('res-avisos');
                 if (datos.advertencias && datos.advertencias.length) {

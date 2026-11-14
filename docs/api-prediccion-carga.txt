@@ -2,8 +2,8 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.6
-Fecha         : 13/11/2026
+Version       : 1.8
+Fecha         : 15/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
 Autenticacion : NINGUNA (API publica, igual que el resto de /api)
@@ -129,6 +129,17 @@ PARAMETROS (query string)
                  para que se elija: adivinar es peor que preguntar.
                  La respuesta publica como se resolvio en `ubicacion`
                  (tipo, id, texto, fuente: catalogo|geoapify, lat, lng).
+
+                 A QUE SE APLICA la ubicacion declarada (esto cambio en v1.8):
+                   - SI EL CAMION VA EN MEDIO DE UN VIAJE (su ultimo hito es
+                     presenta_para_carga, inicio_de_carga, fin_de_carga o
+                     inicio_ruta) se calcula el tramo que le falta desde esa
+                     posicion hasta el DESTINO de ese viaje; lo que sigue
+                     (descarga y vuelta) sale de las medianas de la ruta;
+                   - SI NO TIENE VIAJE EN CURSO se calcula desde esa posicion
+                     hasta la PLANTA DE CARGA (comportamiento de siempre).
+                 El JSON lo dice en `ubicacion.modo` (hacia_destino |
+                 hacia_planta | no_usada) y en `ubicacion.usada`. Ver 8.10.
 
 REFS QUE NO SE PREDICEN (409)
   - Sin ruta: si la referencia no tiene `ruta_id`, no hay planta de carga
@@ -265,8 +276,15 @@ CAMPOS DE LA RESPUESTA
   pasos            los pasos que arman la hora, EN ORDEN, con nombres y tiempos
                    en h:mm (ver seccion 8). Es lo que hay que mostrarle al
                    despachador.
-  geoapify         {usado, min, km, tramo, motivo}: si el traslado salio de
-                   Geoapify (ver 8.4).
+  geoapify         {usado, para, min, km, tramo, tramo_en_curso, motivo}: si se
+                   llamo a Geoapify y PARA QUE (tramo del viaje / traslado)
+                   (ver 8.4).
+  ubicacion        que posicion se declaro y QUE SE HIZO CON ELLA (ver 8.10):
+                   pedida (lo que mando el cliente), usada (true/false), modo
+                   (hacia_destino | hacia_planta | no_usada | deducida |
+                   sin_ubicacion), detalle, tipo, id, texto, fuente, lat, lng,
+                   declarada y `tramo` = el tramo calculado desde esa posicion
+                   (min, km, desde, hasta, fuente, resto_min) o null.
   desglose         los minutos que arman la hora (ver seccion 8).
   supuestos        frases que explican las decisiones del calculo.
   advertencias     avisos con prefijo "clave: explicacion" (ver seccion 7).
@@ -530,6 +548,14 @@ puntos. Un consumidor puede filtrar por clave sin parsear el texto.
   sin_ubicacion           Sin viaje en curso y sin ubicacion declarada: no hay
                           desde donde contar.
                           -> Declarar local o ubigeo (seccion 9.2).
+  ubicacion_no_usada      Se declaro la ubicacion, el camion va en un viaje en
+                          curso y NO se pudo rutear desde ahi hasta el destino
+                          (sin key de Geoapify ni promedio medido para ese par).
+                          Lo que le falta del viaje sale de las medianas de su
+                          ruta, igual que si no se hubiera declarado.
+                          -> Es informativo: la prediccion sigue siendo valida,
+                             pero la ubicacion no entro en el calculo. Mirar
+                             `ubicacion.modo`.
 
 
 ================================================================================
@@ -691,9 +717,15 @@ El JSON lo dice explicito, sin tener que leer advertencias:
 
   "geoapify": {
     "usado": true,
-    "min": 595,
+    "para": "tramo y traslado",         tramo_en_curso | traslado | "" (no se uso)
+    "min": 595,                         minutos del TRASLADO (si salio de Geoapify)
     "km": 712,
     "tramo": "ANCON, LIMA, LIMA -> PLANTA CHICLAYO (Chiclayo, Chiclayo, Lambayeque)",
+    "tramo_en_curso": {                 lo que falto del viaje en curso, si se
+      "min": 120,                       calculo desde la ubicacion declarada
+      "km": 118.4,                      (null si no aplica)
+      "fuente": "geoapify"
+    },
     "motivo": "no habia promedio compilado para ese par de ubicaciones",
     "llamadas": 2,
     "uso_hoy": 17
@@ -884,6 +916,76 @@ Cada componente tiene una fuente y una regla:
   ruta o planta no tiene fila, cae a la mediana de `referencias`.
 
 
+8.10 La ubicacion declarada: a que se aplica
+--------------------------------------------
+`ubicacion_texto` (o `ubicacion_tipo`/`ubicacion_id`) dice DONDE ESTA EL CAMION
+AHORA. Que se hace con eso depende de lo que el camion este haciendo:
+
+  a) VA EN MEDIO DE UN VIAJE -> el tramo hasta el DESTINO del viaje
+     Si el ultimo evento real del camion es presenta_para_carga,
+     inicio_de_carga, fin_de_carga o inicio_ruta, todavia tiene que manejar
+     hasta el destino de ese viaje. Desde la posicion declarada se calcula ESE
+     tramo (no desde el hito: la mediana de la ruta cuenta el viaje entero y se
+     pasaria de largo si el camion ya lleva horas manejando):
+
+       "ubicacion": {
+         "pedida": "grifo kio lurin,lima",
+         "usada": true,
+         "modo": "hacia_destino",
+         "detalle": "el camion sigue en viaje: se calculo el tramo que le falta
+                     desde la ubicacion declarada hasta PLANTA CARAL (HUARAL,
+                     HUARAL, LIMA) (2:00, 118.4 km) y despues descarga y vuelta
+                     a cargar",
+         "tipo": "geopunto",
+         "texto": "Grifo Kio Petroperu, Carretera Panamericana Sur, Peru",
+         "fuente": "geoapify",
+         "lat": -12.2528, "lng": -76.9283,
+         "declarada": true,
+         "tramo": { "min": 120, "km": 118.4,
+                    "desde": "Grifo Kio Petroperu, ...",
+                    "hasta": "PLANTA CARAL (HUARAL, HUARAL, LIMA)",
+                    "fuente": "geoapify", "resto_min": 82 }
+       }
+
+     `tramo.min` es el manejo hasta el destino; `tramo.resto_min` es lo que
+     sigue despues de llegar (cola en destino + descargue) y se sigue tomando
+     de las medianas. En `pasos` aparece en "Falta del viaje en curso", y en
+     `desglose` la fila `restante_viaje` queda con fuente
+     "ubicacion declarada -> destino (...)".
+     OJO: el ruteo es manejo de carretera; las medianas de la flota incluyen
+     paradas y colas, asi que este tramo suele quedar algo corto. Se avisa en
+     `supuestos`.
+
+     La fuente del tramo puede ser:
+       geoapify        ruteo real desde el punto hasta el destino
+       ruta_medida / mismo_ubigeo / departamentos
+                       sin Geoapify: promedio compilado de ese par (se sigue
+                       usando la ubicacion declarada, con dato de la flota)
+
+  b) NO TIENE VIAJE EN CURSO -> el traslado hasta la PLANTA DE CARGA
+     Si el camion ya cerro su viaje (fin_descargue) o no hay ancla utilizable,
+     la ubicacion declarada es el punto de partida del REGRESO: se suma el
+     traslado desde ahi hasta la planta de carga + tiempo muerto. Es lo de
+     siempre, ahora explicitado:
+
+       "usada": true, "modo": "hacia_planta",
+       "detalle": "sin viaje en curso: el calculo arranca en la ubicacion
+                   declarada y suma el traslado hasta la planta de carga"
+
+  c) NO SE PUDO USAR -> "usada": false, "modo": "no_usada"
+     Con un viaje en curso y sin forma de rutear hasta el destino (sin key de
+     Geoapify y sin promedio medido de ese par) la prediccion se hace igual con
+     las medianas de la ruta, y se avisa con la advertencia
+     `ubicacion_no_usada`.
+
+  d) NO SE DECLARO -> "usada": false, "modo": "deducida" (o "sin_ubicacion" si
+     tampoco hay viaje en curso).
+
+  Resumen para el integrador: para saber si se uso lo mandado, `ubicacion.usada`;
+  para saber para que, `ubicacion.modo`; y para ver el numero que salio de esa
+  posicion, `ubicacion.tramo`.
+
+
 ================================================================================
 9. CASOS DE USO TIPICOS
 ================================================================================
@@ -897,10 +999,27 @@ Cada componente tiene una fuente y una regla:
 
      GET /api/prediccion/presenta?ref=1182661&ancla=1180352
 
+   Y si ademas se sabe DONDE ESTA el camion ahora (lo reporto el despachador, o
+   el GPS lo manda como texto), se manda `ubicacion_texto`: el motor rutea desde
+   ese punto hasta el DESTINO del viaje en curso y reemplaza la etapa completa
+   de la ruta (ver 8.10a):
+
+     GET /api/prediccion/presenta?ref=1182661&ancla=1180352&ubicacion_texto=GRIFO+KIO+LURIN,LIMA
+
+   La respuesta lo dice: `ubicacion.modo` = "hacia_destino", `ubicacion.usada`
+   = true y `ubicacion.tramo` con los minutos y los km. Si no se pudo usar
+   (sin Geoapify y sin promedio medido de ese par) queda "no_usada" + la
+   advertencia `ubicacion_no_usada`, y la hora se calcula igual.
+
 9.2 NO HAY VIAJE EN CURSO (o el ultimo hito es viejo)
    Sin viaje no hay desde donde contar, asi que se declara DONDE ESTA EL CAMION.
    Con eso el motor suma el traslado medido desde ese punto hasta la planta de
    carga, mas el tiempo muerto. La evidencia sera "cadena".
+
+   OJO: esto es para cuando el camion NO esta en viaje. Si todavia esta
+   manejando hacia el destino de su viaje, la ubicacion se aplica al tramo que
+   le falta hasta ese destino (8.10a): el motor decide solo y lo publica en
+   `ubicacion.modo`.
 
      # el camion esta en una planta del catalogo de locales
      GET /api/prediccion/presenta?ref=1182661&ubicacion_tipo=local&ubicacion_id=LOC_CARAL
@@ -1215,6 +1334,30 @@ evidencia. Hay tres niveles.
                    - La respuesta publica `ubicacion` {tipo, id, texto, fuente,
                      lat, lng, declarada}; si el texto es ambiguo, 422 con
                      `candidatos`.
+
+  1.8  15/11/2026  - La ubicacion declarada YA NO se aplica siempre al regreso:
+                     si el camion va en medio de un viaje (su ultimo hito es
+                     presenta_para_carga, inicio_de_carga, fin_de_carga o
+                     inicio_ruta) se calcula el tramo que le falta desde esa
+                     posicion hasta el DESTINO de ese viaje, y lo que sigue
+                     (descarga + vuelta) sigue saliendo de las medianas. Antes
+                     la posicion se usaba como origen del traslado, que con un
+                     viaje en curso es el lugar equivocado (el camion todavia
+                     tiene que llegar al destino). Ver 8.10.
+                   - `ubicacion` publica `pedida`, `usada`, `modo`
+                     (hacia_destino | hacia_planta | no_usada | deducida |
+                     sin_ubicacion), `detalle` y `tramo` {min, km, desde, hasta,
+                     fuente, resto_min}: con eso el cliente sabe si se uso lo
+                     que mando y para que, sin leer advertencias.
+                   - `geoapify` agrega `para` (tramo_en_curso | traslado) y
+                     `tramo_en_curso`; `usado` ahora tambien es true cuando lo
+                     unico que salio de Geoapify fue el tramo del viaje.
+                   - Advertencia nueva `ubicacion_no_usada`: se declaro la
+                     ubicacion pero no se pudo rutear hasta el destino (sin key
+                     de Geoapify ni promedio medido); la prediccion se hace
+                     igual con las medianas de la ruta.
+                   - `pasos` y `desglose` dicen de donde salio el tramo (fuente
+                     del ruteo o del promedio compilado).
 
 ================================================================================
  FIN

@@ -157,21 +157,16 @@ class Servicio
         $coords = self::coords_declaradas($opciones['ubicacion_coords'] ?? null);
         $ubicacionDeclarada = (in_array($ubicacionTipo, ['local', 'ubigeo'], true) && $ubicacionId !== '')
             || ($ubicacionTipo === 'geopunto' && $coords !== null);
+        // lo que escribió el operador, tal cual, y el texto ya resuelto
+        $ubicacionPedida = trim((string) ($opciones['ubicacion_pedida'] ?? ''));
+        $ubicacionResueltaTexto = trim((string) ($opciones['ubicacion_texto'] ?? ''));
 
+        // ubigeo de la posición declarada (para rutear desde ahí)
+        $ubicacionUbigeo = '';
         if ($ubicacionTipo === 'local' && $ubicacionId !== '') {
-            $desdePlanta = $ubicacionId;
-            $desdeUbigeo = self::ubigeo_local($ubicacionId);
+            $ubicacionUbigeo = (string) (self::ubigeo_local($ubicacionId) ?? '');
         } elseif ($ubicacionTipo === 'ubigeo' && $ubicacionId !== '') {
-            $desdePlanta = '';
-            $desdeUbigeo = $ubicacionId;
-        } elseif ($ubicacionTipo === 'geopunto' && $coords !== null) {
-            // el operador escribió un distrito que no está en el catálogo y se
-            // geocodificó con Geoapify: se trabaja con las coordenadas
-            $desdePlanta = '';
-            $desdeUbigeo = '';
-        } elseif ($ubicacionTipo === 'indeterminado') {
-            $desdePlanta = '';
-            $desdeUbigeo = '';
+            $ubicacionUbigeo = $ubicacionId;
         }
 
         // ¿el ancla sirve? Si el camión no tiene viaje en curso (o su último hito
@@ -197,18 +192,46 @@ class Servicio
             }
         }
 
+        // ¿Está en medio de un viaje? Entonces la ubicación declarada NO es el
+        // punto de partida del regreso: es dónde está el camión AHORA, y sirve
+        // para acortar lo que le falta del viaje (la ida hasta el destino).
+        // Sin viaje en curso (ya descargó o no hay ancla) es el punto desde el
+        // que vuelve a la planta de carga.
+        $viajeEnCurso = $ancla !== null && !$anclaDeclarada && !($ancla->cerrado ?? false)
+            && in_array((string) ($ancla->hito ?? ''), MotorPresenta::HITOS_CON_VIAJE, true);
+
+        if (!$viajeEnCurso) {
+            if ($ubicacionTipo === 'local' && $ubicacionId !== '') {
+                $desdePlanta = $ubicacionId;
+                $desdeUbigeo = $ubicacionUbigeo;
+            } elseif ($ubicacionTipo === 'ubigeo' && $ubicacionId !== '') {
+                $desdePlanta = '';
+                $desdeUbigeo = $ubicacionId;
+            } elseif ($ubicacionTipo === 'geopunto' && $coords !== null) {
+                // el operador escribió un distrito que no está en el catálogo y se
+                // geocodificó con Geoapify: se trabaja con las coordenadas
+                $desdePlanta = '';
+                $desdeUbigeo = '';
+            } elseif ($ubicacionTipo === 'indeterminado') {
+                $desdePlanta = '';
+                $desdeUbigeo = '';
+            }
+        }
+
         $rutaAncla = $ancla !== null ? (string) ($ancla->ruta_id ?? '') : '';
 
         $traslado = $plantaCarga !== ''
             ? DBPrediccion::traslado($plantaCarga, $desdePlanta !== '' ? $desdePlanta : null,
                 $desdeUbigeo !== '' ? $desdeUbigeo : null, (string) ($fila->ubigeo_origen ?? ''),
                 $etapasPorRuta, $rutaRef !== '' ? $rutaRef : null, (int) $p->traslado_defecto_min,
-                $ubicacionDeclarada)
+                $ubicacionDeclarada && !$viajeEnCurso)
             : null;
 
         // Posición geocodificada (texto libre que no estaba en el catálogo): el
         // traslado sale del ruteo real de Geoapify desde ese punto a la planta.
-        if ($coords !== null && $plantaCarga !== '') {
+        // Con viaje en curso ese punto no es el origen del regreso (el camión
+        // primero llega a su destino), así que no se usa acá.
+        if ($coords !== null && $plantaCarga !== '' && !$viajeEnCurso) {
             $geo = Geoapify::ruta_desde_coords($coords->lat, $coords->lng,
                 (string) ($fila->ubigeo_origen ?? ''));
 
@@ -249,6 +272,22 @@ class Servicio
                     'placa' => $viajePlaca['mediana'],
                     'n' => (int) $viajePlaca['n'],
                 ];
+            }
+        }
+
+        // Lo que le falta al viaje en curso desde la posición declarada hasta el
+        // DESTINO del viaje. Es la etapa que se reemplaza: la mediana de la ruta
+        // cuenta el viaje entero desde el último hito, no lo que falta desde
+        // dónde está el camión ahora. Lo que viene después (descarga y vuelta al
+        // destino) no depende de su posición y se sigue sumando.
+        $tramoDeclarado = null;
+        if ($viajeEnCurso && $ubicacionDeclarada) {
+            $tramoDeclarado = self::tramo_hacia_destino($coords, $ubicacionUbigeo, $ubicacionResueltaTexto,
+                $ancla, $etapasAncla, $rutaAncla !== '' ? $rutaAncla : null);
+
+            if ($tramoDeclarado !== null) {
+                $tramoDeclarado->resto_min = MotorPresenta::faltantes_sin_viaje(
+                    (string) ($ancla->hito ?? ''), $etapasAncla) ?? 0;
             }
         }
 
@@ -365,6 +404,7 @@ class Servicio
             'etapas' => $etapasAncla,
             'calibrador' => $calibrador,
             'traslado' => $traslado,
+            'tramo_en_curso' => $tramoDeclarado,
             'ventanas' => $ventanas['ventanas'],
             'espera_carga_min' => DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
                 $rutaRef !== '' ? $rutaRef : null),
@@ -382,15 +422,28 @@ class Servicio
         // par; el consumidor tiene que poder verlo sin leer las advertencias.
         // `llamadas` es lo que costó esta predicción y `uso_hoy` el acumulado del
         // día en toda la aplicación (contador de la tabla `geoapify_uso`).
-        $usoGeo = ($traslado->fuente ?? '') === 'geoapify';
+        $usoGeoTraslado = ($traslado->fuente ?? '') === 'geoapify';
+        $usoGeoTramo = ($tramoDeclarado->fuente ?? '') === 'geoapify';
+        $usoGeo = $usoGeoTraslado || $usoGeoTramo;
         $llamadas = Geoapify::llamadas() - $llamadasGeo;
         $resultado->geoapify = (object) [
             'usado' => $usoGeo,
-            'min' => $usoGeo ? (int) ($traslado->min ?? 0) : null,
+            'para' => $usoGeoTramo && $usoGeoTraslado ? 'tramo y traslado'
+                : ($usoGeoTramo ? 'tramo_en_curso' : ($usoGeoTraslado ? 'traslado' : '')),
+            'min' => $usoGeoTraslado ? (int) ($traslado->min ?? 0) : null,
             'km' => $traslado->km ?? null,
             'tramo' => $traslado->texto ?? null,
+            'tramo_en_curso' => $tramoDeclarado !== null
+                ? (object) [
+                    'min' => (int) ($tramoDeclarado->min ?? 0),
+                    'km' => $tramoDeclarado->km ?? null,
+                    'fuente' => (string) ($tramoDeclarado->fuente ?? 'sin_dato'),
+                ]
+                : null,
             'motivo' => $usoGeo
-                ? 'no había promedio compilado para ese par de ubicaciones'
+                ? ($usoGeoTramo
+                    ? 'el tramo que le falta al viaje salió del ruteo desde la ubicación declarada'
+                    : 'no había promedio compilado para ese par de ubicaciones')
                 : 'se usó el promedio medido de la flota',
             'llamadas' => $llamadas,
             'uso_hoy' => \App\Database\DBGeoapify::hoy(),
@@ -418,9 +471,41 @@ class Servicio
             'traslado_fuente' => (string) ($traslado->fuente ?? 'sin_dato'),
         ];
 
-        // de dónde salió la posición del camión: local/ubigeo del catálogo, o un
-        // texto libre geocodificado con Geoapify (tipo "geopunto")
+        // De dónde salió la posición del camión y, sobre todo, SI ENTRÓ en el
+        // cálculo: local/ubigeo del catálogo, texto libre geocodificado
+        // ("geopunto") o deducida del último hito. `modo` es la respuesta a
+        // "¿usaste el `ubicacion_texto` que te mandé y para qué?".
+        if (!$ubicacionDeclarada) {
+            $ubicacionModo = $ancla !== null ? 'deducida' : 'sin_ubicacion';
+            $ubicacionUsada = false;
+            $ubicacionDetalle = $ancla !== null
+                ? 'no se envió ubicación: se usa el último evento real del camión'
+                : 'no hay viaje en curso ni ubicación declarada: no hay desde dónde contar';
+        } elseif ($tramoDeclarado !== null) {
+            $ubicacionModo = 'hacia_destino';
+            $ubicacionUsada = true;
+            $ubicacionDetalle = 'el camión sigue en viaje: se calculó el tramo que le falta desde la ubicación '
+                . 'declarada hasta ' . (string) ($tramoDeclarado->hasta ?? 'el destino del viaje') . ' ('
+                . Tiempo::hhmm((int) ($tramoDeclarado->min ?? 0))
+                . (isset($tramoDeclarado->km) && $tramoDeclarado->km !== null ? ', ' . $tramoDeclarado->km . ' km' : '')
+                . ') y después descarga y vuelta a cargar';
+        } elseif ($viajeEnCurso) {
+            $ubicacionModo = 'no_usada';
+            $ubicacionUsada = false;
+            $ubicacionDetalle = 'el camión está en un viaje en curso y no se pudo rutear desde la ubicación '
+                . 'declarada hasta el destino: lo que le falta del viaje sale de las medianas de su ruta';
+        } else {
+            $ubicacionModo = 'hacia_planta';
+            $ubicacionUsada = true;
+            $ubicacionDetalle = 'sin viaje en curso: el cálculo arranca en la ubicación declarada y suma el '
+                . 'traslado hasta la planta de carga';
+        }
+
         $resultado->ubicacion = (object) [
+            'pedida' => $ubicacionPedida !== '' ? $ubicacionPedida : null,
+            'usada' => $ubicacionUsada,
+            'modo' => $ubicacionModo,
+            'detalle' => $ubicacionDetalle,
             'tipo' => $ubicacionTipo,
             'id' => $ubicacionId !== '' ? $ubicacionId : null,
             'texto' => $ubicacionTexto !== '' ? $ubicacionTexto : null,
@@ -428,6 +513,17 @@ class Servicio
             'lat' => $coords?->lat,
             'lng' => $coords?->lng,
             'declarada' => $ubicacionDeclarada,
+            // el tramo que se calculó desde esa posición (null si no se pudo)
+            'tramo' => $tramoDeclarado !== null
+                ? (object) [
+                    'min' => (int) ($tramoDeclarado->min ?? 0),
+                    'km' => $tramoDeclarado->km ?? null,
+                    'desde' => $tramoDeclarado->desde ?? null,
+                    'hasta' => $tramoDeclarado->hasta ?? null,
+                    'fuente' => $tramoDeclarado->fuente ?? null,
+                    'resto_min' => (int) ($tramoDeclarado->resto_min ?? 0),
+                ]
+                : null,
         ];
 
         if ($condicionado) {
@@ -457,6 +553,12 @@ class Servicio
         } elseif ($ancla === null) {
             $resultado->advertencias[] = 'sin_ubicacion: sin viaje en curso y sin ubicación declarada no hay desde '
                 . 'dónde contar; declarando un local o un ubigeo sí se puede estimar';
+        }
+
+        if ($viajeEnCurso && $ubicacionDeclarada && $tramoDeclarado === null) {
+            $resultado->advertencias[] = 'ubicacion_no_usada: el camión está en un viaje en curso y no se pudo '
+                . 'calcular el tramo desde la ubicación declarada hasta el destino (sin Geoapify ni promedio '
+                . 'medido para ese par); lo que le falta del viaje sale de las medianas de su ruta';
         }
 
         if ($traslado !== null && ($traslado->fuente ?? '') === 'geoapify') {
@@ -988,6 +1090,81 @@ class Servicio
             'lng' => (float) $valor['lng'],
             'texto' => (string) ($valor['texto'] ?? ''),
         ];
+    }
+
+    /**
+     * Lo que le falta al viaje en curso desde la posición declarada del camión
+     * hasta el DESTINO de ese viaje (el destino del ancla), en minutos.
+     *
+     * Es la respuesta a "el camión está en tal lado, ¿cuánto le falta para
+     * llegar?". Tres fuentes, de la más a la menos específica:
+     *  1. punto geocodificado (texto libre) -> ruteo real de Geoapify;
+     *  2. local/ubigeo del catálogo -> ruteo entre los dos ubigeos;
+     *  3. sin Geoapify -> lo medido entre esos dos ubigeos (compilados), y si
+     *     tampoco hay, NULL: mejor avisar que inventar el tramo.
+     *
+     * @param  array<string, array<string, int|null>>  $etapas  salida de etapas_por_ruta()
+     */
+    private static function tramo_hacia_destino(?object $coords, string $desdeUbigeo, string $desdeTexto,
+                                                ?object $ancla, array $etapas, ?string $rutaAncla): ?object
+    {
+        if ($ancla === null) {
+            return null;
+        }
+
+        $destinoLocal = (string) ($ancla->destino_id ?? '');
+        $destinoUbigeo = (string) ($ancla->ubigeo_destino ?? '');
+        if ($destinoUbigeo === '' && $destinoLocal !== '') {
+            $destinoUbigeo = (string) (self::ubigeo_local($destinoLocal) ?? '');
+        }
+
+        if ($destinoLocal === '' && $destinoUbigeo === '') {
+            return null;
+        }
+
+        $destinoTexto = DBPrediccion::texto_ubicacion($destinoLocal !== '' ? $destinoLocal : null,
+            $destinoUbigeo !== '' ? $destinoUbigeo : null);
+        $desde = $desdeTexto !== '' ? $desdeTexto : 'la ubicación declarada';
+
+        $respuesta = function (int $min, $km, string $fuente) use ($desde, $destinoTexto): object {
+            return (object) [
+                'min' => max(1, $min),
+                'km' => $km,
+                'desde' => $desde,
+                'hasta' => $destinoTexto !== '' ? $destinoTexto : 'el destino del viaje',
+                'fuente' => $fuente,
+            ];
+        };
+
+        // 1) punto geocodificado: lo que hay que manejar desde ahí
+        if ($coords !== null) {
+            $geo = Geoapify::ruta_desde_coords($coords->lat, $coords->lng,
+                $destinoUbigeo !== '' ? $destinoUbigeo : null);
+
+            return $geo !== null ? $respuesta((int) $geo->min, $geo->km, 'geoapify') : null;
+        }
+
+        if ($desdeUbigeo === '') {
+            return null;
+        }
+
+        // 2) local/ubigeo declarado: ruteo entre los dos ubigeos
+        if ($destinoUbigeo !== '') {
+            $geo = Geoapify::ruta($desdeUbigeo, $destinoUbigeo);
+            if ($geo !== null) {
+                return $respuesta((int) $geo->min, $geo->km, 'geoapify');
+            }
+        }
+
+        // 3) sin Geoapify: lo medido para ese par (o su mediana por departamentos)
+        $medido = DBPrediccion::traslado($destinoLocal !== '' ? $destinoLocal : null, null,
+            $desdeUbigeo, $destinoUbigeo !== '' ? $destinoUbigeo : null, $etapas, $rutaAncla, null, true);
+
+        if ($medido !== null && (string) ($medido->fuente ?? '') !== 'defecto') {
+            return $respuesta((int) $medido->min, $medido->km ?? null, (string) $medido->fuente);
+        }
+
+        return null;
     }
 
     /**

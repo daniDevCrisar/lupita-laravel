@@ -63,6 +63,57 @@ class MotorPresentaTest extends TestCase
         $this->assertSame(285, collect($r->desglose)->firstWhere('concepto', 'restante_viaje')['min']);
     }
 
+    public function test_el_tramo_desde_la_ubicacion_declarada_reemplaza_la_ida(): void
+    {
+        // El camión va en viaje y el operador declaró dónde está: lo que le falta
+        // de la ida es el ruteo desde ese punto hasta el destino (60'), no la
+        // mediana de la ruta contada desde el hito. Después de llegar, la
+        // descarga y la vuelta (e5+e6 = 105') se suman igual.
+        $r = MotorPresenta::predecir($this->entrada([
+            'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                 'fecha' => Carbon::parse('2026-11-14 07:00')],
+            'tramo_en_curso' => (object) [
+                'min' => 60, 'km' => 48.3, 'resto_min' => 105,
+                'desde' => 'Grifo Kio Lurín', 'hasta' => 'PLANTA CARAL', 'fuente' => 'geoapify',
+            ],
+        ]));
+
+        // 10:00 + 60' de manejo + 105' de descarga y vuelta = 12:45 de llegada
+        // (= t_fin); + hueco 300' = 17:45
+        $this->assertSame('2026-11-14 17:45', $r->presenta->format('Y-m-d H:i'));
+        // el restante se sigue contando desde el ancla: 07:00 -> 12:45 = 345'
+        $restante = collect($r->desglose)->firstWhere('concepto', 'restante_viaje');
+        $this->assertSame(345, $restante['min']);
+        $this->assertStringContainsString('ubicación declarada', $restante['fuente']);
+        // y se explica en los pasos: el manejo desde la ubicación y lo que sigue
+        $paso = collect($r->pasos)->firstWhere('concepto', 'restante_viaje');
+        $this->assertStringContainsString('Grifo Kio Lurín', $paso['detalle']);
+        $this->assertStringContainsString('1:45', $paso['detalle']);   // descarga y vuelta
+        // el paso fecha el fin del viaje (llega + descarga), no el hito
+        $this->assertSame('2026-11-14 12:45:00', $paso['fecha']);
+        $this->assertNotEmpty(array_filter($r->supuestos, fn ($s) => str_contains($s, 'ubicación declarada')));
+    }
+
+    public function test_lo_que_sigue_al_viaje_son_solo_las_etapas_posteriores(): void
+    {
+        $etapas = $this->entrada()->etapas;   // e2 90, e3 60, e4 180, e5 60, e6 45
+
+        // desde inicio_ruta falta la ida (e4) + descarga; sin la ida quedan 105'
+        $this->assertSame(285, MotorPresenta::faltantes('inicio_ruta', $etapas));
+        $this->assertSame(105, MotorPresenta::faltantes_sin_viaje('inicio_ruta', $etapas));
+        // desde el fin de carga todavía tiene que hacer la ida entera: quedan
+        // e3 (salida de planta) + e5 + e6 = 165'
+        $this->assertSame(165, MotorPresenta::faltantes_sin_viaje('fin_de_carga', $etapas));
+        // desde la presentación todavía falta cargar: e2 + e3 + e5 + e6 = 255'
+        $this->assertSame(255, MotorPresenta::faltantes_sin_viaje('presenta_para_carga', $etapas));
+        // ya llegó al destino: no hay ida que reemplazar
+        $this->assertSame(105, MotorPresenta::faltantes_sin_viaje('qr_llegada_destino', $etapas));
+        // sin una etapa, o con un hito que no tiene etapas, no se inventa nada
+        $this->assertNull(MotorPresenta::faltantes_sin_viaje('inicio_ruta', ['e4' => 180, 'e5' => 60]));
+        $this->assertNull(MotorPresenta::faltantes_sin_viaje('fin_descargue', $etapas));
+        $this->assertNull(MotorPresenta::faltantes_sin_viaje(null, $etapas));
+    }
+
     public function test_sin_pares_usa_la_cadena_y_baja_la_evidencia(): void
     {
         $r = MotorPresenta::predecir($this->entrada(['calibrador' => null]));

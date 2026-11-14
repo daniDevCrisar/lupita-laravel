@@ -25,6 +25,13 @@ use stdClass;
  */
 final class MotorPresenta
 {
+    /**
+     * Hitos en los que el camión TODAVÍA tiene que hacer el viaje de ida al
+     * destino (etapa E4). Sólo en esos casos la posición declarada acorta lo que
+     * le falta del viaje: en los demás ya llegó, está descargando o vuelve.
+     */
+    public const HITOS_CON_VIAJE = ['presenta_para_carga', 'inicio_de_carga', 'fin_de_carga', 'inicio_ruta'];
+
     /** Etapas que faltan para cerrar el viaje según el último hito registrado. */
     private const FALTANTES = [
         'presenta_para_carga' => ['e2', 'e3', 'e4', 'e5', 'e6'],
@@ -114,8 +121,20 @@ final class MotorPresenta
         $etapas = is_array($e->etapas ?? null) ? $e->etapas : (array) ($e->etapas ?? []);
         $restante = null;
 
+        // El operador declaró dónde está el camión AHORA y se ruteó desde ahí
+        // hasta el destino del viaje. Eso manda sobre las medianas de la ruta:
+        // la mediana cuenta el viaje entero desde el último hito, no lo que le
+        // falta desde su posición real. `resto_min` es lo que sigue después de
+        // llegar (descarga y vuelta), que no depende de dónde esté ahora.
+        $tramo = is_object($e->tramo_en_curso ?? null) ? $e->tramo_en_curso : null;
+
         if ($cerrada) {
             $tFin = $fechaAncla->copy();
+        } elseif ($tramo !== null) {
+            $restanteAhora = min(self::TOPE_ETAPA,
+                max(1, (int) ($tramo->min ?? 0)) + max(0, (int) ($tramo->resto_min ?? 0)));
+            $tFin = $ahora->copy()->addMinutes($restanteAhora);
+            $restante = max(0, (int) round($fechaAncla->diffInMinutes($tFin)));
         } else {
             $restante = self::faltantes($hito, $etapas);
             if ($restante === null) {
@@ -222,7 +241,9 @@ final class MotorPresenta
         $salida->confianza = $confianza->pct;
         $salida->confianza_motivo = $confianza->motivo;
         $salida->desglose = self::desglose($cerrada, $restante, $hueco, $fuenteHueco, $traslado, $trasladoMin,
-            $tiempoMuerto, $esCadena, $esperaVentana, $espera);
+            $tiempoMuerto, $esCadena, $esperaVentana, $espera,
+            $tramo !== null ? 'ubicación declarada → destino (' . (string) ($tramo->fuente ?? 'sin dato') . ')'
+                : 'etapas de la ruta');
 
         // el desglose tiene que reconstruir la hora publicada, incluso cuando un
         // recorte (atrasado, etapa vencida) movió el resultado
@@ -241,7 +262,7 @@ final class MotorPresenta
             ];
         }
         $salida->ventana = self::ventana($t, $cal);
-        $salida->supuestos = self::supuestos($cerrada, $esCadena, $cal, $traslado, $espera, $p);
+        $salida->supuestos = self::supuestos($cerrada, $esCadena, $cal, $traslado, $espera, $p, $tramo);
         $salida->pasos = self::pasos($e, $salida, $fechaAncla, $t, $restante, $hueco, $trasladoMin, $tiempoMuerto,
             $esperaVentana, $espera, $cerrada);
         $salida->duracion_total = Tiempo::hhmm((int) round(($t->getTimestamp() - $fechaAncla->getTimestamp()) / 60));
@@ -371,9 +392,30 @@ final class MotorPresenta
         ];
 
         if (!$cerrada && $restante !== null && $restante > 0) {
-            $agregar('restante_viaje', 'Falta del viaje en curso',
-                'le faltan las etapas que siguen a ' . Tiempo::hito($salida->ancla->hito ?? null)
-                . ' en su ruta (medianas de la ruta)', $restante);
+            $tramo = is_object($e->tramo_en_curso ?? null) ? $e->tramo_en_curso : null;
+            $resto = (int) ($tramo->resto_min ?? 0);
+
+            if ($tramo !== null) {
+                $yaTranscurrido = max(0, $restante - max(1, (int) ($tramo->min ?? 0)) - $resto);
+                $detalle = 'manejo desde '
+                    . (string) ($tramo->desde ?? 'la ubicación declarada') . ' hasta '
+                    . (string) ($tramo->hasta ?? 'el destino del viaje') . ': '
+                    . Tiempo::hhmm((int) ($tramo->min ?? 0))
+                    . (isset($tramo->km) && $tramo->km !== null ? ' · ' . $tramo->km . ' km' : '')
+                    . ' · fuente: ' . (string) ($tramo->fuente ?? 'sin dato');
+                if ($resto > 0) {
+                    $detalle .= ' · después, descarga y vuelta al destino: ' . Tiempo::hhmm($resto);
+                }
+                if ($yaTranscurrido > 0) {
+                    $detalle .= ' · ya transcurrido desde el punto de partida: ' . Tiempo::hhmm($yaTranscurrido);
+                }
+            } else {
+                $detalle = 'le faltan las etapas que siguen a '
+                    . Tiempo::hito($salida->ancla->hito ?? null)
+                    . ' en su ruta (medianas de la ruta)';
+            }
+
+            $agregar('restante_viaje', 'Falta del viaje en curso', $detalle, $restante);
         }
 
         $agregar('traslado', 'Traslado de regreso a ' . $planta,
@@ -462,6 +504,39 @@ final class MotorPresenta
 
         // el remanente de un viaje tampoco puede superar el tope de una etapa:
         // por encima de eso los promedios son basura, no un viaje largo
+        return min(self::TOPE_ETAPA, $total);
+    }
+
+    /**
+     * Minutos de las etapas que siguen a la ida al destino (descarga y vuelta),
+     * sin contar la etapa E4. Se usan cuando la ida se calcula desde la posición
+     * declarada del camión: esa etapa ya no sale de la mediana.
+     *
+     * NULL si el hito no tiene etapas conocidas o si falta alguna de ellas (no
+     * se adivina media descarga).
+     *
+     * @param  array<string, int|float|string|null>  $etapas
+     */
+    public static function faltantes_sin_viaje(?string $hito, array $etapas): ?int
+    {
+        if ($hito === null) {
+            return null;
+        }
+
+        $claves = self::FALTANTES[$hito] ?? null;
+        if ($claves === null) {
+            return null;
+        }
+
+        $total = 0;
+        foreach (array_diff($claves, ['e4']) as $clave) {
+            $valor = $etapas[$clave] ?? null;
+            if ($valor === null || !is_numeric($valor)) {
+                return null;
+            }
+            $total += min(self::TOPE_ETAPA, max(0, (int) round((float) $valor)));
+        }
+
         return min(self::TOPE_ETAPA, $total);
     }
 
@@ -578,12 +653,12 @@ final class MotorPresenta
     /** @return array<int, array{concepto: string, min: int, fuente: string}> */
     private static function desglose(bool $cerrada, ?int $restante, int $hueco, string $fuenteHueco, ?object $traslado,
                                      ?int $trasladoMin, int $tiempoMuerto, bool $esCadena, int $esperaVentana,
-                                     int $espera): array
+                                     int $espera, string $fuenteRestante = 'etapas de la ruta'): array
     {
         $filas = [];
 
         if (!$cerrada) {
-            $filas[] = ['concepto' => 'restante_viaje', 'min' => (int) ($restante ?? 0), 'fuente' => 'etapas de la ruta'];
+            $filas[] = ['concepto' => 'restante_viaje', 'min' => (int) ($restante ?? 0), 'fuente' => $fuenteRestante];
         }
 
         $filas[] = ['concepto' => 'hueco_total', 'min' => $hueco, 'fuente' => $fuenteHueco];
@@ -613,13 +688,20 @@ final class MotorPresenta
 
     /** @return array<int, string> */
     private static function supuestos(bool $cerrada, bool $esCadena, ?object $cal, ?object $traslado, int $espera,
-                                      object $p): array
+                                      object $p, ?object $tramo = null): array
     {
         $supuestos = [];
 
         $supuestos[] = $cerrada
             ? 'el camión ya cerró su viaje anterior: el hueco se cuenta desde su fin de descargue'
             : 'el camión sigue en viaje: se suman las etapas que le faltan con las medianas de su ruta (tiempo transcurrido, incluye paradas)';
+
+        if ($tramo !== null) {
+            $supuestos[] = 'lo que le falta del viaje se cuenta desde la ubicación declarada hasta '
+                . (string) ($tramo->hasta ?? 'el destino') . ' (' . Tiempo::hhmm((int) ($tramo->min ?? 0))
+                . (isset($tramo->km) && $tramo->km !== null ? ', ' . $tramo->km . ' km' : '')
+                . '): es manejo de la ruta, sin las paradas que incluye la mediana de la flota';
+        }
 
         if ($esCadena) {
             $supuestos[] = 'sin pares medidos para esta placa: el regreso se estima con el traslado de la ruta más '

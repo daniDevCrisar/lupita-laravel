@@ -39,16 +39,93 @@ class PrediccionApiController extends Controller
     /** Predicción por GET, con lo que ya está en la base. */
     public function presenta_por_get(Request $request)
     {
-        return $this->responder(
-            $request,
-            (string) $request->query('ref', ''),
-            [
-                'ahora' => $request->query('ahora'),
-                'ancla_ref' => (string) $request->query('ancla', ''),
-                'ubicacion_tipo' => (string) $request->query('ubicacion_tipo', 'auto'),
-                'ubicacion_id' => (string) $request->query('ubicacion_id', ''),
-            ],
-        );
+        try {
+            $request->validate(['ubicacion_texto' => 'nullable|string|max:120']);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Parametros invalidos',
+                'detalle' => $e->errors(),
+            ], 422);
+        }
+
+        [$opciones, $error] = $this->opciones_ubicacion([
+            'ahora' => $request->query('ahora'),
+            'ancla_ref' => (string) $request->query('ancla', ''),
+            'ubicacion_tipo' => (string) $request->query('ubicacion_tipo', 'auto'),
+            'ubicacion_id' => (string) $request->query('ubicacion_id', ''),
+            'ubicacion_texto' => (string) $request->query('ubicacion_texto', ''),
+        ]);
+
+        if ($error !== null) {
+            return $error;
+        }
+
+        return $this->responder($request, (string) $request->query('ref', ''), $opciones);
+    }
+
+    /**
+     * Traduce la ubicación del request a las opciones del motor.
+     *
+     * `ubicacion_texto` (distrito o local escrito a mano) se resuelve contra el
+     * catálogo y, si no está, se geocodifica con Geoapify. Devuelve
+     * [opciones, respuesta_de_error|null].
+     *
+     * @return array{0: array<string, mixed>, 1: ?\Illuminate\Http\JsonResponse}
+     */
+    private function opciones_ubicacion(array $datos): array
+    {
+        $texto = trim((string) ($datos['ubicacion_texto'] ?? $datos['ubicacion']['texto'] ?? ''));
+
+        if ($texto === '') {
+            return [[
+                'ahora' => $datos['ahora'] ?? null,
+                'ancla_ref' => (string) ($datos['ancla_ref'] ?? ''),
+                'ubicacion_tipo' => (string) ($datos['ubicacion_tipo'] ?? $datos['ubicacion']['tipo'] ?? 'auto'),
+                'ubicacion_id' => (string) ($datos['ubicacion_id'] ?? $datos['ubicacion']['id'] ?? ''),
+                'ubicacion_pedida' => '',
+            ], null];
+        }
+
+        $resolucion = Servicio::resolver_ubicacion_texto($texto);
+
+        if (($resolucion['ambigua'] ?? false) === true) {
+            return [[], response()->json([
+                'success' => false,
+                'error' => 'Ubicacion ambigua',
+                'detalle' => $resolucion['detalle']
+                    ?? ('hay varias coincidencias para "' . $texto . '": elegí una por id'),
+                'candidatos' => $resolucion['candidatos'],
+            ], 422)];
+        }
+
+        if (($resolucion['encontrada'] ?? false) !== true) {
+            return [[], self::error('No se pudo ubicar "' . $texto . '": no está en el catálogo y no se pudo '
+                . 'geocodificar (sin key de Geoapify o sin resultado)', 422)];
+        }
+
+        $opciones = [
+            'ahora' => $datos['ahora'] ?? null,
+            'ancla_ref' => (string) ($datos['ancla_ref'] ?? ''),
+            'ubicacion_tipo' => (string) $resolucion['tipo'],
+            'ubicacion_id' => (string) ($resolucion['id'] ?? ''),
+            'ubicacion_texto' => (string) ($resolucion['texto'] ?? $texto),
+            // lo que escribió el operador, tal cual: la respuesta lo devuelve
+            // para que se vea si se usó y para qué
+            'ubicacion_pedida' => $texto,
+            'ubicacion_resuelta' => $resolucion,
+        ];
+
+        if (($resolucion['tipo'] ?? '') === 'geopunto') {
+            $opciones['ubicacion_id'] = '';
+            $opciones['ubicacion_coords'] = [
+                'lat' => $resolucion['lat'],
+                'lng' => $resolucion['lng'],
+                'texto' => (string) $resolucion['texto'],
+            ];
+        }
+
+        return [$opciones, null];
     }
 
     /** Predicción por POST: acepta el viaje y la historia en el cuerpo. */
@@ -66,8 +143,10 @@ class PrediccionApiController extends Controller
             'ancla' => 'nullable|string|max:10',
             'guardar' => 'nullable|boolean',
             'ubicacion' => 'nullable|array',
-            'ubicacion.tipo' => 'nullable|in:auto,local,ubigeo,indeterminado',
+            'ubicacion.tipo' => 'nullable|in:auto,local,ubigeo,geopunto,indeterminado',
             'ubicacion.id' => 'nullable|string|max:20',
+            'ubicacion.texto' => 'nullable|string|max:120',
+            'ubicacion_texto' => 'nullable|string|max:120',
             'viaje' => 'nullable|array',
             'viaje.ref' => 'nullable|string|max:10',
             'historia' => 'nullable|array',
@@ -117,13 +196,21 @@ class PrediccionApiController extends Controller
 
         // se acepta `ubicacion: {tipo, id}` (como está documentado) y también
         // `ubicacion_tipo`/`ubicacion_id` sueltos, para que el ejemplo del GET
-        // sirva tal cual en el POST
-        return $this->responder($request, $ref, [
+        // sirva tal cual en el POST. `ubicacion.texto`/`ubicacion_texto` es el
+        // distrito escrito a mano (se resuelve contra el catálogo o Geoapify).
+        [$opciones, $error] = $this->opciones_ubicacion([
             'ahora' => $payload['ahora'] ?? null,
             'ancla_ref' => (string) ($payload['ancla'] ?? ''),
             'ubicacion_tipo' => (string) ($payload['ubicacion']['tipo'] ?? $payload['ubicacion_tipo'] ?? 'auto'),
             'ubicacion_id' => (string) ($payload['ubicacion']['id'] ?? $payload['ubicacion_id'] ?? ''),
-        ], $guardado);
+            'ubicacion_texto' => (string) ($payload['ubicacion']['texto'] ?? $payload['ubicacion_texto'] ?? ''),
+        ]);
+
+        if ($error !== null) {
+            return $error;
+        }
+
+        return $this->responder($request, $ref, $opciones, $guardado);
     }
 
     /** Tabla de aciertos del rango en JSON. */
@@ -267,8 +354,9 @@ class PrediccionApiController extends Controller
                 'ref' => 'required|string|min:3|max:10',
                 'ahora' => 'nullable|date',
                 'ancla' => 'nullable|string|max:10',
-                'ubicacion_tipo' => 'nullable|in:auto,local,ubigeo,indeterminado',
+                'ubicacion_tipo' => 'nullable|in:auto,local,ubigeo,geopunto,indeterminado',
                 'ubicacion_id' => 'nullable|string|max:20',
+                'ubicacion_texto' => 'nullable|string|max:120',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -382,6 +470,7 @@ class PrediccionApiController extends Controller
             ],
             'pasos' => $resultado->pasos ?? [],
             'geoapify' => $resultado->geoapify ?? (object) ['usado' => false],
+            'ubicacion' => $resultado->ubicacion ?? null,
             'desglose' => $resultado->desglose,
             'supuestos' => $resultado->supuestos,
             'advertencias' => $resultado->advertencias,
