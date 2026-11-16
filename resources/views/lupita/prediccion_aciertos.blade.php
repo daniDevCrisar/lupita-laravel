@@ -65,15 +65,34 @@
                     <input type="text" name="placa" class="form-control" value="{{ $filtros['placa'] }}" maxlength="20">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Filas</label>
+                    <label class="form-label" title="Cuántas refs del rango se evalúan (las más recientes). No es cuántas se muestran.">Refs a evaluar</label>
                     <select name="limite" class="form-select">
                         @foreach(\App\Http\Controllers\PrediccionController::FILAS_ACIERTOS as $opcion)
-                            <option value="{{ $opcion }}" @selected((int) $filtros['limite'] === $opcion)>{{ $opcion }}</option>
+                            <option value="{{ $opcion }}" @selected((int) $filtros['limite'] === $opcion)>
+                                {{ $opcion === 0 ? 'Todas (' . \App\Prediccion\Servicio::TOPE_EVALUACION . ')' : $opcion }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <button class="btn btn-primary w-100"><i class="bi bi-arrow-repeat"></i> Correr la tabla</button>
+                <div class="col-md-2">
+                    <label class="form-label" title="Filas donde el camión tardó más de N horas en presentarse: se ven pero no cuentan en las métricas">Tope de horizonte</label>
+                    <select name="horizonte_max_h" class="form-select">
+                        @foreach(\App\Http\Controllers\PrediccionController::HORIZONTES_ACIERTOS as $opcion)
+                            <option value="{{ $opcion }}" @selected((int) ($filtros['horizonte_max_h'] ?? 0) === $opcion)>
+                                {{ $opcion === 0 ? 'sin tope' : $opcion . ' h' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" name="solo_dentro_tope" value="1"
+                               id="solo_dentro_tope" @checked($solo_dentro_tope ?? false)>
+                        <label class="form-check-label small" for="solo_dentro_tope">
+                            No mostrar las que están fuera del tope
+                        </label>
+                    </div>
+                    <button class="btn btn-primary w-100 mt-2"><i class="bi bi-arrow-repeat"></i> Correr la tabla</button>
                     <div class="text-muted" style="font-size:.7rem">
                         @if(($calculo_ms ?? 0) > 250)
                             calculada ahora en {{ number_format(($calculo_ms ?? 0) / 1000, 1, ',', '.') }} s ·
@@ -95,6 +114,8 @@
                     <input type="hidden" name="fecha_fin" value="{{ $filtros['hasta'] }}">
                     <input type="hidden" name="placa" value="{{ $filtros['placa'] }}">
                     <input type="hidden" name="limite" value="{{ $filtros['limite'] }}">
+                    <input type="hidden" name="horizonte_max_h" value="{{ $filtros['horizonte_max_h'] ?? 0 }}">
+                    <input type="hidden" name="solo_dentro_tope" value="{{ ($solo_dentro_tope ?? false) ? 1 : 0 }}">
                     <button class="btn btn-sm btn-success">
                         <i class="bi bi-database-add"></i> Guardar estas predicciones
                     </button>
@@ -166,8 +187,37 @@
             </div>
             <span class="small text-muted">
                 {{ count($b->filas) }} filas · rango {{ $b->desde->format('d/m/Y') }} – {{ $b->hasta->format('d/m/Y') }}
+                {{-- la tabla dibuja como máximo 100 filas --}}
+                @if(($filas_candidatas ?? 0) > count($filas_tabla ?? []))
+                    <span class="badge bg-light text-dark">
+                        mostrando {{ count($filas_tabla ?? []) }} de {{ $filas_candidatas }}
+                    </span>
+                @endif
+                @if(($b->horizonte_max_h ?? 0) > 0)
+                    · <span class="badge bg-warning text-dark">
+                        {{ $b->fuera_tope }} de {{ count($b->filas) }} fuera del tope de {{ $b->horizonte_max_h }} h
+                    </span>
+                @endif
             </span>
         </div>
+
+        @if(($b->horizonte_max_h ?? 0) > 0)
+            <div class="px-3 pt-2">
+                <div class="alert alert-warning py-2 mb-0 small">
+                    <strong>Tope de horizonte: {{ $b->horizonte_max_h }} h.</strong>
+                    {{ $b->fuera_tope }} fila(s) quedan <strong>fuera de las métricas</strong> (se ven en la tabla con
+                    la etiqueta <span class="badge bg-secondary">fuera del tope</span>): son casos donde el camión tardó
+                    más que eso en volver a presentarse y el motor no tiene con qué acertar.
+                    Medido: con horizonte de hasta 6 h el MAE es 338 min y ±3 h 57 %; pasando 24 h, ±3 h 6 %.
+                    @if(($b->resumen_motor->n ?? 0) > 0)
+                        Con el tope, las métricas se calculan sobre
+                        <strong>{{ $b->resumen_motor->n }}</strong> filas.
+                    @else
+                        <strong>Ninguna fila entra en las métricas</strong> con ese tope: subilo o ampliá el rango.
+                    @endif
+                </div>
+            </div>
+        @endif
 
         {{-- % de acierto de ESTA tabla --}}
         <div class="card-body py-2 border-bottom bg-light">
@@ -217,7 +267,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                @forelse($b->filas as $fila)
+                @forelse($filas_tabla as $fila)
                     @php
                         $paramsApi = array_filter([
                             'ref' => $fila->ref,
@@ -229,12 +279,22 @@
                         ]);
                         $urlApiFila = url('/api/prediccion/presenta') . '?' . http_build_query($paramsApi);
                     @endphp
-                    <tr>
+                    <tr class="{{ ($fila->fuera_tope ?? false) ? 'table-secondary' : '' }}">
                         <td><code>{{ $fila->ref }}</code>
                             <div class="text-muted" style="font-size:.7rem">← {{ $fila->ancla_ref }}</div>
+                            @if($fila->fuera_tope ?? false)
+                                <span class="badge bg-secondary" title="Queda fuera de las métricas por el tope de horizonte">
+                                    fuera del tope
+                                </span>
+                            @endif
                         </td>
                         <td class="small">{{ $fila->placa }}</td>
-                        <td class="small">{{ $fila->ancla->format('d/m H:i') }}</td>
+                        <td class="small">
+                            {{ $fila->ancla->format('d/m H:i') }}
+                            <div class="text-muted" style="font-size:.7rem">
+                                horizonte {{ \App\Prediccion\Tiempo::hhmm((int) ($fila->horizonte_min ?? 0)) }}
+                            </div>
+                        </td>
                         <td class="small text-success text-nowrap">
                             {{ ($fila->rapido ?? null) ? $fila->rapido->format('d/m H:i') : '—' }}
                         </td>

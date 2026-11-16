@@ -1,281 +1,315 @@
 ================================================================================
  PLAN PARA SUBIR LA PRECISION DEL MOTOR DE PREDICCION DE CARGA
- Opcion 1 del diagnostico: recentrar el motor
 ================================================================================
- Fecha   : 14/11/2026
- Estado  : propuesto (nada de esto esta implementado todavia)
- Base    : base local `lupita_bd`, backtest 15-ago-2026 -> 14-nov-2026
- Autor   : sesion de trabajo DSH sobre C:\laragon\www\lupita-laravel
+ Fecha      : 14/11/2026 (actualizado despues de la etapa 1)
+ Estado     : ETAPA 1 EJECUTADA Y MEDIDA · etapa 2 pendiente
+ Base       : base local `lupita_bd`; backtest por trimestre (~500-800 filas)
+ Restriccion: produccion es hosting compartido SIN consola y SIN migraciones.
+              Nada nuevo puede depender de `php artisan` ni de crear tablas.
 ================================================================================
 
 
 --------------------------------------------------------------------------------
-1. POR QUE
+0. ESTADO EN UNA LINEA
 --------------------------------------------------------------------------------
 
-Medido hoy con el backtest (788 filas comparables, misma vara, solo informacion
-disponible al momento de predecir - sin filtrar el futuro):
-
-  predictor                                          MAE     +-3h
-  ----------------------------------------------------------------
-  mediana global de la flota                        1664       6 %
-  mediana de la placa (ultimos 20 huecos)           1116      29 %
-  mediana del par de rutas                          1111      23 %
-  jerarquia simple (rutas -> placa -> flota)        1166      22 %
-  MOTOR COMPLETO                                    1568      23 %
-
-O sea: la maquinaria que se apilo arriba del calibrador esta SUMANDO ~450 min de
-error. Pasa en los tres niveles de evidencia:
-
-  evidencia    n     motor   mediana placa
-  ------------------------------------------
-  cadena      149     2016       1301
-  parcial     492     1284       1049
-  medido      105     2041       1171
-
-No es sesgo: corregir el offset global (mediana -75 min) o la media (-375 min) NO
-mejora (1689 -> 1696 / 1744). El error es dispersion, y parte la agrega el modelo.
-
-Ablacion (apagar cada mecanismo y volver a medir, mismo rango):
-
-  ablacion                                MAE     delta
-  -------------------------------------------------------
-  tal cual                                1568       -
-  SIN FACTOR DE DIA (C2)                  1437    -131
-  SIN CORRECCION POR HORA (curva)         1503     -65
-  con 5 pares recientes (en vez de 20)    1476     -92
-  sin regimen cerca                       1560      -8
-  sin desplazar por franjas               1579     +11
-  sin feriados                            1592     +24
-  con toda la historia (pares=0)          1608     +40
-  sin hora pico / sin descuento viaje     1568       0
-
-Los dos primeros juntos: 1568 -> 1379 (-12 %). Validado en otro periodo:
-may-ago (n=822) 1559 -> 1266 (-19 %); pero feb-may (n=664) EMPEORA 2192 -> 2292.
-
-Y el horizonte explica el resto (ver seccion 6, fuera de alcance):
-  horizonte   n     MAE    +-3h    peso en el error total
-  ---------------------------------------------------------
-  <= 6 h     213    514     54 %          9 %
-  6-24 h     234   1102     19 %         21 %
-  > 24 h     342   2541      6 %         70 %
+  El motor mejoro 17-24 % en los dos trimestres recientes y la cobertura de la
+  ventana paso de 32 % a 70-74 %, pero TODAVIA pierde contra una regla de una
+  linea: MAE 1.189 contra 989 de "mediana de los ultimos 20 huecos de la placa".
+  La etapa 2 es cerrar esa diferencia.
 
 
 --------------------------------------------------------------------------------
-2. QUE SE CAMBIA (alcance de este plan)
+1. LO QUE YA SE HIZO (etapa 1) Y COMO SALIO
 --------------------------------------------------------------------------------
 
-  A. Factor de dia (C2): de multiplicar por el prior de la flota a condicionar.
-  B. Curva horaria: encogimiento por muestra y residuo proporcional a la base.
-  C. pares_recientes_max: 20 -> 10.
-  D. Re-medir la ventana rapido/tardado DESPUES del cambio.
-  E. Comando `prediccion:ablacion` para que la medicion sea repetible.
+  A. FACTOR DE DIA (C2) -> clave `dia_modo`, default 3 "compilado".
+     Medido: de 4.774 celdas (placa x dia) solo 159 tenian factor propio (3 %),
+     asi que el 97 % aplicaba el prior de la flota: x2,68 todos los lunes a todos
+     los camiones. Ahora el factor sale de `tiempos_ruta_horario` (la pantalla
+     "Compilar promedios por dia y hora"), con encogimiento por muestra, y el
+     compilado muestra que una misma ruta casi no cambia entre dias
+     (RUT_CARAL-BABEL_MAXO: 268-290 min) -> factor 0,95-1,08.
+     Ademas se corto la CIRCULARIDAD: el factor se elegia por el dia donde caia
+     la prediccion, pero multiplicar movia la fecha a otro dia. Ahora se deshace.
+     Ese guardia solo valio -248 min de MAE.
 
-NO entra aca (queda para despues): usar `compromiso_carga` como ancla,
-no publicar hora con horizonte > 24 h, revisar el emparejamiento de viajes.
+  B. CURVA HORARIA -> clave `curva_modo`, default 1 "proporcional y encogida".
+     El residuo se medía contra la mediana de la PLACA y se sumaba a la base del
+     PAR DE RUTAS. Ahora entra como proporcion de la base elegida y pesa n/(n+k).
 
+  C. `pares_recientes_max` 20 -> 10 (mejor MAE de los dos trimestres).
 
---------------------------------------------------------------------------------
-3. A. FACTOR DE DIA  (dia_modo)
---------------------------------------------------------------------------------
+  D. VENTANA RAPIDO/TARDADO: era un BUG, no un parametro.
+     - La banda se armaba alrededor del HUECO y despues se recortaba contra el
+       traslado y el propio hueco: con radio +-1.349 y hueco mediano 620, el
+       "rapido" caia en el traslado y la banda se publicaba de 787 min de ancho
+       en vez de 2.698. 100 % de las filas asimetricas y cobertura clavada en
+       32 % aunque la medicion prometiera 70 %. Ahora se centra en la hora
+       publicada.
+     - El backtest NO le pasaba `ventana_residuos` al motor: la tabla de aciertos
+       medía el p25-p75 del hueco (~35 %) mientras el API publicaba otra banda.
+     - Re-medida: 1.349 general y 2.086 en cadena.
 
-COMO FUNCIONA HOY
-  Calibrador::factores_dia() mide, por placa, la mediana de sus huecos de cada
-  dia de la semana dividida por su mediana general (acotado a [0.5, 3.0]). Los
-  dias con menos de `dia_min_pares` (5) pares usan el prior de la flota
-  FACTOR_DIA_FLOTA = [2.68, 0.97, 0.91, 0.84, 0.81, 0.93, 1.41].
-  MotorPresenta multiplica el hueco por el factor del dia en que CAE la
-  presentacion predicha.
+  E. `php artisan prediccion:ablacion` + boton "Medir ablacion" en la pantalla de
+     parametros. Compara variantes (parametros pisados EN MEMORIA) y contra
+     reglas de una linea. Es el instrumento con el que se decidio A y B.
 
-LO QUE SE MIDIO
-  De 4.774 celdas (placa x dia) sobre 682 placas con historia, solo 159 tienen
-  factor propio: 3 %. El 97 % usa el prior de la flota. O sea: en la practica el
-  motor multiplica por 2,68 todos los lunes a todos los camiones, trabaje o no
-  ese camion los lunes.
+  RESULTADO (mismo rango, misma vara):
 
-DOS FALLAS DE DISENO
-  1. Es circular: el factor se elige por el dia donde cae la prediccion, pero
-     multiplicar el hueco mueve la fecha a otro dia. Un hueco de 800 min que cae
-     lunes pasa a 2.144 (35 h) y ahora cae miercoles, donde el factor ya no
-     aplica. No hay punto fijo.
-  2. Impone estructura de flota a un camion: que la flota acumule los domingos no
-     significa que este camion lo haga.
-
-CAMBIO
-  Nueva clave `dia_modo` (entero, para no salir del sistema actual de parametros):
-      0 = apagado   no toca el hueco (equivale a dia_activo=0)
-      1 = flota     comportamiento actual (multiplica con prior de flota)
-      2 = placa     solo corrige los dias en que ESA placa tiene >= dia_min_pares;
-                    los demas dias quedan en factor 1 (se elimina el prior)
-
-  `dia_activo` se conserva como interruptor maestro por compatibilidad.
-
-  Calibrador::factores_dia(array $pares, int $minimo = 5, int $modo = 1):
-      modo 0 -> devuelve siete 1.0
-      modo 1 -> igual que hoy
-      modo 2 -> arranca en siete 1.0 y solo setea los dias con muestra propia
-
-  MotorPresenta: el factor se aplica UNA sola vez sobre la fecha provisional. Si
-  al aplicarlo la fecha cae en otro dia de la semana, se DESHACE (no se itera):
-  el factor elegido dejo de corresponder al dia que gobierna la prediccion.
-  El feriado sigue usando el peor factor del arreglo, pero solo si el modo no es
-  apagado.
-
-  DEFAULTS (a cargo del codigo, no de la pantalla):
-      dia_modo = 1  mientras se mide; despues se fija el ganador.
-      Medido: modo 0 =-131 min. Si modo 2 no le gana, el default queda en 0.
-
-  ARCHIVOS: config/prediccion.php, app/Prediccion/Calibrador.php,
-            app/Prediccion/MotorPresenta.php, app/Prediccion/Servicio.php
-            (pasa el modo a factores_dia), app/Http/Controllers/PrediccionController.php
-            (mostrarlo en "Que mueve cada parametro" y en la explicacion detallada).
+    TRIMESTRE   MAE antes -> ahora    +-3h          ventana
+    AGO-NOV     1.568 -> 1.303       23 -> 27 %     35 -> 70 %
+    MAY-AGO     1.559 -> 1.192       22 -> 28 %     38 -> 74 %
+    FEB-MAY     2.192 -> 2.250       16 -> 19 %     20 -> 62 %
+    (feb-may sube 58 min de MAE pero acierta mas dentro de +-3h)
 
 
 --------------------------------------------------------------------------------
-4. B. CURVA HORARIA  (curva_modo, curva_k)
+2. LO QUE FALTA - PRIORIDAD 1: igualar o superar la mediana de la placa
 --------------------------------------------------------------------------------
 
-COMO FUNCIONA HOY
-  Calibrador::curva() calcula por franja de 3 h del dia del ancla la mediana del
-  residuo (hueco - mediana de la PLACA). Calibrador::estimar() SUMA ese residuo a
-  la base del nivel elegido. Una franja necesita `min_pares_entidad` pares.
+  MEDICION QUE ORDENA TODO (477 filas de ago-nov, solo informacion pasada):
 
-DOS PROBLEMAS
-  1. Mezcla escalas: el residuo se mide contra la mediana de la placa y se suma a
-     la base del par de rutas, que puede ser 2-3 veces mayor. Sumar el desvio de
-     una distribucion a la base de otra no es correcto cuando la distribucion es
-     asimetrica (y aca lo es mucho).
-  2. No tiene encogimiento: una franja con el minimo de 3 pares corrige igual que
-     una con 30.
+    predictor                        MAE     +-3h
+    mediana de la placa (ult. 20)     989     32 %
+    motor completo                  1.189     28 %
 
-CAMBIO
-  Nuevas claves:
-      curva_modo = 0 actual | 1 encogida | 2 apagada   (default 1 mientras se mide)
-      curva_k    = 5                                   (peso del encogimiento)
+  DONDE SE PIERDE, desglosado (misma corrida):
 
-  Con curva_modo = 1:
-      residual_relativo = residual_min / base_entidad
-      correccion        = residual_relativo * base_elegida * n/(n+curva_k)
+    cuanto se aleja el motor de la mediana de la placa        n     motor  placa
+      <= 30 min   (practicamente igual)                      41      589    581
+      31-180 min                                             152      610    604
+      181-600 min                                            109      809    786
+      > 600 min                          <-- el problema     175    2.069  1.545
 
-  Efecto: cuando el nivel elegido ES la entidad, el factor base_elegida/base_entidad
-  vale 1 y la correccion es el residuo de hoy, solo que encogido por muestra.
-  Cuando el nivel es el par de rutas, el desvio se aplica en proporcion y no en
-  absoluto.
+    por evidencia:
+      cadena     155 filas     motor 1.623   placa 1.247   <-- el agujero grande
+      parcial    291 filas     motor   952   placa   865
+      medido      31 filas     motor 1.252   placa   866
 
-  Con curva_modo = 2 el residuo es siempre 0 (equivale a bins_horarios=1).
-  `bins_horarios` se conserva como antes.
+    El desvio del motor apunta al lado correcto solo en el 55 % de los casos:
+    apenas una moneda al aire.
 
-  ARCHIVOS: config/prediccion.php, app/Prediccion/Calibrador.php
-            (curva() y estimar()), misma documentacion de pantalla que A.
+  CONCLUSION: las correcciones son inocuas cuando el motor se queda cerca de la
+  mediana (589 contra 581) y son las que pierden cuando se aleja mas de 600 min.
+  Las dos causas concretas:
+
+  2.1 EL ESCALON CADENA (155 filas, 32 %) usa `traslado + muerto_defecto` (~300
+      min) cuando no hay pares medidos, mientras la mediana de la placa existe y
+      vale ~1.200: error 1.623 contra 1.247.
+      ARREGLO PROBADO (clave `hueco_debil`, implementada): si la placa tiene al
+      menos N huecos, usar esa mediana en vez de traslado+muerto (el nivel sigue
+      siendo "cadena"). RESULTADO MEDIDO: es una MONEDA AL AIRE.
+        AGO-NOV  N=2: MAE 1.254 -> 1.206 (-48)   · +-3h 27 -> 26 %
+        MAY-AGO  N=2: MAE 1.264 -> 1.313 (+49)   · +-3h 29 -> 28 %
+      Por eso quedó APAGADO (`hueco_debil = 0`). El motivo del fracaso: las placas
+      que caen en cadena tienen 1-5 pares, y con esa muestra la mediana de la placa
+      es tan ruidosa como traslado+muerto. Para encenderlo: poner 2 en
+      `prediccion_config` o `config/prediccion.php` y medir con la ablación.
+
+      OJO: el desvio mediano de cadena es -2.623 min (predice 43 h ANTES), o sea
+      que el problema existe; lo que no alcanza es el remedio con esta muestra.
+
+  2.2 LOS DESVIOS DE MAS DE 600 MIN (178 filas, 37 %) - ESTE ES EL QUE QUEDA
+      MAE 2.106 contra 668 del resto. Desglose medido:
+
+        por horizonte:  <=6h 28 de 134 (21 %) · 6-24h 38 de 166 (23 %) ·
+                        >24h 112 de 182 (62 %)  <- el grueso esta en los viajes largos
+        por evidencia:  cadena  78 filas, desvio mediano -2.623 (predice ANTES)
+                        parcial 84 filas, desvio mediano   +819 (predice DESPUES)
+                        medido  16 filas, desvio mediano +1.446 (predice DESPUES)
+        sentido:        75 para adelante / 103 para atras
+        hora del ancla: 06-11h 70 · 12-17h 61 · 18-23h 31 · 00-05h 16
+
+      Las dos direcciones tienen causas distintas: "cadena" subestima (es 2.1) y
+      "parcial/medido" SOBREESTIMA 13-24 h.
+
+      CANDIDATOS MEDIDOS Y DESCARTADOS (los tres empeoran o empatan):
+        - DESPLAZAMIENTO POR FRANJAS (`max_desplazamiento_min`): apagarlo da MAE
+          1.268 contra 1.254; con 300 da 1.256. Y solo toca 16 filas de 506. No es.
+        - TOPE AL TRASLADO (`traslado_max_min`, nuevo): recortarlo EMPEORA
+          (1.261 con 2.880 / 1.303 con 1.440 / 1.347 con 720, contra 1.254 sin
+          tope). Los traslados largos son reales: el camión esta a dos dias.
+        - RESPALDO EN CADENA (`hueco_debil`) y CRUCE (`entidad_pares_k`): ver 2.1/4.2.
+
+      QUE SON ENTONCES LOS EXTREMOS: al abrir el desglose de las filas con desvio
+      grande aparecen dos cosas. (1) traslados compilados absurdos: una fila usaba
+      un "regreso" de 2.961 min (49 h) tomado de `tiempos_ruta_promedio`, y en
+      evidencia cadena ESE numero es el hueco. (2) La propia mediana de la placa es
+      muy variable: en un caso valia 8.352 min (5,8 dias) cuando el hueco real fue
+      de 504 min, o sea el motor acerto y la mediana era basura. Con eso, el
+      "desvio contra la mediana" no siempre mide un error del motor.
+
+      CONCLUSION: no hay perilla para esto. Lo que si se puede hacer es no ensuciar
+      el KPI, y ya esta hecho: TOPE DE HORIZONTE en la tabla de aciertos (ver 3).
+
+  COMO SE MIDE (ya esta el instrumento): `prediccion:ablacion` saca el MAE por
+  variante y `Ablacion::baselines()` la comparacion con la mediana, siempre sobre
+  las MISMAS filas (motor en las filas de la placa). Regla de aceptacion: MAE mas
+  bajo sin perder +-3h ni cobertura de ventana.
 
 
 --------------------------------------------------------------------------------
-5. C, D y E
+3. PRIORIDAD 2: dejar de publicar una hora cuando no se puede acertar
 --------------------------------------------------------------------------------
 
-C. pares_recientes_max  20 -> 10
-   Medido: con 5 baja 92 min de MAE pero sube +-3h a 26 %; con 20 esta en 1116 de
-   la mediana de placa. 10 queda en el medio y se termina de decidir midiendo.
-   Es una clave EDITABLE de la pantalla: el valor final se guarda en
-   `prediccion_config`, no solo en el codigo.
+  Horizonte (cuanto antes del hecho se dijo la hora):
 
-D. Re-medir la ventana rapido/tardado
-   La banda actual (+-1.550 min / +-3.175 en cadena) esta calibrada contra el
-   centro VIEJO. Si el centro se mueve, la cobertura cae de 35 % a 24-27 % hasta
-   re-medirla (visto en las variantes de la ablacion). Pasos:
-     - boton "Medir ventana" en /lupita/prediccion/parametros, 70 % de cobertura,
-       600-1000 filas;
-     - "Aplicar ventana";
-     - comprobar que la cobertura quede >= 60 % en Predicciones guardadas.
+    horizonte   n     MAE    +-3h    peso en el error total
+    <= 6 h     213    514     54 %          9 %
+    6-24 h     234   1102     19 %         21 %
+    > 24 h     342   2541      6 %         70 %
 
-E. `php artisan prediccion:ablacion`
-   El script que encontro todo esto, como comando y con tests:
-       --desde= --hasta= --limite= --json
-   Imprime dos tablas:
-     1) ablaciones (una corrida de backtest por variante, con los parametros
-        pisados en memoria, sin tocar `prediccion_config`);
-     2) baselines: mediana global / de la placa / del par de rutas / jerarquia
-        simple, calculadas SOLO con los pares anteriores a cada ancla.
-   Sin este comando la proxima vez se vuelve a empezar de cero, y nadie sabe por
-   que se apago el factor de dia.
+  Con horizonte > 24 h el motor ni acierta el DIA: 19 % el mismo dia, 55 % a +-1
+  dia. Con <= 24 h: MAE 822 y +-3h 36 %.
 
-   ARCHIVOS: routes/console.php, app/Console/Commands/PrediccionAblacion.php
+  HECHO (14/11/2026): TOPE DE HORIZONTE en la tabla de aciertos. Selector de
+  sin tope / 6 / 12 / 24 / 48 / 72 h; las filas que superan el tope se siguen
+  viendo (con la etiqueta "fuera del tope" y su horizonte) pero NO entran en el
+  MAE ni en las tolerancias. Medido con 506 filas de ago-nov:
 
+    tope      filas en las metricas   MAE    +-3h   +-6h
+    sin tope              506        1.254    27 %   39 %
+    72 h                  432          756    32 %   45 %
+    48 h                  392          630    34 %   49 %
+    24 h                  308          442    43 %   60 %
+    12 h                  231          329    54 %   74 %
+     6 h                  136          338    57 %   74 %
 
---------------------------------------------------------------------------------
-6. FUERA DE ALCANCE (y por que)
---------------------------------------------------------------------------------
+  OJO: en la tabla de aciertos el corte es SIEMPRE el `fin_descargue` del viaje
+  anterior (peor caso), asi que el horizonte es el hueco completo: 198 de 506
+  filas superan 24 h. En produccion, cuando el despachador declara la ubicacion,
+  el horizonte es el tiempo desde esa declaracion, mucho mas corto: ese escenario
+  no esta representado en la tabla y hay que medirlo aparte.
 
-  - compromiso_carga como ancla: 279 refs en comun, MAE 149 del compromiso contra
-    1293 del motor; el motor gana el 17 %. Es la palanca mas grande que hay, pero
-    depende de que el campo vuelva a cargarse (dejo de llenarse el 10/11) y es un
-    cambio de modelo, no de parametros.
-  - Horizonte > 24 h: 43 % de las filas y 70 % del error absoluto. Ahi ni el dia
-    se acierta (19 %; 55 % a +-1 dia). El arreglo es de producto: no publicar una
-    hora que no se puede acertar.
-  - Emparejamiento de viajes: 204 pares (21 %) se descartan por hueco > 7 dias;
-    puede haber pares mal armados por el LAG.
+  PENDIENTE (producto, no modelo): si el horizonte supera lo que el modelo puede
+  sostener, publicar "hoy / manana / pasado" con su probabilidad en vez de una
+  hora puntual. En el JSON ya estan las tres fechas; falta la semantica.
 
 
 --------------------------------------------------------------------------------
-7. PROTOCOLO DE MEDICION Y CRITERIO DE ACEPTACION
+4. PRIORIDAD 3: datos que hoy hacen perder precision
 --------------------------------------------------------------------------------
 
-  1. Implementar A, B, C y E con los defaults apuntando al comportamiento ACTUAL
-     (dia_modo=1, curva_modo=0): el motor no cambia hasta que se mida.
-  2. Correr `prediccion:ablacion` en tres periodos:
+  4.1 EMPAREJAMIENTO DE PARES - YA MEDIDO, la hipotesis era FALSA.
+      De 27.456 pares: 20.531 validos, 4.770 (17,4 %) con hueco > 7 dias y 2.155
+      (7,8 %) NEGATIVOS (el fin_descargue del viaje anterior cae DESPUES de la
+      presentacion de este).
+      De los pares de mas de 7 dias, solo 1 de 4.770 tiene otro viaje de la misma
+      placa en el medio: el LAG NO se esta salteando viajes, son esperas reales de
+      mas de una semana. No hay nada que arreglar en el emparejamiento.
+      Lo que SI es un problema de datos: los 2.155 pares negativos, que son refs
+      donde la placa tiene dos viajes superpuestos (doble asignacion) o fechas
+      cargadas al reves. Hoy se descartan; habria que decidir si se excluyen del
+      todo o se corrige el dato en origen.
+
+  4.2 La evidencia `medido` es PEOR que `parcial` (1.252 contra 952 con 31 filas):
+      el par de rutas no deberia mandar sobre la placa. PROBADO el CRUCE
+      `w = n/(n+k)` (clave `entidad_pares_k`): con k = 3, 6 y 12 el MAE quedó
+      igual (1.220 -> 1.218/1.217). Con 31 filas no hay con que decidir, asi que
+      quedó APAGADO en 0. Cuando haya mas muestra, volver a medir.
+
+  4.3 `compromiso_carga` NO se usa para predecir (lo carga el monitorista a mano).
+      Queda solo como KPI de comparacion en Predicciones guardadas. Ese campo dejo
+      de cargarse el 10/11: si se quiere recuperar el KPI, hay que arreglar la
+      carga en produccion.
+
+  4.4 `sin_datos` es el 37 % de las predicciones guardadas y `medido` el 0 %: con
+      los minimos en 6/6 (produccion) la evidencia casi nunca llega a "medido".
+      Con la config nueva da igual (1.248 contra 1.254), pero conviene medirlo EN
+      produccion con el boton de ablacion.
+
+
+--------------------------------------------------------------------------------
+5. PRIORIDAD 0 (operativa): desplegar
+--------------------------------------------------------------------------------
+
+  Produccion corre el build viejo. Lo de esta etapa NO esta alla: ni `dia_modo`,
+  ni `curva_modo`, ni la ventana arreglada, ni el selector de Tools. Sin consola:
+
+    1. Subir el codigo (git pull / el mecanismo que uses en el hosting).
+    2. refrescar la cache como siempre (el atajo /livewire/discover).
+    3. `prediccion_config` en produccion tiene filas guardadas (min_pares_ruta=6,
+       min_pares_entidad=6, espera_carga_defecto_min=60, ...). Las claves NUEVAS
+       (dia_modo, curva_modo, curva_k, dia_compilado_k, entidad_pares_k,
+       hueco_debil) no existen alla, asi que toman el default del codigo: no hay
+       que tocar nada. Y no son editables desde la pantalla A PROPOSITO: se fijan
+       despues de medir, no a ojo.
+    4. VERIFICAR QUE EL CODIGO NUEVO ESTA VIVO: la pantalla de parametros tiene
+       que mostrar la tarjeta "Medir que aporta y que resta (ablacion)". Si no
+       aparece, el codigo no se subio (el /livewire/discover solo limpia cache, no
+       despliega).
+    5. Re-medir la VENTANA en produccion con el boton "Medir ventana" + "Aplicar
+       ventana", porque la banda depende del centro y el centro cambio. Si se
+       midio ANTES de subir el codigo, esa medicion es del motor viejo: repetirla.
+    6. Correr el boton "Medir ablacion" en produccion (90 dias, 600 filas) para
+       confirmar que alla tambien mejora, sin consola.
+
+
+--------------------------------------------------------------------------------
+6. COMO SE MIDE (protocolo, no cambia)
+--------------------------------------------------------------------------------
+
+  1. `prediccion:ablacion` (o el boton) en los tres trimestres:
        2026-02-15..2026-05-14 / 2026-05-15..2026-08-14 / 2026-08-15..2026-11-14
-     con los modos:
-       dia_modo 0/1/2  x  curva_modo 0/1/2  (la matriz completa, 9 combinaciones)
-  3. Fijar el default al ganador por MAE, con la condicion de NO perder mas de
-     1 punto de +-3h ni 1 punto de cobertura de ventana contra lo actual.
-  4. Si hay fila en `prediccion_config` para una clave, GANA sobre el codigo:
-     actualizar o borrar las filas afectadas y verificar en la pantalla de
-     parametros que "en uso" coincide con lo decidido.
-  5. Re-medir la ventana (paso D) y aplicar.
-  6. Comparar en Predicciones guardadas: MAE, +-3h, ventana y el desglose por
-     evidencia, antes y despues.
+  2. Se elige por MAE, con la condicion de NO perder mas de 1 punto de +-3h ni de
+     cobertura de ventana.
+  3. Si hay fila en `prediccion_config` para una clave, GANA sobre el codigo.
+  4. Cada vez que se mueve el CENTRO hay que re-medir la VENTANA; si no, la
+     cobertura cae aunque el motor este mejor.
+  5. Comparar tambien en Predicciones guardadas: MAE, +-3h, ventana y el desglose
+     por evidencia.
 
-  ACEPTADO si:
-     - MAE baja en >= 1 de los dos periodos recientes sin subir en el otro;
-     - +-3h no baja de 22 %;
-     - cobertura de la ventana >= 60 % despues de re-medir;
-     - suite completa en verde (hoy 213 tests / 948 assertions).
+  ACEPTADO si: MAE baja en los dos trimestres recientes sin subir en el otro,
+  +-3h no baja de 22 %, cobertura >= 60 % despues de re-medir, y la suite completa
+  en verde (hoy 230 tests / 1.055 assertions).
 
 
 --------------------------------------------------------------------------------
-8. RIESGOS Y LIMITES
+7. RIESGOS Y LIMITES
 --------------------------------------------------------------------------------
 
-  1. Feb-may EMPEORA con dia_modo=0 (2192 -> 2292). Gana en ago-nov (-12 %) y
-     may-ago (-19 %). Si ese periodo viejo es mas representativo de lo que viene,
-     esto no es un win universal; por eso el switch y por eso se mide en tres.
-  2. Todo esto esta medido con el backtest, que usa `fin_descargue` como ancla
-     (peor caso). Produccion usa el ULTIMO hito real, asi que puede moverse
-     distinto: hay que re-medir tambien en la pantalla de guardadas.
-  3. No hay historial de configuracion ni boton de deshacer: anotar los valores
+  1. Feb-may empeora en MAE (+58 min) aunque mejora en +-3h. Es el trimestre con
+     menos historia para calibrar: el motor esta peor ahi por otras razones.
+  2. Todo esta medido con el backtest, que usa `fin_descargue` como ancla (peor
+     caso). Produccion usa el ultimo hito real, asi que puede moverse distinto.
+  3. Sin historial de configuracion ni boton de deshacer: anotar los valores
      anteriores antes de aplicar.
-  4. Es un cambio de CENTRO, no de ancho: aplicar el centro sin re-medir la
-     ventana hace que el KPI se vea peor sin que el motor este peor.
-  5. Los tests unitarios de los modos usan datos sinteticos: prueban la mecanica,
-     no la ganancia. La ganancia solo la dice `prediccion:ablacion`.
+  4. Los tests unitarios prueban la mecanica, no la ganancia: la ganancia solo la
+     dice la ablacion.
+  5. En produccion no hay consola: todo lo que se agregue tiene que poder
+     ejecutarse desde una pantalla o quedar en el codigo como default.
 
 
 --------------------------------------------------------------------------------
-9. CHECKLIST
+8. CHECKLIST
 --------------------------------------------------------------------------------
 
-  [ ] config/prediccion.php: dia_modo, curva_modo, curva_k (defaults = actual)
-  [ ] Calibrador::factores_dia(modo) + tests de los 3 modos
-  [ ] Calibrador::curva(modo, k) + estimar() con residuo proporcional + tests
-  [ ] MotorPresenta: aplicar el factor una vez y deshacer si cambia el dia + test
-  [ ] Servicio: pasar el modo; nada mas
-  [ ] Comando prediccion:ablacion + test de que corre y devuelve las dos tablas
-  [ ] Pantalla de parametros: explicacion de dia_modo / curva_modo / curva_k
-  [ ] docs/api-prediccion-carga.txt: changelog 1.20
-  [ ] Correr la matriz de 9 combinaciones x 3 periodos
-  [ ] Fijar defaults, aplicar en prediccion_config, re-medir ventana
-  [ ] Suite completa
+  ETAPA 1 (hecha)
+  [x] config: dia_modo, dia_compilado_k, curva_modo, curva_k (defaults medidos)
+  [x] Calibrador::factores_dia(modo) y curva(modo, k) + residuo proporcional
+  [x] MotorPresenta: guardia de circularidad del factor de dia
+  [x] MotorPresenta: banda centrada en la hora publicada
+  [x] Servicio::backtest pasa la ventana medida (misma banda que el API)
+  [x] DBPrediccion::factores_dia_compilado() desde tiempos_ruta_horario
+  [x] pares_recientes_max 20 -> 10 y ventana re-medida
+  [x] Ablacion (clase + comando + boton en la pantalla de parametros)
+  [x] Medicion en tres trimestres y verificacion en la suite
+
+  ETAPA 2 (pendiente, en este orden)
+  [x] 2.1 cadena con respaldo flojo (clave `hueco_debil`): implementado y MEDIDO,
+          queda APAGADO porque gana en un trimestre y pierde en el otro
+  [x] 4.2 cruce par-de-rutas/placa (clave `entidad_pares_k`): implementado y
+          MEDIDO, sin efecto con la muestra actual -> APAGADO
+  [x] 4.1 emparejamiento: medido, la hipotesis era falsa (1 de 4.770 salteados);
+          el problema real son 2.155 pares con fechas invertidas
+  [x] 2.2 desvios > 600 min: medidos el desplazamiento por franjas y el tope al
+          traslado -> los dos empeoran. No hay perilla; el KPI se limpia con el
+          tope de horizonte
+  [x] 3   tope de horizonte en la tabla de aciertos (sin tope / 6 / 12 / 24 / 48 / 72 h)
+  [ ] 3b  publicar "dia" en vez de hora cuando el horizonte es largo (API)
+  [ ] 4.4 medir la evidencia en produccion (0 % de "medido")
+  [ ] 5   desplegar y re-medir ventana + ablacion en produccion
 
 
 ================================================================================

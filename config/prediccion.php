@@ -75,6 +75,29 @@ return [
     // viajes 50 %, 10 viajes 77 %. Más k = más confianza en el compilado.
     'cruce_pares_k' => 3,
 
+    // Cruce de fuentes para el HUECO (la vuelta): hoy es un cambio DURO — si el
+    // par de rutas tiene `min_pares_ruta` pares, manda el par de rutas y la placa
+    // no se mira. Medido el 14/11/2026: las filas con evidencia "medido" tienen
+    // MAE 1.252 contra 952 de "parcial", o sea el par de rutas NO es mejor que la
+    // mediana de la placa. Con `entidad_pares_k` > 0 se mezclan igual que el viaje:
+    //     hueco = w·(par de rutas) + (1-w)·(placa)   con w = n/(n+k)
+    // Se probó con k = 3, 6 y 12 y NO movió el MAE (1.220 -> 1.218/1.217): el
+    // nivel "medido" son pocas filas (31 de 482) y no alcanza para decidir. Queda
+    // en 0 (cambio duro) hasta tener más muestra.
+    'entidad_pares_k' => 0,
+
+    // Cuando NO hay pares suficientes para el hueco (evidencia "cadena"), el motor
+    // arma traslado + tiempo muerto (~300 min). Medido el 14/11/2026: 78 de las
+    // 482 filas caen ahí con MAE 2.690 y una mediana de -2.623 min (predice 43 h
+    // ANTES de la mediana de su propia placa). Esta clave es la MUESTRA MÍNIMA del
+    // respaldo: con ella, si la placa (o la flota) tiene al menos N huecos, se usa
+    // esa mediana en vez de traslado+muerto, y el nivel sigue siendo "cadena"
+    // (la confianza no sube).
+    //   OJO MEDIDO: es una moneda al aire. AGO-NOV con 2: MAE 1.254 -> 1.206 (-48);
+    //   MAY-AGO con 2: 1.264 -> 1.313 (+49). Por eso queda APAGADO en 0.
+    //   Si en producción querés probarlo: poner 2 y medir con la ablación.
+    'hueco_debil' => 0,
+
     // Una franja necesita al menos `min_pares_entidad` pares para corregir: con
     // menos, la "mediana" de la franja es un par suelto y una noche de 54 h en la
     // franja de las 19 corría la predicción dos días (ver Calibrador::curva()).
@@ -174,6 +197,16 @@ return [
     'traslado_defecto_min' => 240,
     'muerto_defecto_min' => 60,
     'espera_carga_defecto_min' => 90,
+
+    // TOPE del traslado de vuelta. El traslado sale del compilado de la ruta
+    // (`tiempos_ruta_promedio`) y hay tramos con promedios de días (medido: uno de
+    // 2.961 min = 49 h). Con este tope se recorta y el traslado queda con fuente
+    // `tope`. 0 = sin tope.
+    //   OJO MEDIDO: recortarlo EMPEORA. AGO-NOV: 1.254 (sin tope) contra 1.261 con
+    //   2.880, 1.303 con 1.440 y 1.347 con 720; MAY-AGO igual (1.264 / 1.266 /
+    //   1.303 / 1.339). Esos traslados largos son reales: el camión está a dos días.
+    //   Queda en 0; la clave existe para poder probarlo en otra flota.
+    'traslado_max_min' => 0,
 
     // A partir de estas horas la predicción se degrada a la vista.
     'frescura_horizonte_h' => 24,

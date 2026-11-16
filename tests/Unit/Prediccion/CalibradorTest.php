@@ -113,8 +113,111 @@ class CalibradorTest extends TestCase
         $this->assertSame(300, Calibrador::estimar($conRecencia, 'R1', 'R2', 'ABC123', 8)->gap_min);
     }
 
-    public function test_una_franja_con_un_solo_par_no_corrige_la_hora(): void
+    /** Calibración con una placa de N pares y SIN muestra del par de rutas. */
+    private function calibracionFloja(int $n, int $hueco = 1200): \stdClass
     {
+        $pares = [];
+        for ($i = 0; $i < $n; $i++) {
+            $ancla = Carbon::parse(sprintf('2026-10-%02d 08:00', 2 + $i));
+            $pares[] = (object) [
+                'ancla' => $ancla,
+                'presenta' => $ancla->copy()->addMinutes($hueco),
+                'ruta_ancla' => 'R_OTRA',
+                'ruta_siguiente' => 'R_OTRA2',
+                'entidad' => 'ABC123',
+            ];
+        }
+
+        // min_pares_ruta / min_pares_entidad altos: la placa queda por debajo
+        return Calibrador::calibrar($pares, 6, 6, 1, 20, 2, 5, 0, 0);
+    }
+
+    public function test_sin_muestra_y_sin_respaldo_el_hueco_es_nulo(): void
+    {
+        $cal = $this->calibracionFloja(3);
+
+        $estimado = Calibrador::estimar($cal, 'R1', 'R2', 'ABC123', 8);
+
+        $this->assertNull($estimado->gap_min, 'sin pares suficientes no se inventa un hueco');
+        $this->assertSame('cadena', $estimado->nivel);
+    }
+
+    public function test_el_respaldo_flojo_usa_la_mediana_de_la_placa_si_tiene_muestra(): void
+    {
+        // con `hueco_debil = 2` y 3 pares de la placa, el hueco sale de la placa
+        $cal = Calibrador::calibrar(
+            (function () {
+                $pares = [];
+                for ($i = 0; $i < 3; $i++) {
+                    $ancla = Carbon::parse(sprintf('2026-10-%02d 08:00', 2 + $i));
+                    $pares[] = (object) [
+                        'ancla' => $ancla, 'presenta' => $ancla->copy()->addMinutes(1200),
+                        'ruta_ancla' => 'R_OTRA', 'ruta_siguiente' => 'R_OTRA2', 'entidad' => 'ABC123',
+                    ];
+                }
+
+                return $pares;
+            })(),
+            6, 6, 1, 20, 2, 5, 0, 2    // hueco_debil = 2
+        );
+
+        $estimado = Calibrador::estimar($cal, 'R1', 'R2', 'ABC123', 8);
+
+        $this->assertSame(1200, $estimado->gap_min, 'usa la mediana de la placa en vez de traslado + muerto');
+        $this->assertSame('cadena', $estimado->nivel, 'el nivel no sube: sigue sin pares del par de rutas');
+        $this->assertTrue($estimado->flojo);
+    }
+
+    public function test_el_respaldo_flojo_exige_la_muestra_pedida(): void
+    {
+        // con `hueco_debil = 4` y 3 pares, no alcanza: vuelve a nulo
+        $pares = [];
+        for ($i = 0; $i < 3; $i++) {
+            $ancla = Carbon::parse(sprintf('2026-10-%02d 08:00', 2 + $i));
+            $pares[] = (object) [
+                'ancla' => $ancla, 'presenta' => $ancla->copy()->addMinutes(1200),
+                'ruta_ancla' => 'R_OTRA', 'ruta_siguiente' => 'R_OTRA2', 'entidad' => 'ABC123',
+            ];
+        }
+
+        $cal = Calibrador::calibrar($pares, 6, 6, 1, 20, 2, 5, 0, 4);
+
+        $this->assertNull(Calibrador::estimar($cal, 'R1', 'R2', 'ABC123', 8)->gap_min);
+    }
+
+    public function test_el_cruce_mezcla_par_de_rutas_y_placa(): void
+    {
+        // 4 pares del par de rutas de 600' y 6 de la placa de 1.200'
+        $pares = [];
+        for ($i = 0; $i < 4; $i++) {
+            $ancla = Carbon::parse(sprintf('2026-10-%02d 08:00', 2 + $i));
+            $pares[] = (object) [
+                'ancla' => $ancla, 'presenta' => $ancla->copy()->addMinutes(600),
+                'ruta_ancla' => 'R1', 'ruta_siguiente' => 'R2', 'entidad' => 'ABC123',
+            ];
+        }
+        for ($i = 0; $i < 6; $i++) {
+            $ancla = Carbon::parse(sprintf('2026-10-%02d 20:00', 10 + $i));
+            $pares[] = (object) [
+                'ancla' => $ancla, 'presenta' => $ancla->copy()->addMinutes(1200),
+                'ruta_ancla' => 'R_OTRA', 'ruta_siguiente' => 'R_OTRA2', 'entidad' => 'ABC123',
+            ];
+        }
+
+        // sin cruce: manda el par de rutas
+        $duro = Calibrador::calibrar($pares, 3, 3, 1, 20, 2, 5, 0, 0);
+        $this->assertSame(600, Calibrador::estimar($duro, 'R1', 'R2', 'ABC123', 8)->gap_min);
+
+        // con k = 4 y n = 4: mitad y mitad -> 900
+        $cruce = Calibrador::calibrar($pares, 3, 3, 1, 20, 2, 5, 4, 0);
+        $estimado = Calibrador::estimar($cruce, 'R1', 'R2', 'ABC123', 8);
+
+        $this->assertSame(900, $estimado->gap_min);
+        $this->assertSame('medido', $estimado->nivel);
+        $this->assertEqualsWithDelta(0.5, (float) $estimado->peso_par, 0.001);
+    }
+
+    public function test_una_franja_con_un_solo_par_no_corrige_la_hora(): void    {
         // 6 pares de 300 min a las 03:00 y UNO de 54 h a las 19:00: sin la guarda,
         // ese par suelto se tomaba como "tendencia de la tarde" y la predicción se
         // iba 48 h al futuro (caso real AHV874: 1 par de 54 h en la franja 18-21)

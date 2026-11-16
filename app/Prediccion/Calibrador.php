@@ -149,7 +149,8 @@ final class Calibrador
      * @param  array<int, object>  $pares  cada uno con ancla, presenta, ruta_ancla, ruta_siguiente, entidad
      */
     public static function calibrar(array $pares, int $min_ruta = 3, int $min_entidad = 3, int $bins = 8,
-                                    int $max_por_entidad = 0, int $curva_modo = 0, int $curva_k = 5): stdClass
+                                    int $max_por_entidad = 0, int $curva_modo = 0, int $curva_k = 5,
+                                    int $entidad_pares_k = 0, int $hueco_debil = 0): stdClass
     {
         $bins = max(1, min(24, $bins));
         $limpios = [];
@@ -213,6 +214,10 @@ final class Calibrador
             'recientes_max' => max(0, $max_por_entidad),
             'curva_modo' => max(0, min(2, $curva_modo)),
             'curva_k' => max(1, $curva_k),
+            // cruce par de rutas / placa y respaldo flojo: los pone Servicio desde
+            // la configuración, así `estimar()` no necesita más argumentos
+            'entidad_pares_k' => max(0, $entidad_pares_k),
+            'hueco_debil' => max(0, $hueco_debil),
             'par_rutas' => $par_rutas,
             'entidad' => $entidad,
             'curva' => self::curva($limpios, $por_entidad, $todos, $min_entidad, $bins, $curva_modo),
@@ -261,14 +266,30 @@ final class Calibrador
 
         $fuente = null;
         $nivel = 'cadena';
+        $mezcla = null;
 
         $deRuta = $clave !== null ? ($calibracion->par_rutas[$clave] ?? null) : null;
         $deEntidad = $calibracion->entidad[$entidad] ?? null;
         $global = $calibracion->global ?? null;
+        // la mediana de la placa: la que se usa para mezclar y como respaldo flojo
+        $dePlaca = ($deEntidad !== null && ($deEntidad['n'] ?? 0) >= 1) ? $deEntidad : $global;
 
         if ($deRuta !== null && $deRuta['n'] >= $min_ruta) {
             $fuente = $deRuta;
             $nivel = 'medido';
+
+            // CRUCE: el par de rutas solo no es mejor que la mediana de la placa
+            // (medido: "medido" MAE 1.252 contra 952 de "parcial"). Con
+            // `entidad_pares_k` se mezclan con w = n/(n+k), igual que el viaje.
+            $k = max(0, (int) ($calibracion->entidad_pares_k ?? 0));
+            if ($k > 0 && $dePlaca !== null && ($dePlaca['base_min'] ?? null) !== null) {
+                $peso = $deRuta['n'] / ($deRuta['n'] + $k);
+                $mezcla = (object) [
+                    'peso' => $peso,
+                    'par' => (int) round((float) $deRuta['base_min']),
+                    'placa' => (int) round((float) $dePlaca['base_min']),
+                ];
+            }
         } elseif ($deEntidad !== null && $deEntidad['n'] >= $min_entidad) {
             $fuente = $deEntidad;
             $nivel = 'parcial';
@@ -281,21 +302,57 @@ final class Calibrador
             $fuente !== null ? (float) ($fuente['base_min'] ?? 0) : null);
 
         if ($fuente === null) {
+            // RESPALDO FLOJO: sin muestra para los mínimos, antes se devolvía null y
+            // el motor armaba traslado + tiempo muerto (~300 min) aunque la placa
+            // tuviera historia. La mediana de la placa sirve igual: el nivel sigue
+            // siendo "cadena" (la confianza no sube) pero la hora deja de estar 43 h
+            // antes de lo real. `hueco_debil` es la MUESTRA MÍNIMA que se le exige
+            // (0 = apagado): con un solo par la mediana es ese viaje y no sirve.
+            $minimoDebil = max(0, (int) ($calibracion->hueco_debil ?? 0));
+            if ($minimoDebil > 0 && $dePlaca !== null
+                && (int) ($dePlaca['n'] ?? 0) >= $minimoDebil
+                && ($dePlaca['base_min'] ?? null) !== null && (int) $dePlaca['base_min'] > 0) {
+                $base = (int) round((float) $dePlaca['base_min']);
+                $residualDebil = self::correccion_horaria($calibracion, $hora_ancla, $bins, (float) $base);
+
+                return (object) [
+                    'gap_min' => max(1, $base + $residualDebil),
+                    'p25_min' => $dePlaca['p25_min'] === null ? null : (int) round((float) $dePlaca['p25_min'] + $residualDebil),
+                    'p75_min' => $dePlaca['p75_min'] === null ? null : (int) round((float) $dePlaca['p75_min'] + $residualDebil),
+                    'base_min' => $base,
+                    'residual_min' => $residualDebil,
+                    'n' => (int) $dePlaca['n'],
+                    'nivel' => 'cadena',
+                    'flojo' => true,
+                ];
+            }
+
             return (object) [
                 'gap_min' => null, 'p25_min' => null, 'p75_min' => null, 'base_min' => null,
-                'residual_min' => $residual, 'n' => 0, 'nivel' => 'cadena',
+                'residual_min' => $residual, 'n' => 0, 'nivel' => 'cadena', 'flojo' => false,
             ];
         }
 
-        return (object) [
-            'gap_min' => max(1, (int) round((float) $fuente['base_min'] + $residual)),
+        $gap = (float) $fuente['base_min'] + $residual;
+        $salida = ['peso_par' => null, 'par_min' => null, 'placa_min' => null];
+
+        // mezcla par de rutas / placa (sólo cuando el nivel es "medido")
+        if ($mezcla !== null) {
+            $gap = $mezcla->peso * $mezcla->par + (1 - $mezcla->peso) * $mezcla->placa + $residual;
+            $salida = ['peso_par' => round($mezcla->peso, 3), 'par_min' => $mezcla->par,
+                       'placa_min' => $mezcla->placa];
+        }
+
+        return (object) array_merge([
+            'gap_min' => max(1, (int) round($gap)),
             'p25_min' => $fuente['p25_min'] === null ? null : (int) round((float) $fuente['p25_min'] + $residual),
             'p75_min' => $fuente['p75_min'] === null ? null : (int) round((float) $fuente['p75_min'] + $residual),
             'base_min' => (int) round((float) $fuente['base_min']),
             'residual_min' => $residual,
             'n' => (int) $fuente['n'],
             'nivel' => $nivel,
-        ];
+            'flojo' => false,
+        ], $salida);
     }
 
     /**
@@ -432,6 +489,8 @@ final class Calibrador
             'recientes_max' => 0,
             'curva_modo' => 0,      // el régimen ya viene con su propia base
             'curva_k' => 1,
+            'entidad_pares_k' => 0,
+            'hueco_debil' => 0,
             'par_rutas' => [],
             'entidad' => [$etiqueta => $resumen],
             'global' => $resumen,

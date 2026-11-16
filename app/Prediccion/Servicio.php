@@ -37,6 +37,16 @@ class Servicio
     public const HITOS_NO_ANCLA = ['compromiso_carga'];
 
     /**
+     * Cuántas refs puede evaluar la tabla de aciertos como máximo en una corrida.
+     *
+     * Medido: ~5 ms por fila (cada una arma el traslado, calibra y pide ventanas),
+     * más ~1 s de preparación. 3.000 filas son ~15 s, que es lo más que se puede
+     * pedir a una pantalla. El rango de un año tiene ~27.000 pares: evaluarlos
+     * todos son ~2 minutos de CPU y no entra en un request.
+     */
+    public const TOPE_EVALUACION = 3000;
+
+    /**
      * Predicción de una referencia concreta.
      *
      * Opciones: ahora (Carbon|string), ancla_ref (string), ubicacion_tipo
@@ -241,6 +251,7 @@ class Servicio
                 $etapasPorRuta, $rutaRef !== '' ? $rutaRef : null, (int) $p->traslado_defecto_min,
                 $ubicacionDeclarada && !$viajeEnCurso, $salidaRegreso)
             : null;
+        $traslado = self::limitar_traslado($traslado, $p);
 
         // Posición geocodificada (texto libre que no estaba en el catálogo): el
         // traslado sale del ruteo real de Geoapify desde ese punto a la planta.
@@ -401,7 +412,8 @@ class Servicio
 
             $calibracion = Calibrador::calibrar($paresCalibracion, (int) $p->min_pares_ruta,
                 (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max,
-                (int) ($p->curva_modo ?? 0), (int) ($p->curva_k ?? 5));
+                (int) ($p->curva_modo ?? 0), (int) ($p->curva_k ?? 5),
+                (int) ($p->entidad_pares_k ?? 0), (int) ($p->hueco_debil ?? 0));
         }
 
         $horaAncla = self::hora_ancla(
@@ -1236,7 +1248,12 @@ class Servicio
             [$desde, $hasta] = [$hasta->copy(), $desde->copy()];
         }
         $placa = trim((string) ($filtros['placa'] ?? ''));
-        $limite = max(1, min(1000, (int) ($filtros['limite'] ?? 200)));
+
+        // `limite` es cuántas refs se EVALÚAN (las más recientes del rango), no
+        // cuántas se muestran. 0 = todas, acotado por TOPE_EVALUACION para que la
+        // pantalla responda: el rango de un año tiene ~27.000 pares.
+        $pedido = (int) ($filtros['limite'] ?? 200);
+        $limite = $pedido <= 0 ? self::TOPE_EVALUACION : max(1, min(self::TOPE_EVALUACION, $pedido));
 
         $aprendizajeDesde = $desde->copy()->subDays(max(1, (int) $p->lookback_dias));
 
@@ -1299,6 +1316,10 @@ class Servicio
         $ventanasCache = [];
         $descartados = 0;
         $sinRuta = 0;
+        $fueraTope = 0;
+        // tope de horizonte para las MÉTRICAS, en HORAS (0 = sin tope): las filas
+        // más allá quedan en la tabla pero no arrastran el MAE
+        $horizonteMax = max(0, (int) ($filtros['horizonte_max_h'] ?? 0)) * 60;
         $topeHueco = max(1, (int) $p->tope_hueco_min);
 
         foreach ($pares as $par) {
@@ -1330,6 +1351,7 @@ class Servicio
                     $desdeUbigeo !== '' ? $desdeUbigeo : null, $plantaUbigeo,
                     $etapas, $rutaSiguiente !== '' ? $rutaSiguiente : null, (int) $p->traslado_defecto_min)
                 : null;
+            $traslado = self::limitar_traslado($traslado, $p);
 
             // Calibración as-of, con la MISMA base y la MISMA regla de grupo que
             // producción (ver clave_calibracion()): la placa, salvo que el
@@ -1401,7 +1423,8 @@ class Servicio
                 ? Calibrador::de_resumen($regimenResumen)
                 : Calibrador::calibrar($previos, (int) $p->min_pares_ruta,
                     (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max,
-                    (int) ($p->curva_modo ?? 0), (int) ($p->curva_k ?? 5));
+                    (int) ($p->curva_modo ?? 0), (int) ($p->curva_k ?? 5),
+                    (int) ($p->entidad_pares_k ?? 0), (int) ($p->hueco_debil ?? 0));
 
             $calibrador = Calibrador::estimar($calFila,
                 $rutaAncla !== '' ? $rutaAncla : null,
@@ -1455,7 +1478,17 @@ class Servicio
             $dentroFila = $rapido !== null && $tardado !== null
                 && $real->greaterThanOrEqualTo($rapido) && $real->lessThanOrEqualTo($tardado);
 
-            if ($error !== null) {
+            // HORIZONTE: cuánto tiempo pasó entre el corte y la presentación real.
+            // Por encima del tope, la fila NO entra en las métricas del motor: son
+            // los casos donde el camión quedó días sin volver y ninguna corrección
+            // del hueco puede acertar (medido: >24 h = 43 % de las filas y 70 % del
+            // error absoluto, con 6 % de acierto a ±3 h). La fila se sigue viendo.
+            $horizonteFila = (int) round(($real->getTimestamp() - $par->ancla->getTimestamp()) / 60);
+            $fueraDelTope = $horizonteMax > 0 && $horizonteFila > $horizonteMax;
+
+            if ($fueraDelTope) {
+                $fueraTope++;
+            } elseif ($error !== null) {
                 $erroresMotor[] = $error;
                 $dentroMotor[] = $dentroFila;
             }
@@ -1481,6 +1514,8 @@ class Servicio
                 'pares_calibracion' => (int) ($calibrador->n ?? 0),
                 'cerca' => $cercaFila,
                 'cerca_regimen' => $regimenFila,
+                'horizonte_min' => $horizonteFila,
+                'fuera_tope' => $fueraDelTope,
             ];
         }
 
@@ -1497,6 +1532,14 @@ class Servicio
             'pares' => count($filas),
             'descartados' => $descartados,
             'sin_ruta' => $sinRuta,
+            // cuántas refs se evaluaron y si se topó con TOPE_EVALUACION (0 = todas)
+            'limite' => $limite,
+            'limite_pedido' => $pedido,
+            'truncado' => $limite >= self::TOPE_EVALUACION,
+            // filas fuera del tope de horizonte: se ven pero no cuentan en las métricas
+            'horizonte_max_h' => $horizonteMax > 0 ? intdiv($horizonteMax, 60) : 0,
+            'horizonte_max' => $horizonteMax,
+            'fuera_tope' => $fueraTope,
         ];
     }
 
@@ -2147,6 +2190,34 @@ class Servicio
         }
 
         return Calibrador::factores_dia($pares, (int) ($p->dia_min_pares ?? 5), $modo);
+    }
+
+    /**
+     * Recorta el traslado de vuelta cuando el compilado trae un promedio absurdo.
+     *
+     * El traslado sale de `tiempos_ruta_promedio`; hay tramos con promedios de
+     * días (medido: uno de 2.961 min = 49 h). Un regreso de más de un día no es un
+     * regreso, es un dato mal compilado, y en la evidencia `cadena` ese número ES
+     * el hueco: arrastra la predicción 40 h. Con `traslado_max_min` en 0 no se
+     * toca nada.
+     */
+    private static function limitar_traslado(?object $traslado, stdClass $p): ?object
+    {
+        $tope = (int) ($p->traslado_max_min ?? 0);
+
+        if ($traslado === null || $tope <= 0) {
+            return $traslado;
+        }
+
+        if ((int) ($traslado->min ?? 0) <= $tope) {
+            return $traslado;
+        }
+
+        $traslado->min = $tope;
+        $traslado->fuente = 'tope';
+        $traslado->recortado_desde = (int) ($traslado->min_original ?? $tope);
+
+        return $traslado;
     }
 
     /** Hora del día en la que queda libre el camión: la que corrige el hueco. */

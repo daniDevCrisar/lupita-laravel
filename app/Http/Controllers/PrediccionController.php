@@ -54,15 +54,31 @@ class PrediccionController extends Controller
 
     /** Calculadora: referencia a predecir + viaje ancla + ubicación declarada. */
     /**
-     * Filas que se pueden pedir a la tabla de aciertos. Hasta 1000: calibrar con
-     * 100 filas es ruido (la tabla de validación queda con 10-20 filas y cualquier
-     * parámetro gana por suerte). El backtest tarda ~3 s cada 300 filas, así que
-     * 1000 son ~10 s la primera vez y después sale de la caché de 10 minutos.
+     * Filas que se pueden pedir a la tabla de aciertos. `0` = todas (las que entren
+     * en `Servicio::TOPE_EVALUACION`).
+     *
+     * OJO: es cuántas refs se EVALÚAN, no cuántas se muestran. Calibrar con 100
+     * filas es ruido (la validación queda con 10-20 filas y cualquier parámetro
+     * gana por suerte); la corrida tarda ~5 ms por fila, así que 1.000 son ~4 s y
+     * 3.000 son ~7 s (se cachea 10 minutos).
      */
-    public const FILAS_ACIERTOS = [10, 40, 80, 100, 300, 600, 1000];
+    public const FILAS_ACIERTOS = [10, 40, 80, 100, 300, 600, 1000, 2000, 0];
+
+    /** Filas que se dibujan como máximo en la tabla (el resto no hace falta verlo). */
+    public const FILAS_TABLA_ACIERTOS = 100;
 
     /** Filas que se pueden mostrar en la pantalla de predicciones guardadas. */
     public const FILAS_GUARDADAS = [50, 100, 300, 600];
+
+    /**
+     * Topes de horizonte de la tabla de aciertos, en HORAS.
+     *
+     * No es cosmético: el motor acierta dentro de ±3 h el 57 % de las veces cuando
+     * el camión se presenta antes de 6 h desde el corte, y el 6 % cuando pasa de
+     * 24 h. Sumar todo en un solo MAE castiga al motor por casos que no dependen
+     * del modelo (el camión se quedó días sin volver).
+     */
+    public const HORIZONTES_ACIERTOS = [0, 6, 12, 24, 48, 72];
 
     /**
      * Filas con las que se miden los KPIs del motor en "Predicciones guardadas".
@@ -222,6 +238,7 @@ class PrediccionController extends Controller
             'fecha_fin' => 'nullable|date',
             'placa' => 'nullable|string|max:20',
             'limite' => 'nullable|in:' . implode(',', self::FILAS_ACIERTOS),
+            'horizonte_max_h' => 'nullable|integer|min:0|max:168',
         ]);
 
         $limite = (int) $request->input('limite', self::FILAS_ACIERTOS[0]);
@@ -229,14 +246,24 @@ class PrediccionController extends Controller
             $limite = self::FILAS_ACIERTOS[0];
         }
 
+        // 0 = sin tope. Con tope, las filas donde el camión quedó más de N horas
+        // sin presentarse se ven pero NO entran en el MAE ni en las tolerancias: en
+        // ese tramo el motor no tiene con qué acertar (medido: hasta 6 h de
+        // horizonte el MAE es 338 y ±3 h 57 %; por encima de 24 h, 6 %).
+        $horizonteMax = (int) $request->input('horizonte_max_h', 0);
+        if (!in_array($horizonteMax, self::HORIZONTES_ACIERTOS, true)) {
+            $horizonteMax = 0;
+        }
+
         $filtros = [
             'desde' => $request->input('fecha_inicio'),
             'hasta' => $request->input('fecha_fin'),
             'placa' => trim((string) $request->input('placa', '')),
             'limite' => $limite,
+            'horizonte_max_h' => $horizonteMax,
         ];
 
-        // La corrida tarda ~3-4 s (300 filas): se cachea 10 minutos. Con
+        // La corrida tarda ~5 ms por fila: se cachea 10 minutos. Con
         // `?refrescar=1` se fuerza de nuevo.
         $llave = self::llave_aciertos($filtros);
 
@@ -252,10 +279,23 @@ class PrediccionController extends Controller
         );
         $calculoMs = (int) round((microtime(true) - $inicio) * 1000);
 
+        // La tabla muestra como máximo FILAS_TABLA_ACIERTOS filas: el resto no hace
+        // falta verlo (las métricas se calculan sobre todas las evaluadas). Con el
+        // check "solo dentro del tope" se esconden las que quedaron fuera.
+        $soloDentro = $request->boolean('solo_dentro_tope');
+        $filasTabla = $aciertos->filas;
+        if ($soloDentro) {
+            $filasTabla = array_values(array_filter($filasTabla,
+                static fn (object $fila) => !($fila->fuera_tope ?? false)));
+        }
+
         return view('lupita.prediccion_aciertos', array_merge(self::comunes(), [
             'filtros' => $filtros,
             'aciertos' => $aciertos,
             'calculo_ms' => $calculoMs,
+            'solo_dentro_tope' => $soloDentro,
+            'filas_tabla' => array_slice($filasTabla, 0, self::FILAS_TABLA_ACIERTOS),
+            'filas_candidatas' => count($filasTabla),
             'guardadas' => \App\Database\DBPrediccionResultados::resumen($aciertos->desde, $aciertos->hasta, 500),
         ]));
     }
@@ -277,6 +317,7 @@ class PrediccionController extends Controller
             'fecha_fin' => 'nullable|date',
             'placa' => 'nullable|string|max:20',
             'limite' => 'nullable|in:' . implode(',', self::FILAS_ACIERTOS),
+            'horizonte_max_h' => 'nullable|integer|min:0|max:168',
         ]);
 
         $filtros = [
@@ -284,6 +325,9 @@ class PrediccionController extends Controller
             'hasta' => $request->input('fecha_fin'),
             'placa' => trim((string) $request->input('placa', '')),
             'limite' => (int) $request->input('limite', self::FILAS_ACIERTOS[0]),
+            // el tope de horizonte viaja con los filtros: si no, la corrida del
+            // botón sería otra que la de la tabla y el guardado no coincidiría
+            'horizonte_max_h' => (int) $request->input('horizonte_max_h', 0),
         ];
 
         if (!in_array($filtros['limite'], self::FILAS_ACIERTOS, true)) {
@@ -328,6 +372,8 @@ class PrediccionController extends Controller
             'fecha_fin' => $filtros['hasta'] ?? null,
             'placa' => $filtros['placa'] ?? null,
             'limite' => $filtros['limite'] ?? null,
+            'horizonte_max_h' => $filtros['horizonte_max_h'] ?? null,
+            'solo_dentro_tope' => $filtros['solo_dentro_tope'] ?? null,
         ], fn ($valor) => $valor !== null && $valor !== '');
     }
 
@@ -335,8 +381,8 @@ class PrediccionController extends Controller
     private static function llave_aciertos(array $filtros): string
     {
         // El número de versión sube cuando cambia la forma de las filas o de la
-        // corrida (v5: sin línea base, con grupo de calibración y cercanía).
-        return 'prediccion:aciertos:v5:' . md5(json_encode([$filtros, (array) Parametros::cargar()]));
+        // corrida (v6: horizonte por fila y tope de horizonte en las métricas).
+        return 'prediccion:aciertos:v6:' . md5(json_encode([$filtros, (array) Parametros::cargar()]));
     }
 
     /** Documentación del API de predicción (para quien lo consume). */
@@ -973,6 +1019,66 @@ class PrediccionController extends Controller
         }
 
         return redirect()->route('lupita.prediccion.parametros.ver')->with('ablacion', $medicion);
+    }
+
+    /**
+     * Borra las predicciones guardadas del rango.
+     *
+     * El motor se recalibra todo el tiempo: una predicción guardada hace un mes
+     * compara contra un modelo que ya no existe y ensucia el acierto. Esto borra
+     * las filas de `prediccion_resultados` cuyo CORTE cae en el rango (más el
+     * origen, si se eligió uno), y devuelve cuántas borró.
+     *
+     * El rango se mira sobre el corte (`ahora`) a propósito: es lo que se ve en la
+     * tabla de la pantalla y lo que el usuario tiene en la cabeza cuando dice
+     * "borrá lo de este rango".
+     */
+    public static function borrar_guardadas(Request $request)
+    {
+        $request->validate([
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date',
+            'origen' => 'nullable|string|max:10',
+            'limite' => 'nullable|integer|in:' . implode(',', self::FILAS_GUARDADAS),
+        ]);
+
+        $desde = Carbon::parse((string) $request->input('fecha_inicio') ?: now()->subDays(29)->toDateString())->startOfDay();
+        $hasta = Carbon::parse((string) $request->input('fecha_fin') ?: now()->toDateString())->endOfDay();
+        $origen = trim((string) $request->input('origen', ''));
+
+        $consulta = DB::table('prediccion_resultados')
+            ->whereBetween('ahora', [$desde->toDateTimeString(), $hasta->toDateTimeString()]);
+
+        if ($origen !== '') {
+            $consulta->where('origen', $origen);
+        }
+
+        try {
+            $borradas = (int) $consulta->delete();
+        } catch (\Throwable $e) {
+            return redirect()->route('lupita.prediccion.guardadas', self::filtros_guardadas($request))
+                ->with('error', 'No se pudo borrar: ' . $e->getMessage());
+        }
+
+        $detalle = $origen !== '' ? ' (origen ' . $origen . ')' : '';
+
+        return redirect()->route('lupita.prediccion.guardadas', self::filtros_guardadas($request))
+            ->with('estado', $borradas === 0
+                ? 'No había predicciones guardadas con corte entre ' . $desde->format('d/m/Y') . ' y '
+                    . $hasta->format('d/m/Y') . $detalle . '.'
+                : 'Se borraron ' . $borradas . ' predicciones guardadas con corte entre '
+                    . $desde->format('d/m/Y') . ' y ' . $hasta->format('d/m/Y') . $detalle . '.');
+    }
+
+    /** Filtros de la pantalla de guardadas, para volver a ella tal cual. */
+    private static function filtros_guardadas(Request $request): array
+    {
+        return array_filter([
+            'fecha_inicio' => $request->input('fecha_inicio'),
+            'fecha_fin' => $request->input('fecha_fin'),
+            'origen' => $request->input('origen'),
+            'limite' => $request->input('limite'),
+        ], fn ($valor) => $valor !== null && $valor !== '');
     }
 
     private static function carbon(?string $valor): ?Carbon

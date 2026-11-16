@@ -87,6 +87,26 @@
                     </button>
                 </div>
             </form>
+
+            {{-- borrar lo guardado del rango: el motor se recalibra y lo viejo
+                 compara contra un modelo que ya no existe --}}
+            <form method="POST" action="{{ route('lupita.prediccion.guardadas.borrar') }}"
+                  class="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top"
+                  onsubmit="return confirm('¿Borrar las predicciones guardadas con corte entre {{ $filtros['desde'] }} y {{ $filtros['hasta'] }}? No se puede deshacer.');">
+                @csrf
+                <input type="hidden" name="fecha_inicio" value="{{ $filtros['desde'] }}">
+                <input type="hidden" name="fecha_fin" value="{{ $filtros['hasta'] }}">
+                <input type="hidden" name="origen" value="{{ $filtros['origen'] }}">
+                <input type="hidden" name="limite" value="{{ $filtros['limite'] }}">
+                <button class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i> Borrar las de este rango
+                </button>
+                <span class="small text-muted">
+                    Borra de <code>prediccion_resultados</code> las predicciones cuyo <strong>corte</strong> cae en el
+                    rango @if($filtros['origen'] !== ''), del origen <strong>{{ $filtros['origen'] }}</strong>@endif.
+                    El motor se recalibra seguido: lo guardado con otro modelo ensucia el acierto.
+                </span>
+            </form>
         </div>
     </div>
 
