@@ -46,7 +46,10 @@ class DBPrediccionResultados
                 'evidencia' => mb_substr((string) ($resultado->evidencia ?? 'sin_datos'), 0, 20),
                 'confianza' => (int) ($resultado->confianza ?? 0),
                 'origen' => mb_substr($origen, 0, 10),
-                'desglose' => json_encode($resultado->desglose ?? [], JSON_UNESCAPED_UNICODE),
+                // la CUARTA fecha y su sesgo van en `desglose` (longtext, nadie lo
+                // lee como lista): así se guardan sin agregar columnas, que en
+                // producción no se pueden migrar.
+                'desglose' => self::desgloseJson($resultado),
                 'advertencias' => json_encode($resultado->advertencias ?? [], JSON_UNESCAPED_UNICODE),
                 'pedido_en' => now(),
             ]);
@@ -101,7 +104,12 @@ class DBPrediccionResultados
                 'evidencia' => mb_substr((string) ($fila->evidencia ?? 'sin_datos'), 0, 20),
                 'confianza' => (int) ($fila->confianza ?? 0),
                 'origen' => $origen,
-                'desglose' => json_encode([], JSON_UNESCAPED_UNICODE),
+                // igual que en guardar(): la cuarta fecha viaja en el desglose
+                'desglose' => self::desgloseJson((object) [
+                    'presenta_probable' => $fila->probable ?? null,
+                    'sesgo_clase' => $fila->sesgo_clase ?? null,
+                    'sesgo_min' => $fila->sesgo_min ?? 0,
+                ]),
                 'advertencias' => json_encode([], JSON_UNESCAPED_UNICODE),
                 'pedido_en' => now(),
             ];
@@ -190,7 +198,7 @@ class DBPrediccionResultados
         try {
             $filas = DB::select(
                 "SELECT p.ref, p.placa, p.ahora, p.presenta, p.presenta_rapido, p.presenta_tardado,
-                        p.evidencia, p.confianza, p.origen, p.pedido_en,
+                        p.evidencia, p.confianza, p.origen, p.pedido_en, p.desglose,
                         r.ref AS ref_existe,
                         r.presenta_para_carga AS presenta_real,
                         TIMESTAMPDIFF(MINUTE, p.presenta, r.presenta_para_carga) AS error_min
@@ -266,8 +274,13 @@ class DBPrediccionResultados
                 'rapido' => $rapido,
                 'predicho' => $predicho,
                 'tardado' => $tardado,
+                // la cuarta fecha: se guarda dentro de `desglose` (sin columnas nuevas)
+                'probable' => self::probableGuardada($fila->desglose ?? null),
                 'real' => $real,
                 'error_min' => $error,
+                'error_rapido_min' => self::error($real, $rapido),
+                'error_tardado_min' => self::error($real, $tardado),
+                'error_probable_min' => self::error($real, self::probableGuardada($fila->desglose ?? null)),
                 'en_ventana' => $enVentana,
                 'evidencia' => (string) $fila->evidencia,
                 'confianza' => (int) $fila->confianza,
@@ -294,6 +307,16 @@ class DBPrediccionResultados
         ];
     }
 
+    /** Diferencia en minutos entre la real y una fecha publicada (null si falta alguna). */
+    private static function error(?Carbon $real, ?Carbon $fecha): ?int
+    {
+        if (!$real instanceof Carbon || !$fecha instanceof Carbon) {
+            return null;
+        }
+
+        return (int) round(($fecha->getTimestamp() - $real->getTimestamp()) / 60);
+    }
+
     private static function fechaSql($valor): ?string
     {
         if ($valor instanceof Carbon) {
@@ -301,5 +324,41 @@ class DBPrediccionResultados
         }
 
         return is_string($valor) && $valor !== '' ? $valor : null;
+    }
+
+    /**
+     * El JSON que va en `desglose`: los pasos MÁS la cuarta fecha.
+     *
+     * `desglose` es `longtext` y nadie lo lee como lista, así que ahí se guarda la
+     * fecha `presenta_probable` (y el sesgo que se le aplicó). Se hace así y no con
+     * una columna nueva porque en producción no hay consola para migrar.
+     */
+    private static function desgloseJson(stdClass $resultado): string
+    {
+        return json_encode([
+            'pasos' => $resultado->desglose ?? [],
+            'probable' => self::fechaSql($resultado->presenta_probable ?? null),
+            'sesgo_clase' => $resultado->sesgo_clase ?? null,
+            'sesgo_min' => (int) ($resultado->sesgo_min ?? 0),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Lee la cuarta fecha guardada en `desglose`. Tolera las filas viejas, que
+     * tienen una lista de pasos sin `probable`.
+     */
+    public static function probableGuardada($desglose): ?Carbon
+    {
+        $datos = is_string($desglose) ? json_decode($desglose, true) : null;
+
+        if (!is_array($datos) || !isset($datos['probable']) || !is_string($datos['probable'])) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($datos['probable']);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

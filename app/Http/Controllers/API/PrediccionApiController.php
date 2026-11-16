@@ -445,6 +445,16 @@ class PrediccionApiController extends Controller
             'presenta' => self::fecha($resultado->presenta),
             'presenta_rapido' => self::fecha($resultado->presenta_rapido ?? null),
             'presenta_tardado' => self::fecha($resultado->presenta_tardado ?? null),
+            // CUARTA fecha: la publicada corregida con la mediana del error de su
+            // clase (evidencia x tramo del horizonte). Si el sesgo está apagado es
+            // igual a `presenta`.
+            'presenta_probable' => self::fecha($resultado->presenta_probable ?? $resultado->presenta),
+            'sesgo' => [
+                'clase' => $resultado->sesgo_clase ?? null,
+                // minutos que se corrió la hora publicada: negativo = se adelantó
+                'min' => $resultado->sesgo_min ?? 0,
+                'aplicado' => (int) ($resultado->sesgo_min ?? 0) !== 0,
+            ],
             'presentaciones' => $resultado->presentaciones ?? [],
             'inicio_carga' => self::fecha($resultado->inicio_carga),
             'espera_min' => $resultado->espera_min,

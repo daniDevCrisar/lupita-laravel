@@ -295,5 +295,123 @@
                 </div>
             @endif
         @endif
+
+        {{-- ============ SESGO POR CLASE (cuarta fecha) ============ --}}
+        @php $sesgoMedido = session('sesgo_medido'); @endphp
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
+            <form method="POST" action="{{ route('lupita.prediccion.sesgo') }}" class="d-flex flex-wrap align-items-center gap-2">
+                @csrf
+                <div>
+                    <div class="small fw-semibold">
+                        <i class="bi bi-bullseye"></i> Medir el SESGO por clase (cuarta fecha)
+                    </div>
+                    <div class="text-muted" style="font-size:.7rem">
+                        cuánto se equivoca el motor según la evidencia y el horizonte. Con eso se publica
+                        <code>presenta_probable</code>: la hora normal corregida con la mediana de su clase.
+                        <strong>No cambia la hora normal</strong>: agrega una cuarta fecha.
+                    </div>
+                </div>
+                <select name="dias" class="form-select form-select-sm" style="width:auto">
+                    <option value="30">30 días</option>
+                    <option value="60" selected>60 días</option>
+                    <option value="90">90 días</option>
+                    <option value="180">180 días</option>
+                </select>
+                <select name="fuente" class="form-select form-select-sm" style="width:auto"
+                        title="De dónde salen los errores que se agrupan">
+                    <option value="guardadas" selected>predicciones guardadas (producción)</option>
+                    <option value="aciertos">tabla de aciertos (backtest)</option>
+                </select>
+                <select name="limite" class="form-select form-select-sm" style="width:auto">
+                    <option value="400">400 filas</option>
+                    <option value="800" selected>800 filas</option>
+                    <option value="1000">1000 filas</option>
+                </select>
+                <button class="btn btn-sm btn-primary">
+                    <i class="bi bi-bullseye"></i> Medir sesgos
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" name="refrescar" value="1"
+                        title="ignora la medición guardada en caché (10 min)">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </form>
+            <div class="ms-auto small text-muted">
+                @if((int) ($p->sesgo_clase_activo ?? 0) === 1)
+                    <span class="badge bg-success">aplicado</span>
+                @else
+                    <span class="badge bg-secondary">sin aplicar</span>
+                @endif
+            </div>
+        </div>
+
+        @if(is_array($sesgoMedido))
+            @if(!($sesgoMedido['ok'] ?? false))
+                <div class="alert alert-warning mt-3 mb-0 small">
+                    <strong>No se pudo medir.</strong> {{ $sesgoMedido['error'] ?? '' }}
+                </div>
+            @else
+                <div class="alert alert-info mt-3 mb-0">
+                    <div class="small mb-2">
+                        <strong>Sesgo medido</strong> — {{ $sesgoMedido['desde'] }} → {{ $sesgoMedido['hasta'] }}
+                        · fuente <strong>{{ ($sesgoMedido['fuente'] ?? 'aciertos') === 'guardadas' ? 'predicciones guardadas' : 'tabla de aciertos' }}</strong>
+                        · n = {{ $sesgoMedido['n'] }}.
+                        El signo es <code>predicho − real</code>: negativo = el motor publicó
+                        <strong>antes</strong> de lo que pasó, así que la cuarta fecha se corre hacia adelante.
+                    </div>
+
+                    <form method="POST" action="{{ route('lupita.prediccion.sesgo.aplicar') }}">
+                        @csrf
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-2" style="font-size:.8rem">
+                                <thead class="table-light">
+                                <tr>
+                                    <th>clase</th>
+                                    <th class="text-end">filas</th>
+                                    <th class="text-end">mediana del error</th>
+                                    <th>de dónde sale</th>
+                                    <th class="text-end">corrección</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($sesgoMedido['celdas'] as $celda)
+                                    <tr>
+                                        <td><code>{{ $celda['clase'] }}</code></td>
+                                        <td class="text-end">{{ $celda['n'] }}</td>
+                                        <td class="text-end">
+                                            {{ $celda['mediana'] === null ? '—' : (($celda['mediana'] > 0 ? '+' : '') . $celda['mediana'] . ' min') }}
+                                        </td>
+                                        <td class="small text-muted">{{ $celda['fuente'] }}</td>
+                                        <td class="text-end">
+                                            <input type="number" class="form-control form-control-sm text-end"
+                                                   style="width:110px; display:inline-block"
+                                                   name="{{ \App\Prediccion\Sesgo::clave($celda['clase']) }}"
+                                                   value="{{ $celda['sesgo'] }}">
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="sesgo_clase_activo" value="1"
+                                       id="sesgo_clase_activo" @checked((int) ($p->sesgo_clase_activo ?? 0) === 1)>
+                                <label class="form-check-label small" for="sesgo_clase_activo">
+                                    Usar la cuarta fecha (<code>presenta_probable</code>)
+                                </label>
+                            </div>
+                            <button class="btn btn-sm btn-success">
+                                <i class="bi bi-check2"></i> Aplicar sesgos
+                            </button>
+                            <span class="text-muted" style="font-size:.7rem">
+                                medido: normal MAE/±3 h ·
+                                <a href="{{ route('lupita.prediccion.aciertos') }}">comprobalo en la tabla de aciertos</a>
+                            </span>
+                        </div>
+                    </form>
+                </div>
+            @endif
+        @endif
     </div>
 </div>

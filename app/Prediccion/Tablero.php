@@ -77,6 +77,12 @@ final class Tablero
             'pct_tolerancia' => null,
         ];
 
+        // la escalera de tolerancias (±30m · ±1h · ±2h · ±3h · ±6h · ±12h): es la
+        // misma que muestra la tabla de aciertos, para poder comparar las dos varas
+        foreach (Aciertos::TOLERANCIAS as $minutos) {
+            $salida['pct_' . $minutos] = null;
+        }
+
         if ($n === 0) {
             return $salida;
         }
@@ -94,6 +100,11 @@ final class Tablero
         $salida['atraso'] = count(array_filter($errores, static fn (int $error) => $error > 0));
         $salida['pct_tolerancia'] = self::pct(
             count(array_filter($absolutos, static fn (int $error) => $error <= $tolerancia)), $n);
+
+        foreach (Aciertos::TOLERANCIAS as $minutos) {
+            $salida['pct_' . $minutos] = self::pct(
+                count(array_filter($absolutos, static fn (int $error) => $error <= $minutos)), $n);
+        }
 
         return $salida;
     }
@@ -240,6 +251,78 @@ final class Tablero
         }
 
         return $salida;
+    }
+
+    /**
+     * Las CUATRO fechas publicadas, comparadas contra la presentación real.
+     *
+     * Cada fecha se mide con su error (`fecha − real`) y con la misma escalera de
+     * tolerancias, así se ve de un vistazo cuál conviene. También cuenta cuántas
+     * veces cada una queda más cerca que las otras: ganar en promedio y ganar en
+     * cantidad de veces son cosas distintas (el `tardado` se lleva los casos de
+     * error enorme, la `probable` los normales).
+     *
+     * @param  array<int, object>  $filas  filas de DBPrediccionResultados::resumen()
+     * @return array{filas: array<int, array<string, mixed>>, n: int}
+     */
+    public static function fechas(array $filas, int $tolerancia = 180): array
+    {
+        $fechas = [
+            'rapido' => ['etiqueta' => 'Rápido', 'campo' => 'error_rapido_min',
+                         'texto' => 'el extremo temprano de la banda'],
+            'normal' => ['etiqueta' => 'Normal', 'campo' => 'error_min',
+                         'texto' => 'la hora publicada por el motor'],
+            'tardado' => ['etiqueta' => 'Tardado', 'campo' => 'error_tardado_min',
+                          'texto' => 'el extremo tardío de la banda'],
+            'probable' => ['etiqueta' => 'Más probable', 'campo' => 'error_probable_min',
+                           'texto' => 'la normal corregida por el sesgo de su clase'],
+        ];
+
+        $valores = array_fill_keys(array_keys($fechas), []);
+        $masCerca = array_fill_keys(array_keys($fechas), 0);
+        $n = 0;
+
+        foreach ($filas as $fila) {
+            $error = [];
+
+            foreach ($fechas as $clave => $info) {
+                $valor = $fila->{$info['campo']} ?? null;
+                if ($valor === null) {
+                    continue;
+                }
+
+                $valor = (int) $valor;
+                $error[$clave] = $valor;
+                $valores[$clave][] = $valor;
+            }
+
+            if ($error === []) {
+                continue;
+            }
+
+            $n++;
+            $minimo = min(array_map('abs', $error));
+            foreach ($error as $clave => $valor) {
+                if (abs($valor) === $minimo) {
+                    $masCerca[$clave]++;
+
+                    break;      // empate: se lo queda el primero del orden
+                }
+            }
+        }
+
+        $salida = [];
+        foreach ($fechas as $clave => $info) {
+            $base = self::errores($valores[$clave], $tolerancia);
+            $base['clave'] = $clave;
+            $base['etiqueta'] = $info['etiqueta'];
+            $base['texto'] = $info['texto'];
+            $base['mas_cerca'] = $masCerca[$clave];
+            $base['pct_mas_cerca'] = $n > 0 ? self::pct($masCerca[$clave], $n) : null;
+            $salida[] = $base;
+        }
+
+        return ['filas' => $salida, 'n' => $n];
     }
 
     /**

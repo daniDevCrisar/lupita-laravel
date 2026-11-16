@@ -1,0 +1,232 @@
+<?php
+
+namespace Tests\Feature\Api;
+
+use App\Prediccion\Parametros;
+use App\Prediccion\Servicio;
+use App\Prediccion\Sesgo;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+/**
+ * Cuarta fecha (`presenta_probable`): la hora publicada corregida con la mediana del
+ * error de su clase (evidencia × tramo del horizonte predicho).
+ *
+ * Los tests tocan `prediccion_config` (las 9 claves del sesgo), así que guardan y
+ * restauran lo que había para no ensuciar al resto de la suite.
+ */
+class SesgoCuartaFechaTest extends TestCase
+{
+    /** @var array<string, string|null> claves del sesgo tal como estaban */
+    private array $original = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        foreach (array_merge(['sesgo_clase_activo'], array_keys(Sesgo::claves())) as $clave) {
+            $fila = DB::table('prediccion_config')->where('clave', $clave)->first();
+            $this->original[$clave] = $fila !== null ? (string) $fila->valor : null;
+        }
+
+        $this->olvidarParametros();
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->original as $clave => $valor) {
+            DB::table('prediccion_config')->where('clave', $clave)->delete();
+            if ($valor !== null) {
+                DB::table('prediccion_config')->insert(['clave' => $clave, 'valor' => $valor, 'updated_at' => now()]);
+            }
+        }
+
+        $this->olvidarParametros();
+        parent::tearDown();
+    }
+
+    /** `Parametros` memoiza por request: en un test hay que soltarlo. */
+    private function olvidarParametros(): void
+    {
+        $reflexion = new \ReflectionClass(Parametros::class);
+        $propiedad = $reflexion->getProperty('cache');
+        $propiedad->setAccessible(true);
+        $propiedad->setValue(null, null);
+    }
+
+    /** Deja aplicados unos sesgos conocidos. */
+    private function aplicarSesgos(array $valores): void
+    {
+        Parametros::guardar(array_merge($valores, ['sesgo_clase_activo' => 1]));
+        $this->olvidarParametros();
+    }
+
+    public function test_la_cuarta_fecha_se_mueve_con_el_sesgo_de_su_clase(): void
+    {
+        // con el sesgo apagado la cuarta fecha es la normal
+        Parametros::guardar(['sesgo_clase_activo' => 0]);
+        $this->olvidarParametros();
+        $apagado = Servicio::backtest(['desde' => '2026-10-20', 'hasta' => '2026-11-10', 'limite' => 120]);
+
+        if ($apagado->filas === []) {
+            $this->markTestSkipped('la base no tiene pares en ese rango');
+        }
+
+        $this->assertFalse($apagado->sesgo_activo);
+        foreach ($apagado->filas as $fila) {
+            if ($fila->probable !== null && $fila->predicho !== null) {
+                $this->assertSame($fila->predicho->format('Y-m-d H:i'), $fila->probable->format('Y-m-d H:i'));
+            }
+        }
+
+        // con un sesgo grande aplicado, cambia
+        $this->aplicarSesgos(array_fill_keys(array_keys(Sesgo::claves()), 600));
+        $encendido = Servicio::backtest(['desde' => '2026-10-20', 'hasta' => '2026-11-10', 'limite' => 120]);
+
+        $this->assertTrue($encendido->sesgo_activo);
+        $movidas = 0;
+        foreach ($encendido->filas as $fila) {
+            if ($fila->probable === null || $fila->predicho === null) {
+                continue;
+            }
+            $minutos = (int) round(($fila->probable->getTimestamp() - $fila->predicho->getTimestamp()) / 60);
+            // sesgo +600 = el motor venía publicando 600 min DESPUÉS de lo real,
+            // así que la cuarta fecha se corre 600 min hacia atrás.
+            $this->assertSame(-600, $minutos, 'la cuarta fecha se corre (predicho - sesgo)');
+            $movidas++;
+        }
+        $this->assertGreaterThan(0, $movidas);
+    }
+
+    public function test_el_resumen_de_la_cuarta_fecha_se_mide_aparte(): void
+    {
+        $this->aplicarSesgos(array_fill_keys(array_keys(Sesgo::claves()), 0));
+
+        $corrida = Servicio::backtest(['desde' => '2026-10-20', 'hasta' => '2026-11-10', 'limite' => 120]);
+
+        if ($corrida->filas === []) {
+            $this->markTestSkipped('la base no tiene pares en ese rango');
+        }
+
+        // con sesgo 0 la cuarta fecha es la normal: los dos resúmenes coinciden
+        $this->assertSame($corrida->resumen_motor->n, $corrida->resumen_probable->n);
+        $this->assertSame($corrida->resumen_motor->mae_min, $corrida->resumen_probable->mae_min);
+    }
+
+    public function test_la_ventana_se_mide_contra_la_cuarta_fecha_cuando_esta_aplicada(): void
+    {
+        Parametros::guardar(['sesgo_clase_activo' => 0]);
+        $this->olvidarParametros();
+        $apagada = Servicio::ventana_residuos(['desde' => '2026-10-20', 'hasta' => '2026-11-10', 'limite' => 200], 0.7, 40);
+
+        $this->aplicarSesgos(array_fill_keys(array_keys(Sesgo::claves()), 300));
+        $encendida = Servicio::ventana_residuos(['desde' => '2026-10-20', 'hasta' => '2026-11-10', 'limite' => 200], 0.7, 40);
+
+        if (!($apagada['ok'] ?? false) || !($encendida['ok'] ?? false)) {
+            $this->markTestSkipped('no hay filas suficientes para medir la ventana');
+        }
+
+        $this->assertSame('normal', $apagada['residuos_de']);
+        $this->assertSame('probable', $encendida['residuos_de']);
+    }
+
+    public function test_el_boton_medir_deja_la_tabla_y_aplicar_guarda_las_claves(): void
+    {
+        $this->withoutMiddleware();
+        $usuario = \App\Models\User::query()->first();
+        if ($usuario !== null) {
+            Auth::login($usuario);
+        }
+
+        $medir = Request::create('/lupita/prediccion/sesgo', 'POST',
+            ['dias' => '45', 'limite' => '200', 'fuente' => 'aciertos']);
+        $medir->setLaravelSession(app('session.store'));
+        $respuesta = \App\Http\Controllers\PrediccionController::calibrar_sesgo($medir);
+
+        $this->assertStringContainsString('/lupita/prediccion/parametros', $respuesta->getTargetUrl());
+        $medicion = session('sesgo_medido');
+        $this->assertIsArray($medicion);
+        $this->assertArrayHasKey('aplicables', $medicion);
+        $this->assertSame('aciertos', $medicion['fuente'] ?? null);
+
+        if (!($medicion['ok'] ?? false)) {
+            $this->markTestSkipped('la base no tiene filas para medir: ' . ($medicion['error'] ?? ''));
+        }
+
+        // aplicar lo medido
+        $aplicar = Request::create('/lupita/prediccion/sesgo/aplicar', 'POST',
+            array_merge($medicion['aplicables'], ['sesgo_clase_activo' => '1']));
+        $aplicar->setLaravelSession(app('session.store'));
+
+        $r = \App\Http\Controllers\PrediccionController::aplicar_sesgo($aplicar);
+        $this->assertStringContainsString('/lupita/prediccion/parametros', $r->getTargetUrl());
+        $this->assertStringContainsString('Sesgos aplicados', (string) session('estado'));
+
+        $this->olvidarParametros();
+        $enUso = Parametros::cargar();
+        $this->assertSame(1, (int) $enUso->sesgo_clase_activo);
+        $this->assertSame($medicion['aplicables']['sesgo_clase_cadena_largo'],
+            (int) $enUso->sesgo_clase_cadena_largo);
+    }
+
+    public function test_la_tabla_de_aciertos_muestra_la_cuarta_fecha(): void
+    {
+        $this->withoutMiddleware();
+        $usuario = \App\Models\User::query()->first();
+        if ($usuario !== null) {
+            Auth::login($usuario);
+        }
+
+        $filtros = ['fecha_inicio' => '2026-10-20', 'fecha_fin' => '2026-11-10', 'limite' => '40'];
+
+        // apagado: la columna existe y dice que es igual a la normal
+        Parametros::guardar(['sesgo_clase_activo' => 0]);
+        $this->olvidarParametros();
+        $apagado = (string) \App\Http\Controllers\PrediccionController::aciertos(
+            Request::create('/x', 'GET', $filtros))->render();
+
+        $this->assertStringContainsString('Más probable', $apagado);
+        $this->assertStringContainsString('4.ª fecha', $apagado);
+        $this->assertStringContainsString('igual a la normal', $apagado);
+
+        // encendido con un sesgo grande: la fila muestra la corrección y su error
+        $this->aplicarSesgos(array_fill_keys(array_keys(Sesgo::claves()), 240));
+        $encendido = (string) \App\Http\Controllers\PrediccionController::aciertos(
+            Request::create('/x', 'GET', $filtros))->render();
+
+        $this->assertStringContainsString('−240 min', $encendido, 'la fila tiene que decir cuánto se corrió');
+        $this->assertStringContainsString('más cerca:', $encendido, 'tiene que decir cuál de las cuatro quedó más cerca');
+        $this->assertStringNotContainsString('igual a la normal', $encendido);
+    }
+
+    public function test_el_api_publica_la_cuarta_fecha_y_la_clase(): void
+    {
+        $this->withoutMiddleware();
+
+        // una ref cualquiera con ruta
+        $fila = DB::table('referencias')
+            ->whereNotNull('ruta_id')->where('ruta_id', '<>', '')
+            ->whereNotNull('presenta_para_carga')
+            ->orderByDesc('presenta_para_carga')
+            ->first(['ref', 'presenta_para_carga']);
+
+        if ($fila === null) {
+            $this->markTestSkipped('la base no tiene referencias medibles');
+        }
+
+        $ahora = \Carbon\Carbon::parse($fila->presenta_para_carga)->subHours(6)->format('Y-m-d H:i');
+        $respuesta = $this->getJson('/api/prediccion/presenta?ref=' . $fila->ref . '&ahora=' . urlencode($ahora));
+
+        $respuesta->assertOk();
+        $this->assertNotNull($respuesta->json('presenta_probable'));
+        $this->assertArrayHasKey('sesgo', (array) $respuesta->json());
+        $this->assertNotNull($respuesta->json('sesgo.clase'));
+
+        // la lista de presentaciones tiene las cuatro fechas
+        $claves = array_column((array) $respuesta->json('presentaciones'), 'clave');
+        $this->assertContains('probable', $claves);
+        $this->assertCount(4, $claves);
+    }
+}

@@ -181,6 +181,21 @@
                 de lo que dijimos.
             </div>
 
+            {{-- HORIZONTE: desde el último evento real de la placa antes del corte
+                 (el ancla que usa el motor) hasta la presentación real --}}
+            @if(($prod['horizonte_n'] ?? 0) > 0)
+                <div class="small mb-1">
+                    <span class="text-muted">Horizonte desde el ancla (último evento de la placa):</span>
+                    <strong>{{ $fmt($prod['horizonte_mediano'] ?? null) }}</strong> de mediana
+                    <span class="text-muted">(n = {{ $prod['horizonte_n'] }})</span>
+                    · <span class="badge bg-success">{{ $prod['horizonte_corto'] }} dentro de 6 h</span>
+                    · <span class="badge bg-danger">{{ $prod['horizonte_largo'] }} más allá de 24 h</span>
+                    <span class="text-muted" style="font-size:.7rem">
+                        — en el tramo corto el motor acierta; en el largo, no hay con qué.
+                    </span>
+                </div>
+            @endif
+
             {{-- ¿de qué lado cayó la presentación real? --}}
             @if(($posicion['n'] ?? 0) > 0)
                 @php
@@ -223,6 +238,77 @@
             @endif
 
             <div class="row g-3 mt-1">
+                {{-- LAS CUATRO FECHAS: cuál conviene, con su escalera --}}
+                @if(($t['fechas']['n'] ?? 0) > 0)
+                    <div class="col-12">
+                        <div class="small fw-semibold">Las cuatro fechas publicadas, contra la presentación real</div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-1" style="font-size:.8rem">
+                                <thead class="table-light">
+                                <tr>
+                                    <th>fecha</th>
+                                    <th class="text-end">n</th>
+                                    <th class="text-end">MAE</th>
+                                    <th class="text-end">Error mediano</th>
+                                    <th class="text-end">±30m</th>
+                                    <th class="text-end">±1h</th>
+                                    <th class="text-end">±2h</th>
+                                    <th class="text-end">±3h</th>
+                                    <th class="text-end">±6h</th>
+                                    <th class="text-end">±12h</th>
+                                    <th class="text-end" title="de las {{ $t['fechas']['n'] }} filas comparables, cuántas veces esta fecha queda más cerca que las otras tres">Más cerca</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($t['fechas']['filas'] as $fecha)
+                                    <tr class="{{ $fecha['clave'] === 'probable' ? 'table-info' : '' }}">
+                                        <td>
+                                            <strong>{{ $fecha['etiqueta'] }}</strong>
+                                            <div class="text-muted" style="font-size:.7rem">{{ $fecha['texto'] }}</div>
+                                        </td>
+                                        <td class="text-end">{{ (int) $fecha['n'] }}</td>
+                                        <td class="text-end fw-bold">{{ $corto($fecha['mae']) }}</td>
+                                        <td class="text-end">{{ $signo($fecha['error_mediano']) }}</td>
+                                        <td class="text-end">{{ $pct($fecha['pct_30'] ?? null) }}</td>
+                                        <td class="text-end">{{ $pct($fecha['pct_60'] ?? null) }}</td>
+                                        <td class="text-end">{{ $pct($fecha['pct_120'] ?? null) }}</td>
+                                        <td class="text-end">{{ $pct($fecha['pct_180'] ?? null) }}</td>
+                                        <td class="text-end">{{ $pct($fecha['pct_360'] ?? null) }}</td>
+                                        <td class="text-end">{{ $pct($fecha['pct_720'] ?? null) }}</td>
+                                        <td class="text-end">
+                                            {{ $pct($fecha['pct_mas_cerca'] ?? null) }}
+                                            <span class="text-muted" style="font-size:.7rem">({{ (int) $fecha['mas_cerca'] }})</span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-muted" style="font-size:.7rem">
+                            El error es <code>fecha − real</code>. La columna <strong>Más cerca</strong> cuenta cuántas
+                            veces esa fecha quedó más cerca que las otras tres: ganar en promedio (MAE) y ganar en
+                            cantidad de veces no es lo mismo — el tardado se lleva los casos de error enorme, la
+                            probable los normales.
+                            @if(($t['fechas']['filas'][3]['n'] ?? 0) === 0)
+                                <br><strong>La cuarta fecha no tiene filas todavía:</strong> las predicciones guardadas
+                                antes de aplicarla no la tienen. Se llena con las nuevas.
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
+                {{-- la escalera de tolerancias, igual que en la tabla de aciertos --}}
+                <div class="col-12">
+                    @include('lupita.partials.prediccion_tolerancias', [
+                        'datos' => $errores,
+                        'n' => $errores['n'] ?? 0,
+                        'titulo' => 'Dentro de tolerancias:',
+                    ])
+                    <div class="text-muted mt-1" style="font-size:.7rem">
+                        Porcentaje de presentaciones reales que cayeron dentro de cada tolerancia alrededor de la hora
+                        guardada. Es la misma escalera que muestra la tabla de aciertos, para comparar las dos varas.
+                    </div>
+                </div>
                 <div class="col-md-6">
                     <div class="small fw-semibold">Por evidencia</div>
                     @include('lupita.partials.prediccion_desglose', [
@@ -414,6 +500,15 @@
                     </div>
                 </div>
 
+                {{-- la misma escalera de tolerancias que producción, sobre el compromiso --}}
+                <div class="mb-2">
+                    @include('lupita.partials.prediccion_tolerancias', [
+                        'datos' => $moni,
+                        'n' => $moni['n'] ?? 0,
+                        'titulo' => 'Dentro de tolerancias (real contra compromiso):',
+                    ])
+                </div>
+
                 <div class="border-top pt-2">
                     <div class="small fw-semibold mb-1">
                         Cara a cara sobre las mismas referencias (n = {{ $cara['n'] ?? 0 }})
@@ -515,6 +610,7 @@
                             <th>Ref</th>
                             <th>Placa</th>
                             <th>Corte</th>
+                            <th class="text-end">Horizonte<br><span class="fw-normal small">desde el ancla</span></th>
                             <th class="text-success">Rápido</th>
                             <th class="text-primary">Predicho</th>
                             <th class="text-warning">Tardado</th>
@@ -532,6 +628,17 @@
                                 <td><code>{{ $fila->ref }}</code></td>
                                 <td class="small">{{ $fila->placa }}</td>
                                 <td class="small text-nowrap">{{ $fila->corte->format('d/m/Y H:i') }}</td>
+                                <td class="small text-end text-nowrap">
+                                    @if(($fila->horizonte_min ?? null) === null)
+                                        <span class="text-muted">—</span>
+                                    @else
+                                        @php $horas = $fila->horizonte_min / 60; @endphp
+                                        <span class="badge bg-{{ $horas <= 6 ? 'success' : ($horas <= 24 ? 'info text-dark' : 'danger') }}"
+                                              title="desde el último evento de la placa ({{ $fila->ancla_fecha?->format('d/m H:i') ?? '—' }}) hasta la presentación real">
+                                            {{ $fmt($fila->horizonte_min) }}
+                                        </span>
+                                    @endif
+                                </td>
                                 <td class="small text-success text-nowrap">
                                     {{ $fila->rapido ? $fila->rapido->format('d/m H:i') : '—' }}
                                 </td>

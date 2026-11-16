@@ -145,4 +145,40 @@ class TableroGuardadasTest extends TestCase
         $this->assertSame(Carbon::parse(self::HASTA)->toDateString(), $tablero['hasta']);
         $this->assertSame(\App\Database\DBPrediccionResultados::TOLERANCIA_ACEPTADA, $tablero['tolerancia']);
     }
+
+    public function test_las_dos_varas_traen_la_escalera_de_tolerancias(): void
+    {
+        [$vista, $tablero] = $this->vista();
+
+        foreach (\App\Prediccion\Aciertos::TOLERANCIAS as $minutos) {
+            $this->assertArrayHasKey('pct_' . $minutos, $tablero['produccion']['errores']);
+        }
+
+        if ($tablero['monitorista']['n'] > 0) {
+            $this->assertArrayHasKey('pct_180', $tablero['monitorista']);
+            $this->assertNotNull($tablero['monitorista']['pct_180']);
+        }
+
+        $html = (string) $vista->render();
+        $this->assertStringContainsString('Dentro de tolerancias:', $html);
+        $this->assertStringContainsString('Dentro de tolerancias (real contra compromiso):', $html);
+    }
+
+    public function test_la_produccion_mide_el_horizonte_desde_el_ultimo_evento_de_la_placa(): void
+    {
+        [$vista, $tablero] = $this->vista();
+
+        if (($tablero['produccion']['horizonte_n'] ?? 0) === 0) {
+            $this->markTestSkipped('no hay filas comparables con ancla en ese rango');
+        }
+
+        $this->assertNotNull($tablero['produccion']['horizonte_mediano']);
+        $this->assertGreaterThan(0, $tablero['produccion']['horizonte_mediano']);
+        $this->assertLessThanOrEqual($tablero['produccion']['horizonte_n'],
+            $tablero['produccion']['horizonte_corto'] + $tablero['produccion']['horizonte_largo']);
+
+        $html = (string) $vista->render();
+        $this->assertStringContainsString('Horizonte desde el ancla', $html);
+        $this->assertStringContainsString('dentro de 6 h', $html);
+    }
 }

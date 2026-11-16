@@ -2,7 +2,7 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.20
+Version       : 1.21
 Fecha         : 14/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
@@ -1892,6 +1892,40 @@ evidencia. Hay tres niveles.
                      local (16 migraciones estaban "pending" con sus tablas ya
                      creadas por la restauracion del dump; `migrate` habria fallado
                      al recrearlas).
+
+  1.21 14/11/2026  - CUARTA FECHA: `presenta_probable`. La hora publicada corregida
+                     con la MEDIANA DEL ERROR DE SU CLASE (evidencia x tramo del
+                     horizonte PREDICHO). El motor no se equivoca parejo: con
+                     evidencia `cadena` y horizonte largo publica decenas de horas
+                     ANTES de lo que pasa; con `parcial` y horizonte corto, un par
+                     de horas DESPUES. La tabla se mide contra el pasado ya cerrado
+                     (boton "Medir sesgos" en /lupita/prediccion/parametros) y se
+                     guarda en `prediccion_config` como nueve claves enteras
+                     (`sesgo_clase_*`), sin migraciones. Nada cambia hasta apretar
+                     "Aplicar sesgos" (`sesgo_clase_activo`).
+
+                     MEDIDO (entrena 15-ago..15-oct, valida 16-oct..14-nov, 803
+                     filas, sin solapamiento):
+                       normal   MAE 1.237 · +-1h 9,5 % · +-3h 29,1 %
+                       probable MAE 1.089 · +-1h 10,6 % · +-3h 31,1 %
+                     En la carrera de las cuatro fechas (cual queda mas cerca de la
+                     real): rapido 15,7 % · normal 24,3 % · tardado 30,5 % ·
+                     probable 29,5 %. O sea: la cuarta es la mejor EN PROMEDIO y en
+                     +-1h, pero NO gana mas veces que el tardado (que se lleva los
+                     casos de error enorme).
+
+                     El JSON suma `presenta_probable` y `sesgo` {clase, min,
+                     aplicado}; `presentaciones` pasa a tener cuatro entradas. Las
+                     tres fechas de siempre NO cambian, asi que nada se rompe.
+
+                     La VENTANA sigue siendo manual (boton "Medir ventana"), pero
+                     ahora se mide CONTRA LA CUARTA FECHA cuando el sesgo esta
+                     aplicado: si no, quedaria centrada en una hora que ya nadie
+                     publica. Verificado: mismo rango, radio 1.423 (normal) contra
+                     1.276 (probable).
+
+                     OJO al leerla: con el horizonte REAL la mejora seria mucho
+                     mayor (MAE 873), pero el horizonte real no existe al predecir.
 
 ================================================================================
  FIN

@@ -360,8 +360,22 @@ final class MotorPresenta
         $salida->presenta = $t;
         $salida->presenta_rapido = $rapido;
         $salida->presenta_tardado = $tardado;
-        $salida->presentaciones = self::presentaciones($ahora, $rapido, $t, $tardado, $cal,
-            $ventanaMedida !== null ? 'residuos' : null);
+
+        // CUARTA FECHA: la hora publicada corregida con la mediana del error de su
+        // clase (evidencia x tramo del horizonte). Si `sesgo_clase_activo` está en
+        // 0, es igual a la publicada: el motor no cambia.
+        //
+        // El horizonte es `presenta − ahora` (lo que falta desde el corte), NO desde
+        // el ancla: así la clase significa lo mismo en el backtest y en producción, y
+        // la tabla de sesgos se puede medir con las predicciones guardadas.
+        $horizontePredicho = (int) round(($t->getTimestamp() - $ahora->getTimestamp()) / 60);
+        $sesgoMin = Sesgo::desplazamiento($evidencia, $horizontePredicho, $p);
+        $salida->presenta_probable = $sesgoMin === 0 ? $t->copy() : $t->copy()->subMinutes($sesgoMin);
+        $salida->sesgo_clase = Sesgo::clase($evidencia, $horizontePredicho);
+        $salida->sesgo_min = $sesgoMin;
+
+        $salida->presentaciones = self::presentaciones($ahora, $rapido, $t, $tardado, $salida->presenta_probable,
+            $cal, $ventanaMedida !== null ? 'residuos' : null);
         $salida->inicio_carga = $t->copy()->addMinutes($espera);
         $salida->espera_min = $espera;
         $salida->evidencia = $evidencia;
@@ -484,18 +498,23 @@ final class MotorPresenta
     }
 
     /**
-     * Las tres fechas listas para la pantalla y el JSON, con su etiqueta y su
+     * Las CUATRO fechas listas para la pantalla y el JSON, con su etiqueta y su
      * distancia al corte en h:mm.
+     *
+     * La cuarta (`probable`) es la hora publicada corregida por el sesgo medido de
+     * su clase. Cuando el sesgo está apagado es igual a la normal y se marca así,
+     * para no prometer una precisión que no existe.
      *
      * @return array<int, array<string, mixed>>
      */
     private static function presentaciones(Carbon $ahora, Carbon $rapido, Carbon $normal, Carbon $tardado,
-                                          ?object $cal, ?string $fuente = null): array
+                                          Carbon $probable, ?object $cal, ?string $fuente = null): array
     {
         $desde = fn (Carbon $fecha) => Tiempo::hhmm((int) round(($fecha->getTimestamp() - $ahora->getTimestamp()) / 60));
         $nivel = $fuente === 'residuos'
             ? 'medido con el error real del motor'
             : ($cal !== null ? 'cuantiles medidos (p25 / mediana / p75)' : 'porcentaje sobre la cadena');
+        $corregida = $probable->getTimestamp() !== $normal->getTimestamp();
 
         return [
             [
@@ -519,6 +538,15 @@ final class MotorPresenta
                     . ($fuente === 'residuos' ? ' (' . $nivel . ')' : ''),
                 'fecha' => $tardado->format('Y-m-d H:i:s'),
                 'desde_ahora' => $desde($tardado),
+            ],
+            [
+                'clave' => 'probable',
+                'etiqueta' => 'Más probable',
+                'descripcion' => $corregida
+                    ? 'la hora publicada corregida con el sesgo medido de este tipo de caso'
+                    : 'igual a la normal: el sesgo por clase todavía no está medido',
+                'fecha' => $probable->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($probable),
             ],
         ];
     }

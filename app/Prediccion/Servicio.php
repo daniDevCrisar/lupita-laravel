@@ -1153,6 +1153,7 @@ class Servicio
             'desde' => null,
             'hasta' => null,
             'minimo' => max(1, $minimo),
+            'residuos_de' => 'normal',
             'limite' => (int) ($filtros['limite'] ?? 200),
         ];
 
@@ -1166,18 +1167,30 @@ class Servicio
 
         $errores = [];
         $erroresCadena = [];
+
+        // La banda se mide contra la fecha que se va a usar. Si la cuarta fecha
+        // está aplicada, se mide CONTRA ELLA: si no, quedaría centrada en una hora
+        // que ya nadie publica y la cobertura se cae sin que el motor empeore.
+        $contraProbable = (bool) ($corrida->sesgo_activo ?? false);
+
         foreach ($corrida->filas as $fila) {
-            if ($fila->error_min === null) {
+            $errorFila = $contraProbable && ($fila->error_probable_min ?? null) !== null
+                ? (int) $fila->error_probable_min
+                : $fila->error_min;
+
+            if ($errorFila === null) {
                 continue;
             }
 
-            $error = (int) $fila->error_min;
+            $error = (int) $errorFila;
             $errores[] = $error;
 
             if (($fila->evidencia ?? '') === 'cadena') {
                 $erroresCadena[] = $error;
             }
         }
+
+        $salida['residuos_de'] = $contraProbable ? 'probable' : 'normal';
 
         $salida['n'] = count($errores);
         $salida['desde'] = $corrida->desde->toDateString();
@@ -1313,6 +1326,8 @@ class Servicio
         $filas = [];
         $erroresMotor = [];
         $dentroMotor = [];
+        $erroresProbable = [];
+        $dentroProbable = [];
         $ventanasCache = [];
         $descartados = 0;
         $sinRuta = 0;
@@ -1471,6 +1486,10 @@ class Servicio
             $predicho = $resultado->presenta;
             $error = $predicho !== null ? self::minutos($real, $predicho) : null;
 
+            // la CUARTA fecha: la publicada corregida por el sesgo de su clase
+            $probable = $resultado->presenta_probable ?? null;
+            $errorProbable = $probable !== null ? self::minutos($real, $probable) : null;
+
             // ACIERTO de la predicción de tres fechas: la hora real cae dentro de
             // [rápido, tardado]. Es el número que se muestra como "% de acierto".
             $rapido = $resultado->presenta_rapido ?? null;
@@ -1491,6 +1510,11 @@ class Servicio
             } elseif ($error !== null) {
                 $erroresMotor[] = $error;
                 $dentroMotor[] = $dentroFila;
+
+                if ($errorProbable !== null) {
+                    $erroresProbable[] = $errorProbable;
+                    $dentroProbable[] = $probable->greaterThanOrEqualTo($rapido) && $probable->lessThanOrEqualTo($tardado);
+                }
             }
 
             $filas[] = (object) [
@@ -1514,17 +1538,25 @@ class Servicio
                 'pares_calibracion' => (int) ($calibrador->n ?? 0),
                 'cerca' => $cercaFila,
                 'cerca_regimen' => $regimenFila,
+                'probable' => $probable,
+                'error_probable_min' => $errorProbable,
+                'sesgo_clase' => $resultado->sesgo_clase ?? null,
+                'sesgo_min' => (int) ($resultado->sesgo_min ?? 0),
                 'horizonte_min' => $horizonteFila,
                 'fuera_tope' => $fueraDelTope,
             ];
         }
 
         $resumenMotor = Aciertos::resumir($erroresMotor, $dentroMotor);
+        // la cuarta fecha se mide aparte para ver si de verdad gana
+        $resumenProbable = Aciertos::resumir($erroresProbable, $dentroProbable);
         \App\Prediccion\Geoapify::activar();
 
         return (object) [
             'filas' => $filas,
             'resumen_motor' => $resumenMotor,
+            'resumen_probable' => $resumenProbable,
+            'sesgo_activo' => (int) ($p->sesgo_clase_activo ?? 0) === 1,
             'parametros' => $p,
             'desde' => $desde,
             'hasta' => $hasta,

@@ -58,6 +58,40 @@ class TableroTest extends TestCase
         $this->assertNull($r['sesgo']);
         $this->assertNull($r['p90']);
         $this->assertNull($r['pct_tolerancia']);
+        // la escalera existe pero vacía
+        $this->assertNull($r['pct_180']);
+        $this->assertNull($r['pct_30']);
+    }
+
+    public function test_la_escalera_de_tolerancias_es_la_misma_que_la_de_aciertos(): void
+    {
+        // -200, -30, 0, 30, 200, 500, 1000
+        $r = Tablero::errores([-200, -30, 0, 30, 200, 500, 1000]);
+
+        foreach (\App\Prediccion\Aciertos::TOLERANCIAS as $minutos) {
+            $this->assertArrayHasKey('pct_' . $minutos, $r);
+        }
+
+        $this->assertSame(43, $r['pct_30']);   // −30, 0, 30 de 7 = 43 %
+        $this->assertSame(43, $r['pct_60']);
+        $this->assertSame(43, $r['pct_180']);  // el de ±200 todavía NO entra
+        $this->assertSame(71, $r['pct_360']);  // ±200 sí = 5 de 7
+        $this->assertSame(86, $r['pct_720']);  // ±500 también = 6 de 7
+    }
+
+    public function test_el_monitorista_tambien_trae_la_escalera(): void
+    {
+        $r = Tablero::monitorista([
+            (object) ['compromiso' => Carbon::parse('2026-11-10 10:00'), 'real' => Carbon::parse('2026-11-10 10:20')],
+            (object) ['compromiso' => Carbon::parse('2026-11-10 10:00'), 'real' => Carbon::parse('2026-11-10 11:30')],
+            (object) ['compromiso' => Carbon::parse('2026-11-10 10:00'), 'real' => Carbon::parse('2026-11-10 14:00')],
+        ]);
+
+        $this->assertSame(3, $r['n']);
+        $this->assertSame(33, $r['pct_30']);    // sólo el de 20 min
+        $this->assertSame(67, $r['pct_120']);   // el de 20 y el de 90
+        $this->assertSame(67, $r['pct_180']);
+        $this->assertSame(100, $r['pct_360']);  // el de 4 h entra
     }
 
     public function test_agrupar_respeta_el_orden_y_saltea_lo_que_no_tiene_error(): void

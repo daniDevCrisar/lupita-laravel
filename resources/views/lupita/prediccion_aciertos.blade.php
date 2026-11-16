@@ -163,6 +163,28 @@
                         <span class="badge bg-warning text-dark">±12h {{ $motor->pct_720 ?? '—' }}%</span>
                         <span class="badge bg-secondary">éxito rápido–tardado {{ $motor->pct_ventana ?? '—' }}%</span>
                     </div>
+
+                    {{-- cuarta fecha: la normal corregida por el sesgo de su clase --}}
+                    @php $probable = $b->resumen_probable ?? null; @endphp
+                    <div class="border-top mt-2 pt-2 small">
+                        <span class="fw-semibold">Cuarta fecha (<code>presenta_probable</code>):</span>
+                        @if(!($b->sesgo_activo ?? false))
+                            <span class="text-muted">apagada — la cuarta fecha es igual a la normal.</span>
+                            <a href="{{ route('lupita.prediccion.parametros.ver') }}">medir el sesgo por clase</a>
+                        @else
+                            normal MAE <strong>{{ $fmt($motor->mae_min) }}</strong>
+                            · ±3h <strong>{{ $motor->pct_180 ?? '—' }}%</strong>
+                            contra
+                            probable MAE <strong class="text-info">{{ $fmt($probable->mae_min ?? null) }}</strong>
+                            · ±3h <strong class="text-info">{{ $probable->pct_180 ?? '—' }}%</strong>
+                            @if(($probable->mae_min ?? null) !== null && ($motor->mae_min ?? null) !== null)
+                                @php $mejora = (int) $motor->mae_min - (int) $probable->mae_min; @endphp
+                                <span class="badge bg-{{ $mejora > 0 ? 'success' : ($mejora < 0 ? 'danger' : 'secondary') }}">
+                                    {{ $mejora > 0 ? 'mejora ' . $mejora : ($mejora < 0 ? 'empeora ' . abs($mejora) : 'empata') }} min
+                                </span>
+                            @endif
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -259,6 +281,7 @@
                     <th class="text-success">Rápido</th>
                     <th class="text-primary">Predicho</th>
                     <th class="text-warning">Tardado</th>
+                    <th class="text-info">Más probable<br><span class="fw-normal small">4.ª fecha</span></th>
                     <th class="text-success">Real<br><span class="fw-normal small">presenta_para_carga</span></th>
                     <th class="text-end">Error</th>
                     <th>Calibra<br><span class="fw-normal small">con</span></th>
@@ -307,8 +330,53 @@
                         <td class="small text-warning text-nowrap">
                             {{ ($fila->tardado ?? null) ? $fila->tardado->format('d/m H:i') : '—' }}
                         </td>
+                        {{-- 4.ª fecha: la normal corregida por el sesgo medido de su clase --}}
+                        <td class="small text-info text-nowrap">
+                            @if(($fila->probable ?? null) === null)
+                                <span class="text-muted">—</span>
+                            @else
+                                <span class="{{ ($fila->sesgo_min ?? 0) !== 0 ? 'fw-bold' : '' }}">
+                                    {{ $fila->probable->format('d/m H:i') }}
+                                </span>
+                                @if(($fila->sesgo_min ?? 0) !== 0)
+                                    <div class="text-muted" style="font-size:.65rem">
+                                        {{ ($fila->sesgo_min > 0 ? '−' : '+') . abs((int) $fila->sesgo_min) }} min
+                                        · {{ $fila->sesgo_clase }}
+                                    </div>
+                                @else
+                                    <div class="text-muted" style="font-size:.65rem">igual a la normal</div>
+                                @endif
+                                @if($fila->error_probable_min !== null)
+                                    <span class="badge bg-{{ $colorError($fila->error_probable_min) }}">
+                                        {{ $signo($fila->error_probable_min) }}
+                                    </span>
+                                @endif
+                            @endif
+                        </td>
                         <td class="small text-success fw-bold text-nowrap">
                             {{ $fila->real->format('d/m/Y H:i') }}
+                            @php
+                                // cuál de las cuatro quedó más cerca de la real en ESTA fila
+                                $candidatas = [
+                                    'rápido' => $fila->error_rapido_min ?? null,
+                                    'normal' => $fila->error_min ?? null,
+                                    'tardado' => $fila->error_tardado_min ?? null,
+                                    'probable' => $fila->error_probable_min ?? null,
+                                ];
+                                $candidatas = array_filter($candidatas, fn ($valor) => $valor !== null);
+                                $masCerca = null;
+                                if ($candidatas !== []) {
+                                    $minimo = min(array_map('abs', $candidatas));
+                                    foreach ($candidatas as $nombre => $valor) {
+                                        if (abs($valor) === $minimo) { $masCerca = $nombre; break; }
+                                    }
+                                }
+                            @endphp
+                            @if($masCerca !== null)
+                                <div class="text-muted fw-normal" style="font-size:.65rem">
+                                    más cerca: {{ $masCerca }}
+                                </div>
+                            @endif
                         </td>
                         <td class="small text-end text-nowrap">
                             <span class="badge bg-{{ $colorError($fila->error_min) }}">{{ $signo($fila->error_min) }}</span>

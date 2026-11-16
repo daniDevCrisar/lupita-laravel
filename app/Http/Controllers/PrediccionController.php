@@ -548,6 +548,13 @@ class PrediccionController extends Controller
         $inicio = Carbon::parse($desde)->startOfDay();
         $fin = Carbon::parse($hasta)->endOfDay();
 
+        // HORIZONTE de cada fila de producción: lo que pasó entre el ÚLTIMO evento
+        // real de la placa antes del corte (el ancla que usa el motor) y la
+        // presentación real. Es el número que explica por qué el motor acierta o
+        // no: medido, hasta 6 h el MAE es ~340 min y pasando 24 h el acierto a ±3 h
+        // cae al 6 %. Se calcula con los hitos de la placa en una sola consulta.
+        $horizontes = self::horizontes_produccion($comparables, $inicio, $fin);
+
         // ---- producción: lo guardado que ya presentó -------------------------
         $produccion = [
             'errores' => Tablero::errores(array_column($comparables, 'error_min'), $tolerancia),
@@ -559,7 +566,14 @@ class PrediccionController extends Controller
             'refs' => (int) ($resumen['refs'] ?? 0),
             'sin_ref' => (int) ($resumen['sin_ref'] ?? 0),
             'muestra_suficiente' => (int) ($resumen['n'] ?? 0) >= Tablero::MUESTRA_MINIMA,
+            'horizonte_mediano' => $horizontes['mediano'],
+            'horizonte_n' => $horizontes['n'],
+            'horizonte_corto' => $horizontes['corto'],
+            'horizonte_largo' => $horizontes['largo'],
         ];
+
+        // las cuatro fechas publicadas, cada una con su error y su escalera
+        $cuatroFechas = Tablero::fechas($comparables, $tolerancia);
 
         // ---- motor: la corrida de aciertos (cacheada 10 min) -----------------
         $llave = 'prediccion:guardadas:motor:v1:' . md5($inicio->toDateString() . '|' . $fin->toDateString());
@@ -681,6 +695,7 @@ class PrediccionController extends Controller
             'motor' => $motor,
             'error_motor' => $errorCorrida,
             'monitorista' => $monitorista,
+            'fechas' => $cuatroFechas,
             'cara_a_cara' => Tablero::cara_a_cara($errorMotorPorRef, $errorCompromisoPorRef),
             'parametros' => [
                 ['clave' => 'cruce_pares_k', 'valor' => $p->cruce_pares_k ?? null,
@@ -1079,6 +1094,165 @@ class PrediccionController extends Controller
             'origen' => $request->input('origen'),
             'limite' => $request->input('limite'),
         ], fn ($valor) => $valor !== null && $valor !== '');
+    }
+
+    /**
+     * Horizonte de cada fila de producción: desde el ÚLTIMO evento real de la placa
+     * antes del corte (el ancla que usa el motor) hasta la presentación real.
+     *
+     * Se resuelve con una sola consulta de hitos por placa (`hitos_por_placa`) y no
+     * con una por fila. El ancla se toma como el último hito de la placa que cae
+     * ANTES del corte de la predicción, que es exactamente lo que hace el motor.
+     *
+     * @param  array<int, object>  $comparables  filas de DBPrediccionResultados::resumen()
+     * @return array{mediano: ?int, n: int, corto: int, largo: int}
+     */
+    private static function horizontes_produccion(array $comparables, Carbon $inicio, Carbon $fin): array
+    {
+        $vacio = ['mediano' => null, 'n' => 0, 'corto' => 0, 'largo' => 0];
+
+        if ($comparables === []) {
+            return $vacio;
+        }
+
+        $placas = [];
+        foreach ($comparables as $fila) {
+            $placa = trim((string) ($fila->placa ?? ''));
+            if ($placa !== '') {
+                $placas[$placa] = true;
+            }
+        }
+
+        // el ancla puede estar antes del rango: se mira un mes hacia atrás
+        $hitos = \App\Database\DBPrediccion::hitos_por_placa(
+            $inicio->copy()->subDays(30), $fin, array_keys($placas), 500);
+
+        $valores = [];
+        $corto = 0;     // <= 6 h: es el tramo donde el motor acierta
+        $largo = 0;     // > 24 h: el tramo donde no
+
+        foreach ($comparables as $fila) {
+            $placa = trim((string) ($fila->placa ?? ''));
+            $real = $fila->real ?? null;
+            $corte = $fila->corte ?? null;
+
+            if ($placa === '' || !$real instanceof Carbon || !$corte instanceof Carbon) {
+                $fila->horizonte_min = null;
+
+                continue;
+            }
+
+            $ancla = null;
+            foreach ($hitos[$placa] ?? [] as $hito) {
+                if ($hito->greaterThan($corte)) {
+                    break;      // vienen ordenados: el resto es futuro
+                }
+                $ancla = $hito;
+            }
+
+            if ($ancla === null) {
+                $fila->horizonte_min = null;
+
+                continue;
+            }
+
+            $minutos = (int) round(($real->getTimestamp() - $ancla->getTimestamp()) / 60);
+            $fila->horizonte_min = $minutos;
+            $fila->ancla_fecha = $ancla;
+            $valores[] = $minutos;
+
+            if ($minutos <= 360) {
+                $corto++;
+            } elseif ($minutos > 1440) {
+                $largo++;
+            }
+        }
+
+        if ($valores === []) {
+            return $vacio;
+        }
+
+        $mediano = \App\Prediccion\Estadistica::mediana($valores);
+
+        return [
+            'mediano' => $mediano === null ? null : (int) round($mediano),
+            'n' => count($valores),
+            'corto' => $corto,
+            'largo' => $largo,
+        ];
+    }
+
+    /**
+     * Mide el SESGO POR CLASE y deja la tabla en pantalla.
+     *
+     * Corre la tabla de aciertos del rango, agrupa el error por (evidencia × tramo
+     * del horizonte predicho) y saca la mediana de cada celda. Es lo que alimenta
+     * la cuarta fecha (`presenta_probable`). No aplica nada: eso lo hace
+     * `aplicar_sesgo()` cuando el operador aprieta el botón.
+     */
+    public static function calibrar_sesgo(Request $request)
+    {
+        $request->validate([
+            'dias' => 'nullable|integer|min:15|max:365',
+            'limite' => 'nullable|integer|min:100|max:1000',
+            'fuente' => 'nullable|in:guardadas,aciertos',
+        ]);
+
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(240);
+        }
+
+        $filtros = [
+            'desde' => now()->subDays(max(15, (int) $request->input('dias', 60)))->toDateString(),
+            'hasta' => now()->toDateString(),
+            'limite' => max(100, (int) $request->input('limite', 800)),
+            // la fuente recomendada son las predicciones guardadas: es la
+            // distribución real de producción, no la del backtest (que fuerza el
+            // ancla al fin de descargue y se adelanta más)
+            'fuente' => $request->input('fuente') === 'aciertos' ? 'aciertos' : 'guardadas',
+        ];
+
+        $llave = 'prediccion:sesgo:v1:' . md5(json_encode([$filtros, (array) Parametros::cargar()]));
+
+        if ($request->boolean('refrescar')) {
+            \Illuminate\Support\Facades\Cache::forget($llave);
+        }
+
+        try {
+            $medicion = \Illuminate\Support\Facades\Cache::remember(
+                $llave,
+                now()->addMinutes(10),
+                fn () => \App\Prediccion\Sesgo::medir($filtros)
+            );
+        } catch (\Throwable $e) {
+            $medicion = ['ok' => false, 'error' => 'No se pudo medir: ' . $e->getMessage(), 'celdas' => []];
+        }
+
+        return redirect()->route('lupita.prediccion.parametros.ver')->with('sesgo_medido', $medicion);
+    }
+
+    /** Aplica los sesgos medidos (o los apaga) y guarda las 9 claves. */
+    public static function aplicar_sesgo(Request $request)
+    {
+        $valores = [];
+        foreach (\App\Prediccion\Sesgo::claves() as $clave => $ignorado) {
+            if ($request->filled($clave)) {
+                $valores[$clave] = (int) $request->input($clave);
+            }
+        }
+
+        $valores['sesgo_clase_activo'] = $request->boolean('sesgo_clase_activo') ? 1 : 0;
+
+        try {
+            Parametros::guardar($valores);
+            $mensaje = $valores['sesgo_clase_activo'] === 1
+                ? 'Sesgos aplicados (' . count($valores) . ' claves). La cuarta fecha ya los usa.'
+                : 'Sesgos apagados: la cuarta fecha vuelve a ser igual a la normal.';
+        } catch (\Throwable $e) {
+            $mensaje = 'No se pudieron guardar los sesgos: ' . $e->getMessage();
+        }
+
+        return redirect()->route('lupita.prediccion.parametros.ver')->with('estado', $mensaje);
     }
 
     private static function carbon(?string $valor): ?Carbon

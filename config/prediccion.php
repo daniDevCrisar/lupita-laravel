@@ -120,8 +120,7 @@ return [
     // esa etapa, que es lo que separa "va con retraso" de "ya descargó".
     'descontar_transcurrido' => 1,
 
-    // C2 - El día en que el camión presenta mueve el hueco: medido con 13.387
-    // huecos reales, el lunes la mediana es 2,53 veces la global y el domingo 1,45
+    // C2 - El día en que el camión presenta mueve el hueco: medido con 13.387    // huecos reales, el lunes la mediana es 2,53 veces la global y el domingo 1,45
     // (el fin de semana acumula y el lunes se paga); de martes a sábado, 0,81-0,96.
     // El factor sale de los pares de la propia placa y, si un día no tiene muestra,
     // del prior de la flota (Calibrador::FACTOR_DIA_FLOTA). Un feriado usa el peor
@@ -215,4 +214,30 @@ return [
     // Topes heredados del módulo de tiempos.
     'tope_hueco_min' => 10080,
     'tope_etapa_min' => 2880,
+
+    // SESGO POR CLASE: una CUARTA fecha (`presenta_probable`) que corrige la hora
+    // publicada con la mediana del error de su clase (evidencia x tramo del
+    // horizonte predicho).
+    //
+    // Por qué: el motor no se equivoca parejo. Medido el 14/11/2026 con 803 filas
+    // (validación temporal, entrena 15-ago..15-oct y valida 16-oct..14-nov):
+    // con evidencia `cadena` y horizonte largo publica DECENAS DE HORAS ANTES de
+    // lo que pasa; con `parcial` y horizonte corto, un par de horas DESPUÉS.
+    // Corregir por clase baja el MAE de 1.237 a 1.095 min y sube ±3 h de 29,1 a
+    // 31,1 %. (Con el horizonte REAL la mejora sería 1.237 -> 873, pero el real no
+    // existe al predecir: la tabla se mide con el horizonte PREDICHO.)
+    //
+    // Lo llena el botón "Medir sesgo por clase" de la pantalla de parámetros (o
+    // `prediccion:ablacion` no: es aparte). Nada se aplica hasta apretar Aplicar:
+    // con `sesgo_clase_activo` en 0 la cuarta fecha es igual a la publicada.
+    'sesgo_clase_activo' => 0,
+    'sesgo_clase_cadena_corto' => 0,
+    'sesgo_clase_cadena_medio' => 0,
+    'sesgo_clase_cadena_largo' => 0,
+    'sesgo_clase_parcial_corto' => 0,
+    'sesgo_clase_parcial_medio' => 0,
+    'sesgo_clase_parcial_largo' => 0,
+    'sesgo_clase_medido_corto' => 0,
+    'sesgo_clase_medido_medio' => 0,
+    'sesgo_clase_medido_largo' => 0,
 ];

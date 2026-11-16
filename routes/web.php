@@ -125,6 +125,11 @@ Route::middleware(['auth'])->group(function () {
         // ablación: compara la configuración en uso contra variantes (no guarda nada)
         Route::post('/prediccion/ablacion', [PrediccionController::class, 'ablacion'])->name('lupita.prediccion.ablacion')
             ->middleware('permission:ver tiempos');
+        // sesgo por clase: mide la tabla y la aplica (cuarta fecha "más probable")
+        Route::post('/prediccion/sesgo', [PrediccionController::class, 'calibrar_sesgo'])->name('lupita.prediccion.sesgo')
+            ->middleware('permission:ver tiempos');
+        Route::post('/prediccion/sesgo/aplicar', [PrediccionController::class, 'aplicar_sesgo'])->name('lupita.prediccion.sesgo.aplicar')
+            ->middleware('permission:ver tiempos');
         // borra las predicciones guardadas del rango (el motor se recalibra seguido)
         Route::post('/prediccion/guardadas/borrar', [PrediccionController::class, 'borrar_guardadas'])
             ->name('lupita.prediccion.guardadas.borrar')

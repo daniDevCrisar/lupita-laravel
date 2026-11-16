@@ -595,7 +595,7 @@ class MotorPresentaTest extends TestCase
         $this->assertSame('1:40', $espera['duracion']);
     }
 
-    public function test_devuelve_tres_fechas_rapido_normal_y_tardado(): void
+    public function test_devuelve_las_cuatro_fechas_incluida_la_probable(): void
     {
         $r = MotorPresenta::predecir($this->entrada([
             // hueco medido 300 con p25 240 y p75 420
@@ -607,11 +607,37 @@ class MotorPresentaTest extends TestCase
         $this->assertSame('2026-11-14 14:00', $r->presenta->format('Y-m-d H:i'));          // 09:00 + 300
         $this->assertSame('2026-11-14 16:00', $r->presenta_tardado->format('Y-m-d H:i'));  // 09:00 + 420
 
-        $this->assertCount(3, $r->presentaciones);
-        $this->assertSame(['rapido', 'normal', 'tardado'], array_column($r->presentaciones, 'clave'));
+        // sin sesgo aplicado, la cuarta fecha es igual a la normal
+        $this->assertSame('2026-11-14 14:00', $r->presenta_probable->format('Y-m-d H:i'));
+        $this->assertSame(0, $r->sesgo_min);
+
+        $this->assertCount(4, $r->presentaciones);
+        $this->assertSame(['rapido', 'normal', 'tardado', 'probable'], array_column($r->presentaciones, 'clave'));
         $this->assertSame('3:00', $r->presentaciones[0]['desde_ahora']);   // ahora 10:00 -> 13:00
         $this->assertSame('4:00', $r->presentaciones[1]['desde_ahora']);
         $this->assertSame('6:00', $r->presentaciones[2]['desde_ahora']);
+        $this->assertSame('4:00', $r->presentaciones[3]['desde_ahora']);
+    }
+
+    public function test_la_cuarta_fecha_usa_el_sesgo_de_su_clase(): void
+    {
+        // sin pares (cadena) el hueco es traslado 180 + muerto 60 = 240 min, así que
+        // el horizonte predicho cae en el tramo "corto". Sesgo -3.886: el motor venía
+        // publicando 3.886 min antes, así que la cuarta fecha se corre hacia adelante.
+        $r = MotorPresenta::predecir($this->entrada([
+            'calibrador' => null,   // sin pares: cadena
+            'parametros' => $this->parametros([
+                'sesgo_clase_activo' => 1,
+                'sesgo_clase_cadena_corto' => -3886,
+            ]),
+        ]));
+
+        $this->assertSame('cadena', $r->evidencia);
+        $this->assertSame('cadena|corto', $r->sesgo_clase);
+        $this->assertSame(-3886, $r->sesgo_min);
+
+        $esperado = $r->presenta->copy()->addMinutes(3886);
+        $this->assertSame($esperado->format('Y-m-d H:i'), $r->presenta_probable->format('Y-m-d H:i'));
     }
 
     public function test_sin_pares_las_tres_fechas_se_abren_por_porcentaje(): void
