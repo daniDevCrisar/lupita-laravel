@@ -52,9 +52,15 @@ class VentanaResiduosTest extends TestCase
 
         $this->assertTrue($v['ok'], (string) $v['error']);
         $this->assertGreaterThan(0, $v['radio']);
-        // simétrica y con la cobertura que declara
+        $this->assertGreaterThan(0, $v['adelanto']);
+        $this->assertGreaterThan(0, $v['atraso']);
+        // simétrica a propósito (la banda asimétrica se probó y no paga)
         $this->assertSame($v['radio'], $v['adelanto']);
         $this->assertSame($v['radio'], $v['atraso']);
+        // la cadena también viene por lados, aunque hoy sean iguales
+        $this->assertArrayHasKey('cadena_adelanto', $v);
+        $this->assertArrayHasKey('cadena_atraso', $v);
+
         $this->assertGreaterThan(0, $v['n']);
         $this->assertNotNull($v['cobertura_lograda']);
         $this->assertGreaterThanOrEqual(1, (int) $v['cobertura_lograda']);
@@ -89,16 +95,21 @@ class VentanaResiduosTest extends TestCase
         }
 
         $this->assertSame('residuos', $r->ventana_fuente);
+
+        // La banda se dibuja sobre la hora que se usa: la cuarta cuando el sesgo
+        // está aplicado, la normal cuando no.
+        $centro = $r->sesgo_min !== 0 ? $r->presenta_probable : $r->presenta;
+
         // el rápido se abre hasta 600' antes, sin pasar el traslado ni `ahora`
-        $this->assertLessThanOrEqual($r->presenta->getTimestamp(), $r->presenta_rapido->getTimestamp());
+        $this->assertLessThanOrEqual($centro->getTimestamp(), $r->presenta_rapido->getTimestamp());
         $this->assertGreaterThanOrEqual(
-            $r->presenta->copy()->subMinutes(600)->getTimestamp(),
+            $centro->copy()->subMinutes(600)->getTimestamp(),
             $r->presenta_rapido->getTimestamp(),
-            'el rápido no puede quedar antes de la hora publicada menos el adelanto medido'
+            'el rápido no puede quedar antes de la hora usada menos el adelanto medido'
         );
         // el tardado abre el atraso medido; una franja inactiva puede correr ambos
         // extremos hasta `max_desplazamiento_min` (600)
-        $desvio = (int) round(($r->presenta_tardado->getTimestamp() - $r->presenta->getTimestamp()) / 60);
+        $desvio = (int) round(($r->presenta_tardado->getTimestamp() - $centro->getTimestamp()) / 60);
         $this->assertGreaterThanOrEqual(300, $desvio);
         $this->assertLessThanOrEqual(900 + 600, $desvio);
         // la ventana publicada es la misma banda

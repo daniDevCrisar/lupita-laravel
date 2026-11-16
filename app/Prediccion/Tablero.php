@@ -37,6 +37,9 @@ final class Tablero
     /** Estratos de la confianza declarada por el motor (0..100). */
     public const TRAMOS_CONFIANZA = [[0, 20], [21, 40], [41, 70], [71, 95], [96, 100]];
 
+    /** Las fechas que publica el motor, en el orden en que se muestran. */
+    public const FECHAS = ['rapido', 'normal', 'tardado', 'probable', 'consenso'];
+
     /**
      * Estratos del horizonte: cuánto tiempo ANTES del hecho se dijo la hora.
      * Cada tramo es [etiqueta, desde minutos, hasta minutos o null = sin tope].
@@ -254,20 +257,14 @@ final class Tablero
     }
 
     /**
-     * Las CUATRO fechas publicadas, comparadas contra la presentación real.
+     * Catálogo de las cuatro fechas publicadas: etiqueta, campo con el error y
+     * una línea que dice qué es cada una.
      *
-     * Cada fecha se mide con su error (`fecha − real`) y con la misma escalera de
-     * tolerancias, así se ve de un vistazo cuál conviene. También cuenta cuántas
-     * veces cada una queda más cerca que las otras: ganar en promedio y ganar en
-     * cantidad de veces son cosas distintas (el `tardado` se lleva los casos de
-     * error enorme, la `probable` los normales).
-     *
-     * @param  array<int, object>  $filas  filas de DBPrediccionResultados::resumen()
-     * @return array{filas: array<int, array<string, mixed>>, n: int}
+     * @return array<string, array{etiqueta: string, campo: string, texto: string}>
      */
-    public static function fechas(array $filas, int $tolerancia = 180): array
+    public static function catalogo_fechas(): array
     {
-        $fechas = [
+        return [
             'rapido' => ['etiqueta' => 'Rápido', 'campo' => 'error_rapido_min',
                          'texto' => 'el extremo temprano de la banda'],
             'normal' => ['etiqueta' => 'Normal', 'campo' => 'error_min',
@@ -276,11 +273,76 @@ final class Tablero
                           'texto' => 'el extremo tardío de la banda'],
             'probable' => ['etiqueta' => 'Más probable', 'campo' => 'error_probable_min',
                            'texto' => 'la normal corregida por el sesgo de su clase'],
+            'consenso' => ['etiqueta' => 'Consenso', 'campo' => 'error_consenso_min',
+                           'texto' => 'el promedio de la rápida, la normal y la más probable'],
         ];
+    }
 
-        $valores = array_fill_keys(array_keys($fechas), []);
-        $masCerca = array_fill_keys(array_keys($fechas), 0);
+    /**
+     * Normaliza qué fechas se quieren comparar: sólo claves válidas, en el orden
+     * publicado. Sin selección se comparan las cuatro.
+     *
+     * @param  array<int, string>|null  $seleccion
+     * @return array<int, string>
+     */
+    public static function limpiar_seleccion(?array $seleccion): array
+    {
+        $pedidas = [];
+        foreach ($seleccion ?? [] as $clave) {
+            if (is_string($clave) && in_array($clave, self::FECHAS, true)) {
+                $pedidas[$clave] = true;
+            }
+        }
+
+        $limpias = array_values(array_filter(self::FECHAS, fn (string $clave) => isset($pedidas[$clave])));
+
+        return $limpias === [] ? self::FECHAS : $limpias;
+    }
+
+    /**
+     * Las CUATRO fechas publicadas, comparadas contra la presentación real.
+     *
+     * Cada fecha se mide con su error (`fecha − real`) y con la misma escalera de
+     * tolerancias, así se ve de un vistazo cuál conviene. También cuenta cuántas
+     * veces cada una queda más cerca que las otras: ganar en promedio y ganar en
+     * cantidad de veces son cosas distintas (el `tardado` se lleva los casos de
+     * error enorme, la `probable` los normales).
+     *
+     * LA COMPARACIÓN ES CARA A CARA: sólo entran las filas que tienen TODAS las
+     * fechas elegidas. Las guardadas viejas no tienen la cuarta, y si se midiera
+     * cada fecha con las filas que le tocan, la que está en más filas gana por
+     * tener más casos fáciles, no por ser mejor. Por eso el `n` de la tabla es el
+     * mismo para todas y las filas incompletas se informan aparte (`incompletas`,
+     * más cuántas `faltan` por fecha) para saber qué destildar.
+     *
+     * Con `$promediar` se agrega una fila más: el PROMEDIO de las fechas elegidas
+     * (promediar los errores es lo mismo que promediar las horas, porque la real
+     * es la misma en todas). Entra a la carrera como una candidata más, así se ve
+     * si promediar ayuda o si el promedio queda peor que la mejor fecha suelta.
+     * Con una sola fecha elegida no se agrega: el promedio sería esa fecha.
+     *
+     * @param  array<int, object>  $filas  filas de DBPrediccionResultados::resumen()
+     * @param  array<int, string>|null  $seleccion  claves de Tablero::FECHAS; null = las cuatro
+     * @return array{filas: array<int, array<string, mixed>>, n: int, seleccion: array<int, string>,
+     *               opciones: array<int, array<string, mixed>>, incompletas: int, comparadas: int,
+     *               total: int, promediado: bool}
+     */
+    public static function fechas(array $filas, int $tolerancia = 180, ?array $seleccion = null,
+                                  bool $promediar = false): array
+    {
+        $fechas = self::catalogo_fechas();
+        $seleccion = self::limpiar_seleccion($seleccion);
+
+        // el promedio necesita al menos dos fechas para no ser una de ellas
+        $promediarPedido = $promediar;
+        $promediar = $promediar && count($seleccion) > 1;
+        $candidatas = $promediar ? array_merge($seleccion, ['promedio']) : $seleccion;
+
+        $valores = array_fill_keys($candidatas, []);
+        $masCerca = array_fill_keys($candidatas, 0);
+        $faltan = array_fill_keys(array_keys($fechas), 0);
         $n = 0;
+        $incompletas = 0;
 
         foreach ($filas as $fila) {
             $error = [];
@@ -288,31 +350,55 @@ final class Tablero
             foreach ($fechas as $clave => $info) {
                 $valor = $fila->{$info['campo']} ?? null;
                 if ($valor === null) {
+                    $faltan[$clave]++;     // cuenta para todas, no sólo las elegidas
                     continue;
                 }
 
-                $valor = (int) $valor;
-                $error[$clave] = $valor;
-                $valores[$clave][] = $valor;
+                $error[$clave] = (int) $valor;
             }
 
-            if ($error === []) {
+            // cara a cara: si a la fila le falta alguna de las elegidas, no entra
+            $completa = true;
+            foreach ($seleccion as $clave) {
+                if (!isset($error[$clave])) {
+                    $completa = false;
+                    break;
+                }
+            }
+
+            if (!$completa) {
+                $incompletas++;
                 continue;
             }
 
+            if ($promediar) {
+                // promediar los errores = promediar las horas: la real es la misma
+                $suma = 0;
+                foreach ($seleccion as $clave) {
+                    $suma += $error[$clave];
+                }
+                $error['promedio'] = (int) round($suma / count($seleccion));
+            }
+
             $n++;
-            $minimo = min(array_map('abs', $error));
-            foreach ($error as $clave => $valor) {
-                if (abs($valor) === $minimo) {
+            $minimo = min(array_map(fn (string $clave) => abs($error[$clave]), $candidatas));
+
+            foreach ($candidatas as $clave) {
+                $valores[$clave][] = $error[$clave];
+            }
+
+            foreach ($candidatas as $clave) {
+                if (abs($error[$clave]) === $minimo) {
                     $masCerca[$clave]++;
 
-                    break;      // empate: se lo queda el primero del orden
+                    break;      // empate: se lo queda la primera del orden publicado
                 }
             }
         }
 
         $salida = [];
-        foreach ($fechas as $clave => $info) {
+        foreach ($seleccion as $clave) {
+            $info = $fechas[$clave];
             $base = self::errores($valores[$clave], $tolerancia);
             $base['clave'] = $clave;
             $base['etiqueta'] = $info['etiqueta'];
@@ -322,7 +408,56 @@ final class Tablero
             $salida[] = $base;
         }
 
-        return ['filas' => $salida, 'n' => $n];
+        if ($promediar) {
+            $base = self::errores($valores['promedio'], $tolerancia);
+            $base['clave'] = 'promedio';
+            $base['etiqueta'] = 'Promedio';
+            $base['texto'] = 'el promedio de las ' . count($seleccion) . ' fechas elegidas';
+            $base['mas_cerca'] = $masCerca['promedio'];
+            $base['pct_mas_cerca'] = $n > 0 ? self::pct($masCerca['promedio'], $n) : null;
+
+            // VEREDICTO: cuánto le saca (o le falta) contra la MEJOR de las
+            // elegidas, en las dos preguntas que no son lo mismo: quién queda más
+            // cerca más veces, y cuántas caen dentro de la tolerancia gorda.
+            $mejorMasCerca = 0;
+            $mejorTolerancia = 0;
+            foreach ($salida as $fila) {
+                $mejorMasCerca = max($mejorMasCerca, (int) ($fila['pct_mas_cerca'] ?? 0));
+                $mejorTolerancia = max($mejorTolerancia, (int) ($fila['pct_' . $tolerancia] ?? 0));
+            }
+
+            $base['veredicto'] = [
+                'mas_cerca' => (int) ($base['pct_mas_cerca'] ?? 0) - $mejorMasCerca,
+                'tolerancia' => (int) ($base['pct_' . $tolerancia] ?? 0) - $mejorTolerancia,
+                'tolerancia_min' => $tolerancia,
+            ];
+
+            $salida[] = $base;
+        }
+
+        $opciones = [];
+        foreach ($fechas as $clave => $info) {
+            $opciones[] = [
+                'clave' => $clave,
+                'etiqueta' => $info['etiqueta'],
+                'texto' => $info['texto'],
+                'activa' => in_array($clave, $seleccion, true),
+                'faltan' => $faltan[$clave],
+            ];
+        }
+
+        return [
+            'filas' => $salida,
+            'n' => $n,
+            'seleccion' => $seleccion,
+            'opciones' => $opciones,
+            'incompletas' => $incompletas,
+            'comparadas' => count($seleccion),
+            'total' => count($filas),
+            'promediado' => $promediar,
+            // se pidió promediar (aunque con una sola fecha no se pueda)
+            'promediar_pedido' => $promediarPedido,
+        ];
     }
 
     /**

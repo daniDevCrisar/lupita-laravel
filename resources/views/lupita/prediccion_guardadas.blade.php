@@ -54,6 +54,14 @@
     <div class="card mb-3">
         <div class="card-body">
             <form method="GET" action="{{ route('lupita.prediccion.guardadas') }}" class="row g-2 align-items-end">
+                {{-- "Ver" no tiene que perder las fechas tildadas en la tarjeta de producción --}}
+                <input type="hidden" name="comparar" value="1">
+                @foreach(($t['fechas']['seleccion'] ?? []) as $claveFecha)
+                    <input type="hidden" name="fechas[]" value="{{ $claveFecha }}">
+                @endforeach
+                @if(($t['fechas']['promediado'] ?? false) || ($t['fechas']['promediar_pedido'] ?? false))
+                    <input type="hidden" name="promediar" value="1">
+                @endif
                 <div class="col-md-2">
                     <label class="form-label">Desde</label>
                     <input type="date" name="fecha_inicio" class="form-control" value="{{ $filtros['desde'] }}">
@@ -239,61 +247,162 @@
 
             <div class="row g-3 mt-1">
                 {{-- LAS CUATRO FECHAS: cuál conviene, con su escalera --}}
-                @if(($t['fechas']['n'] ?? 0) > 0)
+                @php
+                    $cuatro = $t['fechas'] ?? [];
+                    $opcionesFechas = $cuatro['opciones'] ?? [];
+                @endphp
+                @if($opcionesFechas !== [])
                     <div class="col-12">
-                        <div class="small fw-semibold">Las cuatro fechas publicadas, contra la presentación real</div>
-                        <div class="table-responsive">
-                            <table class="table table-sm align-middle mb-1" style="font-size:.8rem">
-                                <thead class="table-light">
-                                <tr>
-                                    <th>fecha</th>
-                                    <th class="text-end">n</th>
-                                    <th class="text-end">MAE</th>
-                                    <th class="text-end">Error mediano</th>
-                                    <th class="text-end">±30m</th>
-                                    <th class="text-end">±1h</th>
-                                    <th class="text-end">±2h</th>
-                                    <th class="text-end">±3h</th>
-                                    <th class="text-end">±6h</th>
-                                    <th class="text-end">±12h</th>
-                                    <th class="text-end" title="de las {{ $t['fechas']['n'] }} filas comparables, cuántas veces esta fecha queda más cerca que las otras tres">Más cerca</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                @foreach($t['fechas']['filas'] as $fecha)
-                                    <tr class="{{ $fecha['clave'] === 'probable' ? 'table-info' : '' }}">
-                                        <td>
-                                            <strong>{{ $fecha['etiqueta'] }}</strong>
-                                            <div class="text-muted" style="font-size:.7rem">{{ $fecha['texto'] }}</div>
-                                        </td>
-                                        <td class="text-end">{{ (int) $fecha['n'] }}</td>
-                                        <td class="text-end fw-bold">{{ $corto($fecha['mae']) }}</td>
-                                        <td class="text-end">{{ $signo($fecha['error_mediano']) }}</td>
-                                        <td class="text-end">{{ $pct($fecha['pct_30'] ?? null) }}</td>
-                                        <td class="text-end">{{ $pct($fecha['pct_60'] ?? null) }}</td>
-                                        <td class="text-end">{{ $pct($fecha['pct_120'] ?? null) }}</td>
-                                        <td class="text-end">{{ $pct($fecha['pct_180'] ?? null) }}</td>
-                                        <td class="text-end">{{ $pct($fecha['pct_360'] ?? null) }}</td>
-                                        <td class="text-end">{{ $pct($fecha['pct_720'] ?? null) }}</td>
-                                        <td class="text-end">
-                                            {{ $pct($fecha['pct_mas_cerca'] ?? null) }}
-                                            <span class="text-muted" style="font-size:.7rem">({{ (int) $fecha['mas_cerca'] }})</span>
-                                        </td>
+                        <div class="small fw-semibold">Las fechas publicadas, contra la presentación real</div>
+
+                        {{-- elegir qué fechas entran: la comparación es cara a cara --}}
+                        <form method="GET" action="{{ route('lupita.prediccion.guardadas') }}"
+                              class="d-flex flex-wrap align-items-center gap-2 mt-1 mb-1">
+                            <input type="hidden" name="comparar" value="1">
+                            <input type="hidden" name="fecha_inicio" value="{{ $filtros['desde'] }}">
+                            <input type="hidden" name="fecha_fin" value="{{ $filtros['hasta'] }}">
+                            <input type="hidden" name="origen" value="{{ $filtros['origen'] }}">
+                            <input type="hidden" name="limite" value="{{ $filtros['limite'] }}">
+                            <span class="small text-muted">comparar:</span>
+                            @foreach($opcionesFechas as $opcion)
+                                <div class="form-check form-check-inline m-0">
+                                    <input class="form-check-input" type="checkbox" name="fechas[]"
+                                           value="{{ $opcion['clave'] }}" id="fecha-{{ $opcion['clave'] }}"
+                                           @checked($opcion['activa'])>
+                                    <label class="form-check-label small" for="fecha-{{ $opcion['clave'] }}"
+                                           title="{{ $opcion['texto'] }}">
+                                        {{ $opcion['etiqueta'] }}
+                                        @if((int) $opcion['faltan'] > 0)
+                                            <span class="badge bg-secondary"
+                                                  title="filas del rango que NO tienen esta fecha: quedan fuera de la comparación">
+                                                {{ (int) $opcion['faltan'] }} sin dato
+                                            </span>
+                                        @endif
+                                    </label>
+                                </div>
+                            @endforeach
+                            {{-- una fila más: el promedio de las tildadas, con sus propios KPIs --}}
+                            <div class="form-check form-check-inline m-0 ps-2 border-start">
+                                <input class="form-check-input" type="checkbox" name="promediar" value="1"
+                                       id="promediar" @checked(($cuatro['promediado'] ?? false) || ($cuatro['promediar_pedido'] ?? false))>
+                                <label class="form-check-label small" for="promediar"
+                                       title="promedia las horas tildadas de cada fila y calcula los KPIs de ese promedio">
+                                    promediar las seleccionadas
+                                    <span class="text-muted">(calcula sus KPIs)</span>
+                                </label>
+                            </div>
+                            <button class="btn btn-sm btn-primary py-0"
+                                    title="vuelve a calcular la tabla con las fechas tildadas">
+                                <i class="bi bi-calculator"></i> Calcular
+                            </button>
+                        </form>
+
+                        @if(($cuatro['aviso'] ?? null) !== null)
+                            <div class="alert alert-warning py-1 px-2 small mb-2">{{ $cuatro['aviso'] }}</div>
+                        @endif
+
+                        @if(($cuatro['n'] ?? 0) > 0)
+                            <div class="text-muted mb-1" style="font-size:.7rem">
+                                Se comparan <strong>{{ (int) $cuatro['n'] }}</strong> filas que tienen
+                                @if((int) ($cuatro['comparadas'] ?? 0) === 1)
+                                    la fecha elegida
+                                @else
+                                    las {{ (int) ($cuatro['comparadas'] ?? 0) }} fechas elegidas
+                                @endif
+                                @if($cuatro['promediado'] ?? false)
+                                    <strong>+ su promedio</strong>
+                                @elseif($cuatro['promediar_pedido'] ?? false)
+                                    <span class="text-warning">(con una sola fecha el promedio es esa fecha:
+                                        tildá dos o más para que se agregue la fila)</span>
+                                @endif
+                                @if((int) ($cuatro['incompletas'] ?? 0) > 0)
+                                    · {{ (int) $cuatro['incompletas'] }} quedan fuera porque les falta alguna
+                                    (destildá la que falte para comparar con más filas)
+                                @endif
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-1" style="font-size:.8rem">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th>fecha</th>
+                                        <th class="text-end" title="el mismo n para todas: son las filas que tienen las fechas elegidas">n</th>
+                                        <th class="text-end">MAE</th>
+                                        <th class="text-end">Error mediano</th>
+                                        <th class="text-end">±30m</th>
+                                        <th class="text-end">±1h</th>
+                                        <th class="text-end">±2h</th>
+                                        <th class="text-end">±3h</th>
+                                        <th class="text-end">±6h</th>
+                                        <th class="text-end">±12h</th>
+                                        <th class="text-end" title="de las {{ (int) $cuatro['n'] }} filas comparadas, cuántas veces esta fecha queda más cerca que las otras elegidas">Más cerca</th>
                                     </tr>
-                                @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="text-muted" style="font-size:.7rem">
-                            El error es <code>fecha − real</code>. La columna <strong>Más cerca</strong> cuenta cuántas
-                            veces esa fecha quedó más cerca que las otras tres: ganar en promedio (MAE) y ganar en
-                            cantidad de veces no es lo mismo — el tardado se lleva los casos de error enorme, la
-                            probable los normales.
-                            @if(($t['fechas']['filas'][3]['n'] ?? 0) === 0)
-                                <br><strong>La cuarta fecha no tiene filas todavía:</strong> las predicciones guardadas
-                                antes de aplicarla no la tienen. Se llena con las nuevas.
-                            @endif
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                    @foreach($cuatro['filas'] as $fecha)
+                                        <tr class="{{ $fecha['clave'] === 'promedio' ? 'table-secondary' : ($fecha['clave'] === 'probable' ? 'table-info' : '') }}">
+                                            <td>
+                                                <strong>{{ $fecha['etiqueta'] }}</strong>
+                                                <div class="text-muted" style="font-size:.7rem">{{ $fecha['texto'] }}</div>
+                                                @if(($fecha['veredicto'] ?? null) !== null)
+                                                    <div class="mt-1" style="font-size:.65rem">
+                                                        @foreach([
+                                                            'más cerca' => $fecha['veredicto']['mas_cerca'],
+                                                            '±' . $fecha['veredicto']['tolerancia_min'] . ' min' => $fecha['veredicto']['tolerancia'],
+                                                        ] as $etiquetaVeredicto => $delta)
+                                                            @php $colorVeredicto = $delta > 0 ? 'success' : ($delta < 0 ? 'danger' : 'secondary'); @endphp
+                                                            <span class="badge bg-{{ $colorVeredicto }}"
+                                                                  title="contra la mejor de las fechas elegidas en esa columna">
+                                                                {{ $etiquetaVeredicto }} {{ $delta > 0 ? '+' : '' }}{{ $delta }}
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="text-end">{{ (int) $fecha['n'] }}</td>
+                                            <td class="text-end fw-bold">{{ $corto($fecha['mae']) }}</td>
+                                            <td class="text-end">{{ $signo($fecha['error_mediano']) }}</td>
+                                            <td class="text-end">{{ $pct($fecha['pct_30'] ?? null) }}</td>
+                                            <td class="text-end">{{ $pct($fecha['pct_60'] ?? null) }}</td>
+                                            <td class="text-end">{{ $pct($fecha['pct_120'] ?? null) }}</td>
+                                            <td class="text-end">{{ $pct($fecha['pct_180'] ?? null) }}</td>
+                                            <td class="text-end">{{ $pct($fecha['pct_360'] ?? null) }}</td>
+                                            <td class="text-end">{{ $pct($fecha['pct_720'] ?? null) }}</td>
+                                            <td class="text-end">
+                                                {{ $pct($fecha['pct_mas_cerca'] ?? null) }}
+                                                <span class="text-muted" style="font-size:.7rem">({{ (int) $fecha['mas_cerca'] }})</span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="text-muted" style="font-size:.7rem">
+                                El error es <code>fecha − real</code>. La columna <strong>Más cerca</strong> cuenta cuántas
+                                veces esa fecha quedó más cerca que las otras elegidas: ganar en promedio (MAE) y ganar en
+                                cantidad de veces no es lo mismo — el tardado se lleva los casos de error enorme, la
+                                probable los normales.
+                                @if($cuatro['promediado'] ?? false)
+                                    <br><strong>Promedio</strong> es la hora promedio de las fechas tildadas en cada fila
+                                    (promediar las horas es lo mismo que promediar sus errores) y compite en la misma
+                                    carrera: si le gana a las sueltas, promediar sirve; si no, no.
+                                @endif
+                                <br>La comparación es <strong>cara a cara</strong>: sólo entran las filas que tienen
+                                <strong>todas</strong> las fechas tildadas. Si no, la fecha que está en más filas gana
+                                por tener más casos fáciles, no por ser mejor. Las guardadas viejas no tienen la cuarta
+                                ni el consenso: destildalas para comparar las demás con el historial completo.
+                            </div>
+                        @else
+                            <div class="alert alert-warning py-2 small mb-0">
+                                <strong>Con esa selección no hay filas completas</strong> en el rango
+                                ({{ (int) ($cuatro['total'] ?? 0) }} filas guardadas, ninguna con
+                                @if((int) ($cuatro['comparadas'] ?? 0) === 1)
+                                    esa fecha
+                                @else
+                                    esas {{ (int) ($cuatro['comparadas'] ?? 0) }} fechas
+                                @endif
+                                a la vez). Fijate en los <em>sin dato</em> de cada check para ver cuál sobra.
+                            </div>
+                        @endif
                     </div>
                 @endif
 

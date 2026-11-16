@@ -267,6 +267,8 @@ class DBPrediccionResultados
                 }
             }
 
+            $consenso = self::consensoGuardada($fila->desglose ?? null);
+
             $detalle[] = (object) [
                 'ref' => (string) $fila->ref,
                 'placa' => (string) ($fila->placa ?? ''),
@@ -274,13 +276,15 @@ class DBPrediccionResultados
                 'rapido' => $rapido,
                 'predicho' => $predicho,
                 'tardado' => $tardado,
-                // la cuarta fecha: se guarda dentro de `desglose` (sin columnas nuevas)
+                // la cuarta fecha y el consenso: dentro de `desglose` (sin columnas nuevas)
                 'probable' => self::probableGuardada($fila->desglose ?? null),
+                'consenso' => $consenso,
                 'real' => $real,
                 'error_min' => $error,
                 'error_rapido_min' => self::error($real, $rapido),
                 'error_tardado_min' => self::error($real, $tardado),
                 'error_probable_min' => self::error($real, self::probableGuardada($fila->desglose ?? null)),
+                'error_consenso_min' => self::error($real, $consenso),
                 'en_ventana' => $enVentana,
                 'evidencia' => (string) $fila->evidencia,
                 'confianza' => (int) $fila->confianza,
@@ -338,27 +342,43 @@ class DBPrediccionResultados
         return json_encode([
             'pasos' => $resultado->desglose ?? [],
             'probable' => self::fechaSql($resultado->presenta_probable ?? null),
+            'consenso' => self::fechaSql($resultado->presenta_consenso ?? null),
             'sesgo_clase' => $resultado->sesgo_clase ?? null,
             'sesgo_min' => (int) ($resultado->sesgo_min ?? 0),
         ], JSON_UNESCAPED_UNICODE);
     }
 
     /**
-     * Lee la cuarta fecha guardada en `desglose`. Tolera las filas viejas, que
-     * tienen una lista de pasos sin `probable`.
+     * Lee la fecha guardada en `desglose` (la cuarta o el consenso). Tolera las
+     * filas viejas, que tienen una lista de pasos sin esa clave.
      */
-    public static function probableGuardada($desglose): ?Carbon
+    public static function fechaGuardada($desglose, string $clave = 'probable'): ?Carbon
     {
         $datos = is_string($desglose) ? json_decode($desglose, true) : null;
 
-        if (!is_array($datos) || !isset($datos['probable']) || !is_string($datos['probable'])) {
+        if (!is_array($datos) || !isset($datos[$clave]) || !is_string($datos[$clave])) {
             return null;
         }
 
         try {
-            return Carbon::parse($datos['probable']);
+            return Carbon::parse($datos[$clave]);
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    /**
+     * Lee la cuarta fecha guardada en `desglose`. Se mantiene por compatibilidad:
+     * es `fechaGuardada($desglose, 'probable')`.
+     */
+    public static function probableGuardada($desglose): ?Carbon
+    {
+        return self::fechaGuardada($desglose, 'probable');
+    }
+
+    /** El consenso guardado en `desglose` (NULL en las filas viejas). */
+    public static function consensoGuardada($desglose): ?Carbon
+    {
+        return self::fechaGuardada($desglose, 'consenso');
     }
 }

@@ -197,8 +197,58 @@ class SesgoCuartaFechaTest extends TestCase
             Request::create('/x', 'GET', $filtros))->render();
 
         $this->assertStringContainsString('−240 min', $encendido, 'la fila tiene que decir cuánto se corrió');
-        $this->assertStringContainsString('más cerca:', $encendido, 'tiene que decir cuál de las cuatro quedó más cerca');
+        $this->assertStringContainsString('más cerca:', $encendido, 'tiene que decir cuál quedó más cerca');
+        $this->assertStringContainsString('más cerca de las cinco', $encendido,
+            'la carrera del encabezado compara todas las fechas publicadas');
+        $this->assertStringContainsString('Consenso', $encendido, 'el consenso también se mide');
         $this->assertStringNotContainsString('igual a la normal', $encendido);
+    }
+
+    /**
+     * La tabla de aciertos tenía el error de la normal y el de la probable, pero
+     * NO el de la rápida y la tardada: la comparación "más cerca" se quedaba con
+     * dos fechas sin que se notara. Acá se fija que el backtest las traiga.
+     */
+    public function test_el_backtest_trae_el_error_de_las_cuatro_fechas(): void
+    {
+        $b = Servicio::backtest(['desde' => '2026-10-20', 'hasta' => '2026-11-10', 'limite' => 40]);
+
+        $this->assertGreaterThan(0, count($b->filas), 'la base no tiene filas en ese rango');
+
+        $conRapida = 0;
+        foreach ($b->filas as $fila) {
+            $this->assertObjectHasProperty('error_rapido_min', $fila);
+            $this->assertObjectHasProperty('error_tardado_min', $fila);
+            // quinta fecha: el consenso, con su hora y su error
+            $this->assertObjectHasProperty('consenso', $fila);
+            $this->assertObjectHasProperty('error_consenso_min', $fila);
+
+            if ($fila->rapido === null || $fila->error_rapido_min === null) {
+                continue;
+            }
+
+            // convención: error = hora publicada − hora real
+            $esperado = (int) round(($fila->rapido->getTimestamp() - $fila->real->getTimestamp()) / 60);
+            $this->assertSame($esperado, $fila->error_rapido_min);
+
+            if ($fila->consenso !== null) {
+                $esperadoConsenso = (int) round(($fila->consenso->getTimestamp() - $fila->real->getTimestamp()) / 60);
+                $this->assertSame($esperadoConsenso, $fila->error_consenso_min);
+                // y cae entre la rápida y la tardada
+                $this->assertGreaterThanOrEqual($fila->rapido->getTimestamp(), $fila->consenso->getTimestamp());
+                $this->assertLessThanOrEqual($fila->tardado->getTimestamp(), $fila->consenso->getTimestamp());
+            }
+
+            $conRapida++;
+        }
+
+        $this->assertGreaterThan(0, $conRapida, 'ninguna fila trajo el error de la rápida');
+
+        // la carrera cuenta todas las fechas sobre las mismas filas de las métricas
+        $this->assertSame($b->resumen_motor->n, $b->carrera->n);
+        $this->assertSame($b->carrera->n,
+            $b->carrera->rapido + $b->carrera->normal + $b->carrera->tardado
+            + $b->carrera->probable + $b->carrera->consenso);
     }
 
     public function test_el_api_publica_la_cuarta_fecha_y_la_clase(): void
@@ -224,9 +274,19 @@ class SesgoCuartaFechaTest extends TestCase
         $this->assertArrayHasKey('sesgo', (array) $respuesta->json());
         $this->assertNotNull($respuesta->json('sesgo.clase'));
 
-        // la lista de presentaciones tiene las cuatro fechas
+        // la lista de presentaciones trae las cinco fechas publicadas
         $claves = array_column((array) $respuesta->json('presentaciones'), 'clave');
         $this->assertContains('probable', $claves);
-        $this->assertCount(4, $claves);
+        $this->assertContains('consenso', $claves);
+        $this->assertCount(5, $claves);
+
+        // y el consenso viaja como campo propio, entre la rápida y la tardada
+        $this->assertNotNull($respuesta->json('presenta_consenso'));
+        $this->assertGreaterThanOrEqual(
+            strtotime((string) $respuesta->json('presenta_rapido')),
+            strtotime((string) $respuesta->json('presenta_consenso')));
+        $this->assertLessThanOrEqual(
+            strtotime((string) $respuesta->json('presenta_tardado')),
+            strtotime((string) $respuesta->json('presenta_consenso')));
     }
 }

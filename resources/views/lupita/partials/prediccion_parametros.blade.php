@@ -276,7 +276,8 @@
                             @if((int) ($ventana['cadena_radio'] ?? 0) > 0)
                                 <div class="small">
                                     sin pares medidos (cadena, n = {{ $ventana['cadena_n'] }}):
-                                    <strong>±{{ $ventana['cadena_radio'] }} min</strong>
+                                    <strong>−{{ (int) ($ventana['cadena_adelanto'] ?? $ventana['cadena_radio']) }}
+                                        / +{{ (int) ($ventana['cadena_atraso'] ?? $ventana['cadena_radio']) }} min</strong>
                                     (cubre {{ $ventana['cadena_cobertura'] }} % — con la banda general quedaría corto)
                                 </div>
                             @endif
@@ -291,8 +292,10 @@
                             <input type="hidden" name="ventana_residuos" value="1">
                             <input type="hidden" name="ventana_adelanto_min" value="{{ (int) $ventana['adelanto'] }}">
                             <input type="hidden" name="ventana_atraso_min" value="{{ (int) $ventana['atraso'] }}">
-                            <input type="hidden" name="ventana_adelanto_cadena" value="{{ (int) ($ventana['cadena_radio'] ?? 0) }}">
-                            <input type="hidden" name="ventana_atraso_cadena" value="{{ (int) ($ventana['cadena_radio'] ?? 0) }}">
+                            <input type="hidden" name="ventana_adelanto_cadena"
+                                   value="{{ (int) ($ventana['cadena_adelanto'] ?? $ventana['cadena_radio'] ?? 0) }}">
+                            <input type="hidden" name="ventana_atraso_cadena"
+                                   value="{{ (int) ($ventana['cadena_atraso'] ?? $ventana['cadena_radio'] ?? 0) }}">
                             <button class="btn btn-sm btn-success">
                                 <i class="bi bi-check2"></i> Aplicar ventana
                             </button>
@@ -300,7 +303,9 @@
                     </div>
                     <div class="text-muted mt-1" style="font-size:.7rem">
                         Es simétrica a propósito: la mediana del error salta cientos de minutos entre ventanas, así que
-                        correr la banda con el sesgo sería calzar ruido. El sesgo se informa aparte.
+                        correr la banda con el sesgo sería calzar ruido. También se probó la banda asimétrica (cada lado
+                        por su cuantil) y no paga: el lado temprano no se puede publicar porque el rápido se recorta
+                        contra <code>ahora</code>. El sesgo se informa aparte y se corrige por clase en la cuarta fecha.
                     </div>
                 </div>
             @endif
@@ -351,11 +356,29 @@
                     <i class="bi bi-arrow-clockwise"></i>
                 </button>
             </form>
-            <div class="ms-auto small text-muted">
+            <div class="ms-auto small text-muted d-flex align-items-center gap-2">
                 @if((int) ($p->sesgo_clase_activo ?? 0) === 1)
                     <span class="badge bg-success">aplicado</span>
+                    {{-- apagar la cuarta fecha no debería exigir volver a medir --}}
+                    <form method="POST" action="{{ route('lupita.prediccion.sesgo.aplicar') }}" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="sesgo_clase_activo" value="0">
+                        <button class="btn btn-sm btn-outline-secondary py-0"
+                                title="la cuarta fecha vuelve a ser igual a la normal; la normal, la rápida y la tardada no cambian">
+                            apagar la 4.ª fecha
+                        </button>
+                    </form>
                 @else
                     <span class="badge bg-secondary">sin aplicar</span>
+                    {{-- prender con los sesgos que ya estén guardados --}}
+                    <form method="POST" action="{{ route('lupita.prediccion.sesgo.aplicar') }}" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="sesgo_clase_activo" value="1">
+                        <button class="btn btn-sm btn-outline-success py-0"
+                                title="usa los sesgos ya guardados (si nunca se midió, los pone en cero)">
+                            prender la 4.ª fecha
+                        </button>
+                    </form>
                 @endif
             </div>
         </div>
@@ -409,12 +432,23 @@
                             </table>
                         </div>
                         <div class="d-flex flex-wrap align-items-center gap-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="sesgo_clase_activo" value="1"
-                                       id="sesgo_clase_activo" @checked((int) ($p->sesgo_clase_activo ?? 0) === 1)>
-                                <label class="form-check-label small" for="sesgo_clase_activo">
-                                    Usar la cuarta fecha (<code>presenta_probable</code>)
-                                </label>
+                            <div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="sesgo_clase_activo" value="1"
+                                           id="sesgo_clase_activo" @checked((int) ($p->sesgo_clase_activo ?? 0) === 1)>
+                                    <label class="form-check-label small" for="sesgo_clase_activo">
+                                        Usar la cuarta fecha (<code>presenta_probable</code>)
+                                    </label>
+                                </div>
+                                <div class="text-muted" style="font-size:.7rem; max-width:60ch">
+                                    Es el <strong>interruptor de la función</strong>, no un ajuste de la hora:
+                                    apagado, la cuarta fecha repite la normal y no cambia nada más — la normal,
+                                    la rápida y la tardada se publican igual. Desactivarlo no “usa mejor la
+                                    normal”: sólo deja de publicar la hora corregida. Se elige con los números:
+                                    si en <em>aciertos</em> la probable empeora el MAE, dejalo apagado; si lo
+                                    mejora, prendelo. Con esto prendido la <strong>ventana</strong> también se
+                                    mide contra la cuarta fecha, así que después de cambiarlo volvé a medirla.
+                                </div>
                             </div>
                             <button class="btn btn-sm btn-success">
                                 <i class="bi bi-check2"></i> Aplicar sesgos

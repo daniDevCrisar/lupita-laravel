@@ -88,6 +88,38 @@ class CalibrarYAplicarTest extends TestCase
         $this->assertSame(3, substr_count($html, '¿Medir y aplicar'));
     }
 
+    public function test_la_cuarta_fecha_se_prende_y_apaga_sin_volver_a_medir(): void
+    {
+        $this->withoutMiddleware();
+        $this->actingAs(\App\Models\User::query()->firstOrFail());
+
+        // El interruptor vivía dentro del bloque que sólo se dibuja al medir, así
+        // que para apagar la cuarta fecha había que volver a medir. Ahora está
+        // siempre al lado del badge de estado.
+        Parametros::guardar(['sesgo_clase_activo' => 0]);
+        Parametros::olvidar();
+
+        $html = (string) $this->get(route('lupita.prediccion.parametros.ver'))->assertOk()->getContent();
+        $this->assertStringContainsString('prender la 4.ª fecha', $html);
+
+        // prender manda sólo el interruptor: no puede pisar los sesgos medidos
+        Parametros::guardar(['sesgo_clase_cadena_largo' => -1234]);
+        Parametros::olvidar();
+
+        PrediccionController::aplicar_sesgo(
+            $this->peticion('/lupita/prediccion/sesgo/aplicar', ['sesgo_clase_activo' => '1']));
+
+        Parametros::olvidar();
+        $enUso = Parametros::cargar();
+
+        $this->assertSame(1, (int) $enUso->sesgo_clase_activo);
+        $this->assertSame(-1234, (int) $enUso->sesgo_clase_cadena_largo,
+            'prender la cuarta fecha no debe tocar los sesgos ya medidos');
+
+        $html = (string) $this->get(route('lupita.prediccion.parametros.ver'))->assertOk()->getContent();
+        $this->assertStringContainsString('apagar la 4.ª fecha', $html);
+    }
+
     public function test_medir_sin_aplicar_no_guarda_nada(): void
     {
         $this->limpiar(['cruce_pares_k']);
@@ -141,8 +173,12 @@ class CalibrarYAplicarTest extends TestCase
             'aplicar la ventana tiene que prender ventana_residuos');
         $this->assertSame((int) $medicion['adelanto'], (int) $enUso->ventana_adelanto_min);
         $this->assertSame((int) $medicion['atraso'], (int) $enUso->ventana_atraso_min);
-        $this->assertSame((int) ($medicion['cadena_radio'] ?? 0), (int) $enUso->ventana_adelanto_cadena);
-        $this->assertSame((int) ($medicion['cadena_radio'] ?? 0), (int) $enUso->ventana_atraso_cadena);
+
+        // la cadena también se guarda por lados (la banda es asimétrica)
+        $this->assertSame((int) ($medicion['cadena_adelanto'] ?? $medicion['cadena_radio'] ?? 0),
+            (int) $enUso->ventana_adelanto_cadena);
+        $this->assertSame((int) ($medicion['cadena_atraso'] ?? $medicion['cadena_radio'] ?? 0),
+            (int) $enUso->ventana_atraso_cadena);
 
         $this->assertStringContainsString('Ventana aplicada', (string) session('estado'));
     }

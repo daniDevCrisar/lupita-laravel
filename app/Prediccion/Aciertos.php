@@ -24,6 +24,32 @@ final class Aciertos
     public const TOLERANCIAS = [30, 60, 120, 180, 360, 720];
 
     /**
+     * Las CUATRO fechas que publica el motor, en el orden en que se muestran.
+     * `normal` es la de siempre; `probable` es esa misma hora corregida con el
+     * sesgo de su clase (la cuarta).
+     */
+    public const FECHAS = [
+        'rapido' => 'rápido',
+        'normal' => 'normal',
+        'tardado' => 'tardado',
+        'probable' => 'probable',
+        'consenso' => 'consenso',
+    ];
+
+    /**
+     * Campo con el error de cada fecha. Se llaman igual en la tabla de aciertos
+     * (backtest) y en las predicciones guardadas, así que el mismo helper sirve
+     * para las dos pantallas.
+     */
+    private const CAMPOS = [
+        'rapido' => 'error_rapido_min',
+        'normal' => 'error_min',
+        'tardado' => 'error_tardado_min',
+        'probable' => 'error_probable_min',
+        'consenso' => 'error_consenso_min',
+    ];
+
+    /**
      * @param  array<int, int|float|null>  $erroresMin  error firmado por referencia (min)
      * @param  array<int, bool>            $dentroVentana  si la predicción cayó en su ventana p25-p75
      */
@@ -69,6 +95,97 @@ final class Aciertos
         $resultado = self::pct($dentroVentana, true, $n);
         $salida->pct_ventana = $dentroVentana === [] ? null : $resultado;
         $salida->dentro_ventana = count(array_filter($dentroVentana, fn ($valor) => (bool) $valor));
+
+        return $salida;
+    }
+
+    /**
+     * Cuál de las CUATRO fechas quedó más cerca de la real en una fila.
+     *
+     * Compara las cuatro, no la normal contra la probable: en muchos viajes la
+     * que gana es la rápida o la tardada, y mirar sólo dos esconde justo eso.
+     * Con empate gana la que se publica primero (rápido, normal, tardado,
+     * probable) y las otras quedan en `empates` para poder mostrarlas.
+     *
+     * @param  object|array<string, mixed>  $fila
+     */
+    public static function mas_cerca($fila): ?stdClass
+    {
+        $errores = self::errores($fila);
+        if ($errores === []) {
+            return null;
+        }
+
+        $minimo = min(array_map('abs', $errores));
+
+        $ganadoras = [];
+        foreach ($errores as $clave => $error) {
+            if (abs($error) === $minimo) {
+                $ganadoras[] = $clave;
+            }
+        }
+
+        return (object) [
+            'clave' => $ganadoras[0],
+            'nombre' => self::FECHAS[$ganadoras[0]],
+            'abs_min' => $minimo,
+            'empates' => array_slice($ganadoras, 1),
+        ];
+    }
+
+    /**
+     * Carrera de las cuatro fechas: cuántas veces gana cada una.
+     *
+     * Se saltean las filas fuera del tope de horizonte: son los casos en que el
+     * camión tardó días en volver y ninguna fecha compite de verdad.
+     *
+     * @param  array<int, object>  $filas
+     */
+    public static function carrera(array $filas): stdClass
+    {
+        $cuenta = array_fill_keys(array_keys(self::FECHAS), 0);
+        $n = 0;
+
+        foreach ($filas as $fila) {
+            if (!is_object($fila) || ($fila->fuera_tope ?? false)) {
+                continue;
+            }
+
+            $ganadora = self::mas_cerca($fila);
+            if ($ganadora === null) {
+                continue;
+            }
+
+            $cuenta[$ganadora->clave]++;
+            $n++;
+        }
+
+        $salida = (object) ['n' => $n];
+        foreach ($cuenta as $clave => $veces) {
+            $salida->{$clave} = $veces;
+            $salida->{'pct_' . $clave} = $n > 0 ? (int) round(100 * $veces / $n) : null;
+        }
+
+        return $salida;
+    }
+
+    /**
+     * Error firmado de cada fecha que esté informada.
+     *
+     * @param  object|array<string, mixed>  $fila
+     * @return array<string, int>
+     */
+    private static function errores($fila): array
+    {
+        $salida = [];
+
+        foreach (self::CAMPOS as $clave => $campo) {
+            $valor = is_array($fila) ? ($fila[$campo] ?? null) : ($fila->{$campo} ?? null);
+            if ($valor === null || !is_numeric($valor)) {
+                continue;
+            }
+            $salida[$clave] = (int) round((float) $valor);
+        }
 
         return $salida;
     }

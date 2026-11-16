@@ -255,10 +255,20 @@ CAMPOS DE LA RESPUESTA
                    con la ventana medida el `rapido`/`tardado` cubre el 70 % de
                    los casos, con el p25-p75 del hueco cubria el 31-35 %.
   presenta_tardado la hora mas el atraso medido (misma fuente que el rapido).
-  presentaciones   las tres fechas con etiqueta y `desde_ahora` en h:mm:
-                   [{clave: rapido|normal|tardado, etiqueta, descripcion,
-                     fecha, desde_ahora}]. El rapido nunca es menor que el
-                   traslado: el camion no llega antes de lo que tarda el viaje.
+  presenta_probable
+                   la CUARTA fecha: la normal corregida con la mediana del error
+                   de su clase (evidencia x tramo del horizonte). Con el sesgo
+                   apagado es igual a `presenta`. Ver 1.21.
+  presenta_consenso
+                   la QUINTA fecha: el promedio de rapido, normal y probable. Se
+                   publica para MEDIRLO: con las guardadas gana el acierto por
+                   tolerancia (+-30m/+-1h/+-3h) y en el backtest de octubre
+                   tambien gano "mas cerca" (26 % contra 19 %). Ver 1.27.
+  presentaciones   las cinco fechas con etiqueta y `desde_ahora` en h:mm:
+                   [{clave: rapido|normal|tardado|probable|consenso, etiqueta,
+                     descripcion, fecha, desde_ahora}]. El rapido nunca es menor
+                   que el traslado: el camion no llega antes de lo que tarda el
+                   viaje.
   inicio_carga     presenta + espera en planta (null si no hay presenta).
   espera_min       espera en planta usada, en minutos.
   espera_hhmm      la misma espera en h:mm (ver seccion 8).
@@ -1963,6 +1973,202 @@ evidencia. Hay tres niveles.
                      desincronizan, el boton mide y no aplica), que medir sin
                      aplicar no escriba ninguna clave, y que aplicar guarde las
                      claves Y prenda el interruptor que corresponde.
+
+  1.23 14/11/2026  - "MAS CERCA" COMPARA LAS CUATRO FECHAS. La tabla de aciertos
+                     decia cual de las cuatro quedo mas cerca de la real, pero el
+                     backtest solo informaba el error de la normal y el de la
+                     probable: `error_rapido_min` y `error_tardado_min` no venian
+                     en la fila, llegaban en null, y la comparacion caia a dos
+                     (siempre "normal" o "probable"). Ahora cada fila lleva esos
+                     dos campos y la decision vive en `Aciertos::mas_cerca()`, que
+                     compara las cuatro, usa el valor absoluto, desempata por el
+                     orden en que se publican y devuelve las empatadas.
+                     El encabezado suma la CARRERA (`Aciertos::carrera()`): de las
+                     filas que entran en las metricas, cuantas gana cada fecha.
+                     MEDIDO (20-oct..10-nov, 37 filas, sesgo aplicado): rapido
+                     19 % (7) - normal 19 % (7) - tardado 35 % (13) - probable
+                     27 % (10). Con el sesgo apagado la probable empata con la
+                     normal y el desempate la deja en "normal".
+
+                     Ademas, el check "Usar la cuarta fecha" del bloque de sesgos
+                     quedo explicado en pantalla: es el interruptor de la funcion,
+                     no un ajuste de la hora. Apagado, `presenta_probable` vuelve
+                     a ser igual a `presenta` y NADA mas cambia (ni la normal, ni
+                     la rapida, ni la tardada). Prendido, la ventana se mide
+                     contra la cuarta fecha: despues de cambiarlo hay que volver a
+                     medirla.
+
+                     El interruptor, ademas, ahora esta SIEMPRE al lado del badge
+                     de estado ("prender / apagar la 4.a fecha"): antes vivia
+                     dentro del bloque que solo se dibuja despues de medir, asi que
+                     para apagarla habia que volver a medir. Prender manda solo el
+                     interruptor y NO pisa los nueve sesgos ya guardados.
+
+  1.24 14/11/2026  - ELEGIR QUE FECHAS SE COMPARAN EN "GUARDADAS". La tarjeta
+                     "Produccion - lo guardado que ya presento" tiene un check por
+                     cada una de las cuatro fechas y un boton "Calcular".
+
+                     El motivo es que las guardadas viejas no traen la cuarta
+                     fecha. Antes cada fecha se medIa con las filas que le
+                     tocaban, asi que la que estaba en mas filas ganaba por tener
+                     mas casos faciles, no por ser mejor. Ahora la comparacion es
+                     CARA A CARA: solo entran las filas que tienen TODAS las fechas
+                     tildadas, y el n de la tabla es el mismo para todas.
+
+                     Lo que se ve en la tarjeta:
+                       - "N sin dato" al lado de cada check: cuantas filas del
+                         rango NO tienen esa fecha (es la pista de cual destildar);
+                       - "Se comparan N filas ... M quedan fuera porque les falta
+                         alguna";
+                       - la tabla solo con las fechas tildadas, y la carrera
+                         ("Mas cerca") repartida entre ellas;
+                       - si ninguna fila tuviera las cuatro, se cae a las fechas
+                         que si tienen datos y se avisa (para no abrir la pantalla
+                         con la tabla vacia). "Calcular" sin ningun check tambien
+                         avisa y compara las que tengan datos.
+
+                     La seleccion viaja en los campos ocultos del boton "Ver", asi
+                     que cambiar el rango no la pierde. Por dentro:
+                     `Tablero::FECHAS` (orden publicado), `Tablero::limpiar_seleccion()`
+                     (descarta claves invalidas) y `Tablero::fechas($filas, $tol, $seleccion)`
+                     devuelve ademas `opciones` (con `faltan`), `incompletas`,
+                     `comparadas` y `total`.
+
+                     MEDIDO en local (01-sep..10-nov, 2000 filas, ninguna con la
+                     cuarta): por defecto se comparan las tres de siempre con
+                     n=2000 cada una - rapido MAE 1.117 (mas cerca 45 %), normal
+                     1.199 (20 %), tardado 1.424 (35 %).
+
+  1.25 14/11/2026  - LA BANDA SE DIBUJA SOBRE LA HORA QUE SE USA. La ventana se
+                     MIDE contra la cuarta fecha cuando el sesgo esta aplicado
+                     (`ventana_residuos`, "se mide contra la fecha que se va a
+                     usar") pero el motor dibujaba el rapido y el tardado alrede-
+                     dor de la normal. Con una banda grande casi no se notaba;
+                     ahora el centro es `presenta_probable`, o sea la banda
+                     envuelve la hora publicada de verdad. MEDIDO (1-oct..10-nov,
+                     banda +-1349/+-2086, sesgo aplicado): cobertura 65 % -> 66 %
+                     y las filas que caen despues del tardado bajan de 100 a 91.
+                     El tardado nunca queda antes de la normal ni del centro.
+
+                     POR QUE EL % DE TARDADO NO ES UNA META. Ese porcentaje es una
+                     CARRERA entre cuatro fechas (suma 100 %), no una nota. El
+                     tardado gana 35-39 % porque un tercio de las filas no se
+                     puede predecir: 100 de 313 (32 %) presentan DESPUES del
+                     tardado, y ahi el tardado queda mas cerca que la normal sin
+                     que nadie lo haya mejorado.
+
+                     Lo medido con el atraso (banda simetrica, 313 filas):
+                       atraso   cubre   mas cerca tardado   MAE del tardado
+                         600     51 %        40 %               1.450
+                         900     56 %        36 %               1.491
+                       1.349     60 %        34 %               1.597
+                       1.700     66 %        31 %               1.710
+                       2.024     71 %        36 %               1.855
+                       2.698     79 %        32 %               2.242
+                     O sea: abrir el atraso NO sube el porcentaje de tardado (lo
+                     deja igual o mas bajo) y empeora su MAE; lo que sube es la
+                     COBERTURA de la banda ("presenta entre estas dos"). Si la meta
+                     es que la real caiga dentro, se usa el select de cobertura de
+                     "Medir la ventana" (50/70/80 %). Si la meta es acertar la
+                     hora, el tardado no es el camino: su MAE (1.580) es peor que
+                     el de la cuarta fecha (1.352).
+
+                     LO QUE SI MUEVE LA AGUJA ES EL HORIZONTE (mismo rango):
+                       hasta todo   n=313   cubre 65 %   mas cerca t39   MAE 1.474
+                       hasta 48 h   n=220   cubre 84 %   mas cerca t21   MAE   751
+                       hasta 24 h   n=148   cubre 97 %   mas cerca t 2   MAE   403
+                       hasta 12 h   n=117   cubre 97 %   mas cerca t 0   MAE   354
+                     El 39 % de tardado es el sintoma de las filas de dias, no de
+                     un borde mal calibrado. Se ataca con el tope de horizonte de
+                     la tabla de aciertos, no con el ancho de la banda.
+
+                     PROBADO Y DESCARTADO: la banda ASIMETRICA (cada lado por su
+                     cuantil del error firmado). Aunque el error firmado tiene
+                     colas muy distintas (-2.656 / +419), el lado temprano no se
+                     puede publicar porque el rapido se recorta contra `ahora`: en
+                     muestra cubre 56 % contra 66 % de la simetrica y fuera de
+                     muestra empata. Queda comentado en `ventana_residuos()` para
+                     que no se vuelva a intentar sin medir.
+
+  1.26 14/11/2026  - "PROMEDIAR LAS SELECCIONADAS" en la tarjeta de Produccion.
+                     Un check mas en la misma fila que las cuatro fechas: agrega
+                     una fila PROMEDIO (la hora promedio de las tildadas en cada
+                     fila, que es lo mismo que promediar sus errores) con sus
+                     propios KPIs, y la mete en la MISMA carrera. Con una sola
+                     fecha tildada no se agrega (seria esa fecha).
+
+                     MEDIDO en local (01-sep..10-nov, 2000 filas):
+                       tres fechas   rapido MAE 1.117 (mas cerca 42 %) - normal
+                                     1.199 (12 %) - tardado 1.424 (33 %) -
+                                     PROMEDIO 1.136 (13 %)
+                       rapido+normal rapido 1.117 (52 %) - normal 1.199 (40 %) -
+                                     PROMEDIO 1.097 (8 %)
+                       normal+tardado normal 1.199 (60 %) - tardado 1.424 (31 %) -
+                                     PROMEDIO 1.268 (9 %)
+
+                     Lo que dice: promediar NO gana la carrera. El promedio casi
+                     nunca queda mas cerca que las fechas sueltas, porque el
+                     promedio de dos extremos nunca es un extremo; y las
+                     tolerancias se le caen (con las tres: +-1h 10 % contra 18 %
+                     del rapido). Donde si ayuda es en MAE y solo con dos fechas
+                     vecinas: rapido+normal promedia 1.097, mejor que las dos por
+                     separado. O sea: para "quien queda mas cerca" no conviene
+                     promediar; para error promedio, promediar dos adyacentes.
+
+                     La fila del promedio lleva un VEREDICTO contra la mejor de las
+                     fechas elegidas, en las dos preguntas que NO son lo mismo:
+                     "mas cerca" (quien queda mas cerca mas veces) y "+-N min"
+                     (cuantas caen dentro de la tolerancia gorda, 180 por defecto).
+                     Verde = el promedio gana, rojo = pierde, con los puntos de
+                     diferencia.
+
+                     MEDIDO en el backtest (1-oct..10-nov, 313 filas con las cuatro
+                     fechas), promedio de rapido+normal+probable:
+                       candidata   mas cerca   +-30m   +-1h   +-3h   +-6h
+                       rapido          9 %      1 %     3 %    10 %    26 %
+                       normal         11 %      4 %    10 %    24 %    35 %
+                       tardado        39 %      0 %     2 %     4 %     9 %
+                       probable       18 %      4 %     7 %    23 %    36 %
+                       r+n+p           9 %      6 %     9 %    24 %    35 %
+                     El promedio EMPATA el mejor +-3h (24 %), GANA el +-30m
+                     (6 % contra 4 %) y PIERDE la carrera de "mas cerca" (9 %).
+                     Es la misma cosa que se ve en produccion: promediar ayuda al
+                     ACierto por tolerancia (baja la varianza) y no a quedar mas
+                     cerca que las otras (la ganadora suele ser un extremo).
+
+                     CON LAS GUARDADAS (base refrescada, rapido+normal+probable):
+                       octubre, n=975:   rapido +-3h 14 % - normal 24 % - probable
+                                         23 % - PROMEDIO 27 %  (veredicto +3)
+                       noviembre, n=1602: rapido 12 % - normal 31 % - probable 30 %
+                                         - PROMEDIO 32 %  (veredicto +1)
+                     Y en "mas cerca" el promedio queda abajo (20 % contra 31/35 %)
+                     porque el promedio de tres horas casi nunca es la mas cercana:
+                     mejora +-1h/+-3h (8/15 % contra 6/13 %) y no la carrera. Por eso
+                     la fila trae los dos deltas: son preguntas distintas y pueden
+                     dar signos distintos en la misma corrida.
+
+  1.27 14/11/2026  - QUINTA FECHA: `presenta_consenso`. El promedio de la rapida,
+                     la normal y la cuarta, calculado en MINUTOS DESDE EL CORTE
+                     (no con timestamps: no depende de la zona horaria y queda en
+                     el mismo eje que las otras). Viaja en el JSON, en
+                     `presentaciones` (5 entradas), en el backtest
+                     (`error_consenso_min`, `resumen_consenso`) y en las guardadas
+                     (se guarda dentro de `desglose` como la cuarta, sin columnas
+                     nuevas). En las pantallas: la tabla de aciertos suma su MAE y
+                     su +-1h/+-3h y la carrera pasa a cinco; en guardadas aparece
+                     como un quinto check y como una fila mas.
+
+                     MEDIDO con el backtest (sesgo aplicado, cinco candidatas en la
+                     carrera):
+                       octubre, n=488:   rapido MAE 1.226 (mas cerca 18 %) -
+                                         normal 1.150 (17 %) - tardado 1.900 (18 %)
+                                         - probable 1.017 (19 %) - CONSENSO 1.022
+                                         (26 %) con 30m/1h/3h = 11/22/40 %
+                       noviembre, n=507: probable 1.036 (29 %) - consenso 1.117
+                                         (18 %) con 30m/1h/3h = 8/15/28 %
+                     En octubre el consenso gana las cuatro columnas; en noviembre
+                     gana las tolerancias chicas pero pierde +-3h y la carrera. Por
+                     eso NO se usa para publicar la hora en lugar de nada: se mide.
 
 ================================================================================
  FIN

@@ -516,12 +516,40 @@ class PrediccionController extends Controller
         $resumen = \App\Database\DBPrediccionResultados::resumen(
             Carbon::parse($desde), Carbon::parse($hasta), 2000, $filtros['origen'], $limite);
 
+        // Qué fechas entran en la comparación de la tarjeta de producción.
+        // `comparar` viaja SÓLO si se apretó el botón: así "no tildé ninguna" no
+        // se confunde con "todavía no elegí" (un checkbox destildado no manda nada).
+        $seleccionFechas = null;
+        $avisoFechas = null;
+
+        if ($request->boolean('comparar')) {
+            $validas = [];
+            foreach ((array) $request->input('fechas', []) as $clave) {
+                if (is_string($clave) && in_array($clave, \App\Prediccion\Tablero::FECHAS, true)) {
+                    $validas[] = $clave;
+                }
+            }
+
+            if ($validas === []) {
+                $avisoFechas = 'No tildaste ninguna fecha: se comparan todas las que tengan datos en el rango.';
+            } else {
+                $seleccionFechas = $validas;
+            }
+        }
+
+        $tablero = self::tablero_guardadas($desde, $hasta, $resumen,
+            $request->boolean('refrescar'), $seleccionFechas, $request->boolean('promediar'));
+
+        if ($avisoFechas !== null) {
+            $tablero['fechas']['aviso'] = $avisoFechas;
+        }
+
         return view('lupita.prediccion_guardadas', array_merge(self::comunes(), [
             'filtros' => $filtros,
             'origenes' => self::ORIGENES_GUARDADAS,
             'limites' => self::FILAS_GUARDADAS,
             'resumen' => $resumen,
-            'tablero' => self::tablero_guardadas($desde, $hasta, $resumen, $request->boolean('refrescar')),
+            'tablero' => $tablero,
         ]));
     }
 
@@ -541,7 +569,8 @@ class PrediccionController extends Controller
      * @return array<string, mixed>
      */
     private static function tablero_guardadas(string $desde, string $hasta, array $resumen,
-                                              bool $refrescar = false): array
+                                              bool $refrescar = false, ?array $seleccionFechas = null,
+                                              bool $promediarFechas = false): array
     {
         $tolerancia = \App\Database\DBPrediccionResultados::TOLERANCIA_ACEPTADA;
         $comparables = $resumen['comparables'] ?? [];
@@ -572,8 +601,31 @@ class PrediccionController extends Controller
             'horizonte_largo' => $horizontes['largo'],
         ];
 
-        // las cuatro fechas publicadas, cada una con su error y su escalera
-        $cuatroFechas = Tablero::fechas($comparables, $tolerancia);
+        // las cuatro fechas publicadas, cada una con su error y su escalera.
+        // La comparación es cara a cara: sólo filas que tengan las fechas elegidas.
+        // Con `promediar` se agrega una fila más: el promedio de las elegidas.
+        $cuatroFechas = Tablero::fechas($comparables, $tolerancia, $seleccionFechas, $promediarFechas);
+
+        // Sin elección y sin NINGUNA fila completa, se cae a las fechas que sí
+        // tienen datos: las guardadas viejas no traen la cuarta, y abrir la
+        // pantalla con la tabla vacía parece que el motor dejó de medir.
+        if ($seleccionFechas === null && (int) $cuatroFechas['n'] === 0 && (int) $cuatroFechas['total'] > 0) {
+            $conDatos = [];
+            $etiquetas = [];
+            foreach ($cuatroFechas['opciones'] as $opcion) {
+                if ((int) $opcion['faltan'] < (int) $cuatroFechas['total']) {
+                    $conDatos[] = $opcion['clave'];
+                    $etiquetas[] = $opcion['etiqueta'];
+                }
+            }
+
+            if ($conDatos !== []) {
+                $cuatroFechas = Tablero::fechas($comparables, $tolerancia, $conDatos);
+                $cuatroFechas['aviso'] = 'Ninguna fila guardada en este rango tiene las cuatro fechas:'
+                    . ' se comparan las que sí tienen datos (' . implode(', ', $etiquetas) . ').'
+                    . ' Las demás guardadas se llenan prediciendo de nuevo.';
+            }
+        }
 
         // ---- motor: la corrida de aciertos (cacheada 10 min) -----------------
         $llave = 'prediccion:guardadas:motor:v1:' . md5($inicio->toDateString() . '|' . $fin->toDateString());
@@ -871,12 +923,13 @@ class PrediccionController extends Controller
                     'ventana_residuos' => 1,
                     'ventana_adelanto_min' => (int) $medicion['adelanto'],
                     'ventana_atraso_min' => (int) $medicion['atraso'],
-                    'ventana_adelanto_cadena' => (int) ($medicion['cadena_radio'] ?? 0),
-                    'ventana_atraso_cadena' => (int) ($medicion['cadena_radio'] ?? 0),
+                    'ventana_adelanto_cadena' => (int) ($medicion['cadena_adelanto'] ?? $medicion['cadena_radio'] ?? 0),
+                    'ventana_atraso_cadena' => (int) ($medicion['cadena_atraso'] ?? $medicion['cadena_radio'] ?? 0),
                 ]);
-                $aplicado = 'Ventana aplicada: ±' . (int) $medicion['adelanto'] . ' min'
+                $aplicado = 'Ventana aplicada: −' . (int) $medicion['adelanto'] . ' / +' . (int) $medicion['atraso'] . ' min'
                     . ((int) ($medicion['cadena_radio'] ?? 0) > 0
-                        ? ' (cadena ±' . (int) $medicion['cadena_radio'] . ')' : '') . '.';
+                        ? ' (cadena −' . (int) ($medicion['cadena_adelanto'] ?? $medicion['cadena_radio'])
+                            . ' / +' . (int) ($medicion['cadena_atraso'] ?? $medicion['cadena_radio']) . ')' : '') . '.';
             } catch (\Throwable $e) {
                 $medicion['error'] = 'Se midió, pero no se pudo guardar: ' . $e->getMessage();
                 $medicion['ok'] = false;

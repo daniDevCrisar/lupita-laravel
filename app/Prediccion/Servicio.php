@@ -1122,10 +1122,14 @@ class Servicio
      * y calcula el radio `cuantil(|error|, cobertura)` alrededor de la hora
      * publicada, que es lo que pide un despachador: "presenta entre estas dos".
      *
-     * Devuelve SIMÉTRICO (adelanto = atraso = radio) a propósito: la mediana del
-     * error salta cientos de minutos según la ventana, así que correr la banda con
-     * el sesgo sería calzar ruido. Informa el sesgo y la cobertura que logra para
-     * que se vea qué tan lejos está de la cobertura pedida.
+     * Devuelve SIMÉTRICO (adelanto = atraso = radio) a propósito. Se probó la
+     * banda asimétrica, sacando cada lado de su cuantil del error firmado, y NO
+     * paga: el lado temprano que pide la medición (−2.656 min) no se puede
+     * publicar porque el rápido se recorta contra `ahora`, así que la cobertura
+     * medida no se logra (56 % en muestra contra 66 % de la simétrica) y fuera de
+     * muestra empata. Correr la banda con el sesgo tampoco: la mediana del error
+     * salta cientos de minutos entre ventanas y sería calzar ruido. El sesgo se
+     * informa aparte y se corrige por CLASE en la cuarta fecha.
      *
      * @param  array<string, mixed>  $filtros  igual que Servicio::backtest()
      * @return array<string, mixed>
@@ -1142,6 +1146,8 @@ class Servicio
             'atraso' => 0,
             'radio' => 0,
             'cadena_radio' => 0,
+            'cadena_adelanto' => 0,
+            'cadena_atraso' => 0,
             'cadena_n' => 0,
             'cadena_cobertura' => null,
             'cobertura' => $cobertura,
@@ -1225,6 +1231,8 @@ class Servicio
             $dentroCadena = count(array_filter($absolutosCadena, fn (int $error) => $error <= $radioCadena));
 
             $salida['cadena_radio'] = $radioCadena;
+            $salida['cadena_adelanto'] = $radioCadena;
+            $salida['cadena_atraso'] = $radioCadena;
             $salida['cadena_cobertura'] = (int) round(100 * $dentroCadena / count($erroresCadena));
         }
 
@@ -1490,12 +1498,21 @@ class Servicio
             $probable = $resultado->presenta_probable ?? null;
             $errorProbable = $probable !== null ? self::minutos($real, $probable) : null;
 
+            // la QUINTA: el consenso (promedio de la rápida, la normal y la cuarta)
+            $consenso = $resultado->presenta_consenso ?? null;
+            $errorConsenso = $consenso !== null ? self::minutos($real, $consenso) : null;
+
             // ACIERTO de la predicción de tres fechas: la hora real cae dentro de
             // [rápido, tardado]. Es el número que se muestra como "% de acierto".
             $rapido = $resultado->presenta_rapido ?? null;
             $tardado = $resultado->presenta_tardado ?? null;
             $dentroFila = $rapido !== null && $tardado !== null
                 && $real->greaterThanOrEqualTo($rapido) && $real->lessThanOrEqualTo($tardado);
+
+            // el error de las cuatro fechas: sin el de la rápida y la tardada la
+            // tabla no puede decir cuál quedó más cerca (comparaba sólo dos)
+            $errorRapido = $rapido !== null ? self::minutos($real, $rapido) : null;
+            $errorTardado = $tardado !== null ? self::minutos($real, $tardado) : null;
 
             // HORIZONTE: cuánto tiempo pasó entre el corte y la presentación real.
             // Por encima del tope, la fila NO entra en las métricas del motor: son
@@ -1540,6 +1557,10 @@ class Servicio
                 'cerca_regimen' => $regimenFila,
                 'probable' => $probable,
                 'error_probable_min' => $errorProbable,
+                'consenso' => $consenso,
+                'error_consenso_min' => $errorConsenso,
+                'error_rapido_min' => $errorRapido,
+                'error_tardado_min' => $errorTardado,
                 'sesgo_clase' => $resultado->sesgo_clase ?? null,
                 'sesgo_min' => (int) ($resultado->sesgo_min ?? 0),
                 'horizonte_min' => $horizonteFila,
@@ -1550,12 +1571,25 @@ class Servicio
         $resumenMotor = Aciertos::resumir($erroresMotor, $dentroMotor);
         // la cuarta fecha se mide aparte para ver si de verdad gana
         $resumenProbable = Aciertos::resumir($erroresProbable, $dentroProbable);
+
+        // el consenso se mide igual: es una fecha publicada más
+        $erroresConsenso = [];
+        foreach ($filas as $fila) {
+            if (!$fila->fuera_tope && $fila->error_consenso_min !== null) {
+                $erroresConsenso[] = $fila->error_consenso_min;
+            }
+        }
+        $resumenConsenso = Aciertos::resumir($erroresConsenso);
+
         \App\Prediccion\Geoapify::activar();
 
         return (object) [
             'filas' => $filas,
             'resumen_motor' => $resumenMotor,
             'resumen_probable' => $resumenProbable,
+            'resumen_consenso' => $resumenConsenso,
+            // carrera de las fechas publicadas: cuántas veces gana cada una
+            'carrera' => Aciertos::carrera($filas),
             'sesgo_activo' => (int) ($p->sesgo_clase_activo ?? 0) === 1,
             'parametros' => $p,
             'desde' => $desde,

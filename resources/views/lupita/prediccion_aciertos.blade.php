@@ -183,6 +183,31 @@
                                     {{ $mejora > 0 ? 'mejora ' . $mejora : ($mejora < 0 ? 'empeora ' . abs($mejora) : 'empata') }} min
                                 </span>
                             @endif
+
+                            {{-- quinta fecha: el consenso (promedio de rápida, normal y cuarta) --}}
+                            @php $consenso = $b->resumen_consenso ?? null; @endphp
+                            @if(($consenso->mae_min ?? null) !== null)
+                                <div class="mt-1">
+                                    <span class="fw-semibold">Consenso (<code>presenta_consenso</code>):</span>
+                                    MAE <strong class="text-secondary">{{ $fmt($consenso->mae_min) }}</strong>
+                                    · ±1h <strong>{{ $consenso->pct_60 ?? '—' }}%</strong>
+                                    · ±3h <strong>{{ $consenso->pct_180 ?? '—' }}%</strong>
+                                    <span class="text-muted">(promedio de la rápida, la normal y la cuarta)</span>
+                                </div>
+                            @endif
+
+                            {{-- carrera de las cinco: en muchos viajes gana la rápida o la tardada --}}
+                            @php $carrera = $b->carrera ?? null; @endphp
+                            @if($carrera !== null && ($carrera->n ?? 0) > 0)
+                                <div class="mt-1">
+                                    <span class="text-muted">más cerca de las cinco ({{ $carrera->n }} filas):</span>
+                                    <span class="badge bg-success">rápido {{ $carrera->pct_rapido ?? '—' }}% ({{ $carrera->rapido }})</span>
+                                    <span class="badge bg-primary">normal {{ $carrera->pct_normal ?? '—' }}% ({{ $carrera->normal }})</span>
+                                    <span class="badge bg-warning text-dark">tardado {{ $carrera->pct_tardado ?? '—' }}% ({{ $carrera->tardado }})</span>
+                                    <span class="badge bg-info text-dark">probable {{ $carrera->pct_probable ?? '—' }}% ({{ $carrera->probable }})</span>
+                                    <span class="badge bg-secondary">consenso {{ $carrera->pct_consenso ?? '—' }}% ({{ $carrera->consenso }})</span>
+                                </div>
+                            @endif
                         @endif
                     </div>
                 </div>
@@ -356,25 +381,18 @@
                         <td class="small text-success fw-bold text-nowrap">
                             {{ $fila->real->format('d/m/Y H:i') }}
                             @php
-                                // cuál de las cuatro quedó más cerca de la real en ESTA fila
-                                $candidatas = [
-                                    'rápido' => $fila->error_rapido_min ?? null,
-                                    'normal' => $fila->error_min ?? null,
-                                    'tardado' => $fila->error_tardado_min ?? null,
-                                    'probable' => $fila->error_probable_min ?? null,
-                                ];
-                                $candidatas = array_filter($candidatas, fn ($valor) => $valor !== null);
-                                $masCerca = null;
-                                if ($candidatas !== []) {
-                                    $minimo = min(array_map('abs', $candidatas));
-                                    foreach ($candidatas as $nombre => $valor) {
-                                        if (abs($valor) === $minimo) { $masCerca = $nombre; break; }
-                                    }
-                                }
+                                // cuál de las CUATRO quedó más cerca de la real en ESTA fila
+                                $masCerca = \App\Prediccion\Aciertos::mas_cerca($fila);
                             @endphp
                             @if($masCerca !== null)
                                 <div class="text-muted fw-normal" style="font-size:.65rem">
-                                    más cerca: {{ $masCerca }}
+                                    más cerca: {{ $masCerca->nombre }} ({{ $masCerca->abs_min }} min)
+                                    @if($masCerca->empates !== [])
+                                        · empata
+                                        {{ implode(' y ', array_map(
+                                            fn ($clave) => \App\Prediccion\Aciertos::FECHAS[$clave] ?? $clave,
+                                            $masCerca->empates)) }}
+                                    @endif
                                 </div>
                             @endif
                         </td>

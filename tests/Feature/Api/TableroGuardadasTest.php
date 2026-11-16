@@ -24,8 +24,8 @@ use Tests\TestCase;
  */
 class TableroGuardadasTest extends TestCase
 {
-    private const DESDE = '2026-09-01';
-    private const HASTA = '2026-10-10';
+    private const DESDE = '2026-10-01';
+    private const HASTA = '2026-10-31';
 
     private function vista(string $desde = self::DESDE, string $hasta = self::HASTA): array
     {
@@ -180,5 +180,142 @@ class TableroGuardadasTest extends TestCase
         $html = (string) $vista->render();
         $this->assertStringContainsString('Horizonte desde el ancla', $html);
         $this->assertStringContainsString('dentro de 6 h', $html);
+    }
+
+    /**
+     * La tarjeta de producción deja ELEGIR qué fechas se comparan.
+     *
+     * El motivo es que la cuarta fecha no está en las guardadas viejas: comparar
+     * cada fecha con las filas que le tocan hace que la que aparece en más filas
+     * gane por tener más casos fáciles. Con los checks se arma una comparación
+     * cara a cara y, al destildar, entran más filas.
+     */
+    public function test_la_produccion_deja_elegir_que_fechas_comparar(): void
+    {
+        [$vistaDefault, $tablero] = $this->vista();
+        $this->exigirComparables($tablero);
+        $fechas = $tablero['fechas'];
+
+        // los cuatro checks, con la etiqueta y cuántas filas no tienen el dato
+        $this->assertSame(\App\Prediccion\Tablero::FECHAS, array_column($fechas['opciones'], 'clave'));
+        $this->assertArrayHasKey('faltan', $fechas['opciones'][0]);
+
+        // sin elegir nada la pantalla no puede quedar vacía: si no hay filas con
+        // las cuatro, se comparan las que sí tienen datos (y se avisa)
+        $this->assertGreaterThan(0, $fechas['n']);
+
+        $htmlDefault = (string) $vistaDefault->render();
+        $this->assertStringContainsString('Calcular', $htmlDefault);
+        foreach (\App\Prediccion\Tablero::FECHAS as $clave) {
+            $this->assertStringContainsString('id="fecha-' . $clave . '"', $htmlDefault);
+        }
+
+        if ((int) $fechas['comparadas'] < 4) {
+            // las guardadas viejas no tienen la cuarta: se cae a las que tienen
+            $this->assertStringContainsString('se comparan las que sí tienen datos', $htmlDefault);
+        } else {
+            $this->assertSame(4, (int) $fechas['comparadas'],
+                'si todas las filas tienen las cuatro fechas, se comparan las cuatro');
+        }
+
+        // una sola fecha: la tabla trae una fila y el n es el de las comparables
+        [$vista, $soloNormal] = $this->vistaCon(['comparar' => '1', 'fechas' => ['normal']]);
+        $this->assertSame(['normal'], $soloNormal['fechas']['seleccion']);
+        $this->assertSame(1, $soloNormal['fechas']['comparadas']);
+        $this->assertCount(1, $soloNormal['fechas']['filas']);
+        $this->assertSame((int) $soloNormal['produccion']['errores']['n'], (int) $soloNormal['fechas']['n'],
+            'la normal está en todas las comparables: su n tiene que ser el de producción');
+
+        // dos fechas: la carrera se reparte entre esas dos y no entre cuatro
+        [, $dos] = $this->vistaCon(['comparar' => '1', 'fechas' => ['normal', 'tardado']]);
+        $this->assertCount(2, $dos['fechas']['filas']);
+        $this->assertSame(
+            (int) $dos['fechas']['n'],
+            array_sum(array_map(fn ($f) => (int) $f['mas_cerca'], $dos['fechas']['filas'])));
+
+        // la selección viaja en los campos ocultos del botón "Ver"
+        $this->assertStringContainsString('name="fechas[]" value="normal"', (string) $vista->render());
+    }
+
+    public function test_el_boton_calcular_avisa_cuando_no_hay_ninguna_fecha_tildada(): void
+    {
+        [$vista, $tablero] = $this->vistaCon(['comparar' => '1']);
+        $this->exigirComparables($tablero);
+
+        $this->assertStringContainsString('No tildaste ninguna fecha', $tablero['fechas']['aviso'] ?? '');
+        $this->assertGreaterThan(0, $tablero['fechas']['n'], 'igual compara, para no dejar la tabla vacía');
+        $this->assertStringContainsString('No tildaste ninguna fecha', (string) $vista->render());
+    }
+
+    /**
+     * El check "promediar las seleccionadas" agrega la fila del promedio, con sus
+     * propios KPIs, y la mete en la misma carrera: así se ve si promediar ayuda.
+     */
+    public function test_la_produccion_puede_promediar_las_fechas_elegidas(): void
+    {
+        $fechas = ['rapido', 'normal', 'tardado'];
+
+        [, $sin] = $this->vistaCon(['comparar' => '1', 'fechas' => $fechas]);
+        $this->exigirComparables($sin);
+        $this->assertFalse($sin['fechas']['promediado']);
+        $this->assertCount(3, $sin['fechas']['filas']);
+
+        [$vista, $con] = $this->vistaCon(['comparar' => '1', 'fechas' => $fechas, 'promediar' => '1']);
+
+        $this->assertTrue($con['fechas']['promediado']);
+        $this->assertCount(4, $con['fechas']['filas'], 'las tres elegidas + el promedio');
+        $this->assertSame('promedio', $con['fechas']['filas'][3]['clave']);
+
+        // el promedio se mide sobre las MISMAS filas y trae KPIs propios
+        $this->assertSame((int) $con['fechas']['n'], (int) $con['fechas']['filas'][3]['n']);
+        $this->assertNotNull($con['fechas']['filas'][3]['mae']);
+
+        // la carrera se reparte entre las cuatro candidatas
+        $this->assertSame(
+            (int) $con['fechas']['n'],
+            array_sum(array_map(fn ($f) => (int) $f['mas_cerca'], $con['fechas']['filas'])));
+
+        $html = (string) $vista->render();
+        $this->assertStringContainsString('promediar las seleccionadas', $html);
+        $this->assertStringContainsString('name="promediar" value="1"', $html);
+        $this->assertStringContainsString('<strong>Promedio</strong>', $html);
+        $this->assertStringContainsString('+ su promedio', $html);
+
+        // el veredicto contra la mejor de las elegidas, en las dos preguntas
+        $this->assertArrayHasKey('veredicto', $con['fechas']['filas'][3]);
+        $this->assertStringContainsString('contra la mejor de las fechas elegidas', $html);
+        $this->assertStringContainsString('±180 min', $html);
+    }
+
+    /**
+     * Sin predicciones guardadas que ya presentaron no hay qué comparar: el
+     * rango de prueba se queda sin datos cuando se recarga la base.
+     */
+    private function exigirComparables(array $tablero): void
+    {
+        if ((int) ($tablero['produccion']['errores']['n'] ?? 0) === 0) {
+            $this->markTestSkipped('el rango de prueba no tiene predicciones guardadas que ya presentaron');
+        }
+    }
+
+    /** La pantalla de guardadas con filtros extra (p. ej. las fechas tildadas). */
+    private function vistaCon(array $extra): array
+    {
+        $this->withoutMiddleware();
+        $usuario = User::query()->first();
+        if ($usuario !== null) {
+            Auth::login($usuario);
+        }
+
+        $peticion = Request::create('/lupita/prediccion/guardadas', 'GET', array_merge([
+            'fecha_inicio' => self::DESDE,
+            'fecha_fin' => self::HASTA,
+            'limite' => '50',
+        ], $extra));
+        $peticion->setLaravelSession(app('session.store'));
+
+        $respuesta = \App\Http\Controllers\PrediccionController::guardadas($peticion);
+
+        return [$respuesta, $respuesta->getData()['tablero']];
     }
 }

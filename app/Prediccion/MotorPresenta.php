@@ -305,6 +305,22 @@ final class MotorPresenta
             $salida->advertencias[] = 'atrasado: la predicción cayó antes de ahora; el camión está fuera de su patrón';
         }
 
+        // CUARTA FECHA: la hora publicada corregida con la mediana del error de su
+        // clase (evidencia x tramo del horizonte). Si `sesgo_clase_activo` está en
+        // 0, es igual a la publicada: el motor no cambia.
+        //
+        // El horizonte es `presenta − ahora` (lo que falta desde el corte), NO desde
+        // el ancla: así la clase significa lo mismo en el backtest y en producción, y
+        // la tabla de sesgos se puede medir con las predicciones guardadas.
+        //
+        // Se calcula ANTES de la banda porque la banda rápida/tardado se dibuja
+        // sobre la hora que se va a usar, no sobre la que se descartó.
+        $horizontePredicho = (int) round(($t->getTimestamp() - $ahora->getTimestamp()) / 60);
+        $sesgoMin = Sesgo::desplazamiento($evidencia, $horizontePredicho, $p);
+        $salida->presenta_probable = $sesgoMin === 0 ? $t->copy() : $t->copy()->subMinutes($sesgoMin);
+        $salida->sesgo_clase = Sesgo::clase($evidencia, $horizontePredicho);
+        $salida->sesgo_min = $sesgoMin;
+
         // las otras dos fechas: rápido y tardado.
         // Fuente preferida: los RESIDUOS medidos del backtest (radio alrededor de
         // la hora publicada), que sí contienen el valor real; si no hay medición,
@@ -320,14 +336,27 @@ final class MotorPresenta
             // banda quedaba de 787 min de ancho en vez de 2.698 (medido: 100 % de
             // las filas asimétricas y la cobertura se quedaba en 32 % aunque la
             // medición prometiera 70 %).
-            $rapido = $t->copy()->subMinutes($radio['adelanto']);
-            $tardado = $t->copy()->addMinutes($radio['atraso']);
+            //
+            // Centro = la CUARTA fecha cuando el sesgo está aplicado: la banda se
+            // MIDE contra ella (`ventana_residuos` usa su residuo), así que
+            // dibujarla sobre la normal la deja corrida por toda la corrección de
+            // la clase. Medido (1-oct..10-nov, ±1.349/±2.086, sesgo aplicado):
+            // sobre la corregida la banda cubre 66 % y las filas que caen después
+            // del tardado bajan de 100 a 91.
+            $centro = $salida->presenta_probable;
+
+            $rapido = $centro->copy()->subMinutes($radio['adelanto']);
+            $tardado = $centro->copy()->addMinutes($radio['atraso']);
 
             if ($rapido->lessThan($ahora)) {
                 $rapido = $ahora->copy();
             }
+            // el tardado nunca queda antes de la hora publicada ni del centro
             if ($tardado->lessThan($t)) {
                 $tardado = $t->copy();
+            }
+            if ($tardado->lessThan($centro)) {
+                $tardado = $centro->copy();
             }
         } else {
             $extremos = self::huecos_extremos($hueco, $cal, $trasladoMin, $p, null, $evidencia);
@@ -361,21 +390,16 @@ final class MotorPresenta
         $salida->presenta_rapido = $rapido;
         $salida->presenta_tardado = $tardado;
 
-        // CUARTA FECHA: la hora publicada corregida con la mediana del error de su
-        // clase (evidencia x tramo del horizonte). Si `sesgo_clase_activo` está en
-        // 0, es igual a la publicada: el motor no cambia.
-        //
-        // El horizonte es `presenta − ahora` (lo que falta desde el corte), NO desde
-        // el ancla: así la clase significa lo mismo en el backtest y en producción, y
-        // la tabla de sesgos se puede medir con las predicciones guardadas.
-        $horizontePredicho = (int) round(($t->getTimestamp() - $ahora->getTimestamp()) / 60);
-        $sesgoMin = Sesgo::desplazamiento($evidencia, $horizontePredicho, $p);
-        $salida->presenta_probable = $sesgoMin === 0 ? $t->copy() : $t->copy()->subMinutes($sesgoMin);
-        $salida->sesgo_clase = Sesgo::clase($evidencia, $horizontePredicho);
-        $salida->sesgo_min = $sesgoMin;
+        // QUINTA fecha: el CONSENSO de la rápida, la normal y la cuarta. Medido en
+        // las guardadas: acierta más por tolerancia que cualquiera de las tres
+        // (octubre ±3 h 27 % contra 24 % de la mejor suelta; noviembre 32 % contra
+        // 31 %) porque promediar baja la varianza, y pierde la carrera de "quién
+        // quedó más cerca" (16-20 % contra 31-35 %), porque el promedio de tres
+        // horas casi nunca es el extremo. Se publica para poder MEDIRLO.
+        $salida->presenta_consenso = self::consenso($ahora, $rapido, $t, $salida->presenta_probable);
 
         $salida->presentaciones = self::presentaciones($ahora, $rapido, $t, $tardado, $salida->presenta_probable,
-            $cal, $ventanaMedida !== null ? 'residuos' : null);
+            $salida->presenta_consenso, $cal, $ventanaMedida !== null ? 'residuos' : null);
         $salida->inicio_carga = $t->copy()->addMinutes($espera);
         $salida->espera_min = $espera;
         $salida->evidencia = $evidencia;
@@ -507,8 +531,27 @@ final class MotorPresenta
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * El CONSENSO: la hora promedio de la rápida, la normal y la cuarta.
+     *
+     * Se promedia en MINUTOS DESDE EL CORTE (no con timestamps) para no depender
+     * de la zona horaria y para que el resultado caiga siempre en el mismo eje
+     * que las otras cuatro. Sin sesgo aplicado la cuarta es igual a la normal, así
+     * que el consenso queda entre la rápida y la normal.
+     */
+    public static function consenso(Carbon $ahora, Carbon ...$fechas): Carbon
+    {
+        $suma = 0;
+        foreach ($fechas as $fecha) {
+            $suma += (int) round(($fecha->getTimestamp() - $ahora->getTimestamp()) / 60);
+        }
+
+        return $ahora->copy()->addMinutes((int) round($suma / max(1, count($fechas))));
+    }
+
     private static function presentaciones(Carbon $ahora, Carbon $rapido, Carbon $normal, Carbon $tardado,
-                                          Carbon $probable, ?object $cal, ?string $fuente = null): array
+                                          Carbon $probable, ?Carbon $consenso, ?object $cal,
+                                          ?string $fuente = null): array
     {
         $desde = fn (Carbon $fecha) => Tiempo::hhmm((int) round(($fecha->getTimestamp() - $ahora->getTimestamp()) / 60));
         $nivel = $fuente === 'residuos'
@@ -547,6 +590,14 @@ final class MotorPresenta
                     : 'igual a la normal: el sesgo por clase todavía no está medido',
                 'fecha' => $probable->format('Y-m-d H:i:s'),
                 'desde_ahora' => $desde($probable),
+            ],
+            [
+                'clave' => 'consenso',
+                'etiqueta' => 'Consenso',
+                'descripcion' => 'el promedio de la rápida, la normal y la más probable:'
+                    . ' acierta más por tolerancia, pero casi nunca es la más cercana',
+                'fecha' => ($consenso ?? $normal)->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($consenso ?? $normal),
             ],
         ];
     }

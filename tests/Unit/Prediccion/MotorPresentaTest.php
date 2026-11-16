@@ -595,7 +595,7 @@ class MotorPresentaTest extends TestCase
         $this->assertSame('1:40', $espera['duracion']);
     }
 
-    public function test_devuelve_las_cuatro_fechas_incluida_la_probable(): void
+    public function test_devuelve_las_cinco_fechas_incluidas_la_probable_y_el_consenso(): void
     {
         $r = MotorPresenta::predecir($this->entrada([
             // hueco medido 300 con p25 240 y p75 420
@@ -611,12 +611,35 @@ class MotorPresentaTest extends TestCase
         $this->assertSame('2026-11-14 14:00', $r->presenta_probable->format('Y-m-d H:i'));
         $this->assertSame(0, $r->sesgo_min);
 
-        $this->assertCount(4, $r->presentaciones);
-        $this->assertSame(['rapido', 'normal', 'tardado', 'probable'], array_column($r->presentaciones, 'clave'));
+        // el consenso: promedio de rápido (13:00), normal (14:00) y cuarta (14:00) = 13:40
+        $this->assertSame('2026-11-14 13:40', $r->presenta_consenso->format('Y-m-d H:i'));
+
+        $this->assertCount(5, $r->presentaciones);
+        $this->assertSame(['rapido', 'normal', 'tardado', 'probable', 'consenso'],
+            array_column($r->presentaciones, 'clave'));
         $this->assertSame('3:00', $r->presentaciones[0]['desde_ahora']);   // ahora 10:00 -> 13:00
         $this->assertSame('4:00', $r->presentaciones[1]['desde_ahora']);
         $this->assertSame('6:00', $r->presentaciones[2]['desde_ahora']);
         $this->assertSame('4:00', $r->presentaciones[3]['desde_ahora']);
+        $this->assertSame('3:40', $r->presentaciones[4]['desde_ahora']);
+    }
+
+    public function test_el_consenso_promedia_en_minutos_desde_el_corte(): void
+    {
+        $ahora = Carbon::parse('2026-11-14 10:00');
+
+        $consenso = MotorPresenta::consenso(
+            $ahora,
+            Carbon::parse('2026-11-14 08:00'),
+            Carbon::parse('2026-11-14 11:00'),
+            Carbon::parse('2026-11-14 14:00'),
+        );
+
+        // 08:00 + 11:00 + 14:00 = 33:00 sobre 10:00 -> 11:00
+        $this->assertSame('2026-11-14 11:00', $consenso->format('Y-m-d H:i'));
+        // y cae siempre entre la mínima y la máxima
+        $this->assertTrue($consenso->greaterThanOrEqualTo(Carbon::parse('2026-11-14 08:00')));
+        $this->assertTrue($consenso->lessThanOrEqualTo(Carbon::parse('2026-11-14 14:00')));
     }
 
     public function test_la_cuarta_fecha_usa_el_sesgo_de_su_clase(): void
@@ -638,6 +661,47 @@ class MotorPresentaTest extends TestCase
 
         $esperado = $r->presenta->copy()->addMinutes(3886);
         $this->assertSame($esperado->format('Y-m-d H:i'), $r->presenta_probable->format('Y-m-d H:i'));
+    }
+
+    public function test_la_banda_se_dibuja_sobre_la_cuarta_fecha_cuando_el_sesgo_esta_aplicado(): void
+    {
+        // La ventana medida sale del residuo contra la fecha que se usa. Si el
+        // sesgo está aplicado y la banda se dibuja sobre la NORMAL, queda corrida:
+        // medido con la banda asimétrica, cubría 52 % en vez del 70 % medido.
+        $banda = (object) [
+            'adelanto' => 120, 'atraso' => 200,
+            'adelanto_cadena' => 120, 'atraso_cadena' => 200,
+            'cobertura' => 0.7,
+        ];
+
+        // sin sesgo: la banda va sobre la hora publicada (13:00)
+        $sin = MotorPresenta::predecir($this->entrada([
+            'calibrador' => null,
+            'ventana_residuos' => $banda,
+        ]));
+
+        $this->assertSame(0, $sin->sesgo_min);
+        $this->assertSame('2026-11-14 11:00', $sin->presenta_rapido->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 16:20', $sin->presenta_tardado->format('Y-m-d H:i'));
+
+        // con sesgo −200: la misma banda, corrida a la cuarta fecha (16:20)
+        $r = MotorPresenta::predecir($this->entrada([
+            'calibrador' => null,
+            'ventana_residuos' => $banda,
+            'parametros' => $this->parametros([
+                'sesgo_clase_activo' => 1,
+                'sesgo_clase_cadena_corto' => -200,
+            ]),
+        ]));
+
+        $this->assertSame('cadena|corto', $r->sesgo_clase);
+        $this->assertSame('2026-11-14 16:20', $r->presenta_probable->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 14:20', $r->presenta_rapido->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 19:40', $r->presenta_tardado->format('Y-m-d H:i'));
+
+        // el tardado nunca queda antes de la hora publicada
+        $this->assertTrue($r->presenta_tardado->greaterThanOrEqualTo($r->presenta));
+        $this->assertTrue($r->presenta_rapido->lessThanOrEqualTo($r->presenta_probable));
     }
 
     public function test_sin_pares_las_tres_fechas_se_abren_por_porcentaje(): void
