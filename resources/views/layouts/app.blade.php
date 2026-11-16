@@ -208,6 +208,9 @@
                         <li><a class="dropdown-item" href="{{route('lupita.refs.ruta_id')}}"><i class="bi bi-signpost-split"></i> Docs ruta_id de viaje</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{route('lupita.tiempos.api')}}"><i class="bi bi-plug"></i> Probar API Tiempos</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        {{-- piezas compartidas entre pantallas (selector con búsqueda) --}}
+                        <li><a class="dropdown-item" href="{{route('lupita.tools.selectores')}}"><i class="bi bi-tools"></i> Tools · Selectores</a></li>
                     </ul>
                 </li>
                 @endcan

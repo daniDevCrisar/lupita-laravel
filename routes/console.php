@@ -282,3 +282,83 @@ Artisan::command(
         return 0;
     }
 )->purpose('Busca los parámetros del motor que mejor predicen (entrenamiento + validación)');
+
+// Qué mecanismo del motor aporta y cuál resta. Corre la tabla de aciertos con cada
+// variante (parámetros pisados en memoria, no toca prediccion_config) y muestra el
+// MAE de cada una; después compara el motor contra reglas de una línea (mediana de
+// la placa / del par de rutas) calculadas sólo con información pasada.
+//
+// El 14/11/2026 este comando mostró que el motor completo (MAE 1.568) era peor que
+// la mediana simple de la placa (1.116) y que el factor de día restaba 131 min.
+Artisan::command(
+    'prediccion:ablacion
+     {--desde= : inicio del tramo (Y-m-d, por defecto hace 90 días)}
+     {--hasta= : fin del tramo (Y-m-d, por defecto hoy)}
+     {--limite=600 : filas por corrida (más filas = más ruido pero más confianza)}
+     {--recientes=20 : pares recientes para el baseline de la mediana}
+     {--sin-baselines : sólo la tabla de ablaciones}',
+    function () {
+        $desde = (string) $this->option('desde') ?: Carbon::now()->subDays(90)->toDateString();
+        $hasta = (string) $this->option('hasta') ?: Carbon::now()->toDateString();
+        $limite = max(10, min(1000, (int) $this->option('limite')));
+
+        $this->info('Ablación del motor · ' . $desde . ' -> ' . $hasta . ' · ' . $limite . ' filas por corrida');
+        $this->comment('Los parámetros se pisan en memoria: no se guarda nada.');
+
+        try {
+            $tabla = \App\Prediccion\Ablacion::correr(
+                ['desde' => $desde, 'hasta' => $hasta, 'limite' => $limite]);
+        } catch (\Throwable $e) {
+            $this->error('No se pudo correr la ablación: ' . $e->getMessage());
+
+            return 1;
+        }
+
+        $this->newLine();
+        $this->line(sprintf('  %-28s %6s %8s %7s %7s %8s %8s', 'variante', 'n', 'MAE', '&plusmn;3h', '&plusmn;6h', 'ventana', 'vs en uso'));
+        foreach ($tabla['filas'] as $fila) {
+            if ($fila['error'] !== null) {
+                $this->warn(sprintf('  %-28s  no corrió: %s', $fila['nombre'], $fila['error']));
+
+                continue;
+            }
+
+            $delta = $fila['delta'];
+            $marca = $delta === null ? '' : ($delta < -1 ? 'mejor ' . number_format($delta, 0)
+                : ($delta > 1 ? 'peor +' . number_format($delta, 0) : 'igual'));
+
+            $this->line(sprintf('  %-28s %6d %8s %6s%% %6s%% %7s%% %8s',
+                $fila['nombre'], $fila['n'], $fila['mae'] ?? '—',
+                $fila['pct_180'] ?? '—', $fila['pct_360'] ?? '—', $fila['pct_ventana'] ?? '—', $marca));
+        }
+
+        $this->newLine();
+        $this->comment('"vs en uso" es el MAE de la variante menos el de la primera fila: negativo = mejora.');
+
+        if ($this->option('sin-baselines')) {
+            return 0;
+        }
+
+        try {
+            $base = \App\Prediccion\Ablacion::baselines(
+                ['desde' => $desde, 'hasta' => $hasta, 'limite' => $limite], (int) $this->option('recientes'));
+        } catch (\Throwable $e) {
+            $this->error('No se pudieron calcular los baselines: ' . $e->getMessage());
+
+            return 1;
+        }
+
+        $this->newLine();
+        $this->info('Contra reglas de una línea (sólo información pasada a cada ancla):');
+        $this->line(sprintf('  %-28s %6s %8s %7s', 'predictor', 'n', 'MAE', '&plusmn;3h'));
+        foreach ($base['filas'] as $fila) {
+            $this->line(sprintf('  %-28s %6d %8s %6s%%', $fila['nombre'], $fila['n'],
+                $fila['mae'] ?? '—', $fila['pct_180'] ?? '—'));
+        }
+        $this->newLine();
+        $this->comment('Si "motor completo" no le gana a "mediana de la placa", lo que se apiló arriba del '
+            . 'calibrador está restando.');
+
+        return 0;
+    }
+)->purpose('Mide qué mecanismo del motor aporta y cuál resta (y contra qué baseline)');

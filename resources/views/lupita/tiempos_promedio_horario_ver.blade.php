@@ -43,13 +43,19 @@
         <div class="card-body py-3">
             <form id="form_api" class="row g-2 align-items-end">
                 <div class="col-md-3">
-                    <label class="form-label small mb-0" for="f_ruta">Ruta</label>
-                    <select name="ruta_id" id="f_ruta" class="form-control form-control-sm">
-                        <option value="">Todas las compiladas</option>
-                        @foreach($rutas as $id => $ruta)
-                            <option value="{{ $id }}">{{ $ruta->nombre }}</option>
-                        @endforeach
-                    </select>
+                    @include('lupita.tools.selector', [
+                        'nombre' => 'ruta_id',
+                        'id' => 'f_ruta',
+                        'etiqueta' => 'Ruta',
+                        'tamano' => 'sm',
+                        'opciones' => collect($rutas)->map(fn ($ruta, $id) => [
+                            'valor' => (string) $id,
+                            'texto' => (string) $ruta->nombre,
+                            'extra' => (string) $id,
+                        ])->values()->all(),
+                        'todas' => 'Todas las compiladas',
+                        'valor' => '',
+                    ])
                 </div>
 
                 <div class="col-md-2">
@@ -268,6 +274,8 @@
 @endsection
 
 @section('scripts')
+    {{-- selector compartido con búsqueda: ver lupita/tools/selector.blade.php --}}
+    <script src="{{ asset('js/lupita-selectores.js') }}"></script>
     <script>
         const ENDPOINT = @json($endpoint);
         const DIAS = @json($dias);

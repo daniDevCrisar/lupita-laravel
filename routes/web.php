@@ -20,6 +20,7 @@ use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\ReferenciasController;
 use App\Http\Controllers\RefsController;
 use App\Http\Controllers\TiemposRutaController;
+use App\Http\Controllers\ToolsController;
 use App\Http\Controllers\TiemposApiVerController;
 use App\Http\Controllers\PalabrasController;
 use App\Http\Controllers\ScoringController;
@@ -95,6 +96,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/tiempos', [TiemposRutaController::class, 'index'])->name('lupita.tiempos')
             ->middleware('permission:ver tiempos');
 
+        //--- Tools: piezas compartidas entre pantallas ---
+        // Selector con búsqueda (ruta / departamento / conductor / lo que sea). Vive
+        // en `lupita/tools/selector.blade.php` + `public/js/lupita-selectores.js` y
+        // esta página es la demo y la documentación de cómo se llama.
+        Route::get('/tools/selectores', [ToolsController::class, 'selectores'])->name('lupita.tools.selectores')
+            ->middleware('permission:ver tiempos');
+
         //--- Comportamiento por placa / conductor (habitos, puntualidad y tiempos) ---
         Route::get('/comportamiento', [ComportamientoController::class, 'index'])->name('lupita.comportamiento')
             ->middleware('permission:ver tiempos');
@@ -113,6 +121,9 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:ver tiempos');
         // mide la ventana rápido/tardado contra los residuos reales del backtest
         Route::post('/prediccion/ventana', [PrediccionController::class, 'calibrar_ventana'])->name('lupita.prediccion.ventana')
+            ->middleware('permission:ver tiempos');
+        // ablación: compara la configuración en uso contra variantes (no guarda nada)
+        Route::post('/prediccion/ablacion', [PrediccionController::class, 'ablacion'])->name('lupita.prediccion.ablacion')
             ->middleware('permission:ver tiempos');
         Route::get('/prediccion/aciertos', [PrediccionController::class, 'aciertos'])->name('lupita.prediccion.aciertos')
             ->middleware('permission:ver tiempos');

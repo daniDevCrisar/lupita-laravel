@@ -69,8 +69,8 @@
                     <option value="180">180 días</option>
                     <option value="365">365 días</option>
                 </select>
-                <button class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-sliders"></i> Calibrar
+                <button class="btn btn-sm btn-primary">
+                    <i class="bi bi-sliders"></i> Calibrar el viaje
                 </button>
                 <button class="btn btn-sm btn-outline-secondary" name="refrescar" value="1"
                         title="ignora la corrida guardada en caché (10 min) y vuelve a medir">
@@ -210,9 +210,12 @@
             <form method="POST" action="{{ route('lupita.prediccion.ventana') }}" class="d-flex flex-wrap align-items-center gap-2">
                 @csrf
                 <div>
-                    <div class="small fw-semibold">Medir ventana rápido / tardado</div>
+                    <div class="small fw-semibold">
+                        <i class="bi bi-arrows-expand"></i> Medir la VENTANA rápido / tardado
+                    </div>
                     <div class="text-muted" style="font-size:.7rem">
-                        corre la tabla de aciertos y abre la ventana con el error real (el p25–p75 del hueco cubre ~35 %)
+                        corre la tabla de aciertos y abre la banda con el error real (el p25–p75 del hueco cubre ~35 %).
+                        <strong>No la cambia el botón "Calibrar" de arriba</strong>: este mide el VIAJE, aquel la VENTANA.
                     </div>
                 </div>
                 <select name="cobertura" class="form-select form-select-sm" style="width:auto">
@@ -225,8 +228,8 @@
                     <option value="600" selected>600 filas</option>
                     <option value="1000">1000 filas</option>
                 </select>
-                <button class="btn btn-sm btn-outline-primary" name="cobertura_enviar" value="1">
-                    <i class="bi bi-arrows-expand"></i> Medir
+                <button class="btn btn-sm btn-primary" name="cobertura_enviar" value="1">
+                    <i class="bi bi-arrows-expand"></i> Medir ventana
                 </button>
                 <button class="btn btn-sm btn-outline-secondary" name="refrescar" value="1"
                         title="ignora la corrida guardada en caché (10 min)">
@@ -235,6 +238,7 @@
             </form>
             <div class="ms-auto small text-muted">
                 en uso: <strong>−{{ (int) ($p->ventana_adelanto_min ?? 0) }} / +{{ (int) ($p->ventana_atraso_min ?? 0) }} min</strong>
+                <span class="text-muted">(cadena ±{{ (int) ($p->ventana_adelanto_cadena ?? 0) }})</span>
                 @if((int) ($p->ventana_residuos ?? 0) === 1)
                     <span class="badge bg-success">aplicada</span>
                 @else

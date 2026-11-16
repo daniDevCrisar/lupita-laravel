@@ -58,6 +58,9 @@ class DBPrediccion
     /** @var array<string, object|null> celdas de `tiempos_ruta_horario` ya leídas */
     private static array $horarios = [];
 
+    /** @var array<string, array<int, float>>|null factor del viaje por día, por ruta */
+    private static ?array $factoresDia = null;
+
     /** Expresión SQL del último hito con fecha: 1970-01-01 si no hay ninguno. */
     public static function ultimo_hito_sql(string $alias = 'r'): string
     {
@@ -606,6 +609,81 @@ class DBPrediccion
         }
 
         return self::$etapas[$llave] = $salida;
+    }
+
+    /**
+     * Factor del VIAJE por día de la semana, medido en el compilado horario
+     * (`tiempos_ruta_horario`, lo que llena "Compilar promedios por día y hora").
+     *
+     * Devuelve `ruta => [7 floats]` con índice 0 = lunes: el promedio ponderado por
+     * viajes de ese día dividido por el promedio de la ruta, y la diferencia
+     * encogida por muestra:
+     *
+     *     factor = 1 + (prom_dia / prom_ruta - 1) * viajes_dia / (viajes_dia + k)
+     *
+     * Con `k` = 10 y celdas de 3 viajes, la corrección pesa 23 %: el compilado no
+     * mueve la hora por una celda flaca. Medido el 14/11/2026, la diferencia real
+     * entre días de una misma ruta es de 5-8 % (RUT_CARAL-BABEL_MAXO: 268 a 290
+     * min), así que en la práctica el factor queda entre 0,95 y 1,08 — muy lejos
+     * del ×2,68 del prior hardcodeado de la flota. Esa es justamente la razón por
+     * la que `dia_modo = 3` reemplaza al prior.
+     *
+     * @return array<string, array<int, float>> vacío si la tabla no existe o está sin compilar
+     */
+    public static function factores_dia_compilado(int $k = 10): array
+    {
+        if (self::$factoresDia !== null) {
+            return self::$factoresDia;
+        }
+
+        try {
+            $filas = DB::select(
+                "SELECT ruta_id, dia, SUM(viajes) AS viajes, SUM(prom_min * viajes) AS total
+                 FROM tiempos_ruta_horario
+                 GROUP BY ruta_id, dia"
+            );
+        } catch (\Throwable $e) {
+            return self::$factoresDia = [];     // tabla sin crear todavía
+        }
+
+        $porRuta = [];
+        foreach ($filas as $fila) {
+            $ruta = (string) $fila->ruta_id;
+            $dia = (int) $fila->dia;
+            $viajes = (int) $fila->viajes;
+
+            if ($ruta === '' || $dia < 0 || $dia > 6 || $viajes <= 0) {
+                continue;
+            }
+
+            $porRuta[$ruta]['dias'][$dia] = ['viajes' => $viajes, 'prom' => (float) $fila->total / $viajes];
+            $porRuta[$ruta]['viajes'] = ($porRuta[$ruta]['viajes'] ?? 0) + $viajes;
+            $porRuta[$ruta]['total'] = ($porRuta[$ruta]['total'] ?? 0.0) + (float) $fila->total;
+        }
+
+        $salida = [];
+        $k = max(1, $k);
+        foreach ($porRuta as $ruta => $info) {
+            if (($info['viajes'] ?? 0) <= 0) {
+                continue;
+            }
+
+            $promedio = (float) $info['total'] / (int) $info['viajes'];
+            if ($promedio <= 0) {
+                continue;
+            }
+
+            $factores = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+            foreach ($info['dias'] as $dia => $celda) {
+                $ratio = $celda['prom'] / $promedio;
+                $peso = $celda['viajes'] / ($celda['viajes'] + $k);
+                $factores[$dia] = round(1 + ($ratio - 1) * $peso, 3);
+            }
+
+            $salida[$ruta] = $factores;
+        }
+
+        return self::$factoresDia = $salida;
     }
 
     /**
@@ -1433,6 +1511,7 @@ class DBPrediccion
         self::$pares = [];
         self::$viajesPlaca = [];
         self::$horarios = [];
+        self::$factoresDia = null;
         self::$locales = null;
         self::$ubigeos_texto = [];
     }

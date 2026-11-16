@@ -1,0 +1,283 @@
+================================================================================
+ PLAN PARA SUBIR LA PRECISION DEL MOTOR DE PREDICCION DE CARGA
+ Opcion 1 del diagnostico: recentrar el motor
+================================================================================
+ Fecha   : 14/11/2026
+ Estado  : propuesto (nada de esto esta implementado todavia)
+ Base    : base local `lupita_bd`, backtest 15-ago-2026 -> 14-nov-2026
+ Autor   : sesion de trabajo DSH sobre C:\laragon\www\lupita-laravel
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. POR QUE
+--------------------------------------------------------------------------------
+
+Medido hoy con el backtest (788 filas comparables, misma vara, solo informacion
+disponible al momento de predecir - sin filtrar el futuro):
+
+  predictor                                          MAE     +-3h
+  ----------------------------------------------------------------
+  mediana global de la flota                        1664       6 %
+  mediana de la placa (ultimos 20 huecos)           1116      29 %
+  mediana del par de rutas                          1111      23 %
+  jerarquia simple (rutas -> placa -> flota)        1166      22 %
+  MOTOR COMPLETO                                    1568      23 %
+
+O sea: la maquinaria que se apilo arriba del calibrador esta SUMANDO ~450 min de
+error. Pasa en los tres niveles de evidencia:
+
+  evidencia    n     motor   mediana placa
+  ------------------------------------------
+  cadena      149     2016       1301
+  parcial     492     1284       1049
+  medido      105     2041       1171
+
+No es sesgo: corregir el offset global (mediana -75 min) o la media (-375 min) NO
+mejora (1689 -> 1696 / 1744). El error es dispersion, y parte la agrega el modelo.
+
+Ablacion (apagar cada mecanismo y volver a medir, mismo rango):
+
+  ablacion                                MAE     delta
+  -------------------------------------------------------
+  tal cual                                1568       -
+  SIN FACTOR DE DIA (C2)                  1437    -131
+  SIN CORRECCION POR HORA (curva)         1503     -65
+  con 5 pares recientes (en vez de 20)    1476     -92
+  sin regimen cerca                       1560      -8
+  sin desplazar por franjas               1579     +11
+  sin feriados                            1592     +24
+  con toda la historia (pares=0)          1608     +40
+  sin hora pico / sin descuento viaje     1568       0
+
+Los dos primeros juntos: 1568 -> 1379 (-12 %). Validado en otro periodo:
+may-ago (n=822) 1559 -> 1266 (-19 %); pero feb-may (n=664) EMPEORA 2192 -> 2292.
+
+Y el horizonte explica el resto (ver seccion 6, fuera de alcance):
+  horizonte   n     MAE    +-3h    peso en el error total
+  ---------------------------------------------------------
+  <= 6 h     213    514     54 %          9 %
+  6-24 h     234   1102     19 %         21 %
+  > 24 h     342   2541      6 %         70 %
+
+
+--------------------------------------------------------------------------------
+2. QUE SE CAMBIA (alcance de este plan)
+--------------------------------------------------------------------------------
+
+  A. Factor de dia (C2): de multiplicar por el prior de la flota a condicionar.
+  B. Curva horaria: encogimiento por muestra y residuo proporcional a la base.
+  C. pares_recientes_max: 20 -> 10.
+  D. Re-medir la ventana rapido/tardado DESPUES del cambio.
+  E. Comando `prediccion:ablacion` para que la medicion sea repetible.
+
+NO entra aca (queda para despues): usar `compromiso_carga` como ancla,
+no publicar hora con horizonte > 24 h, revisar el emparejamiento de viajes.
+
+
+--------------------------------------------------------------------------------
+3. A. FACTOR DE DIA  (dia_modo)
+--------------------------------------------------------------------------------
+
+COMO FUNCIONA HOY
+  Calibrador::factores_dia() mide, por placa, la mediana de sus huecos de cada
+  dia de la semana dividida por su mediana general (acotado a [0.5, 3.0]). Los
+  dias con menos de `dia_min_pares` (5) pares usan el prior de la flota
+  FACTOR_DIA_FLOTA = [2.68, 0.97, 0.91, 0.84, 0.81, 0.93, 1.41].
+  MotorPresenta multiplica el hueco por el factor del dia en que CAE la
+  presentacion predicha.
+
+LO QUE SE MIDIO
+  De 4.774 celdas (placa x dia) sobre 682 placas con historia, solo 159 tienen
+  factor propio: 3 %. El 97 % usa el prior de la flota. O sea: en la practica el
+  motor multiplica por 2,68 todos los lunes a todos los camiones, trabaje o no
+  ese camion los lunes.
+
+DOS FALLAS DE DISENO
+  1. Es circular: el factor se elige por el dia donde cae la prediccion, pero
+     multiplicar el hueco mueve la fecha a otro dia. Un hueco de 800 min que cae
+     lunes pasa a 2.144 (35 h) y ahora cae miercoles, donde el factor ya no
+     aplica. No hay punto fijo.
+  2. Impone estructura de flota a un camion: que la flota acumule los domingos no
+     significa que este camion lo haga.
+
+CAMBIO
+  Nueva clave `dia_modo` (entero, para no salir del sistema actual de parametros):
+      0 = apagado   no toca el hueco (equivale a dia_activo=0)
+      1 = flota     comportamiento actual (multiplica con prior de flota)
+      2 = placa     solo corrige los dias en que ESA placa tiene >= dia_min_pares;
+                    los demas dias quedan en factor 1 (se elimina el prior)
+
+  `dia_activo` se conserva como interruptor maestro por compatibilidad.
+
+  Calibrador::factores_dia(array $pares, int $minimo = 5, int $modo = 1):
+      modo 0 -> devuelve siete 1.0
+      modo 1 -> igual que hoy
+      modo 2 -> arranca en siete 1.0 y solo setea los dias con muestra propia
+
+  MotorPresenta: el factor se aplica UNA sola vez sobre la fecha provisional. Si
+  al aplicarlo la fecha cae en otro dia de la semana, se DESHACE (no se itera):
+  el factor elegido dejo de corresponder al dia que gobierna la prediccion.
+  El feriado sigue usando el peor factor del arreglo, pero solo si el modo no es
+  apagado.
+
+  DEFAULTS (a cargo del codigo, no de la pantalla):
+      dia_modo = 1  mientras se mide; despues se fija el ganador.
+      Medido: modo 0 =-131 min. Si modo 2 no le gana, el default queda en 0.
+
+  ARCHIVOS: config/prediccion.php, app/Prediccion/Calibrador.php,
+            app/Prediccion/MotorPresenta.php, app/Prediccion/Servicio.php
+            (pasa el modo a factores_dia), app/Http/Controllers/PrediccionController.php
+            (mostrarlo en "Que mueve cada parametro" y en la explicacion detallada).
+
+
+--------------------------------------------------------------------------------
+4. B. CURVA HORARIA  (curva_modo, curva_k)
+--------------------------------------------------------------------------------
+
+COMO FUNCIONA HOY
+  Calibrador::curva() calcula por franja de 3 h del dia del ancla la mediana del
+  residuo (hueco - mediana de la PLACA). Calibrador::estimar() SUMA ese residuo a
+  la base del nivel elegido. Una franja necesita `min_pares_entidad` pares.
+
+DOS PROBLEMAS
+  1. Mezcla escalas: el residuo se mide contra la mediana de la placa y se suma a
+     la base del par de rutas, que puede ser 2-3 veces mayor. Sumar el desvio de
+     una distribucion a la base de otra no es correcto cuando la distribucion es
+     asimetrica (y aca lo es mucho).
+  2. No tiene encogimiento: una franja con el minimo de 3 pares corrige igual que
+     una con 30.
+
+CAMBIO
+  Nuevas claves:
+      curva_modo = 0 actual | 1 encogida | 2 apagada   (default 1 mientras se mide)
+      curva_k    = 5                                   (peso del encogimiento)
+
+  Con curva_modo = 1:
+      residual_relativo = residual_min / base_entidad
+      correccion        = residual_relativo * base_elegida * n/(n+curva_k)
+
+  Efecto: cuando el nivel elegido ES la entidad, el factor base_elegida/base_entidad
+  vale 1 y la correccion es el residuo de hoy, solo que encogido por muestra.
+  Cuando el nivel es el par de rutas, el desvio se aplica en proporcion y no en
+  absoluto.
+
+  Con curva_modo = 2 el residuo es siempre 0 (equivale a bins_horarios=1).
+  `bins_horarios` se conserva como antes.
+
+  ARCHIVOS: config/prediccion.php, app/Prediccion/Calibrador.php
+            (curva() y estimar()), misma documentacion de pantalla que A.
+
+
+--------------------------------------------------------------------------------
+5. C, D y E
+--------------------------------------------------------------------------------
+
+C. pares_recientes_max  20 -> 10
+   Medido: con 5 baja 92 min de MAE pero sube +-3h a 26 %; con 20 esta en 1116 de
+   la mediana de placa. 10 queda en el medio y se termina de decidir midiendo.
+   Es una clave EDITABLE de la pantalla: el valor final se guarda en
+   `prediccion_config`, no solo en el codigo.
+
+D. Re-medir la ventana rapido/tardado
+   La banda actual (+-1.550 min / +-3.175 en cadena) esta calibrada contra el
+   centro VIEJO. Si el centro se mueve, la cobertura cae de 35 % a 24-27 % hasta
+   re-medirla (visto en las variantes de la ablacion). Pasos:
+     - boton "Medir ventana" en /lupita/prediccion/parametros, 70 % de cobertura,
+       600-1000 filas;
+     - "Aplicar ventana";
+     - comprobar que la cobertura quede >= 60 % en Predicciones guardadas.
+
+E. `php artisan prediccion:ablacion`
+   El script que encontro todo esto, como comando y con tests:
+       --desde= --hasta= --limite= --json
+   Imprime dos tablas:
+     1) ablaciones (una corrida de backtest por variante, con los parametros
+        pisados en memoria, sin tocar `prediccion_config`);
+     2) baselines: mediana global / de la placa / del par de rutas / jerarquia
+        simple, calculadas SOLO con los pares anteriores a cada ancla.
+   Sin este comando la proxima vez se vuelve a empezar de cero, y nadie sabe por
+   que se apago el factor de dia.
+
+   ARCHIVOS: routes/console.php, app/Console/Commands/PrediccionAblacion.php
+
+
+--------------------------------------------------------------------------------
+6. FUERA DE ALCANCE (y por que)
+--------------------------------------------------------------------------------
+
+  - compromiso_carga como ancla: 279 refs en comun, MAE 149 del compromiso contra
+    1293 del motor; el motor gana el 17 %. Es la palanca mas grande que hay, pero
+    depende de que el campo vuelva a cargarse (dejo de llenarse el 10/11) y es un
+    cambio de modelo, no de parametros.
+  - Horizonte > 24 h: 43 % de las filas y 70 % del error absoluto. Ahi ni el dia
+    se acierta (19 %; 55 % a +-1 dia). El arreglo es de producto: no publicar una
+    hora que no se puede acertar.
+  - Emparejamiento de viajes: 204 pares (21 %) se descartan por hueco > 7 dias;
+    puede haber pares mal armados por el LAG.
+
+
+--------------------------------------------------------------------------------
+7. PROTOCOLO DE MEDICION Y CRITERIO DE ACEPTACION
+--------------------------------------------------------------------------------
+
+  1. Implementar A, B, C y E con los defaults apuntando al comportamiento ACTUAL
+     (dia_modo=1, curva_modo=0): el motor no cambia hasta que se mida.
+  2. Correr `prediccion:ablacion` en tres periodos:
+       2026-02-15..2026-05-14 / 2026-05-15..2026-08-14 / 2026-08-15..2026-11-14
+     con los modos:
+       dia_modo 0/1/2  x  curva_modo 0/1/2  (la matriz completa, 9 combinaciones)
+  3. Fijar el default al ganador por MAE, con la condicion de NO perder mas de
+     1 punto de +-3h ni 1 punto de cobertura de ventana contra lo actual.
+  4. Si hay fila en `prediccion_config` para una clave, GANA sobre el codigo:
+     actualizar o borrar las filas afectadas y verificar en la pantalla de
+     parametros que "en uso" coincide con lo decidido.
+  5. Re-medir la ventana (paso D) y aplicar.
+  6. Comparar en Predicciones guardadas: MAE, +-3h, ventana y el desglose por
+     evidencia, antes y despues.
+
+  ACEPTADO si:
+     - MAE baja en >= 1 de los dos periodos recientes sin subir en el otro;
+     - +-3h no baja de 22 %;
+     - cobertura de la ventana >= 60 % despues de re-medir;
+     - suite completa en verde (hoy 213 tests / 948 assertions).
+
+
+--------------------------------------------------------------------------------
+8. RIESGOS Y LIMITES
+--------------------------------------------------------------------------------
+
+  1. Feb-may EMPEORA con dia_modo=0 (2192 -> 2292). Gana en ago-nov (-12 %) y
+     may-ago (-19 %). Si ese periodo viejo es mas representativo de lo que viene,
+     esto no es un win universal; por eso el switch y por eso se mide en tres.
+  2. Todo esto esta medido con el backtest, que usa `fin_descargue` como ancla
+     (peor caso). Produccion usa el ULTIMO hito real, asi que puede moverse
+     distinto: hay que re-medir tambien en la pantalla de guardadas.
+  3. No hay historial de configuracion ni boton de deshacer: anotar los valores
+     anteriores antes de aplicar.
+  4. Es un cambio de CENTRO, no de ancho: aplicar el centro sin re-medir la
+     ventana hace que el KPI se vea peor sin que el motor este peor.
+  5. Los tests unitarios de los modos usan datos sinteticos: prueban la mecanica,
+     no la ganancia. La ganancia solo la dice `prediccion:ablacion`.
+
+
+--------------------------------------------------------------------------------
+9. CHECKLIST
+--------------------------------------------------------------------------------
+
+  [ ] config/prediccion.php: dia_modo, curva_modo, curva_k (defaults = actual)
+  [ ] Calibrador::factores_dia(modo) + tests de los 3 modos
+  [ ] Calibrador::curva(modo, k) + estimar() con residuo proporcional + tests
+  [ ] MotorPresenta: aplicar el factor una vez y deshacer si cambia el dia + test
+  [ ] Servicio: pasar el modo; nada mas
+  [ ] Comando prediccion:ablacion + test de que corre y devuelve las dos tablas
+  [ ] Pantalla de parametros: explicacion de dia_modo / curva_modo / curva_k
+  [ ] docs/api-prediccion-carga.txt: changelog 1.20
+  [ ] Correr la matriz de 9 combinaciones x 3 periodos
+  [ ] Fijar defaults, aplicar en prediccion_config, re-medir ventana
+  [ ] Suite completa
+
+
+================================================================================
+ FIN DEL PLAN
+================================================================================

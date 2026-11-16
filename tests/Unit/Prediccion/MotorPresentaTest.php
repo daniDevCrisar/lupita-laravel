@@ -15,6 +15,8 @@ class MotorPresentaTest extends TestCase
             'max_desplazamiento_min' => 600, 'traslado_defecto_min' => 240,
             'muerto_defecto_min' => 60, 'espera_carga_defecto_min' => 90,
             'bins_horarios' => 8, 'edad_ancla_max_h' => 72, 'frescura_horizonte_h' => 24,
+            'dia_modo' => 1,   // factor de día por placa con prior de flota (el de siempre)
+            'curva_modo' => 0, 'curva_k' => 5,
         ], $over);
     }
 
@@ -167,16 +169,40 @@ class MotorPresentaTest extends TestCase
 
         // presenta 09:00 + 300' = 14:00
         $this->assertSame('2026-11-14 14:00', $r->presenta->format('Y-m-d H:i'));
-        // rápido = 300 - 600 < traslado 180 -> queda en el traslado: 09:00 + 180' = 12:00
-        $this->assertSame('2026-11-14 12:00', $r->presenta_rapido->format('Y-m-d H:i'));
-        // tardado = 300 + 900 = 1200' -> 09:00 + 1200' = 05:00 del día siguiente
+        // OJO: la banda medida se centra en la HORA PUBLICADA, no en el hueco.
+        // Rápido pediría 14:00 - 600' = 04:00, que ya pasó (ahora es 10:00), así
+        // que se recorta al corte. Antes se recortaba contra el traslado (180' ->
+        // 12:00), y eso dejaba la banda asimétrica y la cobertura en la mitad.
+        $this->assertSame('2026-11-14 10:00', $r->presenta_rapido->format('Y-m-d H:i'));
+        // tardado = 14:00 + 900' = 05:00 del día siguiente
         $this->assertSame('2026-11-15 05:00', $r->presenta_tardado->format('Y-m-d H:i'));
         // la ventana publicada es la misma banda, y se dice de dónde salió
         $this->assertSame('residuos', $r->ventana_fuente);
-        $this->assertSame('2026-11-14 12:00', $r->ventana['desde']->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 10:00', $r->ventana['desde']->format('Y-m-d H:i'));
         $this->assertSame('2026-11-15 05:00', $r->ventana['hasta']->format('Y-m-d H:i'));
         $this->assertEqualsWithDelta(0.7, (float) $r->ventana_cobertura, 0.001);
         $this->assertStringContainsString('error real', $r->presentaciones[0]['descripcion']);
+    }
+
+    public function test_la_ventana_medida_queda_simetrica_alrededor_de_la_hora_publicada(): void
+    {
+        // con el corte temprano no hay recorte: la banda tiene que ser exacta.
+        // Hueco de 1.200' para que el "rápido" (20 h antes) no caiga antes del corte.
+        $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-14 09:00'),
+            'calibrador' => (object) ['gap_min' => 1200, 'p25_min' => 900, 'p75_min' => 1500,
+                                      'base_min' => 1200, 'residual_min' => 0, 'n' => 6, 'nivel' => 'medido'],
+            'ventana_residuos' => (object) ['adelanto' => 600, 'atraso' => 600, 'cobertura' => 0.7],
+        ]));
+
+        $this->assertSame('2026-11-15 05:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 19:00', $r->presenta_rapido->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-15 15:00', $r->presenta_tardado->format('Y-m-d H:i'));
+
+        $izquierda = (int) round(($r->presenta->getTimestamp() - $r->presenta_rapido->getTimestamp()) / 60);
+        $derecha = (int) round(($r->presenta_tardado->getTimestamp() - $r->presenta->getTimestamp()) / 60);
+        $this->assertSame(600, $izquierda, 'el adelanto medido tiene que llegar completo');
+        $this->assertSame(600, $derecha, 'el atraso medido tiene que llegar completo');
     }
 
     public function test_la_cadena_usa_su_propia_banda_cuando_esta_medida(): void

@@ -400,7 +400,8 @@ class Servicio
             }
 
             $calibracion = Calibrador::calibrar($paresCalibracion, (int) $p->min_pares_ruta,
-                (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max);
+                (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max,
+                (int) ($p->curva_modo ?? 0), (int) ($p->curva_k ?? 5));
         }
 
         $horaAncla = self::hora_ancla(
@@ -421,13 +422,9 @@ class Servicio
 
         $ventanas = self::ventanas($placa, $desde, $ahora, $p);
 
-        // C2: factor del hueco por día de la semana de la presentación. Sale de los
-        // pares de la propia placa y, cuando un día no tiene muestra, del prior de
-        // la flota medido (Calibrador::FACTOR_DIA_FLOTA).
-        $factoresDia = null;
-        if ((int) ($p->dia_activo ?? 1) === 1) {
-            $factoresDia = Calibrador::factores_dia($pares, (int) ($p->dia_min_pares ?? 5));
-        }
+        // C2: factor del hueco por día de la semana de la presentación. De dónde
+        // sale lo decide `dia_modo` (ver Calibrador::factores_dia()).
+        $factoresDia = self::factores_dia_fila($p, $pares, $rutaRef);
 
         // C1: cola de la planta de carga en este momento (cuántos esperan y cuántos
         // llegaron en la última hora). Se apaga en el backtest: la tabla de
@@ -516,6 +513,7 @@ class Servicio
             'tramo_en_curso' => $tramoDeclarado,
             'ventana_residuos' => $ventanaMedida,
             'factor_dia' => $factoresDia,
+            'dia_modo' => (int) ($p->dia_modo ?? Calibrador::DIA_FLOTA),
             'feriado_activo' => (int) ($p->feriado_activo ?? 1),
             'ventanas' => $ventanas['ventanas'],
             'espera_carga_min' => $esperaCarga,
@@ -1274,6 +1272,27 @@ class Servicio
         // ~1 segundo por fila: 300 filas = 5 minutos).
         \App\Prediccion\Geoapify::desactivar();
 
+        // Ventana rápido/tardado medida (residuos del backtest). Se le pasa al
+        // motor igual que en producción: antes NO se pasaba, así que la tabla de
+        // aciertos medía la banda p25-p75 del hueco (~35 % de cobertura) mientras
+        // el API publicaba la banda medida. Dos números distintos para la misma
+        // pregunta.
+        $ventanaMedida = null;
+        if ((int) ($p->ventana_residuos ?? 0) === 1) {
+            $adelantoVentana = max(0, (int) ($p->ventana_adelanto_min ?? 0));
+            $atrasoVentana = max(0, (int) ($p->ventana_atraso_min ?? 0));
+
+            if ($adelantoVentana + $atrasoVentana > 0) {
+                $ventanaMedida = (object) [
+                    'adelanto' => $adelantoVentana,
+                    'atraso' => $atrasoVentana,
+                    'adelanto_cadena' => max(0, (int) ($p->ventana_adelanto_cadena ?? 0)),
+                    'atraso_cadena' => max(0, (int) ($p->ventana_atraso_cadena ?? 0)),
+                    'cobertura' => (float) ($p->ventana_cobertura ?? 0.7),
+                ];
+            }
+        }
+
         $filas = [];
         $erroresMotor = [];
         $dentroMotor = [];
@@ -1325,9 +1344,7 @@ class Servicio
             // C2: el factor por día se mide con TODOS los pares previos (producción
             // usa también los de la placa sin filtrar), no con el subconjunto
             // "cerca" que se arma más abajo
-            $factoresFila = (int) ($p->dia_activo ?? 1) === 1
-                ? Calibrador::factores_dia($previosTodos, (int) ($p->dia_min_pares ?? 5))
-                : null;
+            $factoresFila = self::factores_dia_fila($p, $previosTodos, (string) $rutaSiguiente);
 
             // C3: el grupo se decide por muestra, con la misma regla que producción
             $nChoferFila = 0;
@@ -1383,7 +1400,8 @@ class Servicio
             $calFila = $regimenResumen !== null
                 ? Calibrador::de_resumen($regimenResumen)
                 : Calibrador::calibrar($previos, (int) $p->min_pares_ruta,
-                    (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max);
+                    (int) $p->min_pares_entidad, (int) $p->bins_horarios, (int) $p->pares_recientes_max,
+                    (int) ($p->curva_modo ?? 0), (int) ($p->curva_k ?? 5));
 
             $calibrador = Calibrador::estimar($calFila,
                 $rutaAncla !== '' ? $rutaAncla : null,
@@ -1417,7 +1435,9 @@ class Servicio
                 // C2: la tabla de aciertos tiene que predecir con la MISMA regla
                 // que producción (si no, la fila y el API dan horas distintas)
                 'factor_dia' => $factoresFila,
+                'dia_modo' => (int) ($p->dia_modo ?? Calibrador::DIA_FLOTA),
                 'feriado_activo' => (int) ($p->feriado_activo ?? 1),
+                'ventana_residuos' => $ventanaMedida,
                 'ventanas' => $ventanasCache[$llaveVentana]['ventanas'],
                 'espera_carga_min' => DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
                     $rutaSiguiente !== '' ? $rutaSiguiente : null),
@@ -2090,6 +2110,43 @@ class Servicio
         }
 
         return round(100 * $propios / $total, 1);
+    }
+
+    /**
+     * Factor del hueco por día de la semana, según `dia_modo`.
+     *
+     *   0 apagado   -> null (el motor no aplica nada)
+     *   1 flota     -> factor de la placa y prior de la flota en los días sin muestra
+     *   2 placa     -> sólo factor propio; los días sin muestra quedan en 1
+     *   3 compilado -> factor del día medido en `tiempos_ruta_horario` para la RUTA
+     *                  (la pantalla "Compilar promedios por día y hora"); null si
+     *                  la ruta no tiene celda
+     *
+     * `$ruta` es la ruta de la referencia que se está prediciendo: el día de la
+     * semana afecta cuánto tarda el viaje, y eso está compilado por ruta.
+     *
+     * @param  array<int, object>  $pares  pares previos de la placa
+     * @return array<int, float>|null índice 0 = lunes
+     */
+    private static function factores_dia_fila(stdClass $p, array $pares, string $ruta): ?array
+    {
+        if ((int) ($p->dia_activo ?? 1) !== 1) {
+            return null;
+        }
+
+        $modo = (int) ($p->dia_modo ?? Calibrador::DIA_FLOTA);
+
+        if ($modo === Calibrador::DIA_APAGADO) {
+            return null;
+        }
+
+        if ($modo === Calibrador::DIA_COMPILADO) {
+            $compilado = DBPrediccion::factores_dia_compilado((int) ($p->dia_compilado_k ?? 10));
+
+            return $compilado[$ruta] ?? null;
+        }
+
+        return Calibrador::factores_dia($pares, (int) ($p->dia_min_pares ?? 5), $modo);
     }
 
     /** Hora del día en la que queda libre el camión: la que corrige el hueco. */

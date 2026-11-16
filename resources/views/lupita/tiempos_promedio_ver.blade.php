@@ -60,33 +60,49 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label small mb-0" for="f_ruta">Ruta</label>
-                    <select name="ruta_id" id="f_ruta" class="form-control form-control-sm">
-                        <option value="">Todas las compiladas</option>
-                        @foreach($rutas as $id => $ruta)
-                            <option value="{{ $id }}">{{ $ruta->nombre }}</option>
-                        @endforeach
-                    </select>
+                    @include('lupita.tools.selector', [
+                        'nombre' => 'ruta_id',
+                        'id' => 'f_ruta',
+                        'etiqueta' => 'Ruta',
+                        'tamano' => 'sm',
+                        'opciones' => collect($rutas)->map(fn ($ruta, $id) => [
+                            'valor' => (string) $id,
+                            'texto' => (string) $ruta->nombre,
+                            'extra' => (string) $id,
+                        ])->values()->all(),
+                        'todas' => 'Todas las compiladas',
+                        'valor' => '',
+                    ])
                 </div>
 
                 <div class="col-md-2">
-                    <label class="form-label small mb-0" for="f_dep_origen">Dep. origen</label>
-                    <select name="dep_origen" id="f_dep_origen" class="form-control form-control-sm">
-                        <option value="">Todos</option>
-                        @foreach($departamentos as $codigo => $nombre)
-                            <option value="{{ $codigo }}">{{ $nombre }}</option>
-                        @endforeach
-                    </select>
+                    @include('lupita.tools.selector', [
+                        'nombre' => 'dep_origen',
+                        'id' => 'f_dep_origen',
+                        'etiqueta' => 'Dep. origen',
+                        'tamano' => 'sm',
+                        'opciones' => collect($departamentos)->map(fn ($nombre, $codigo) => [
+                            'valor' => (string) $codigo,
+                            'texto' => (string) $nombre,
+                        ])->values()->all(),
+                        'todas' => 'Todos',
+                        'valor' => '',
+                    ])
                 </div>
 
                 <div class="col-md-2">
-                    <label class="form-label small mb-0" for="f_dep_destino">Dep. destino</label>
-                    <select name="dep_destino" id="f_dep_destino" class="form-control form-control-sm">
-                        <option value="">Todos</option>
-                        @foreach($departamentos as $codigo => $nombre)
-                            <option value="{{ $codigo }}">{{ $nombre }}</option>
-                        @endforeach
-                    </select>
+                    @include('lupita.tools.selector', [
+                        'nombre' => 'dep_destino',
+                        'id' => 'f_dep_destino',
+                        'etiqueta' => 'Dep. destino',
+                        'tamano' => 'sm',
+                        'opciones' => collect($departamentos)->map(fn ($nombre, $codigo) => [
+                            'valor' => (string) $codigo,
+                            'texto' => (string) $nombre,
+                        ])->values()->all(),
+                        'todas' => 'Todos',
+                        'valor' => '',
+                    ])
                 </div>
 
                 <div class="col-md-2">
@@ -490,6 +506,8 @@
 @endsection
 
 @section('scripts')
+    {{-- selector compartido con búsqueda: ver lupita/tools/selector.blade.php --}}
+    <script src="{{ asset('js/lupita-selectores.js') }}"></script>
     <script>
         const ENDPOINT = @json($endpoint);
         const CAMPOS = ['buscar', 'ruta_id', 'dep_origen', 'dep_destino', 'min_viajes', 'con_fusion',

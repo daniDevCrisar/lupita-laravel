@@ -234,15 +234,24 @@ final class MotorPresenta
 
         $hueco = max(1, min(max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO)), $hueco));
 
-        // C2 — EL DÍA EN QUE PRESENTA MUEVE EL HUECO. Medido con 13.387 huecos
-        // reales: el lunes la mediana es 2,53 veces la global y el domingo 1,45
-        // (el fin de semana acumula y el lunes se paga). El factor viene medido de
-        // la placa (o del prior de la flota si no hay muestra de ese día) y se
-        // aplica al hueco; un feriado usa el peor factor de la semana.
+        // C2 — EL DÍA EN QUE PRESENTA MUEVE EL HUECO. De dónde sale el factor lo
+        // decide `dia_modo` (ver Calibrador::factores_dia() y
+        // DBPrediccion::factores_dia_compilado()): puede venir de la placa, del
+        // prior de la flota o del compilado por día de la ruta. Un feriado usa el
+        // peor factor de la semana.
+        //
+        // GUARDIA DE CIRCULARIDAD: el factor se elige por el día en que CAE la
+        // presentación, pero multiplicar el hueco mueve la fecha, y puede caer en
+        // otro día — donde ese factor ya no corresponde. En ese caso se deshace la
+        // corrección en vez de iterar (un hueco de 800 min que cae lunes con
+        // factor 2,68 se iba a 2.144 y terminaba el miércoles).
         $notaDia = null;
         $factoresDia = is_array($e->factor_dia ?? null) ? $e->factor_dia : [];
         if ($factoresDia !== []) {
-            $diaPresenta = $tFin->copy()->addMinutes($hueco);
+            // `dia_modo = 4` usa el día del ANCLA: se conoce antes de corregir, así
+            // que no hay circularidad y no hace falta el guardia de abajo.
+            $porAncla = (int) ($e->dia_modo ?? Calibrador::DIA_FLOTA) === Calibrador::DIA_ANCLA;
+            $diaPresenta = $porAncla ? $tFin->copy() : $tFin->copy()->addMinutes($hueco);
             $indice = (int) $diaPresenta->format('N') - 1;
             $factor = (float) ($factoresDia[$indice] ?? 1.0);
 
@@ -252,18 +261,28 @@ final class MotorPresenta
             }
 
             if ($factor > 0.0 && abs($factor - 1.0) > 0.005) {
-                $hueco = max(1, min(max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO)),
-                    (int) round($hueco * $factor)));
-                $fuenteHueco .= ' · día ' . self::DIA[$indice] . ($feriado ? ' (feriado)' : '')
-                    . ' ×' . number_format($factor, 2);
-                $notaDia = 'el día en que presenta (' . self::DIA[$indice] . ($feriado ? ', feriado' : '')
-                    . ') tiene el hueco ×' . number_format($factor, 2)
-                    . ' según los viajes reales de esa placa o de la flota';
-                $salida->factor_dia = (object) [
-                    'dia' => $indice,
-                    'factor' => $factor,
-                    'feriado' => $feriado,
-                ];
+                $topeHueco = max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO));
+                $conFactor = max(1, min($topeHueco, (int) round($hueco * $factor)));
+                $indiceAplicado = (int) $tFin->copy()->addMinutes($conFactor)->format('N') - 1;
+
+                if ($porAncla || $indiceAplicado === $indice) {
+                    $hueco = $conFactor;
+                    $fuenteHueco .= ' · día ' . self::DIA[$indice] . ($feriado ? ' (feriado)' : '')
+                        . ' ×' . number_format($factor, 2);
+                    $notaDia = 'el día en que presenta (' . self::DIA[$indice] . ($feriado ? ', feriado' : '')
+                        . ') tiene el hueco ×' . number_format($factor, 2)
+                        . ' según los viajes reales de esa placa o de la flota';
+                    $salida->factor_dia = (object) [
+                        'dia' => $indice,
+                        'factor' => $factor,
+                        'feriado' => $feriado,
+                    ];
+                } else {
+                    $salida->advertencias[] = 'factor_dia_descartado: el factor del día (×'
+                        . number_format($factor, 2) . ') movía la presentación de '
+                        . self::DIA[$indice] . ' a ' . self::DIA[$indiceAplicado]
+                        . ', donde el factor ya no corresponde; se deja el hueco medido';
+                }
             }
         }
 
@@ -291,9 +310,30 @@ final class MotorPresenta
         // la hora publicada), que sí contienen el valor real; si no hay medición,
         // los cuantiles del hueco (p25/p75) o el porcentaje de la cadena.
         $ventanaMedida = is_object($e->ventana_residuos ?? null) ? $e->ventana_residuos : null;
-        $extremos = self::huecos_extremos($hueco, $cal, $trasladoMin, $p, $ventanaMedida, $evidencia);
-        $rapido = self::fecha_con_hueco($tFin, $extremos['rapido'], $ventanas, $p, $ahora);
-        $tardado = self::fecha_con_hueco($tFin, $extremos['tardado'], $ventanas, $p, $ahora);
+        $radio = self::radio_ventana($ventanaMedida, $evidencia);
+
+        if ($radio !== null) {
+            // La banda medida va centrada en la HORA PUBLICADA, que es sobre lo que
+            // se midió el residuo. Antes se armaba sobre el hueco y después se
+            // recortaba contra el traslado y el propio hueco: con un radio de
+            // ±1.349 y un hueco mediano de 620, el "rápido" caía en el traslado y la
+            // banda quedaba de 787 min de ancho en vez de 2.698 (medido: 100 % de
+            // las filas asimétricas y la cobertura se quedaba en 32 % aunque la
+            // medición prometiera 70 %).
+            $rapido = $t->copy()->subMinutes($radio['adelanto']);
+            $tardado = $t->copy()->addMinutes($radio['atraso']);
+
+            if ($rapido->lessThan($ahora)) {
+                $rapido = $ahora->copy();
+            }
+            if ($tardado->lessThan($t)) {
+                $tardado = $t->copy();
+            }
+        } else {
+            $extremos = self::huecos_extremos($hueco, $cal, $trasladoMin, $p, null, $evidencia);
+            $rapido = self::fecha_con_hueco($tFin, $extremos['rapido'], $ventanas, $p, $ahora);
+            $tardado = self::fecha_con_hueco($tFin, $extremos['tardado'], $ventanas, $p, $ahora);
+        }
 
         // 5) inicio de carga = presenta + espera en la planta de carga
         $espera = $e->espera_carga_min !== null && isset($e->espera_carga_min)
@@ -369,12 +409,36 @@ final class MotorPresenta
     }
 
     /**
-     * Los dos huecos extremos (rápido y tardado).
+     * Radio de la ventana medido con los residuos del backtest, o NULL si no hay
+     * medición (o está en cero). La evidencia `cadena` tiene su propia banda.
+     *
+     * @return array{adelanto: int, atraso: int}|null
+     */
+    private static function radio_ventana(?object $ventana, string $evidencia): ?array
+    {
+        if ($ventana === null) {
+            return null;
+        }
+
+        $adelanto = max(0, (int) ($ventana->adelanto ?? 0));
+        $atraso = max(0, (int) ($ventana->atraso ?? 0));
+
+        if ($evidencia === 'cadena') {
+            $adelanto = max(0, (int) ($ventana->adelanto_cadena ?? 0)) ?: $adelanto;
+            $atraso = max(0, (int) ($ventana->atraso_cadena ?? 0)) ?: $atraso;
+        }
+
+        return ($adelanto + $atraso) > 0 ? ['adelanto' => $adelanto, 'atraso' => $atraso] : null;
+    }
+
+    /**
+     * Los dos huecos extremos (rápido y tardado) cuando NO hay ventana medida.
      *
      * Tres fuentes, en orden de preferencia:
      *  1. `$ventana` (residuos medidos en el backtest): la hora publicada menos el
-     *     adelanto medido y más el atraso medido. Es la única que se midió contra
-     *     el resultado real, así que es la que manda cuando existe.
+     *     adelanto medido y más el atraso medido. OJO: la banda medida se aplica
+     *     centrada en la hora publicada en el flujo principal (ver
+     *     `radio_ventana()`), no acá, porque acá los recortes de abajo la rompen.
      *  2. los cuantiles del hueco de la placa/chofer (p25 y p75);
      *  3. el porcentaje de la cadena (`spread_cadena`) cuando no hay pares.
      *
@@ -388,19 +452,11 @@ final class MotorPresenta
                                             ?object $ventana = null, string $evidencia = 'cadena'): array
     {
         $tope = max(1, (int) ($p->tope_hueco_min ?? Calibrador::TOPE_HUECO));
+        $radio = self::radio_ventana($ventana, $evidencia);
 
-        if ($ventana !== null && ((int) ($ventana->adelanto ?? 0) + (int) ($ventana->atraso ?? 0)) > 0) {
-            $adelanto = max(0, (int) ($ventana->adelanto ?? 0));
-            $atraso = max(0, (int) ($ventana->atraso ?? 0));
-
-            // la cadena (sin pares medidos) tiene su propia banda, si se midió
-            if ($evidencia === 'cadena') {
-                $adelanto = max(0, (int) ($ventana->adelanto_cadena ?? 0)) ?: $adelanto;
-                $atraso = max(0, (int) ($ventana->atraso_cadena ?? 0)) ?: $atraso;
-            }
-
-            $rapido = $hueco - $adelanto;
-            $tardado = $hueco + $atraso;
+        if ($radio !== null) {
+            $rapido = $hueco - $radio['adelanto'];
+            $tardado = $hueco + $radio['atraso'];
         } elseif ($cal !== null && ($cal->p25_min ?? null) !== null && ($cal->p75_min ?? null) !== null) {
             $rapido = (int) $cal->p25_min;
             $tardado = (int) $cal->p75_min;

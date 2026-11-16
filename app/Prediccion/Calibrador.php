@@ -53,19 +53,49 @@ final class Calibrador
     public const FACTOR_DIA_FLOTA = [2.68, 0.97, 0.91, 0.84, 0.81, 0.93, 1.41];
 
     /**
+     * Modos del factor de día (`dia_modo`).
+     *
+     * DIA_APAGADO    no se toca el hueco.
+     * DIA_FLOTA      factor de la placa y, si ese día no tiene muestra, el prior
+     *                hardcodeado (lo único que había hasta la v1.20).
+     * DIA_PLACA      sólo factor propio; los días sin muestra quedan neutros.
+     * DIA_COMPILADO  el factor sale de `tiempos_ruta_horario`, la tabla que llena
+     *                "Compilar promedios por día y hora"; lo arma
+     *                DBPrediccion::factores_dia_compilado(), no este método.
+     */
+    public const DIA_APAGADO = 0;
+    public const DIA_FLOTA = 1;
+    public const DIA_PLACA = 2;
+    public const DIA_COMPILADO = 3;
+    /** Factor del día del ANCLA (el día en que el camión quedó libre), no del de presentación. */
+    public const DIA_ANCLA = 4;
+
+    /**
      * Factor del hueco por día de la semana de ESTA placa.
      *
      * De los pares que ya están en memoria (los de la placa) se saca la mediana de
      * cada día y se divide por la mediana general: si un camión siempre presenta
      * los lunes, su lunes ya está en su mediana y no hay que inflarla. Con menos
-     * de `$minimo` pares en ese día se usa el prior de la flota, y si la placa
-     * tiene pocos pares en total se devuelve el prior entero.
+     * de `$minimo` pares en ese día se usa el prior de la flota, salvo en modo
+     * DIA_PLACA, donde el día queda neutro (1.0).
+     *
+     * POR QUÉ EXISTEN LOS MODOS: medido con 682 placas, de 4.774 celdas
+     * (placa x día) sólo 159 quedaron con factor propio, el 3 %. El 97 % restante
+     * terminaba aplicando el prior de la flota, o sea que el motor multiplicaba
+     * por 2,68 TODOS los lunes a TODOS los camiones. Apagarlo bajó el MAE 131 min
+     * (1568 -> 1437) sobre 788 filas del backtest.
      *
      * @param  array<int, object>  $pares  con ->presenta (Carbon) y ->hueco_min
      * @return array<int, float> índice 0 = lunes
      */
-    public static function factores_dia(array $pares, int $minimo = 5): array
+    public static function factores_dia(array $pares, int $minimo = 5, int $modo = self::DIA_FLOTA): array
     {
+        $neutro = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+
+        if ($modo === self::DIA_APAGADO) {
+            return $neutro;
+        }
+
         $todos = [];
         $porDia = [];
 
@@ -82,12 +112,15 @@ final class Calibrador
             $porDia[$dia][] = (int) $hueco;
         }
 
+        // sin muestra no hay factor: en modo placa el día queda neutro
+        $sinMuestra = $modo === self::DIA_PLACA ? $neutro : self::FACTOR_DIA_FLOTA;
+
         $base = Estadistica::mediana($todos);
         if ($base === null || $base <= 0 || count($todos) < $minimo) {
-            return self::FACTOR_DIA_FLOTA;
+            return $sinMuestra;
         }
 
-        $factores = self::FACTOR_DIA_FLOTA;
+        $factores = $sinMuestra;
         foreach ($porDia as $dia => $valores) {
             if (count($valores) < $minimo) {
                 continue;
@@ -116,7 +149,7 @@ final class Calibrador
      * @param  array<int, object>  $pares  cada uno con ancla, presenta, ruta_ancla, ruta_siguiente, entidad
      */
     public static function calibrar(array $pares, int $min_ruta = 3, int $min_entidad = 3, int $bins = 8,
-                                    int $max_por_entidad = 0): stdClass
+                                    int $max_por_entidad = 0, int $curva_modo = 0, int $curva_k = 5): stdClass
     {
         $bins = max(1, min(24, $bins));
         $limpios = [];
@@ -178,9 +211,11 @@ final class Calibrador
             'min_entidad' => max(1, $min_entidad),
             'bins' => $bins,
             'recientes_max' => max(0, $max_por_entidad),
+            'curva_modo' => max(0, min(2, $curva_modo)),
+            'curva_k' => max(1, $curva_k),
             'par_rutas' => $par_rutas,
             'entidad' => $entidad,
-            'curva' => self::curva($limpios, $por_entidad, $todos, $min_entidad, $bins),
+            'curva' => self::curva($limpios, $por_entidad, $todos, $min_entidad, $bins, $curva_modo),
             'global' => $global,
         ];
     }
@@ -242,8 +277,8 @@ final class Calibrador
             $nivel = 'parcial';
         }
 
-        $residual = $calibracion->curva[Estadistica::bin_horario($hora_ancla, $bins)]['residual_min'] ?? 0;
-        $residual = (int) round((float) $residual);
+        $residual = self::correccion_horaria($calibracion, $hora_ancla, $bins,
+            $fuente !== null ? (float) ($fuente['base_min'] ?? 0) : null);
 
         if ($fuente === null) {
             return (object) [
@@ -278,17 +313,30 @@ final class Calibrador
      * predicción se iba 48 h al futuro (caso real AHV874). Sin muestra, el
      * residuo es 0 y manda la mediana de la entidad.
      *
-     * @return array<int, array{n: int, residual_min: ?int}>
+     * Modos (`curva_modo`): 0 = residuo absoluto (comportamiento viejo), 1 =
+     * proporcional + encogido, 2 = apagada. En el modo 0 el residuo se mide contra
+     * la mediana de la PLACA y se sumaba a la base del PAR DE RUTAS, que puede ser
+     * 2-3 veces mayor: sumar el desvío de una distribución a la base de otra no es
+     * correcto cuando la distribución es asimétrica. Por eso el modo 1 lo pasa a
+     * proporción (`residuo / base_entidad * base_elegida`) y lo pesa con `curva_k`.
+     *
+     * @return array<int, array{n: int, residual_min: ?int, base_min: ?int}>
      */
-    private static function curva(array $limpios, array $por_entidad, array $todos, int $min_entidad, int $bins): array
+    private static function curva(array $limpios, array $por_entidad, array $todos, int $min_entidad, int $bins,
+                                  int $modo = 0): array
     {
         $curva = [];
         for ($bin = 0; $bin < $bins; $bin++) {
-            $curva[$bin] = ['n' => 0, 'residual_min' => null];
+            $curva[$bin] = ['n' => 0, 'residual_min' => null, 'base_min' => null];
+        }
+
+        if ($modo === 2) {
+            return $curva;      // apagada: no se calcula nada
         }
 
         $minimo = max(2, $min_entidad);
         $residuos = [];
+        $bases = [];
         foreach ($limpios as $fila) {
             $base = null;
             if (count($por_entidad[$fila['entidad']] ?? []) >= $min_entidad) {
@@ -302,6 +350,7 @@ final class Calibrador
             }
 
             $residuos[$fila['bin']][] = $fila['hueco'] - $base;
+            $bases[$fila['bin']][] = $base;
         }
 
         foreach ($residuos as $bin => $valores) {
@@ -312,10 +361,51 @@ final class Calibrador
             $curva[$bin] = [
                 'n' => count($valores),
                 'residual_min' => (int) round((float) Estadistica::mediana($valores)),
+                'base_min' => (int) round((float) Estadistica::mediana($bases[$bin] ?? [])),
             ];
         }
 
         return $curva;
+    }
+
+    /**
+     * Cuántos minutos se le suman al hueco por la hora del ancla.
+     *
+     * `$baseElegida` es la base del nivel que se va a usar (par de rutas o placa);
+     * con el modo proporcional el residuo se escala a esa base. Si no hay nivel
+     * elegido se usa la propia base del residuo, así lo que se informa sigue
+     * siendo el residuo medido (encogido por muestra).
+     */
+    private static function correccion_horaria(stdClass $calibracion, int $horaAncla, int $bins,
+                                               ?float $baseElegida): int
+    {
+        $modo = (int) ($calibracion->curva_modo ?? 0);
+        if ($modo === 2) {
+            return 0;
+        }
+
+        $fila = $calibracion->curva[Estadistica::bin_horario($horaAncla, $bins)] ?? null;
+        if (!is_array($fila)) {
+            return 0;
+        }
+
+        $residual = (int) round((float) ($fila['residual_min'] ?? 0));
+        if ($modo === 0) {
+            return $residual;
+        }
+
+        $baseCurva = (float) ($fila['base_min'] ?? 0);
+        $n = (int) ($fila['n'] ?? 0);
+        $base = $baseElegida ?? $baseCurva;
+
+        if ($baseCurva <= 0 || $base <= 0 || $n <= 0) {
+            return 0;
+        }
+
+        $k = max(1, (int) ($calibracion->curva_k ?? 5));
+        $peso = $n / ($n + $k);
+
+        return (int) round(($residual / $baseCurva) * $base * $peso);
     }
 
     /**
@@ -340,10 +430,12 @@ final class Calibrador
             'min_entidad' => 1,
             'bins' => 1,
             'recientes_max' => 0,
+            'curva_modo' => 0,      // el régimen ya viene con su propia base
+            'curva_k' => 1,
             'par_rutas' => [],
             'entidad' => [$etiqueta => $resumen],
             'global' => $resumen,
-            'curva' => [0 => ['n' => $resumen['n'], 'residual_min' => 0]],
+            'curva' => [0 => ['n' => $resumen['n'], 'residual_min' => 0, 'base_min' => $resumen['base_min']]],
         ];
     }
 

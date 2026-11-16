@@ -313,6 +313,122 @@
         </div>
     </div>
 
+    {{-- ============ ABLACIÓN: ¿qué mecanismo aporta y cuál resta? ============ --}}
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary text-white">
+            <strong>Medir qué aporta y qué resta (ablación)</strong>
+            <span class="small">— corre la tabla de aciertos con variantes y compara el MAE</span>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-2">
+                Corre la tabla de aciertos <strong>cuatro veces</strong> con la misma configuración salvo una pieza, y
+                muestra el MAE de cada variante contra la que está en uso. Sirve para saber si una corrección ayuda o
+                estorba <em>antes</em> de dejarla puesta. <strong>No guarda nada</strong>: los parámetros se pisan en
+                memoria, así que después de medir el motor sigue igual.
+            </p>
+
+            <form method="POST" action="{{ route('lupita.prediccion.ablacion') }}"
+                  class="d-flex flex-wrap align-items-end gap-2">
+                @csrf
+                <div>
+                    <label class="form-label small mb-0">Rango</label>
+                    <select name="dias" class="form-select form-select-sm">
+                        <option value="30">30 días</option>
+                        <option value="90" selected>90 días</option>
+                        <option value="180">180 días</option>
+                        <option value="365">365 días</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label small mb-0">Filas por corrida</label>
+                    <select name="limite" class="form-select form-select-sm">
+                        <option value="200">200 (rápido)</option>
+                        <option value="300" selected>300</option>
+                        <option value="600">600 (más confiable)</option>
+                        <option value="1000">1000 (lento)</option>
+                    </select>
+                </div>
+                <button class="btn btn-sm btn-primary">
+                    <i class="bi bi-clipboard-data"></i> Medir ablación
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" name="refrescar" value="1"
+                        title="ignora la medición guardada en caché (15 min)">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <div class="small text-muted ms-auto">
+                    tarda unos segundos por variante la primera vez; después sale de la caché
+                </div>
+            </form>
+
+            @php $ablacion = session('ablacion'); @endphp
+
+            @if(is_array($ablacion))
+                @if(isset($ablacion['error']))
+                    <div class="alert alert-warning mt-3 mb-0 small">
+                        <strong>No se pudo medir.</strong> {{ $ablacion['error'] }}
+                    </div>
+                @elseif(!empty($ablacion['filas']))
+                    <div class="alert alert-light border mt-3 mb-0">
+                        <div class="small text-muted mb-1">
+                            {{ $ablacion['desde'] }} → {{ $ablacion['hasta'] }} ·
+                            {{ $ablacion['limite'] }} filas por corrida · n = {{ $ablacion['n'] }}
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0" style="font-size:.82rem">
+                                <thead class="table-light">
+                                <tr>
+                                    <th>variante</th>
+                                    <th class="text-end">n</th>
+                                    <th class="text-end">MAE</th>
+                                    <th class="text-end">±3 h</th>
+                                    <th class="text-end">±6 h</th>
+                                    <th class="text-end">ventana</th>
+                                    <th class="text-end">vs en uso</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($ablacion['filas'] as $fila)
+                                    <tr class="{{ $loop->first ? 'table-info' : '' }}">
+                                        <td>
+                                            {{ $fila['nombre'] }}
+                                            @if(!empty($fila['cambios']))
+                                                <div class="text-muted" style="font-size:.7rem">
+                                                    @foreach($fila['cambios'] as $clave => $valor)
+                                                        <code>{{ $clave }}={{ $valor }}</code>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td class="text-end">{{ (int) $fila['n'] }}</td>
+                                        <td class="text-end fw-bold">{{ $fila['mae'] ?? '—' }}</td>
+                                        <td class="text-end">{{ $fila['pct_180'] === null ? '—' : $fila['pct_180'] . ' %' }}</td>
+                                        <td class="text-end">{{ $fila['pct_360'] === null ? '—' : $fila['pct_360'] . ' %' }}</td>
+                                        <td class="text-end">{{ $fila['pct_ventana'] === null ? '—' : $fila['pct_ventana'] . ' %' }}</td>
+                                        <td class="text-end">
+                                            @if($fila['delta'] === null || $fila['delta'] === 0)
+                                                <span class="text-muted">—</span>
+                                            @elseif($fila['delta'] < 0)
+                                                <span class="badge bg-success">{{ $fila['delta'] }} min</span>
+                                            @else
+                                                <span class="badge bg-danger">+{{ $fila['delta'] }} min</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-muted mt-2" style="font-size:.7rem">
+                            MAE más bajo <strong>con ±3 h y ventana iguales o mejores</strong> es la variante a elegir;
+                            ganar sólo en MAE con menos aciertos dentro de ±3 h no es una mejora. Para medir más
+                            variantes y contra la mediana de una placa: <code>php artisan prediccion:ablacion</code>.
+                        </div>
+                    </div>
+                @endif
+            @endif
+        </div>
+    </div>
+
     {{-- ============ AVISOS ============ --}}
     <div class="card mb-3">
         <div class="card-header bg-secondary text-white"><strong>Antes de apretar Guardar o Aplicar</strong></div>

@@ -147,16 +147,19 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label" for="ruta_id">Ruta</label>
-                    <select name="ruta_id" id="ruta_id" class="form-control">
-                        <option value="">Todas</option>
-                        @foreach($datos->rutas as $id => $ruta)
-                            <option value="{{ $id }}" @selected((string) $datos->ruta_id === (string) $id)>
-                                {{ $ruta->nombre }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <div class="form-text">Filtra la vista; para compilar un tramo usa el botón de abajo.</div>
+                    @include('lupita.tools.selector', [
+                        'nombre' => 'ruta_id',
+                        'id' => 'ruta_id',
+                        'etiqueta' => 'Ruta',
+                        'opciones' => collect($datos->rutas)->map(fn ($ruta, $id) => [
+                            'valor' => (string) $id,
+                            'texto' => (string) $ruta->nombre,
+                            'extra' => (string) $id,
+                        ])->values()->all(),
+                        'todas' => 'Todas las rutas',
+                        'valor' => (string) ($datos->ruta_id ?? ''),
+                        'ayuda' => 'Filtra la vista; para compilar un tramo usa el botón de abajo.',
+                    ])
                 </div>
 
                 <div class="col-md-3 d-flex gap-2">
@@ -168,45 +171,22 @@
 
                 {{-- departamentos: salen del ubigeo de cada ruta (2 primeros digitos) --}}
                 @foreach([
-                    'dep_origen' => ['Departamento de origen', $datos->dep_origen, 'Todos los orígenes'],
-                    'dep_destino' => ['Departamento de destino', $datos->dep_destino, 'Todos los destinos'],
+                    'dep_origen' => ['Departamento de origen', $datos->dep_origen, 'Todos los orígenes', 'Ubigeo de origen de la ruta'],
+                    'dep_destino' => ['Departamento de destino', $datos->dep_destino, 'Todos los destinos', 'Ubigeo de destino de la ruta'],
                 ] as $campo => $definicion)
                     <div class="col-md-3">
-                        <label class="form-label" for="{{ $campo }}_buscar">{{ $definicion[0] }}</label>
-                        <div class="dropdown" data-combo="{{ $campo }}">
-                            <button type="button"
-                                    class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
-                                    data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                                <span class="text-truncate" data-combo-texto>
-                                    {{ $definicion[1] === null ? $definicion[2] : ($datos->departamentos[$definicion[1]] ?? $definicion[1]) }}
-                                </span>
-                                <i class="bi bi-chevron-down ms-2"></i>
-                            </button>
-                            <div class="dropdown-menu w-100 p-2">
-                                <input type="search" id="{{ $campo }}_buscar" class="form-control form-control-sm mb-2"
-                                       data-combo-buscar placeholder="Buscar departamento..." autocomplete="off">
-                                <div data-combo-lista style="max-height: 240px; overflow-y: auto">
-                                    <button type="button" class="dropdown-item rounded" data-valor=""
-                                            data-buscar="{{ mb_strtolower($definicion[2]) }}">
-                                        {{ $definicion[2] }}
-                                    </button>
-                                    @foreach($datos->departamentos as $codigo => $nombre)
-                                        <button type="button" class="dropdown-item rounded text-wrap"
-                                                data-valor="{{ $codigo }}"
-                                                data-buscar="{{ mb_strtolower($nombre . ' ' . $codigo) }}">
-                                            {{ $nombre }}
-                                        </button>
-                                    @endforeach
-                                </div>
-                                <div class="text-muted small text-center py-2" data-combo-vacio hidden>
-                                    Sin coincidencias
-                                </div>
-                            </div>
-                            <input type="hidden" name="{{ $campo }}" value="{{ $definicion[1] }}">
-                        </div>
-                        <div class="form-text">
-                            {{ $campo === 'dep_origen' ? 'Ubigeo de origen de la ruta' : 'Ubigeo de destino de la ruta' }}
-                        </div>
+                        @include('lupita.tools.selector', [
+                            'nombre' => $campo,
+                            'id' => $campo,
+                            'etiqueta' => $definicion[0],
+                            'opciones' => collect($datos->departamentos)->map(fn ($nombre, $codigo) => [
+                                'valor' => (string) $codigo,
+                                'texto' => (string) $nombre,
+                            ])->values()->all(),
+                            'todas' => $definicion[2],
+                            'valor' => (string) ($definicion[1] ?? ''),
+                            'ayuda' => $definicion[3],
+                        ])
                     </div>
                 @endforeach
 
@@ -686,6 +666,9 @@
         </p>
     @endif
 
+    {{-- selector compartido (ruta y departamentos): ver lupita/tools/selector.blade.php --}}
+    <script src="{{ asset('js/lupita-selectores.js') }}"></script>
+
     <script>
         // la nota del tope: equivalencia en horas si hay corte, y el sentido
         // del 0 (sin tope global, manda el combo) cuando no lo hay
@@ -764,77 +747,7 @@
             });
         });
 
-        // ---- combos de departamento: la lista se filtra con el input de busqueda
-        document.querySelectorAll('[data-combo]').forEach(function (combo) {
-            const boton = combo.querySelector('[data-bs-toggle="dropdown"]');
-            const texto = combo.querySelector('[data-combo-texto]');
-            const buscar = combo.querySelector('[data-combo-buscar]');
-            const lista = combo.querySelector('[data-combo-lista]');
-            const vacio = combo.querySelector('[data-combo-vacio]');
-            const valor = combo.querySelector('input[type="hidden"]');
-            const items = Array.from(lista.querySelectorAll('[data-valor]'));
-
-            function filtrar(termino) {
-                const t = termino.trim().toLowerCase();
-                let visibles = 0;
-
-                items.forEach(function (item) {
-                    const coincide = t === '' || (item.dataset.buscar || '').indexOf(t) !== -1;
-                    item.hidden = !coincide;
-                    if (coincide) {
-                        visibles++;
-                    }
-                });
-
-                vacio.hidden = visibles > 0;
-            }
-
-            function marcar() {
-                items.forEach(function (item) {
-                    item.classList.toggle('active', item.dataset.valor === valor.value);
-                });
-            }
-
-            items.forEach(function (item) {
-                item.addEventListener('click', function () {
-                    valor.value = item.dataset.valor;
-                    texto.textContent = item.textContent.trim();
-                    marcar();
-                    buscar.value = '';
-                    filtrar('');
-
-                    const instancia = bootstrap.Dropdown.getInstance(boton);
-                    if (instancia) {
-                        instancia.hide();
-                    }
-                });
-            });
-
-            buscar.addEventListener('input', function () {
-                filtrar(this.value);
-            });
-
-            buscar.addEventListener('keydown', function (evento) {
-                if (evento.key !== 'Enter') {
-                    return;
-                }
-
-                evento.preventDefault();
-                const primero = items.find(function (item) {
-                    return !item.hidden;
-                });
-
-                if (primero) {
-                    primero.click();
-                }
-            });
-
-            combo.addEventListener('shown.bs.dropdown', function () {
-                buscar.focus();
-            });
-
-            marcar();
-        });
+        // los combos de departamento ahora los maneja public/js/lupita-selectores.js
 
         // ---- checks de la tabla: se enganchan al form de compilacion con el
         //      atributo form, porque cada fila tiene su propio formulario

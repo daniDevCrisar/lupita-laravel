@@ -23,7 +23,16 @@ return [
     // Pares más recientes por placa con los que se calibra el hueco (0 = toda la
     // historia). El hueco mediano de la flota cae mes a mes: calibrar con 120 días
     // parejos sobreestima la vuelta en casi medio día.
-    'pares_recientes_max' => 20,
+    //
+    // Medido el 14/11/2026 (día compilado + curva encogida):
+    //   pares    AGO-NOV            MAY-AGO
+    //    5    1360 · ±3h 29%     1286 · ±3h 31%
+    //   10    1303 · ±3h 27%     1192 · ±3h 28%   <- mejor MAE de los dos rangos
+    //   20    1294 · ±3h 25%     1206 · ±3h 26%
+    //   40    1309 · ±3h 23%     1231 · ±3h 25%
+    //   todo  1317 · ±3h 22%     1257 · ±3h 23%
+    // Con 10 el MAE está en el mínimo y ±3h queda 2 puntos arriba que con 20.
+    'pares_recientes_max' => 10,
 
     // Franjas de no-actividad: días mínimos para creerle al perfil propio y
     // cuántas marcas (hitos) tiene que haber en una franja de 30 min para que
@@ -35,6 +44,22 @@ return [
 
     // Franjas de 3 h para la corrección del hueco por hora del ancla.
     'bins_horarios' => 8,
+
+    // Qué hacer con esa corrección por hora (`Calibrador::curva()`).
+    //   0 = como siempre: se SUMA el residuo absoluto (medido contra la mediana
+    //       de la placa) a la base del nivel elegido, sin importar la muestra.
+    //   1 = encogida y proporcional: el residuo entra como proporción de la base
+    //       (`residuo/base_entidad * base_elegida`) y pesa n/(n+curva_k), así una
+    //       franja con 3 pares apenas mueve la hora.
+    //   2 = apagada.
+    //
+    // Medido el 14/11/2026 con 788 filas del backtest (ago->nov):
+    //   modo 0 (el de antes)  MAE 1568 · +-3h 23 %
+    //   modo 2 (apagada)      MAE 1503 · +-6h 36 %   (-65 min)
+    // El modo 0 mezcla dos escalas: el residuo se mide contra la mediana de la
+    // PLACA y se suma a la base del PAR DE RUTAS, que puede ser 2-3 veces mayor.
+    'curva_modo' => 1,
+    'curva_k' => 5,
 
     // "Cerca": si el camión descargó a menos de estos minutos de la planta donde
     // vuelve a cargar (o en el mismo local/distrito), el hueco se calibra sólo con
@@ -82,6 +107,27 @@ return [
     'dia_min_pares' => 5,
     'feriado_activo' => 1,
 
+    // De dónde sale el factor del día (`dia_activo` tiene que estar en 1).
+    //   0 = apagado, no se toca el hueco.
+    //   1 = flota: lo de siempre. Factor de la placa y, si esa placa no tiene
+    //       muestra de ese día, el prior hardcodeado FACTOR_DIA_FLOTA (lunes 2,68).
+    //   2 = placa: sólo se corrige un día si ESA placa tiene `dia_min_pares` huecos
+    //       en ese día; los demás quedan en 1 (no existe el prior de la flota).
+    //   3 = compilado: el factor del día sale de `tiempos_ruta_horario`, la tabla
+    //       que llena "Compilar promedios por día y hora", o sea de lo que tardan
+    //       de verdad las rutas cada día de la semana. Si la ruta no tiene celda,
+    //       el factor es 1.
+    //
+    // Por qué: medido el 14/11/2026 sobre 682 placas, de 4.774 celdas
+    // (placa x día) sólo 159 tienen factor propio: el 3 %. O sea que en la
+    // práctica el motor multiplica por 2,68 TODOS los lunes a TODOS los camiones.
+    // Apagarlo baja el MAE 131 min (1568 -> 1437). Y el compilado por día muestra
+    // que una misma ruta casi no cambia entre días (RUT_CARAL-BABEL_MAXO: 268 a
+    // 290 min): el efecto día real es 5-8 %, no 168 %. `dia_compilado_k` encoge
+    // la diferencia por muestra (una celda con 3 viajes pesa poco).
+    'dia_modo' => 3,
+    'dia_compilado_k' => 10,
+
     // C1 - Cola de la planta de carga: cuántos camiones llegaron en la última hora.
     // Medido con 10.293 refs, la espera para cargar tiene mediana 36 min con 1-2
     // llegadas por hora y 55 con 11 o más (p90 139 contra 102): con muchas
@@ -101,19 +147,23 @@ return [
     // todo el modelo y no sólo de la dispersión del hueco.
     //   radio = cuantil(|error|, ventana_cobertura) alrededor de la hora publicada
     //
-    // Los valores de abajo se midieron el 14/11/2026 con 788 filas del tramo
-    // 15-oct -> 13-nov: con 70 % de cobertura el radio es 1.550 min en general y
-    // 3.175 min cuando no hay pares medidos (evidencia "cadena", que se equivoca
-    // mucho más). El botón "Medir ventana" de la pantalla de parámetros lo vuelve
-    // a medir con los datos del servidor y lo aplica con "Aplicar ventana".
+    // Los valores de abajo se re-midieron el 14/11/2026 DESPUES de recentrar el
+    // motor (día compilado + curva encogida): con 70 % de cobertura el radio es
+    // 1.349 min en general y 2.086 cuando no hay pares medidos. Antes del cambio
+    // eran 1.550 y 3.175, porque la banda estaba abierta contra el centro viejo.
+    // El botón "Medir ventana" de la pantalla de parámetros lo vuelve a medir con
+    // los datos del servidor y lo aplica con "Aplicar ventana".
+    //
+    // OJO: cada vez que se cambia el centro (día, curva, pares) hay que volver a
+    // medir esta banda; si no, la cobertura cae aunque el motor esté mejor.
     //
     // Con `ventana_residuos` = 0 se vuelve a los cuantiles del hueco.
     'ventana_residuos' => 1,
     'ventana_cobertura' => 0.70,
-    'ventana_adelanto_min' => 1550,
-    'ventana_atraso_min' => 1550,
-    'ventana_adelanto_cadena' => 3175,
-    'ventana_atraso_cadena' => 3175,
+    'ventana_adelanto_min' => 1349,
+    'ventana_atraso_min' => 1349,
+    'ventana_adelanto_cadena' => 2086,
+    'ventana_atraso_cadena' => 2086,
     // filas mínimas del backtest para creerle a la medición
     'ventana_min_filas' => 40,
 

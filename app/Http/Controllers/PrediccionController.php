@@ -710,7 +710,17 @@ class PrediccionController extends Controller
                 ['clave' => 'descontar_transcurrido', 'valor' => (int) ($enUso->descontar_transcurrido ?? 1),
                  'texto' => 'Descuenta el tiempo ya manejado y, si la mediana se consumió, espera hasta el p75'],
                 ['clave' => 'dia_activo', 'valor' => (int) ($enUso->dia_activo ?? 1),
-                 'texto' => 'El hueco se multiplica por el factor del día en que presenta (lunes 2,68 · domingo 1,41)'],
+                 'texto' => 'El hueco se multiplica por el factor del día (ver dia_modo)'],
+                ['clave' => 'dia_modo', 'valor' => (int) ($enUso->dia_modo ?? 1),
+                 'texto' => 'De dónde sale el factor del día: 0 apagado · 1 flota (prior lunes 2,68) · '
+                     . '2 sólo placa con muestra · 3 compilado por ruta (tiempos_ruta_horario) · 4 día del ancla'],
+                ['clave' => 'dia_compilado_k', 'valor' => (int) ($enUso->dia_compilado_k ?? 10),
+                 'texto' => 'Encogimiento del factor compilado por muestra: 1 + (ratio-1)·viajes/(viajes+k)'],
+                ['clave' => 'curva_modo', 'valor' => (int) ($enUso->curva_modo ?? 0),
+                 'texto' => 'Corrección por hora del ancla: 0 residuo absoluto (viejo) · 1 proporcional y '
+                     . 'encogido · 2 apagada'],
+                ['clave' => 'curva_k', 'valor' => (int) ($enUso->curva_k ?? 5),
+                 'texto' => 'Peso de la franja horaria en el modo 1: n/(n+k)'],
                 ['clave' => 'feriado_activo', 'valor' => (int) ($enUso->feriado_activo ?? 1),
                  'texto' => 'Un feriado usa el peor factor de la semana'],
                 ['clave' => 'cola_activa', 'valor' => (int) ($enUso->cola_activa ?? 1),
@@ -918,6 +928,51 @@ class PrediccionController extends Controller
             ]],
             'resultados' => $resultados,
         ];
+    }
+
+    /**
+     * Corre la ABLACIÓN del motor y deja la tabla en pantalla.
+     *
+     * Es el mismo instrumento que el comando `prediccion:ablacion`, con la lista
+     * corta de variantes para que pueda correr desde el navegador: compara la
+     * configuración en uso contra apagar el factor de día, usar el compilado por
+     * ruta y volver a la de antes. Los parámetros se pisan en memoria: no se guarda
+     * nada en `prediccion_config`.
+     */
+    public static function ablacion(Request $request)
+    {
+        $request->validate([
+            'dias' => 'nullable|integer|min:7|max:365',
+            'limite' => 'nullable|integer|min:10|max:1000',
+        ]);
+
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(240);
+        }
+
+        $filtros = [
+            'desde' => now()->subDays(max(7, (int) $request->input('dias', 90)))->toDateString(),
+            'hasta' => now()->toDateString(),
+            'limite' => max(10, (int) $request->input('limite', 300)),
+        ];
+
+        $llave = 'prediccion:ablacion:v1:' . md5(json_encode($filtros));
+
+        if ($request->boolean('refrescar')) {
+            \Illuminate\Support\Facades\Cache::forget($llave);
+        }
+
+        try {
+            $medicion = \Illuminate\Support\Facades\Cache::remember(
+                $llave,
+                now()->addMinutes(15),
+                fn () => \App\Prediccion\Ablacion::correr($filtros, \App\Prediccion\Ablacion::VARIANTES_WEB)
+            );
+        } catch (\Throwable $e) {
+            $medicion = ['error' => 'No se pudo medir: ' . $e->getMessage(), 'filas' => []];
+        }
+
+        return redirect()->route('lupita.prediccion.parametros.ver')->with('ablacion', $medicion);
     }
 
     private static function carbon(?string $valor): ?Carbon

@@ -533,10 +533,22 @@ class DBTiemposPromedioCompilado
             'limitados' => 0,
         ];
 
-        // la matriz siempre tiene 7 x 24 posiciones, aunque no haya data
+        // la matriz siempre tiene 7 x 24 posiciones, aunque no haya data.
+        // OJO: los acumuladores de por_dia y por_hora se crean UNO POR POSICIÓN.
+        // Con `array_fill(0, 24, (object) [...])` las 24 posiciones quedan
+        // apuntando al MISMO objeto: el `+=` de cada celda cae en él y las 24
+        // terminan con el total. Eso dejaba el gráfico "Promedio por hora" con 24
+        // barras idénticas (el total) y la columna de resumen del mapa con el
+        // total en los siete días.
         $salida->matriz = array_fill(0, 7, array_fill(0, 24, null));
-        $salida->por_dia = array_fill(0, 7, (object) ['viajes' => 0, 'prom_min' => null]);
-        $salida->por_hora = array_fill(0, 24, (object) ['viajes' => 0, 'prom_min' => null]);
+        $salida->por_dia = [];
+        for ($indice_dia = 0; $indice_dia < 7; $indice_dia++) {
+            $salida->por_dia[$indice_dia] = (object) ['viajes' => 0, 'prom_min' => null];
+        }
+        $salida->por_hora = [];
+        for ($indice_hora = 0; $indice_hora < 24; $indice_hora++) {
+            $salida->por_hora[$indice_hora] = (object) ['viajes' => 0, 'prom_min' => null];
+        }
 
         if (!self::tablas_listas()) {
             return $salida;

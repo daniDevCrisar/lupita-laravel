@@ -2,7 +2,7 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.19
+Version       : 1.20
 Fecha         : 14/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
@@ -1819,6 +1819,79 @@ evidencia. Hay tres niveles.
                      refs viejas (se descarta) y dejo de cargarse a partir del
                      10/11 (Nov 11-13 en 0 %): la comparacion necesita un rango
                      anterior.
+
+  1.20 14/11/2026  - RECENTRADO DEL MOTOR + ARREGLO DE LA VENTANA. Medido con el
+                     backtest (788-822 filas por trimestre), el motor completo tenia
+                     MAE 1.568 y era PEOR que la mediana simple de la placa (1.116)
+                     calculada solo con informacion pasada. La ablacion encontro las
+                     piezas que restaban:
+
+                       - C2 (factor de dia): de 4.774 celdas (placa x dia) solo 159
+                         tenian factor propio (3 %), asi que el 97 % aplicaba el
+                         prior de la flota: x2,68 todos los lunes a todos los
+                         camiones. Nueva clave `dia_modo`:
+                           0 apagado | 1 flota (el de antes) | 2 solo placa con
+                           muestra | 3 COMPILADO por ruta (tiempos_ruta_horario,
+                           lo que llena "Compilar promedios por dia y hora") |
+                           4 dia del ancla
+                         Default: 3. El compilado muestra que una misma ruta casi
+                         no cambia entre dias (RUT_CARAL-BABEL_MAXO: 268-290 min),
+                         asi que el factor queda entre 0,95 y 1,08.
+                         Ademas se corto la CIRCULARIDAD: el factor se elegia por el
+                         dia donde caia la prediccion, pero multiplicar movia la
+                         fecha a otro dia. Ahora, si el dia cambia, la correccion se
+                         DESHACE (advertencia `factor_dia_descartado`). Ese guardia
+                         solo valio -248 min de MAE.
+                       - Curva horaria: el residuo se medía contra la mediana de la
+                         PLACA y se sumaba a la base del PAR DE RUTAS. Nueva clave
+                         `curva_modo`: 0 absoluto (el de antes) | 1 proporcional +
+                         encogido n/(n+k) con `curva_k` | 2 apagada. Default: 1.
+                       - `pares_recientes_max`: 20 -> 10 (mejor MAE de los dos
+                         trimestres: 1.303 y 1.192 contra 1.294/1.206 con 20).
+
+                     ARREGLO DE LA VENTANA (era un bug, no un parametro):
+                       - el motor armaba la banda alrededor del HUECO y despues la
+                         recortaba contra el traslado y el propio hueco: con radio
+                         +-1.349 y hueco mediano 620, el "rapido" caia en el
+                         traslado y la banda se publicaba de 787 min de ancho en vez
+                         de 2.698. Medido: 100 % de las filas asimetricas y
+                         cobertura clavada en 32 % aunque la medicion prometiera
+                         70 %. Ahora la banda se centra en la HORA PUBLICADA.
+                       - el backtest NO le pasaba `ventana_residuos` al motor: la
+                         tabla de aciertos medía el p25-p75 del hueco (~35 %)
+                         mientras el API publicaba la banda medida. Ahora usa la
+                         misma.
+                       - re-medida despues del cambio: 1.349 min general y 2.086 en
+                         cadena (antes 1.550 / 3.175, calibradas contra el centro
+                         viejo).
+
+                     RESULTADO (mismo rango, misma vara):
+                       AGO-NOV  MAE 1.568 -> 1.303 (-17 %) · +-3h 23 -> 27 % ·
+                                ventana 35 -> 70 %
+                       MAY-AGO  MAE 1.559 -> 1.192 (-24 %) · +-3h 22 -> 28 % ·
+                                ventana 38 -> 74 %
+                       FEB-MAY  MAE 2.192 -> 2.250 (+3 %) · +-3h 16 -> 19 % ·
+                                ventana 20 -> 62 %
+                     Ojo: en FEB-MAY el MAE sube 58 min pero acierta mas dentro de
+                     +-3h. Es el trimestre donde el motor esta peor por otras
+                     razones (falta de historia para calibrar).
+
+                     NUEVO `php artisan prediccion:ablacion` (y boton "Medir
+                     ablacion" en la pantalla de parametros): corre la tabla de
+                     aciertos con cada variante pisando parametros EN MEMORIA (no
+                     guarda nada) e imprime MAE, +-3h, +-6h, ventana y el delta
+                     contra la configuracion en uso. Ademas compara el motor contra
+                     reglas de una linea (mediana de la flota / de la placa / del par
+                     de rutas) calculadas solo con informacion anterior a cada ancla.
+
+                     NO se usa `compromiso_carga` para predecir (es lo que carga el
+                     monitorista a mano): el KPI comparativo de la pantalla de
+                     guardadas queda solo como diagnostico.
+
+                     Tambien: se sincronizo el registro `migrations` de la base
+                     local (16 migraciones estaban "pending" con sus tablas ya
+                     creadas por la restauracion del dump; `migrate` habria fallado
+                     al recrearlas).
 
 ================================================================================
  FIN

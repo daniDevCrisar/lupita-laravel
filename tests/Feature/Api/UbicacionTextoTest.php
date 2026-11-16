@@ -251,7 +251,15 @@ class UbicacionTextoTest extends TestCase
         $respuesta->assertOk()->assertJsonPath('success', true);
         $this->assertSame('geopunto', $respuesta->json('ubicacion.tipo'));
         $this->assertSame('geoapify', $respuesta->json('ubicacion.fuente'));
-        $this->assertSame('geoapify', $respuesta->json('historia.traslado_fuente'));
+
+        // El TRASLADO de vuelta es otra jerarquía: si existe una ruta medida entre
+        // la planta de esta ref y el ubigeo declarado, el motor la usa aunque haya
+        // Geoapify disponible (`mismo_ubigeo` / `ruta_medida`); sólo cae al
+        // proveedor cuando no hay nada medido. Antes se exigía 'geoapify' a secas y
+        // el test se rompía cada vez que se refrescaba la base con datos nuevos.
+        $this->assertContains((string) $respuesta->json('historia.traslado_fuente'),
+            ['geoapify', 'mismo_ubigeo', 'ruta_medida', 'departamentos'],
+            'el traslado tiene que salir de un escalón conocido de la jerarquía');
         $this->assertGreaterThan(0, (int) $respuesta->json('geoapify.llamadas'));
     }
 }
