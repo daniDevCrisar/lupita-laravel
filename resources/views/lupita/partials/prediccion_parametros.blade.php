@@ -72,6 +72,11 @@
                 <button class="btn btn-sm btn-primary">
                     <i class="bi bi-sliders"></i> Calibrar el viaje
                 </button>
+                <button class="btn btn-sm btn-success" name="aplicar" value="1"
+                        title="mide y guarda el valor recomendado en el mismo paso"
+                        onclick="return confirm('¿Medir y aplicar el cruce_pares_k? Se guarda en la configuración.');">
+                    <i class="bi bi-check2-circle"></i> Calibrar y aplicar
+                </button>
                 <button class="btn btn-sm btn-outline-secondary" name="refrescar" value="1"
                         title="ignora la corrida guardada en caché (10 min) y vuelve a medir">
                     <i class="bi bi-arrow-clockwise"></i>
@@ -231,6 +236,11 @@
                 <button class="btn btn-sm btn-primary" name="cobertura_enviar" value="1">
                     <i class="bi bi-arrows-expand"></i> Medir ventana
                 </button>
+                <button class="btn btn-sm btn-success" name="aplicar" value="1"
+                        title="mide y aplica la banda recomendada en el mismo paso"
+                        onclick="return confirm('¿Medir y aplicar la ventana? Se guarda en la configuración.');">
+                    <i class="bi bi-check2-circle"></i> Medir y aplicar
+                </button>
                 <button class="btn btn-sm btn-outline-secondary" name="refrescar" value="1"
                         title="ignora la corrida guardada en caché (10 min)">
                     <i class="bi bi-arrow-clockwise"></i>
@@ -330,6 +340,11 @@
                 </select>
                 <button class="btn btn-sm btn-primary">
                     <i class="bi bi-bullseye"></i> Medir sesgos
+                </button>
+                <button class="btn btn-sm btn-success" name="aplicar" value="1"
+                        title="mide y aplica los sesgos en el mismo paso (prende la cuarta fecha)"
+                        onclick="return confirm('¿Medir y aplicar los sesgos? La cuarta fecha empieza a corregir la hora publicada.');">
+                    <i class="bi bi-check2-circle"></i> Medir y aplicar
                 </button>
                 <button class="btn btn-sm btn-outline-secondary" name="refrescar" value="1"
                         title="ignora la medición guardada en caché (10 min)">

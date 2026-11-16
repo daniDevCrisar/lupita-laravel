@@ -827,8 +827,12 @@ class PrediccionController extends Controller
      */
     public static function calibrar_ventana(Request $request)
     {
+        // `limite` es cuántas filas se evalúan. El tope es el mismo que usa la
+        // tabla de aciertos: antes era 300 y el formulario venía con 600
+        // seleccionado, así que "Medir ventana" fallaba con la validación y
+        // parecía que el botón no hacía nada.
         $request->validate([
-            'limite' => 'nullable|integer|min:10|max:300',
+            'limite' => 'nullable|integer|min:10|max:' . Servicio::TOPE_EVALUACION,
             'cobertura' => 'nullable|numeric|min:0.3|max:0.95',
         ]);
 
@@ -858,12 +862,34 @@ class PrediccionController extends Controller
             $medicion = ['ok' => false, 'error' => 'No se pudo medir: ' . $e->getMessage()];
         }
 
+        // "Medir y aplicar": con `aplicar=1` se guarda la banda recomendada en el
+        // mismo paso (incluye `ventana_residuos = 1`, que es lo que la activa).
+        $aplicado = null;
+        if ($request->boolean('aplicar') && ($medicion['ok'] ?? false)) {
+            try {
+                Parametros::guardar([
+                    'ventana_residuos' => 1,
+                    'ventana_adelanto_min' => (int) $medicion['adelanto'],
+                    'ventana_atraso_min' => (int) $medicion['atraso'],
+                    'ventana_adelanto_cadena' => (int) ($medicion['cadena_radio'] ?? 0),
+                    'ventana_atraso_cadena' => (int) ($medicion['cadena_radio'] ?? 0),
+                ]);
+                $aplicado = 'Ventana aplicada: ±' . (int) $medicion['adelanto'] . ' min'
+                    . ((int) ($medicion['cadena_radio'] ?? 0) > 0
+                        ? ' (cadena ±' . (int) $medicion['cadena_radio'] . ')' : '') . '.';
+            } catch (\Throwable $e) {
+                $medicion['error'] = 'Se midió, pero no se pudo guardar: ' . $e->getMessage();
+                $medicion['ok'] = false;
+            }
+        }
+
         // vuelve a la pantalla desde donde se disparó (calculadora o aciertos)
         $destino = url()->previous();
         $valido = str_contains($destino, '/lupita/prediccion/');
 
         return ($valido ? redirect()->to($destino) : redirect()->route('lupita.prediccion.presenta'))
-            ->with('ventana_medida', $medicion);
+            ->with('ventana_medida', $medicion)
+            ->with('estado', $aplicado);
     }
 
     /** Catálogos y parámetros que comparten las dos pantallas. */
@@ -915,12 +941,28 @@ class PrediccionController extends Controller
 
         $calibracion = self::calibracion_para_vista($medicion);
 
+        // "Medir y aplicar": con `aplicar=1` se guarda la recomendación en el mismo
+        // paso. Sin el flag no se toca nada (medir y aplicar son cosas distintas:
+        // el número se mira antes de dejarlo puesto).
+        $aplicado = null;
+        if ($request->boolean('aplicar') && ($medicion['ok'] ?? false)) {
+            $recomendado = (int) ($medicion['recomendacion']['recomendado'] ?? 0);
+            try {
+                Parametros::guardar(['cruce_pares_k' => $recomendado]);
+                $aplicado = 'cruce_pares_k = ' . $recomendado . ' guardado en la configuración.';
+            } catch (\Throwable $e) {
+                $aplicado = null;
+                $calibracion['error'] = 'Se midió, pero no se pudo guardar: ' . $e->getMessage();
+            }
+        }
+
         // vuelve a la pantalla desde donde se disparó
         $destino = url()->previous();
         $valido = str_contains($destino, '/lupita/prediccion/');
 
         return ($valido ? redirect()->to($destino) : redirect()->route('lupita.prediccion.parametros.ver'))
-            ->with('calibracion_cruce', $calibracion);
+            ->with('calibracion_cruce', $calibracion)
+            ->with('estado', $aplicado);
     }
 
     /**
@@ -1228,7 +1270,23 @@ class PrediccionController extends Controller
             $medicion = ['ok' => false, 'error' => 'No se pudo medir: ' . $e->getMessage(), 'celdas' => []];
         }
 
-        return redirect()->route('lupita.prediccion.parametros.ver')->with('sesgo_medido', $medicion);
+        // "Medir y aplicar": guarda las nueve claves y PRENDE el interruptor. Es el
+        // atajo para que la cuarta fecha deje de ser igual a la normal sin tener que
+        // tildar el check a mano.
+        $aplicado = null;
+        if ($request->boolean('aplicar') && ($medicion['ok'] ?? false)) {
+            try {
+                Parametros::guardar(array_merge($medicion['aplicables'], ['sesgo_clase_activo' => 1]));
+                $aplicado = 'Sesgos aplicados (9 clases): la cuarta fecha ya corrige la hora publicada.';
+            } catch (\Throwable $e) {
+                $medicion['ok'] = false;
+                $medicion['error'] = 'Se midió, pero no se pudo guardar: ' . $e->getMessage();
+            }
+        }
+
+        return redirect()->route('lupita.prediccion.parametros.ver')
+            ->with('sesgo_medido', $medicion)
+            ->with('estado', $aplicado);
     }
 
     /** Aplica los sesgos medidos (o los apaga) y guarda las 9 claves. */

@@ -135,8 +135,30 @@ class VentanaResiduosTest extends TestCase
         ];
     }
 
-    private function refMedible(): string
+    public function test_el_boton_medir_acepta_las_filas_que_ofrece_el_formulario(): void
     {
+        // El formulario ofrece 200 / 600 (por defecto) / 1000. La validación tenía
+        // tope 300, así que apretar "Medir ventana" con el valor por defecto
+        // devolvía un error de validación y parecía que el botón no hacía nada.
+        $this->withoutMiddleware();
+
+        foreach ([600, 1000] as $limite) {
+            $peticion = \Illuminate\Http\Request::create('/lupita/prediccion/ventana', 'POST', [
+                'cobertura' => '0.7',
+                'limite' => (string) $limite,
+            ]);
+            $peticion->setLaravelSession(app('session.store'));
+
+            \App\Http\Controllers\PrediccionController::calibrar_ventana($peticion);
+
+            $medicion = session('ventana_medida');
+            $this->assertIsArray($medicion, 'limite ' . $limite . ': no dejó medición');
+            $this->assertTrue((bool) ($medicion['ok'] ?? false),
+                'limite ' . $limite . ' falló: ' . ($medicion['error'] ?? 'sin error'));
+        }
+    }
+
+    private function refMedible(): string    {
         $fila = DB::table('referencias')
             ->whereNotNull('ruta_id')->where('ruta_id', '<>', '')
             ->whereNotNull('presenta_para_carga')

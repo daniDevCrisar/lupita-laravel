@@ -1927,6 +1927,43 @@ evidencia. Hay tres niveles.
                      OJO al leerla: con el horizonte REAL la mejora seria mucho
                      mayor (MAE 873), pero el horizonte real no existe al predecir.
 
+  1.22 14/11/2026  - MEDIR Y APLICAR EN UN SOLO BOTON. Sintoma que lo disparo:
+                     "la cuarta fecha siempre es igual a la normal". No era un
+                     bug del motor: `sesgo_clase_activo` estaba en 0 en
+                     produccion, o sea los sesgos se habian medido pero nunca se
+                     habian aplicado, y con el interruptor apagado
+                     `presenta_probable = presenta` por definicion.
+
+                     Ahora cada una de las tres calibraciones tiene DOS botones
+                     sobre el mismo formulario y la misma ruta:
+                       - "Calibrar el viaje" / "Medir la ventana" / "Medir sesgos"
+                         -> miden y muestran la recomendacion, NO escriben nada;
+                       - "Calibrar y aplicar" / "Medir y aplicar" x2
+                         -> mismo POST con `aplicar=1`: miden y guardan en el
+                            mismo paso.
+                     Lo que prende cada uno:
+                       cruce   -> `cruce_pares_k`
+                       ventana -> los cuatro radios + `ventana_residuos = 1`
+                       sesgos  -> las nueve `sesgo_clase_*` + `sesgo_clase_activo = 1`
+
+                     Sin `aplicar=1` el comportamiento es exactamente el de antes
+                     (se mira el numero antes de dejarlo puesto: aplicar sigue
+                     siendo una decision, no un efecto de medir).
+
+                     VERIFICADO en local, de punta a punta y por la pantalla:
+                     cruce -> `cruce_pares_k = 3`; ventana -> +-1333 (cadena
+                     +-3055) con `ventana_residuos = 1`; sesgos -> nueve claves
+                     con `sesgo_clase_activo = 1`. Despues de aplicar, la cuarta
+                     fecha difiere de la normal en 167 de 167 filas (100 %), que
+                     es justo lo contrario de lo que se veia.
+
+                     Tests: `tests/Feature/Api/CalibrarYAplicarTest.php` fija las
+                     tres cosas que se rompieron alguna vez: que la pantalla traiga
+                     los tres botones (si la vista y el controlador se
+                     desincronizan, el boton mide y no aplica), que medir sin
+                     aplicar no escriba ninguna clave, y que aplicar guarde las
+                     claves Y prenda el interruptor que corresponde.
+
 ================================================================================
  FIN
 ================================================================================
