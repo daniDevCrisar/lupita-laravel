@@ -38,6 +38,8 @@ class DBPrediccion
     /** Cachés por request: catálogos que no cambian entre llamadas. */
     private static ?array $rutas = null;
 
+    private static ?array $plantas_carga = null;
+
     private static ?array $promedios_ruta = null;
 
     private static ?array $promedios_planta = null;
@@ -320,7 +322,7 @@ class DBPrediccion
      *                            hueco_min y los locales/ubigeos del par (para saber si quedó cerca)
      */
     public static function pares(?string $excluirRef, Carbon $desde, Carbon $hasta, ?string $placa = null,
-                                 ?int $conductorId = null, int $limite = 20000): array
+                                 ?int $conductorId = null, int $limite = 20000, ?string $planta = null): array
     {
         $sql = "SELECT x.*,
                        rap.destino_id AS ancla_destino, rap.ubigeo_destino AS ancla_ubigeo,
@@ -353,6 +355,12 @@ class DBPrediccion
             $sql .= ' AND x.ref <> ? AND x.ref_ancla <> ?';
             $params[] = $excluirRef;
             $params[] = $excluirRef;
+        }
+        // filtro por PLANTA DE CARGA: el origen de la ruta de la referencia es el
+        // local donde el camión tiene que presentarse a cargar
+        if ($planta !== null && $planta !== '') {
+            $sql .= ' AND rsi.origen_id = ?';
+            $params[] = $planta;
         }
 
         $sql .= ' ORDER BY x.presenta_para_carga DESC LIMIT ' . max(1, $limite);
@@ -1019,6 +1027,54 @@ class DBPrediccion
         }
 
         return $nombreLocal !== '' ? $nombreLocal : $nombreUbigeo;
+    }
+
+    /**
+     * Plantas de carga para el filtro por local: los `origen_id` que aparecen en
+     * las rutas, con nombre legible y ordenados por nombre.
+     *
+     * El motor llama "planta de carga" al origen de la ruta de la referencia: es
+     * el local donde el camión tiene que presentarse para cargar. Puede venir como
+     * id de local (`LOC_...`) o como ubigeo, así que el texto se resuelve con
+     * `texto_ubicacion()`.
+     *
+     * @return array<int, array{valor: string, texto: string, extra: string}>
+     */
+    public static function plantas_carga(): array
+    {
+        if (self::$plantas_carga !== null) {
+            return self::$plantas_carga;
+        }
+
+        $salida = [];
+        foreach (self::rutas() as $ruta) {
+            $origen = (string) ($ruta->origen_id ?? '');
+            if ($origen === '' || isset($salida[$origen])) {
+                continue;
+            }
+
+            // el nombre lindo: el local si está en el catálogo, si no el ubigeo, y
+            // si no el código pelado. El código va de `extra` para poder buscar
+            // por él en el combo.
+            $nombreLocal = self::locales()[$origen] ?? '';
+            $nombreUbigeo = '';
+            if ((string) ($ruta->ubigeo_origen ?? '') !== '') {
+                $nombreUbigeo = (string) (\App\Prediccion\Geoapify::nombre_ubigeo((string) $ruta->ubigeo_origen) ?? '');
+            }
+
+            $texto = $nombreLocal !== '' ? $nombreLocal : ($nombreUbigeo !== '' ? $nombreUbigeo : $origen);
+
+            $salida[$origen] = [
+                'valor' => $origen,
+                'texto' => $texto,
+                'extra' => $origen,
+            ];
+        }
+
+        $lista = array_values($salida);
+        usort($lista, fn (array $a, array $b) => strcasecmp($a['texto'], $b['texto']));
+
+        return self::$plantas_carga = $lista;
     }
 
     /** Catálogo de locales por id (memoizado por request). */

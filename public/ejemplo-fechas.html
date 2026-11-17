@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ejemplo: cómo mostrar las fechas al predecir</title>
+<style>
+    :root {
+        --fondo: #1b1f24;
+        --panel: #23282f;
+        --panel-2: #2b3138;
+        --borde: #3a424c;
+        --texto: #e6e9ee;
+        --tenue: #9aa5b1;
+        --verde: #2fbf71;
+        --azul: #3f8cff;
+        --cian: #24b6c9;
+        --ambar: #e0a327;
+        --rojo: #e05a5a;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; padding: 28px 18px 60px;
+        background: var(--fondo); color: var(--texto);
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        line-height: 1.45;
+    }
+    .ancho { max-width: 1000px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    h2 { font-size: 1.05rem; margin: 34px 0 10px; color: var(--texto); }
+    .sub { color: var(--tenue); font-size: .86rem; margin: 0 0 18px; }
+    .panel {
+        background: var(--panel); border: 1px solid var(--borde);
+        border-radius: 14px; padding: 18px;
+    }
+    .panel + .panel { margin-top: 14px; }
+    .etiqueta-chica { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--tenue); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chip {
+        background: var(--panel-2); border: 1px solid var(--borde); border-radius: 10px;
+        padding: 8px 11px; font-size: .82rem; min-width: 148px;
+    }
+    .chip b { display: block; font-size: .95rem; margin-top: 2px; }
+    .chip small { color: var(--tenue); }
+    .nota { font-size: .8rem; color: var(--tenue); margin: 10px 0 0; }
+    .nota b { color: var(--texto); }
+
+    /* ---------- la tarjeta propuesta ---------- */
+    .tarjeta {
+        background: linear-gradient(180deg, #262d35, #212730 70%);
+        border: 1px solid var(--borde); border-radius: 16px; overflow: hidden;
+    }
+    .tarjeta-top {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+        padding: 12px 18px; background: #1e242b; border-bottom: 1px solid var(--borde);
+        font-size: .85rem; color: var(--tenue);
+    }
+    .pill {
+        border-radius: 999px; padding: 2px 9px; font-size: .72rem; font-weight: 700;
+        letter-spacing: .03em;
+    }
+    .pill-verde { background: rgba(47,191,113,.16); color: var(--verde); }
+    .pill-azul { background: rgba(63,140,255,.16); color: var(--azul); }
+    .pill-cian { background: rgba(36,182,201,.16); color: var(--cian); }
+    .pill-ambar { background: rgba(224,163,39,.16); color: var(--ambar); }
+
+    .cuerpo { padding: 18px; }
+    .fila-principal { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 22px; }
+    .hora-grande { font-size: 2.6rem; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+    .hora-grande small { font-size: 1rem; font-weight: 500; color: var(--tenue); margin-left: 6px; }
+    .debajo-hora { font-size: .84rem; color: var(--tenue); margin-top: 6px; }
+    .debajo-hora b { color: var(--verde); }
+    .esperada {
+        border-left: 3px solid var(--cian); padding-left: 12px; font-size: .84rem;
+        color: var(--tenue); min-width: 250px;
+    }
+    .esperada b { color: var(--texto); font-size: .95rem; }
+
+    /* barra de la banda */
+    .banda { margin-top: 20px; }
+    .banda-linea {
+        position: relative; height: 34px; border-radius: 8px; margin-top: 6px;
+        background: linear-gradient(90deg, rgba(47,191,113,.20), rgba(63,140,255,.20) 55%, rgba(224,163,39,.20));
+        border: 1px solid var(--borde);
+    }
+    .marca { position: absolute; top: -6px; bottom: -6px; width: 2px; }
+    .marca span {
+        position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+        white-space: nowrap; font-size: .7rem; color: var(--tenue);
+    }
+    .marca i {
+        position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
+        white-space: nowrap; font-size: .72rem; font-style: normal;
+    }
+    .puntas { display: flex; justify-content: space-between; font-size: .76rem; color: var(--tenue); margin-top: 34px; }
+
+    /* tabla del detalle */
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--borde); }
+    th { color: var(--tenue); font-weight: 600; font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.elegida { background: rgba(47,191,113,.08); }
+    .orden {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 20px; height: 20px; border-radius: 6px; font-size: .72rem;
+        font-weight: 700; background: var(--panel-2); color: var(--tenue);
+    }
+    tr.elegida .orden { background: var(--verde); color: #10241a; }
+    .detalles { margin-top: 16px; }
+    .detalles summary {
+        cursor: pointer; font-size: .84rem; color: var(--azul); user-select: none;
+    }
+    .comparacion { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 760px) {
+        .comparacion { grid-template-columns: 1fr; }
+        .hora-grande { font-size: 2.1rem; }
+    }
+    .mal { border-color: rgba(224,90,90,.5); }
+    .bien { border-color: rgba(47,191,113,.5); }
+    .cabeza-comparacion { font-size: .8rem; font-weight: 700; margin-bottom: 8px; }
+    .cabeza-comparacion.mal { color: var(--rojo); }
+    .cabeza-comparacion.bien { color: var(--verde); }
+    ul.reglas { margin: 8px 0 0 18px; padding: 0; font-size: .86rem; color: var(--tenue); }
+    ul.reglas li { margin-bottom: 4px; }
+    ul.reglas b { color: var(--texto); }
+    code { background: #161a1f; padding: 1px 5px; border-radius: 5px; font-size: .82em; }
+    .pie { color: var(--tenue); font-size: .76rem; margin-top: 34px; border-top: 1px solid var(--borde); padding-top: 12px; }
+</style>
+</head>
+<body>
+<div class="ancho">
+
+    <h1>Cómo mostrar las fechas cuando se predice</h1>
+    <p class="sub">
+        Ejemplo estático (mockup) con el viaje <code>1182661</code>, corte 11/11 09:00.
+        Todas las fechas salen del motor: rápido, normal, tardado, más probable y consenso.
+    </p>
+
+    <!-- ======================= PROBLEMA ======================= -->
+    <h2>Hoy: cinco fechas al mismo nivel</h2>
+    <div class="panel">
+        <div class="etiqueta-chica">se presentaría entre</div>
+        <div class="chips">
+            <div class="chip">Rápido <b>14/11 · 21:33</b><small>en 60:33</small></div>
+            <div class="chip">Normal <b>15/11 · 09:27</b><small>en 96:27</small></div>
+            <div class="chip">Tardado <b>16/11 · 18:44</b><small>en 129:44</small></div>
+            <div class="chip">Más probable <b>15/11 · 12:41</b><small>en 99:41</small></div>
+            <div class="chip">Consenso <b>15/11 · 06:34</b><small>en 93:34</small></div>
+        </div>
+        <p class="nota">
+            El monitorista tiene que <b>elegir una</b> y no hay nada que le diga cuál.
+            La que más acierta (consenso) y la de menor error (más probable) no son la misma,
+            y las dos extremas parecen igual de válidas que el resto.
+        </p>
+    </div>
+
+    <!-- ======================= PROPUESTA ======================= -->
+    <h2>Propuesta: una hora, una banda, un detalle</h2>
+    <div class="tarjeta">
+        <div class="tarjeta-top">
+            <span><b style="color:var(--texto)">Se presenta a cargar</b> · ref 1182661 · C0E912</span>
+            <span class="pill pill-verde">confianza 35 %</span>
+            <span class="pill pill-azul">parcial · calibrada con la placa</span>
+            <span style="margin-left:auto">PLANTA CHICLAYO</span>
+        </div>
+
+        <div class="cuerpo">
+            <div class="fila-principal">
+                <div>
+                    <div class="etiqueta-chica">hora recomendada</div>
+                    <div class="hora-grande">15/11 · 06:34<small>consenso</small></div>
+                    <div class="debajo-hora">
+                        cae dentro de <b>±1 h el 34 %</b> de las veces · <b>±30 min el 37 %</b>
+                    </div>
+                </div>
+                <div class="esperada">
+                    hora esperada (sin sesgo): <b>15/11 · 12:41</b><br>
+                    <span style="color:var(--tenue)">más probable · mediana del error −16 min · MAE 19 h 51</span>
+                </div>
+            </div>
+
+            <div class="banda">
+                <div class="etiqueta-chica">banda de la promesa</div>
+                <div class="banda-linea">
+                    <div class="marca" style="left:0%; background:var(--verde)">
+                        <span>rápido</span><i style="color:var(--verde)">14/11 21:33</i>
+                    </div>
+                    <div class="marca" style="left:37%; background:var(--azul)">
+                        <span>normal</span><i style="color:var(--azul)">15/11 09:27</i>
+                    </div>
+                    <div class="marca" style="left:50%; background:var(--cian)">
+                        <span>consenso</span><i style="color:var(--cian)">15/11 06:34</i>
+                    </div>
+                    <div class="marca" style="left:100%; background:var(--ambar)">
+                        <span>tardado</span><i style="color:var(--ambar)">16/11 18:44</i>
+                    </div>
+                </div>
+                <div class="puntas">
+                    <span>antes de esto: 11 %</span>
+                    <span>la real cae dentro: <b style="color:var(--texto)">69 %</b></span>
+                    <span>después: 20 %</span>
+                </div>
+            </div>
+
+            <details class="detalles">
+                <summary>Ver las cinco fechas y por qué se elige ésa</summary>
+                <table style="margin-top:10px">
+                    <thead>
+                    <tr>
+                        <th>orden</th>
+                        <th>fecha</th>
+                        <th>cuándo usarla</th>
+                        <th class="num">±30m</th>
+                        <th class="num">±1h</th>
+                        <th class="num">±3h</th>
+                        <th class="num">MAE</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="elegida">
+                        <td><span class="orden">1</span></td>
+                        <td><b>15/11 06:34</b> · consenso</td>
+                        <td>prometer una hora con margen (la que más acierta)</td>
+                        <td class="num">37 %</td><td class="num">34 %</td><td class="num">31 %</td><td class="num">20 h 10</td>
+                    </tr>
+                    <tr>
+                        <td><span class="orden">2</span></td>
+                        <td>15/11 09:27 · normal</td>
+                        <td>la de siempre; la que se guarda y se compara</td>
+                        <td class="num">26 %</td><td class="num">27 %</td><td class="num">27 %</td><td class="num">22 h 06</td>
+                    </tr>
+                    <tr>
+                        <td><span class="orden">3</span></td>
+                        <td>15/11 12:41 · más probable</td>
+                        <td>planificar carga: la más centrada y de menor error</td>
+                        <td class="num">21 %</td><td class="num">24 %</td><td class="num">24 %</td><td class="num">19 h 51</td>
+                    </tr>
+                    <tr>
+                        <td><span class="orden">4</span></td>
+                        <td>14/11 21:33 · rápido</td>
+                        <td>borde optimista de la banda (no es una hora)</td>
+                        <td class="num">14 %</td><td class="num">11 %</td><td class="num">12 %</td><td class="num">23 h 45</td>
+                    </tr>
+                    <tr>
+                        <td><span class="orden">5</span></td>
+                        <td>16/11 18:44 · tardado</td>
+                        <td>borde tardío: techo para el cliente, no una promesa</td>
+                        <td class="num">2 %</td><td class="num">4 %</td><td class="num">6 %</td><td class="num">32 h 07</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p class="nota">
+                    Porcentajes medidos sobre <b>3.085 presentaciones reales</b>: de las filas en que alguna
+                    fecha entra en el margen, cuántas se lleva cada una. El <b>tardado</b> gana la carrera de
+                    «más cerca» (26 %) sólo porque se lleva los casos de error enorme, y aun así acierta
+                    <b>2 % dentro de ±30 min</b>: por eso no se ofrece como hora.
+                </p>
+            </details>
+        </div>
+    </div>
+
+    <!-- ======================= ANTES / DESPUÉS ======================= -->
+    <h2>Una línea, tres líneas, o todo el detalle</h2>
+    <div class="comparacion">
+        <div class="panel mal">
+            <div class="cabeza-comparacion mal">✗ como está hoy</div>
+            <div class="chips">
+                <div class="chip">Normal <b>15/11 · 09:27</b></div>
+                <div class="chip">Consenso <b>15/11 · 06:34</b></div>
+                <div class="chip">Más probable <b>15/11 · 12:41</b></div>
+                <div class="chip">Rápido <b>14/11 · 21:33</b></div>
+                <div class="chip">Tardado <b>16/11 · 18:44</b></div>
+            </div>
+            <p class="nota">Cinco datos, ninguna jerarquía: la decisión queda en el operador.</p>
+        </div>
+        <div class="panel bien">
+            <div class="cabeza-comparacion bien">✓ propuesto</div>
+            <div style="font-size:1.5rem; font-weight:700; margin-top:6px">15/11 · 06:34</div>
+            <div style="font-size:.84rem; color:var(--tenue)">
+                consenso · dentro de ±1 h el 34 % · entre 14/11 21:33 y 16/11 18:44 (69 %)
+            </div>
+            <div style="font-size:.84rem; color:var(--tenue); margin-top:8px">
+                hora esperada sin sesgo: <b style="color:var(--texto)">15/11 · 12:41</b> (más probable)
+            </div>
+            <p class="nota">Un número grande, la incertidumbre alrededor y el detalle a un clic.</p>
+        </div>
+    </div>
+
+    <!-- ======================= REGLAS ======================= -->
+    <h2>Reglas para cualquier pantalla que muestre la predicción</h2>
+    <div class="panel">
+        <ul class="reglas">
+            <li><b>Una sola hora grande</b>: el <b>consenso</b>. Es la que más veces cae dentro del margen
+                (37 % a ±30 min, 31 % a ±3 h).</li>
+            <li><b>Una banda</b>, no dos fechas sueltas: rápido → tardado con su cobertura. Ahí vive la
+                incertidumbre y es lo que se promete al cliente.</li>
+            <li><b>La hora esperada</b> (más probable) como número chico al lado: es la de menor error promedio
+                y la única con la mediana centrada (en este viaje, 12:41 contra 06:34 del consenso).</li>
+            <li><b>Nunca</b> ofrecer el rápido y el tardado como si fueran horas elegibles: son los bordes.</li>
+            <li><b>El detalle, colapsado</b>: las cinco en el orden medido (consenso &gt; normal &gt; más probable
+                &gt; rápido &gt; tardado) con su % y su MAE, para quien quiera auditarlo.</li>
+            <li><b>La confianza y la evidencia</b> siempre visibles: con confianza &lt; 30 % no se compromete
+                una hora, se avisa.</li>
+        </ul>
+    </div>
+
+    <p class="pie">
+        Mockup estático · datos de ejemplo del viaje 1182661 · porcentajes de la tabla de PRODUCCIÓN
+        (3.085 presentaciones con las cinco fechas). Cuando el sesgo se re-mida, los números de las
+        columnas cambian; el orden y la jerarquía no.
+    </p>
+</div>
+</body>
+</html>

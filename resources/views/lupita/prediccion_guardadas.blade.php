@@ -80,19 +80,42 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Filas de la tabla</label>
-                    <select name="limite" class="form-select">
+                    <label class="form-label" for="limite">Límite de refs</label>
+                    <select name="limite" id="limite" class="form-select">
                         @foreach($limites as $opcion)
-                            <option value="{{ $opcion }}" @selected((int) $filtros['limite'] === $opcion)>{{ $opcion }}</option>
+                            <option value="{{ $opcion }}" @selected((int) $filtros['limite'] === $opcion)>
+                                {{ (int) $opcion === 0 ? 'todas' : number_format((int) $opcion, 0, ',', '.') }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill"><i class="bi bi-arrow-repeat"></i> Ver</button>
+                <div class="col-md-4">
+                    {{-- local donde el camión se presenta a cargar (planta de carga) --}}
+                    @include('lupita.tools.selector', [
+                        'nombre' => 'local',
+                        'id' => 'local',
+                        'etiqueta' => 'Local donde presenta a cargar',
+                        'tamano' => 'sm',
+                        'opciones' => $plantas ?? [],
+                        'todas' => 'Todos los locales',
+                        'valor' => (string) ($filtros['local'] ?? ''),
+                        'ayuda' => 'Planta de carga de la ruta: es el local donde el camión se presenta.',
+                    ])
+                </div>
+                <div class="col-12 d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary"><i class="bi bi-arrow-repeat"></i> Ver</button>
                     <button class="btn btn-outline-secondary" name="refrescar" value="1"
                             title="vuelve a correr el backtest del motor (se guarda 10 min)">
                         <i class="bi bi-arrow-clockwise"></i> Medir motor
                     </button>
+                    <a href="{{ route('lupita.prediccion.guardadas') }}" class="btn btn-outline-dark">
+                        <i class="bi bi-x-circle"></i> Limpiar filtros
+                    </a>
+                    @if(($filtros['local'] ?? '') !== '')
+                        <span class="align-self-center small text-muted">
+                            filtrando por <strong>{{ $filtros['local'] }}</strong>
+                        </span>
+                    @endif
                 </div>
             </form>
 
@@ -100,18 +123,19 @@
                  compara contra un modelo que ya no existe --}}
             <form method="POST" action="{{ route('lupita.prediccion.guardadas.borrar') }}"
                   class="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top"
-                  onsubmit="return confirm('¿Borrar las predicciones guardadas con corte entre {{ $filtros['desde'] }} y {{ $filtros['hasta'] }}? No se puede deshacer.');">
+                  onsubmit="return confirm('¿Borrar las predicciones guardadas con corte entre {{ $filtros['desde'] }} y {{ $filtros['hasta'] }}@if(($filtros['local'] ?? '') !== ''), del local {{ $filtros['local'] }}@endif? No se puede deshacer.');">
                 @csrf
                 <input type="hidden" name="fecha_inicio" value="{{ $filtros['desde'] }}">
                 <input type="hidden" name="fecha_fin" value="{{ $filtros['hasta'] }}">
                 <input type="hidden" name="origen" value="{{ $filtros['origen'] }}">
+                <input type="hidden" name="local" value="{{ $filtros['local'] ?? '' }}">
                 <input type="hidden" name="limite" value="{{ $filtros['limite'] }}">
                 <button class="btn btn-sm btn-outline-danger">
                     <i class="bi bi-trash"></i> Borrar las de este rango
                 </button>
                 <span class="small text-muted">
                     Borra de <code>prediccion_resultados</code> las predicciones cuyo <strong>corte</strong> cae en el
-                    rango @if($filtros['origen'] !== ''), del origen <strong>{{ $filtros['origen'] }}</strong>@endif.
+                    rango @if($filtros['origen'] !== ''), del origen <strong>{{ $filtros['origen'] }}</strong>@endif @if(($filtros['local'] ?? '') !== ''), del local <strong>{{ $filtros['local'] }}</strong>@endif.
                     El motor se recalibra seguido: lo guardado con otro modelo ensucia el acierto.
                 </span>
             </form>
@@ -263,6 +287,7 @@
                             <input type="hidden" name="fecha_fin" value="{{ $filtros['hasta'] }}">
                             <input type="hidden" name="origen" value="{{ $filtros['origen'] }}">
                             <input type="hidden" name="limite" value="{{ $filtros['limite'] }}">
+                            <input type="hidden" name="local" value="{{ $filtros['local'] ?? '' }}">
                             <span class="small text-muted">comparar:</span>
                             @foreach($opcionesFechas as $opcion)
                                 <div class="form-check form-check-inline m-0">
@@ -391,6 +416,63 @@
                                 por tener más casos fáciles, no por ser mejor. Las guardadas viejas no tienen la cuarta
                                 ni el consenso: destildalas para comparar las demás con el historial completo.
                             </div>
+
+                            {{-- ============ QUIÉN GANA SEGÚN LA TOLERANCIA ============ --}}
+                            @php $kpi = $cuatro['kpi'] ?? []; @endphp
+                            @if($kpi !== [])
+                                <div class="small fw-semibold mt-3">Quién queda más cerca, según el KPI</div>
+                                <div class="text-muted mb-1" style="font-size:.7rem">
+                                    De las filas en que <strong>alguna</strong> fecha entra en esa tolerancia, qué
+                                    porcentaje se la lleva cada una. Es la pregunta de la promesa ("±30 min"), no la
+                                    del promedio de errores.
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-1" style="font-size:.8rem">
+                                        <thead class="table-light">
+                                        <tr>
+                                            <th>KPI</th>
+                                            @foreach($kpi[0]['fechas'] ?? [] as $columna)
+                                                <th class="text-end">{{ $columna['etiqueta'] }}</th>
+                                            @endforeach
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($kpi as $fila)
+                                            @php
+                                                $mejor = 0;
+                                                foreach ($fila['fechas'] as $columna) {
+                                                    $mejor = max($mejor, (int) ($columna['pct'] ?? 0));
+                                                }
+                                            @endphp
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ $fila['etiqueta'] }}</strong>
+                                                    <span class="text-muted" style="font-size:.7rem">
+                                                        ({{ (int) $fila['total'] }} de {{ (int) $cuatro['n'] }} filas)
+                                                    </span>
+                                                </td>
+                                                @foreach($fila['fechas'] as $columna)
+                                                    @php $esMejor = ($columna['pct'] ?? null) !== null && (int) $columna['pct'] === $mejor && $mejor > 0; @endphp
+                                                    <td class="text-end {{ $esMejor ? 'fw-bold text-success' : '' }}">
+                                                        @if(($columna['pct'] ?? null) === null)
+                                                            <span class="text-muted">—</span>
+                                                        @else
+                                                            {{ (int) $columna['pct'] }} %
+                                                            <span class="text-muted" style="font-size:.7rem">({{ (int) $columna['n'] }})</span>
+                                                        @endif
+                                                    </td>
+                                                @endforeach
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="text-muted" style="font-size:.7rem">
+                                    Cada fila suma 100 %. El total entre paréntesis es cuántas filas comparadas
+                                    entraron en esa tolerancia (las demás no las acertó nadie): si el total se
+                                    desploma al achicar el KPI, el motor no llega a esa promesa con ninguna fecha.
+                                </div>
+                            @endif
                         @else
                             <div class="alert alert-warning py-2 small mb-0">
                                 <strong>Con esa selección no hay filas completas</strong> en el rango
@@ -462,6 +544,13 @@
                 @if($motor !== null)
                     {{ $motor['n'] }} filas · corrida {{ $motor['desde'] }} → {{ $motor['hasta'] }} ·
                     cacheada 10 min
+                    @if((int) ($filtros['limite'] ?? 0) === 0 || (int) $filtros['limite'] > (int) ($motor['limite'] ?? 0))
+                        <span class="badge bg-warning text-dark"
+                              title="la corrida no puede pasar de este tope: más filas agotan la memoria del host">
+                            el motor se mide con {{ number_format((int) ($motor['limite'] ?? 0), 0, ',', '.') }}
+                            (tope de memoria)
+                        </span>
+                    @endif
                 @else
                     sin corrida
                 @endif
@@ -706,9 +795,21 @@
 
     {{-- 5) la tabla de filas --}}
     <div class="card mb-3">
-        <div class="card-header">
-            <strong>Filas guardadas del rango</strong>
-            <span class="small text-muted">— se muestran hasta {{ (int) $filtros['limite'] }}</span>
+        <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+            <span>
+                <strong>Filas guardadas del rango</strong>
+                <span class="small text-muted">
+                    — {{ (int) ($g['guardadas'] ?? 0) }} cargadas con el límite
+                    <strong>{{ (int) $filtros['limite'] === 0 ? 'todas' : number_format((int) $filtros['limite'], 0, ',', '.') }}</strong>;
+                    se dibujan las primeras {{ (int) \App\Http\Controllers\PrediccionController::FILAS_TABLA_GUARDADAS }}
+                </span>
+            </span>
+            @if((int) ($g['guardadas'] ?? 0) > (int) \App\Http\Controllers\PrediccionController::FILAS_TABLA_GUARDADAS)
+                <span class="badge bg-secondary align-self-center">
+                    +{{ (int) $g['guardadas'] - (int) \App\Http\Controllers\PrediccionController::FILAS_TABLA_GUARDADAS }}
+                    en las métricas
+                </span>
+            @endif
         </div>
         <div class="card-body">
             @if(!empty($g['filas']))
@@ -799,4 +900,7 @@
             @endif
         </div>
     </div>
+
+    {{-- comportamiento del combo con búsqueda (tools) --}}
+    <script src="{{ asset('js/lupita-selectores.js') }}"></script>
 @endsection

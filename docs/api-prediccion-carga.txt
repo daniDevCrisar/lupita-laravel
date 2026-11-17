@@ -263,12 +263,36 @@ CAMPOS DE LA RESPUESTA
                    la QUINTA fecha: el promedio de rapido, normal y probable. Se
                    publica para MEDIRLO: con las guardadas gana el acierto por
                    tolerancia (+-30m/+-1h/+-3h) y en el backtest de octubre
-                   tambien gano "mas cerca" (26 % contra 19 %). Ver 1.27.
+                   tambien gano "mas cerca" (26 % contra 19 %). Ver 1.27 y 1.32.
+
+CUAL FECHA USAR (MEDIDO, 3.085 PRESENTACIONES REALES)
+  El orden, de mas a menos probable dentro del margen:
+      1. consenso     gana TODOS los KPI: +-30m 37 % - +-1h 34 % - +-2h 33 % -
+                      +-3h 31 % - +-6h 27 % - +-12h 24 %
+      2. normal       26-28 % en todos; mediana del error -4 h 25 (se adelanta)
+      3. probable     21-27 %; el MEJOR MAE (19 h 51) y la unica mediana
+                      centrada (-16 min)
+      4. rapido       10-14 %: es el extremo optimista, no una hora
+      5. tardado      2-15 %: techo de la banda (2 % dentro de +-30m)
+  En MAE el orden es otro: probable 19 h 51 < consenso 20 h 10 < normal 22 h 06 <
+  rapido 23 h 45 < tardado 32 h 07.
+  O sea: si la pregunta es "que hora prometo para caer dentro de +-1 h", la
+  respuesta es el CONSENSO; si es "cuanto va a tardar en promedio", la MAS
+  PROBABLE; la banda rapido..tardado es la incertidumbre, no dos horas mas.
+  Los dos primeros numeros se mueven con el sesgo: re-medirlo en produccion
+  (boton "Medir y aplicar") y volver a comparar en /lupita/prediccion/guardadas.
   presentaciones   las cinco fechas con etiqueta y `desde_ahora` en h:mm:
                    [{clave: rapido|normal|tardado|probable|consenso, etiqueta,
-                     descripcion, fecha, desde_ahora}]. El rapido nunca es menor
-                   que el traslado: el camion no llega antes de lo que tarda el
-                   viaje.
+                     descripcion, fecha, desde_ahora, delta_normal_min,
+                     construccion}]. El rapido nunca es menor que el traslado: el
+                   camion no llega antes de lo que tarda el viaje.
+                   `delta_normal_min` = minutos entre esa fecha y la normal
+                   (negativo = antes). `construccion` = de donde sale ESA fecha,
+                   en una linea: "normal − 9:45 · banda medida (cubre 70 %)",
+                   "promedio de rapido (60:33), normal (96:27) y mas probable
+                   (99:41) desde el corte = 93:34 · normal − 2:53". Asi cada una
+                   de las cinco se puede auditar, no solo la normal (los `pasos`
+                   de abajo siguen explicando la normal).
   inicio_carga     presenta + espera en planta (null si no hay presenta).
   espera_min       espera en planta usada, en minutos.
   espera_hhmm      la misma espera en h:mm (ver seccion 8).
@@ -2194,6 +2218,162 @@ evidencia. Hay tres niveles.
                      practicas. Un test (`DocumentacionApiTest`) falla si la
                      documentacion vuelve a decir tres fechas o si le falta
                      `presenta_probable` / `presenta_consenso`.
+
+  1.29 14/11/2026  - QUIEN GANA CADA TOLERANCIA. Segunda tabla en la tarjeta de
+                     Produccion de /lupita/prediccion/guardadas: una fila por KPI
+                     (+-30m, +-1h, +-2h, +-3h, +-6h, +-12h) y una columna por
+                     fecha, con el porcentaje de veces que esa fecha fue la MAS
+                     CERCANA entre las filas en que ALGUNA entro en esa tolerancia
+                     (el denominador va en la fila; cada fila suma 100 %). Responde
+                     "que fecha sirve para esta promesa", que la escalera de
+                     tolerancias por fecha no contesta. Sale de `Tablero::fechas()`
+                     en la clave `kpi` y respeta las fechas tildadas y el promedio.
+
+                     MEDIDO con las guardadas (las cuatro fechas):
+                       octubre, n=975:
+                         +-30m (123 filas): rapido 33 % - normal 47 % - tardado 5 %
+                                            - probable 15 %
+                         +-1h  (228):       rapido 23 % - normal 53 % - tardado 6 %
+                                            - probable 19 %
+                         +-3h  (476):       rapido 17 % - normal 52 % - tardado 6 %
+                                            - probable 26 %
+                         +-12h (744):       rapido 17 % - normal 40 % - tardado 13 %
+                                            - probable 31 %
+                       noviembre, n=1601:
+                         +-30m (217):       rapido 20 % - normal 39 % - tardado 4 %
+                                            - probable 37 %
+                         +-1h  (355):       rapido 17 % - normal 34 % - tardado 6 %
+                                            - probable 42 %
+                         +-3h  (772):       rapido 17 % - normal 37 % - tardado 6 %
+                                            - probable 40 %
+                         +-12h (1309):      rapido 15 % - normal 30 % - tardado 15 %
+                                            - probable 40 %
+                     En octubre gana la normal en todos los KPI; en noviembre gana
+                     la cuarta (40-42 %) porque el sesgo de ese mes esta mejor
+                     medido. El tardado nunca pasa del 15 %: con tolerancias cortas
+                     es un borde que casi nunca es el mas cercano.
+
+  1.30 14/11/2026  - FILTRO POR LOCAL (planta de carga) en guardadas. "El local al
+                     que tiene que presentarse a cargar" es el `origen_id` de la
+                     ruta de la referencia. Se elige con el combo con busqueda de
+                     `tools` (`lupita.tools.selector` + `js/lupita-selectores.js`)
+                     y filtra las DOS varas de la pantalla: lo guardado
+                     (`DBPrediccionResultados::resumen(..., $local)`, que cruza
+                     `rutas` por `COALESCE(p.ruta_id, r.ruta_id)`) y la corrida del
+                     motor (`Servicio::backtest(['planta' => ...])`, que filtra los
+                     pares por `rsi.origen_id`). La llave de cache del motor incluye
+                     el local: v2.
+                     Las opciones salen de `DBPrediccion::plantas_carga()` (52 hoy):
+                     nombre del local si esta en el catalogo, si no el del ubigeo, y
+                     el codigo en la segunda linea para poder buscar por el.
+                     MEDIDO: sin filtro 2000 guardadas / 1992 comparables; con
+                     LOC_CARAL 1980 / 1974 y 0 filas de otra planta.
+
+                     DOS ARREGLOS QUE SALIERON DE ESTO:
+                      - `guardar_filas()` (boton de la tabla de aciertos) guardaba
+                        `ruta_id = NULL` en TODAS las filas (2418 de 2487 locales),
+                        asi que el filtro por local no veia esas filas. Ahora
+                        resuelve la ruta de la referencia en un solo query por lote y
+                        la guarda; y el filtro igual cae a `referencias.ruta_id`
+                        cuando la fila es vieja.
+                      - "Borrar las de este rango" BORRABA TODO EL RANGO aunque
+                        hubiera un local filtrado. Ahora borra solo ese local (lo que
+                        se esta viendo), con el mismo criterio de resolucion.
+
+  1.31 14/11/2026  - COMBO DE LIMITE: 2.000 / 5.000 / 10.000 / TODAS. La pantalla
+                     de guardadas cargaba como maximo 2.000 filas (estaba fijo en
+                     el codigo) y el combo solo ofrecia 50/100/300/600. Ahora:
+                       `FILAS_GUARDADAS` = 50, 100, 300, 600, 2000, 5000, 10000, 0
+                       (0 = todas), y abre en 2.000.
+                     `resumen()` acepta `limite = 0` y carga todo con un tope duro
+                     de `TOPE_FILAS` = 50.000 (para no llevarse la tabla entera a
+                     memoria). La tabla de abajo dibuja solo las primeras
+                     `FILAS_TABLA_GUARDADAS` = 200 y avisa cuantas quedan "en las
+                     metricas": con 2.454 filas no se mandan 2.454 lineas de HTML.
+
+                     EL MOTOR TIENE SU PROPIO TOPE, y no es capricho: medido en
+                     local (memory_limit 512 M), mismo rango:
+                         500 filas  -> 350 MB de pico
+                       2.000        -> 394 MB
+                       5.000        -> FATAL: "Allowed memory size exhausted"
+                     El pico lo domina la preparacion (20.000 pares de aprendizaje)
+                     mas el cache de ventanas por fila. Por eso el combo hace correr
+                     el motor con `min(max(limite, 300), FILAS_MOTOR_TOPE = 2000)` y
+                     la tarjeta avisa "el motor se mide con 2.000 (tope de memoria)"
+                     cuando el combo pide mas. `Servicio::TOPE_EVALUACION` bajo de
+                     3.000 a 2.000 por la misma razon: es el tope de "todas" en la
+                     tabla de aciertos y el maximo de "Medir la ventana".
+
+                     MEDIDO con la pantalla completa (rango 01-oct..16-nov):
+                       limite     guardadas  comparables  motor n  tiempo
+                       default      2.000       1.965      1.617   1,4 s
+                       10.000       2.454       2.419      1.617   1,5 s
+                       todas        2.454       2.419      1.617   1,7 s
+                     O sea: "todas" ya trae 2.454 refs en ese rango (antes se
+                     cortaba en 2.000) y el motor sigue midiendo con 2.000.
+
+  1.32 14/11/2026  - ORDEN DE LAS FECHAS CON DATA GLOBAL (3.085 presentaciones
+                     reales de produccion, las cinco fechas tildadas). Esta es la
+                     medicion grande que define que mostrar:
+
+                       fecha         n     MAE      mediana   +-1h  +-3h  mas cerca
+                       rapido      3085   23 h 45   -9 h 31    3 %   11 %   9 % (293)
+                       normal      3085   22 h 06   -4 h 25   12 %   31 %  20 % (609)
+                       tardado     3085   32 h 07  +23 h 42    1 %    3 %  26 % (788)
+                       probable    3085   19 h 51     -16 mi  10 %   26 %  25 % (777)
+                       consenso    3085   20 h 10   -4 h 12   14 %   32 %  20 % (618)
+
+                       KPI: de las filas en que alguna fecha entra en el margen,
+                       quien se la lleva (porcentaje):
+                                    consenso normal probable rapido tardado
+                         +-30m (522)    37 %   26 %    21 %     14 %    2 %
+                         +-1h  (855)    34 %   27 %    24 %     11 %    4 %
+                         +-2h  (1258)   33 %   28 %    24 %     10 %    5 %
+                         +-3h  (1572)   31 %   27 %    24 %     12 %    6 %
+                         +-6h  (2064)   27 %   26 %    25 %     13 %   10 %
+                         +-12h (2584)   24 %   23 %    27 %     11 %   15 %
+
+                     CONCLUSION: el CONSENSO gana todos los KPI (37 % a +-30m,
+                     31 % a +-3h) y por eso pasa a ser la fecha recomendada para
+                     prometer. La NORMAL es segunda, la MAS PROBABLE tercera (pero
+                     tiene el mejor MAE y la mediana centrada), y el RAPIDO y el
+                     TARDADO no son horas: son los bordes de la banda.
+                     Orden publicado en el texto del API y en la seccion "Las cinco
+                     fechas": consenso > normal > mas probable > rapido > tardado.
+                     OJO: en "mas cerca" puro (carrera de las cinco) el tardado sale
+                     segundo (26 %) porque se lleva los casos de error enorme; eso
+                     NO lo hace una buena hora, y por eso la tabla de KPI manda.
+
+                     El API ya publicaba el consenso (`presenta_consenso` y la
+                     quinta entrada de `presentaciones`), asi que esto es solo
+                     texto y orden de presentacion. El ejemplo de pantalla para el
+                     usuario final esta en `public/ejemplo-fechas.html`.
+
+  1.33 14/11/2026  - LA CONSTRUCCION DE LAS CINCO FECHAS VIAJA EN EL JSON. Antes
+                     los `pasos` explicaban solo la NORMAL: las otras cuatro
+                     aparecian como numeros sin origen (el que integraba no podia
+                     saber de donde salio el rapido, ni cuanto pesa el sesgo, ni
+                     como se armo el consenso). Cada entrada de `presentaciones` trae
+                     ahora:
+                       `delta_normal_min`  minutos respecto de la normal (negativo =
+                                           antes). normal siempre 0.
+                       `construccion`      una linea con el origen de ESA fecha:
+                                             rapido    "normal − 9:45 · banda medida
+                                                        (cubre 70 %)"
+                                             normal    "la suma de los pasos de abajo
+                                                        (ancla + traslado + descansos
+                                                        + esperas)"
+                                             tardado   "normal + 22:48 · banda medida
+                                                        (cubre 70 %)"
+                                             probable  "normal + 0:19 (sesgo de la
+                                                        clase parcial|corto: 19 min)"
+                                             consenso  "promedio de rapido (60:33),
+                                                        normal (96:27) y mas probable
+                                                        (99:41) desde el corte =
+                                                        93:34 · normal − 2:53"
+                     Los `pasos` NO cambian: siguen siendo la linea de tiempo de la
+                     normal (ancla → traslado → descansos → esperas), que es la que
+                     se suma y cuadra. `sesgo`, `ventana` y `historia` tampoco.
 
 ================================================================================
  FIN

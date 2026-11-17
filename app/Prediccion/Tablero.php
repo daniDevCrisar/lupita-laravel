@@ -344,6 +344,18 @@ final class Tablero
         $n = 0;
         $incompletas = 0;
 
+        // QUIÉN GANA POR TOLERANCIA: para cada KPI (±30m … ±12h) se cuenta, entre
+        // las filas donde la MEJOR fecha entra en esa tolerancia, quién fue la más
+        // cercana. Así se ve qué fecha sirve para cada promesa, no sólo quién gana
+        // en promedio.
+        $tolerancias = Aciertos::TOLERANCIAS;
+        $kpiGana = [];
+        $kpiTotal = [];
+        foreach ($tolerancias as $minutos) {
+            $kpiGana[$minutos] = array_fill_keys($candidatas, 0);
+            $kpiTotal[$minutos] = 0;
+        }
+
         foreach ($filas as $fila) {
             $error = [];
 
@@ -392,6 +404,22 @@ final class Tablero
                     $masCerca[$clave]++;
 
                     break;      // empate: se lo queda la primera del orden publicado
+                }
+            }
+
+            // y para cada tolerancia, quién se llevó la fila
+            foreach ($tolerancias as $minutos) {
+                if ($minimo > $minutos) {
+                    continue;   // nadie entró en ese KPI: la fila no cuenta para él
+                }
+
+                $kpiTotal[$minutos]++;
+                foreach ($candidatas as $clave) {
+                    if (abs($error[$clave]) === $minimo) {
+                        $kpiGana[$minutos][$clave]++;
+
+                        break;
+                    }
                 }
             }
         }
@@ -446,6 +474,30 @@ final class Tablero
             ];
         }
 
+        // La tabla "quién gana según la tolerancia", en el orden en que se lee:
+        // una fila por KPI y una columna por candidata. `total` es el denominador
+        // (filas en las que al menos una fecha entra en ese KPI).
+        $kpi = [];
+        foreach ($tolerancias as $minutos) {
+            $totalKpi = $kpiTotal[$minutos];
+            $bajas = [];
+            foreach ($candidatas as $clave) {
+                $bajas[$clave] = [
+                    'clave' => $clave,
+                    'etiqueta' => $clave === 'promedio' ? 'Promedio' : $fechas[$clave]['etiqueta'],
+                    'n' => $kpiGana[$minutos][$clave],
+                    'pct' => self::pct($kpiGana[$minutos][$clave], $totalKpi),
+                ];
+            }
+
+            $kpi[] = [
+                'min' => $minutos,
+                'etiqueta' => self::kpi_etiqueta($minutos),
+                'total' => $totalKpi,
+                'fechas' => $bajas,
+            ];
+        }
+
         return [
             'filas' => $salida,
             'n' => $n,
@@ -457,7 +509,20 @@ final class Tablero
             'promediado' => $promediar,
             // se pidió promediar (aunque con una sola fecha no se pueda)
             'promediar_pedido' => $promediarPedido,
+            // quién queda más cerca según cada tolerancia
+            'kpi' => $kpi,
         ];
+    }
+
+    /** Cómo se lee una tolerancia en minutos: 30 -> ±30m, 60 -> ±1h, 720 -> ±12h. */
+    public static function kpi_etiqueta(int $minutos): string
+    {
+        // las horas exactas van en horas (60 = ±1h) y las demás en minutos
+        if ($minutos < 60 || $minutos % 60 !== 0) {
+            return '±' . $minutos . 'm';
+        }
+
+        return '±' . intdiv($minutos, 60) . 'h';
     }
 
     /**

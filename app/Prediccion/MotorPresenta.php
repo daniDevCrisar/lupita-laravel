@@ -399,7 +399,9 @@ final class MotorPresenta
         $salida->presenta_consenso = self::consenso($ahora, $rapido, $t, $salida->presenta_probable);
 
         $salida->presentaciones = self::presentaciones($ahora, $rapido, $t, $tardado, $salida->presenta_probable,
-            $salida->presenta_consenso, $cal, $ventanaMedida !== null ? 'residuos' : null);
+            $salida->presenta_consenso, $cal, $ventanaMedida !== null ? 'residuos' : null,
+            $sesgoMin, $salida->sesgo_clase,
+            $ventanaMedida !== null ? ($ventanaMedida->cobertura ?? null) : null);
         $salida->inicio_carga = $t->copy()->addMinutes($espera);
         $salida->espera_min = $espera;
         $salida->evidencia = $evidencia;
@@ -551,13 +553,20 @@ final class MotorPresenta
 
     private static function presentaciones(Carbon $ahora, Carbon $rapido, Carbon $normal, Carbon $tardado,
                                           Carbon $probable, ?Carbon $consenso, ?object $cal,
-                                          ?string $fuente = null): array
+                                          ?string $fuente = null, int $sesgoMin = 0,
+                                          ?string $sesgoClase = null, ?float $cobertura = null): array
     {
         $desde = fn (Carbon $fecha) => Tiempo::hhmm((int) round(($fecha->getTimestamp() - $ahora->getTimestamp()) / 60));
+        // minutos entre una fecha y la normal (negativo = antes)
+        $delta = fn (Carbon $fecha) => (int) round(($fecha->getTimestamp() - $normal->getTimestamp()) / 60);
         $nivel = $fuente === 'residuos'
             ? 'medido con el error real del motor'
             : ($cal !== null ? 'cuantiles medidos (p25 / mediana / p75)' : 'porcentaje sobre la cadena');
         $corregida = $probable->getTimestamp() !== $normal->getTimestamp();
+        $banda = $fuente === 'residuos'
+            ? 'banda medida' . ($cobertura !== null ? ' (cubre ' . (int) round(100 * $cobertura) . ' %)' : '')
+            : $nivel;
+        $centro = $consenso ?? $normal;
 
         return [
             [
@@ -566,6 +575,9 @@ final class MotorPresenta
                 'descripcion' => 'si vuelve como sus mejores viajes (' . $nivel . ')',
                 'fecha' => $rapido->format('Y-m-d H:i:s'),
                 'desde_ahora' => $desde($rapido),
+                // cómo se armó: es el extremo temprano de la banda de la normal
+                'delta_normal_min' => $delta($rapido),
+                'construccion' => 'normal ' . self::delta_texto($delta($rapido)) . ' · ' . $banda,
             ],
             [
                 'clave' => 'normal',
@@ -573,6 +585,8 @@ final class MotorPresenta
                 'descripcion' => 'la estimación central, la que se usa para planificar',
                 'fecha' => $normal->format('Y-m-d H:i:s'),
                 'desde_ahora' => $desde($normal),
+                'delta_normal_min' => 0,
+                'construccion' => 'la suma de los pasos de abajo (ancla + traslado + descansos + esperas)',
             ],
             [
                 'clave' => 'tardado',
@@ -581,6 +595,8 @@ final class MotorPresenta
                     . ($fuente === 'residuos' ? ' (' . $nivel . ')' : ''),
                 'fecha' => $tardado->format('Y-m-d H:i:s'),
                 'desde_ahora' => $desde($tardado),
+                'delta_normal_min' => $delta($tardado),
+                'construccion' => 'normal ' . self::delta_texto($delta($tardado)) . ' · ' . $banda,
             ],
             [
                 'clave' => 'probable',
@@ -590,16 +606,31 @@ final class MotorPresenta
                     : 'igual a la normal: el sesgo por clase todavía no está medido',
                 'fecha' => $probable->format('Y-m-d H:i:s'),
                 'desde_ahora' => $desde($probable),
+                'delta_normal_min' => $delta($probable),
+                'construccion' => $corregida
+                    ? 'normal ' . self::delta_texto($delta($probable)) . ' (sesgo de la clase '
+                        . ($sesgoClase ?? 'sin clase') . ': ' . $sesgoMin . ' min)'
+                    : 'igual a la normal: el sesgo por clase todavía no está medido',
             ],
             [
                 'clave' => 'consenso',
                 'etiqueta' => 'Consenso',
                 'descripcion' => 'el promedio de la rápida, la normal y la más probable:'
                     . ' acierta más por tolerancia, pero casi nunca es la más cercana',
-                'fecha' => ($consenso ?? $normal)->format('Y-m-d H:i:s'),
-                'desde_ahora' => $desde($consenso ?? $normal),
+                'fecha' => $centro->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($centro),
+                'delta_normal_min' => $delta($centro),
+                'construccion' => 'promedio de rápido (' . $desde($rapido) . '), normal (' . $desde($normal)
+                    . ') y más probable (' . $desde($probable) . ') desde el corte = '
+                    . $desde($centro) . ' · normal ' . self::delta_texto($delta($centro)),
             ],
         ];
+    }
+
+    /** "+ 2:30" / "− 9:45" para explicar cuánto se corrió una fecha respecto de la normal. */
+    private static function delta_texto(int $minutos): string
+    {
+        return ($minutos >= 0 ? '+ ' : '− ') . Tiempo::hhmm(abs($minutos));
     }
 
     /**

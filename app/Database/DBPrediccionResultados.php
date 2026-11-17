@@ -25,6 +25,14 @@ class DBPrediccionResultados
     public const TOLERANCIA_ACEPTADA = 180;
 
     /**
+     * Tope duro de filas que se cargan cuando se pide "todas" (`limite = 0`).
+     *
+     * No es un límite de negocio: es para que una consulta sin límite no se lleve
+     * la tabla entera a memoria en el servidor compartido.
+     */
+    public const TOPE_FILAS = 50000;
+
+    /**
      * Guarda una predicción. `origen` es 'pantalla' o 'api'.
      */
     public static function guardar(stdClass $resultado, string $origen = 'api'): bool
@@ -61,6 +69,35 @@ class DBPrediccionResultados
     }
 
     /**
+     * La ruta de cada referencia, para guardarla junto a la predicción.
+     *
+     * Se resuelve acá y no en el backtest porque la fila de la tabla ya trae el
+     * `ref`; una sola consulta por lote de 500 refs alcanza.
+     *
+     * @param  array<int, string>  $refs
+     * @return array<string, string> ref => ruta_id
+     */
+    private static function rutasDeRefs(array $refs): array
+    {
+        $refs = array_values(array_unique(array_filter($refs, fn ($ref) => $ref !== '')));
+        $salida = [];
+
+        try {
+            foreach (array_chunk($refs, 500) as $lote) {
+                foreach (DB::table('referencias')->whereIn('ref', $lote)->get(['ref', 'ruta_id']) as $fila) {
+                    if ($fila->ruta_id !== null && $fila->ruta_id !== '') {
+                        $salida[(string) $fila->ref] = (string) $fila->ruta_id;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            return [];   // sin tabla de referencias se guarda sin ruta, como antes
+        }
+
+        return $salida;
+    }
+
+    /**
      * Guarda de una vez las predicciones de una corrida de la tabla de aciertos.
      *
      * Es lo que hace el botón "Guardar estas predicciones": deja en
@@ -82,6 +119,10 @@ class DBPrediccionResultados
         $origen = mb_substr($origen, 0, 10);
 
         $preparadas = [];
+        // la ruta de cada ref: el backtest no la trae en la fila y sin `ruta_id`
+        // los filtros por local no ven lo guardado desde acá
+        $rutasPorRef = self::rutasDeRefs(array_map(fn ($fila) => (string) ($fila->ref ?? ''), $filas));
+
         foreach ($filas as $fila) {
             $predicho = $fila->predicho ?? null;
             $corte = $fila->ancla ?? null;
@@ -92,10 +133,13 @@ class DBPrediccionResultados
                 continue;
             }
 
+            $ref = mb_substr((string) $fila->ref, 0, 10);
+            $ruta = $rutasPorRef[$ref] ?? null;
+
             $preparadas[] = [
-                'ref' => mb_substr((string) $fila->ref, 0, 10),
+                'ref' => $ref,
                 'placa' => isset($fila->placa) ? mb_substr((string) $fila->placa, 0, 10) : null,
-                'ruta_id' => null,
+                'ruta_id' => $ruta !== null && $ruta !== '' ? mb_substr((string) $ruta, 0, 100) : null,
                 'ahora' => self::fechaSql($corte),
                 'presenta' => self::fechaSql($predicho),
                 'presenta_rapido' => self::fechaSql($fila->rapido ?? null),
@@ -180,7 +224,7 @@ class DBPrediccionResultados
      *               refs: int, sin_ref: int, comparables: array}
      */
     public static function resumen(?Carbon $desde = null, ?Carbon $hasta = null, int $limite = 500,
-                                   ?string $origen = null, int $filasMax = 50): array
+                                   ?string $origen = null, int $filasMax = 50, ?string $local = null): array
     {
         $vacio = ['n' => 0, 'dentro_ventana' => 0, 'dentro_tolerancia' => 0, 'pct_ventana' => null,
                   'pct_tolerancia' => null, 'error_mediano' => null, 'filas' => [], 'guardadas' => 0,
@@ -189,12 +233,21 @@ class DBPrediccionResultados
         $desde = ($desde ?? Carbon::now()->subDays(90))->copy()->startOfDay();
         $hasta = ($hasta ?? Carbon::now())->copy()->endOfDay();
         $origen = trim((string) $origen);
+
+        // El LOCAL es la planta de carga: el origen de la ruta de la referencia, o
+        // sea el local donde el camión tiene que presentarse. Se filtra contra
+        // `rutas` porque `prediccion_resultados` sólo guarda el `ruta_id`.
+        $local = trim((string) $local);
         $filtroOrigen = $origen !== '' ? ' AND p.origen = ?' : '';
+        $filtroLocal = $local !== '' ? ' AND ru.origen_id = ?' : '';
         $parametros = [$desde->toDateTimeString(), $hasta->toDateTimeString(),
                        $desde->toDateTimeString(), $hasta->toDateTimeString()];
 
         if ($origen !== '') {
             $parametros[] = $origen;
+        }
+        if ($local !== '') {
+            $parametros[] = $local;
         }
 
         try {
@@ -206,10 +259,15 @@ class DBPrediccionResultados
                         TIMESTAMPDIFF(MINUTE, p.presenta, r.presenta_para_carga) AS error_min
                  FROM prediccion_resultados p
                  LEFT JOIN referencias r ON r.ref = p.ref
+                 -- el local sale de la ruta de la predicción; si la fila se guardó
+                 -- sin `ruta_id` (lo que hacía el botón de aciertos), se resuelve
+                 -- por la ruta de la referencia: si no, el filtro por local no ve
+                 -- esas filas.
+                 LEFT JOIN rutas ru ON ru.id = COALESCE(NULLIF(p.ruta_id, ''), r.ruta_id)
                  WHERE ((r.presenta_para_carga BETWEEN ? AND ?)
-                    OR (p.ahora BETWEEN ? AND ?))" . $filtroOrigen . "
+                    OR (p.ahora BETWEEN ? AND ?))" . $filtroOrigen . $filtroLocal . "
                  ORDER BY p.ahora DESC
-                 LIMIT " . max(1, $limite),
+                 LIMIT " . ($limite > 0 ? $limite : self::TOPE_FILAS),
                 $parametros
             );
         } catch (\Throwable $e) {

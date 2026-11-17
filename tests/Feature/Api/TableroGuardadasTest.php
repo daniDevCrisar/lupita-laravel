@@ -210,12 +210,15 @@ class TableroGuardadasTest extends TestCase
             $this->assertStringContainsString('id="fecha-' . $clave . '"', $htmlDefault);
         }
 
-        if ((int) $fechas['comparadas'] < 4) {
-            // las guardadas viejas no tienen la cuarta: se cae a las que tienen
+        $publicadas = count(\App\Prediccion\Tablero::FECHAS);
+
+        if ((int) $fechas['comparadas'] < $publicadas) {
+            // las guardadas viejas no tienen la cuarta ni el consenso: se cae a
+            // las fechas que sí tienen datos, y lo avisa
             $this->assertStringContainsString('se comparan las que sí tienen datos', $htmlDefault);
         } else {
-            $this->assertSame(4, (int) $fechas['comparadas'],
-                'si todas las filas tienen las cuatro fechas, se comparan las cuatro');
+            $this->assertSame($publicadas, (int) $fechas['comparadas'],
+                'si todas las filas tienen las fechas publicadas, se comparan todas');
         }
 
         // una sola fecha: la tabla trae una fila y el n es el de las comparables
@@ -285,6 +288,13 @@ class TableroGuardadasTest extends TestCase
         $this->assertArrayHasKey('veredicto', $con['fechas']['filas'][3]);
         $this->assertStringContainsString('contra la mejor de las fechas elegidas', $html);
         $this->assertStringContainsString('±180 min', $html);
+
+        // y la tabla de "quién gana según el KPI": una fila por tolerancia
+        $this->assertSame(\App\Prediccion\Aciertos::TOLERANCIAS, array_column($con['fechas']['kpi'], 'min'));
+        $this->assertStringContainsString('Quién queda más cerca, según el KPI', $html);
+        foreach (['±30m', '±1h', '±2h', '±3h', '±6h', '±12h'] as $etiqueta) {
+            $this->assertStringContainsString($etiqueta, $html, 'falta el KPI ' . $etiqueta);
+        }
     }
 
     /**

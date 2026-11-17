@@ -37,14 +37,18 @@ class Servicio
     public const HITOS_NO_ANCLA = ['compromiso_carga'];
 
     /**
-     * Cuántas refs puede evaluar la tabla de aciertos como máximo en una corrida.
+     * Cuántas refs puede evaluar una corrida como máximo ("todas" = este tope).
      *
-     * Medido: ~5 ms por fila (cada una arma el traslado, calibra y pide ventanas),
-     * más ~1 s de preparación. 3.000 filas son ~15 s, que es lo más que se puede
-     * pedir a una pantalla. El rango de un año tiene ~27.000 pares: evaluarlos
-     * todos son ~2 minutos de CPU y no entra en un request.
+     * No es un número de negocio: es MEMORIA. Medido en local (memory_limit 512 M),
+     * con el rango 01-sep..16-nov:
+     *   500 filas  -> 350 MB de pico
+     *   2.000      -> 394 MB
+     *   5.000      -> fatal: "Allowed memory size exhausted"
+     * El pico lo domina la preparación (20.000 pares de aprendizaje) más el caché
+     * de ventanas por fila; el costo marginal es ~30 KB por fila. Por eso el tope
+     * es 2.000: pasado eso, el host compartido se cae antes de terminar.
      */
-    public const TOPE_EVALUACION = 3000;
+    public const TOPE_EVALUACION = 2000;
 
     /**
      * Predicción de una referencia concreta.
@@ -1281,10 +1285,17 @@ class Servicio
         $etapas = DBPrediccion::etapas_por_ruta($aprendizajeDesde, $desde);
         $rutas = DBPrediccion::rutas();
 
+        // filtro por PLANTA DE CARGA (local donde el camión se presenta). Sólo el
+        // lado que se EVALÚA: la calibración de cada placa se aprende de toda su
+        // historia, si no el filtro dejaría a las placas sin pares y el motor
+        // predeciría con la cadena. Va en la corrida y en la de la ventana.
+        $planta = trim((string) ($filtros['planta'] ?? ''));
+
         $paresAprendizaje = DBPrediccion::pares(null, $aprendizajeDesde, $desde,
             $placa !== '' ? $placa : null, null, 20000);
 
-        $pares = DBPrediccion::pares(null, $desde, $hasta, $placa !== '' ? $placa : null, null, $limite);
+        $pares = DBPrediccion::pares(null, $desde, $hasta, $placa !== '' ? $placa : null, null, $limite,
+            $planta !== '' ? $planta : null);
 
         // historia completa por placa (aprendizaje + rango): cada fila calibra con
         // SUS propios pares anteriores, así el motor no ve el futuro ni arrastra

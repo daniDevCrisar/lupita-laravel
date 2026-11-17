@@ -425,4 +425,50 @@ class TableroTest extends TestCase
         // las fechas sueltas no llevan veredicto: no compiten contra sí mismas
         $this->assertArrayNotHasKey('veredicto', $porClave['rapido']);
     }
+
+    public function test_la_tabla_de_kpi_dice_quien_gana_en_cada_tolerancia(): void
+    {
+        // A: gana el rápido con 20 min (entra en ±30)
+        // B: gana la normal con 60 min (entra desde ±1h)
+        // C: gana el rápido con 100 min (entra desde ±2h)
+        $filas = [
+            (object) ['error_rapido_min' => 20, 'error_min' => 400,
+                      'error_tardado_min' => null, 'error_probable_min' => null],
+            (object) ['error_rapido_min' => 400, 'error_min' => 60,
+                      'error_tardado_min' => null, 'error_probable_min' => null],
+            (object) ['error_rapido_min' => 100, 'error_min' => 200,
+                      'error_tardado_min' => null, 'error_probable_min' => null],
+        ];
+
+        $t = Tablero::fechas($filas, 180, ['rapido', 'normal']);
+
+        // una fila por tolerancia, todas las publicadas
+        $this->assertSame(\App\Prediccion\Aciertos::TOLERANCIAS, array_column($t['kpi'], 'min'));
+        $this->assertSame(['±30m', '±1h', '±2h', '±3h', '±6h', '±12h'], array_column($t['kpi'], 'etiqueta'));
+
+        $porMin = array_column($t['kpi'], null, 'min');
+
+        // ±30 m: sólo la fila A entra, y la gana el rápido
+        $this->assertSame(1, $porMin[30]['total']);
+        $this->assertSame(100, $porMin[30]['fechas']['rapido']['pct']);
+        $this->assertSame(0, $porMin[30]['fechas']['normal']['pct']);
+
+        // ±1 h: entran A y B (50/50)
+        $this->assertSame(2, $porMin[60]['total']);
+        $this->assertSame(50, $porMin[60]['fechas']['rapido']['pct']);
+        $this->assertSame(50, $porMin[60]['fechas']['normal']['pct']);
+
+        // ±2 h y de ahí para arriba: entran las tres, el rápido 2 de 3
+        foreach ([120, 180, 360, 720] as $minutos) {
+            $this->assertSame(3, $porMin[$minutos]['total'], 'denominador de ' . $minutos);
+            $this->assertSame(67, $porMin[$minutos]['fechas']['rapido']['pct']);
+            $this->assertSame(33, $porMin[$minutos]['fechas']['normal']['pct']);
+            $this->assertSame(2, $porMin[$minutos]['fechas']['rapido']['n']);
+        }
+
+        // la etiqueta se arma sola: minutos para abajo de 2 h, horas para arriba
+        $this->assertSame('±30m', Tablero::kpi_etiqueta(30));
+        $this->assertSame('±2h', Tablero::kpi_etiqueta(120));
+        $this->assertSame('±12h', Tablero::kpi_etiqueta(720));
+    }
 }

@@ -86,6 +86,17 @@ class GuardarAciertosTest extends TestCase
 
         $this->assertGreaterThan(0, $conConsenso, 'ninguna fila guardó el consenso');
 
+        // el `ruta_id` también se guarda (el backtest no lo trae en la fila): sin
+        // él los filtros por local de las pantallas no ven lo guardado desde acá
+        $rutas = DB::table('prediccion_resultados')->where('origen', self::ORIGEN)->get(['ref', 'ruta_id']);
+        $conRuta = 0;
+        foreach ($rutas as $fila) {
+            if (($fila->ruta_id ?? null) !== null && $fila->ruta_id !== '') {
+                $conRuta++;
+            }
+        }
+        $this->assertGreaterThan(0, $conRuta, 'ninguna fila guardó el ruta_id');
+
         // y el resumen lo puede leer de vuelta
         $resumen = DBPrediccionResultados::resumen(
             \Carbon\Carbon::parse('2026-11-01'), \Carbon\Carbon::parse('2026-11-16'), 2000, self::ORIGEN, 50);

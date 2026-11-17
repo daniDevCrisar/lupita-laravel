@@ -622,6 +622,18 @@ class MotorPresentaTest extends TestCase
         $this->assertSame('6:00', $r->presentaciones[2]['desde_ahora']);
         $this->assertSame('4:00', $r->presentaciones[3]['desde_ahora']);
         $this->assertSame('3:40', $r->presentaciones[4]['desde_ahora']);
+
+        // y cada fecha viaja con SU construcción, no sólo la normal
+        $porClave = array_column($r->presentaciones, null, 'clave');
+        $this->assertSame(-60, $porClave['rapido']['delta_normal_min']);
+        $this->assertSame(0, $porClave['normal']['delta_normal_min']);
+        $this->assertSame(120, $porClave['tardado']['delta_normal_min']);
+        $this->assertSame(-20, $porClave['consenso']['delta_normal_min']);
+
+        $this->assertStringContainsString('normal − 1:00', $porClave['rapido']['construccion']);
+        $this->assertStringContainsString('normal + 2:00', $porClave['tardado']['construccion']);
+        $this->assertStringContainsString('promedio de rápido', $porClave['consenso']['construccion']);
+        $this->assertStringContainsString('la suma de los pasos', $porClave['normal']['construccion']);
     }
 
     public function test_el_consenso_promedia_en_minutos_desde_el_corte(): void

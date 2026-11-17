@@ -15,14 +15,19 @@
   "presenta": "2026-11-15 09:27:00",
   "presenta_tardado": "2026-11-16 18:44:00",
   "presenta_probable": "2026-11-15 12:41:00",
-  "presenta_consenso": "2026-11-15 04:20:00",
+  "presenta_consenso": "2026-11-15 06:34:00",
   "sesgo": { "clase": "parcial|largo", "min": -194, "aplicado": true },
   "presentaciones": [
-    { "clave": "rapido",   "etiqueta": "Rápido",        "fecha": "2026-11-14 21:33:00", "desde_ahora": "60:33" },
-    { "clave": "normal",   "etiqueta": "Normal",        "fecha": "2026-11-15 09:27:00", "desde_ahora": "96:27" },
-    { "clave": "tardado",  "etiqueta": "Tardado",       "fecha": "2026-11-16 18:44:00", "desde_ahora": "129:44" },
-    { "clave": "probable", "etiqueta": "Más probable",  "fecha": "2026-11-15 12:41:00", "desde_ahora": "99:41" },
-    { "clave": "consenso", "etiqueta": "Consenso",      "fecha": "2026-11-15 04:20:00", "desde_ahora": "91:20" }
+    { "clave": "rapido",   "etiqueta": "Rápido",        "fecha": "2026-11-14 21:33:00", "desde_ahora": "60:33",
+      "delta_normal_min": -714, "construccion": "normal − 11:54 · banda medida (cubre 70 %)" },
+    { "clave": "normal",   "etiqueta": "Normal",        "fecha": "2026-11-15 09:27:00", "desde_ahora": "96:27",
+      "delta_normal_min": 0, "construccion": "la suma de los pasos de abajo (ancla + traslado + descansos + esperas)" },
+    { "clave": "tardado",  "etiqueta": "Tardado",       "fecha": "2026-11-16 18:44:00", "desde_ahora": "129:44",
+      "delta_normal_min": 1997, "construccion": "normal + 33:17 · banda medida (cubre 70 %)" },
+    { "clave": "probable", "etiqueta": "Más probable",  "fecha": "2026-11-15 12:41:00", "desde_ahora": "99:41",
+      "delta_normal_min": 194, "construccion": "normal + 3:14 (sesgo de la clase parcial|largo: -194 min)" },
+    { "clave": "consenso", "etiqueta": "Consenso",      "fecha": "2026-11-15 06:34:00", "desde_ahora": "93:34",
+      "delta_normal_min": -173, "construccion": "promedio de rápido (60:33), normal (96:27) y más probable (99:41) desde el corte = 93:34 · normal − 2:53" }
   ],
   "inicio_carga": "2026-11-15 11:16:00",
   "espera_hhmm": "1:49",
@@ -56,12 +61,14 @@ JSON;
             <p class="text-muted mb-1">
                 Predice a qué hora un camión se va a <strong>presentar para cargar</strong> y a qué hora
                 <strong>empieza a cargar</strong>. Es pública (sin token), como el resto de <code>/api</code>.
-                Devuelve <strong>cinco fechas</strong> —<span class="text-success fw-bold">rápido</span>,
-                <span class="text-primary fw-bold">normal</span>,
-                <span class="text-warning fw-bold">tardado</span>,
-                <span class="text-info fw-bold">más probable</span> (la normal corregida por el sesgo de su
-                clase) y <span class="text-secondary fw-bold">consenso</span> (el promedio de la rápida, la
-                normal y la más probable)— y los pasos con los que se armó cada hora.
+                Devuelve <strong>cinco fechas</strong> y los pasos con los que se armó cada hora. Si hay que
+                elegir una, el orden medido (3.085 presentaciones) es:
+                <span class="badge bg-secondary">consenso</span> &gt;
+                <span class="badge bg-primary">normal</span> &gt;
+                <span class="badge bg-info text-dark">más probable</span> &gt;
+                <span class="badge bg-light text-dark">rápido</span> &gt;
+                <span class="badge bg-warning text-dark">tardado</span>.
+                El detalle y las cuentas están en el punto 2.
             </p>
             <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-sm btn-outline-primary" href="{{ route('lupita.prediccion.presenta') }}">
@@ -137,35 +144,86 @@ JSON;
     <div class="card mb-3">
         <div class="card-header bg-success text-white"><strong>2. Las cinco fechas</strong></div>
         <div class="card-body">
+            {{-- el orden en que se leen NO es el orden en que se publican: es el
+                 orden medido de "quién acierta más seguido dentro del margen" --}}
+            <div class="alert alert-success py-2 mb-3">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                    <strong>Cuál usar, de más a menos probable:</strong>
+                    <span class="badge bg-success">1. Consenso</span>
+                    <span class="badge bg-primary">2. Normal</span>
+                    <span class="badge bg-info text-dark">3. Más probable</span>
+                    <span class="badge bg-secondary">4. Rápido</span>
+                    <span class="badge bg-warning text-dark">5. Tardado</span>
+                </div>
+                <div class="small mb-0">
+                    Medido sobre <strong>3.085 presentaciones reales</strong>, de las filas en que alguna fecha
+                    entra en el margen, el porcentaje que se lleva cada una:
+                    <div class="table-responsive mt-1">
+                        <table class="table table-sm table-borderless mb-0" style="font-size:.78rem">
+                            <thead>
+                            <tr>
+                                <th>margen</th>
+                                <th class="text-end text-success">Consenso</th>
+                                <th class="text-end text-primary">Normal</th>
+                                <th class="text-end text-info">Más probable</th>
+                                <th class="text-end">Rápido</th>
+                                <th class="text-end text-warning">Tardado</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach([
+                                ['±30 min', 37, 26, 21, 14, 2],
+                                ['±1 h', 34, 27, 24, 11, 4],
+                                ['±2 h', 33, 28, 24, 10, 5],
+                                ['±3 h', 31, 27, 24, 12, 6],
+                                ['±6 h', 27, 26, 25, 13, 10],
+                                ['±12 h', 24, 23, 27, 11, 15],
+                            ] as [$margen, $consenso, $normal, $probable, $rapido, $tardado])
+                                <tr>
+                                    <td class="text-muted">{{ $margen }}</td>
+                                    <td class="text-end fw-bold text-success">{{ $consenso }} %</td>
+                                    <td class="text-end text-primary">{{ $normal }} %</td>
+                                    <td class="text-end text-info">{{ $probable }} %</td>
+                                    <td class="text-end">{{ $rapido }} %</td>
+                                    <td class="text-end text-warning">{{ $tardado }} %</td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-1">
+                        En MAE el orden es otro: <strong>más probable (19 h 51) &lt; consenso (20 h 10) &lt;
+                        normal (22 h 06) &lt; rápido (23 h 45) &lt; tardado (32 h 07)</strong>. O sea: el
+                        <strong>consenso</strong> es el que más veces cae dentro del margen y la
+                        <strong>más probable</strong> el de menor error promedio y el único con la mediana
+                        centrada (−16 min). El <strong>tardado</strong> nunca sirve para un margen corto
+                        (2-6 %): es el techo de la banda, no una hora para prometer.
+                    </div>
+                </div>
+            </div>
+
             <div class="row g-3">
-                <div class="col-md-4">
-                    <div class="card h-100 border-success">
+                <div class="col-md-6">
+                    <div class="card h-100 border-secondary">
                         <div class="card-body py-2">
-                            <div class="fw-bold text-success">Rápido</div>
+                            <div class="fw-bold text-secondary">1. Consenso (5.ª) — la que más acierta</div>
                             <div class="small text-muted">
-                                Si el camión vuelve como sus mejores viajes: el cuantil 25 del hueco real
-                                (o −30 % de la cadena cuando no hay historia).
+                                El <strong>promedio</strong> de la rápida, la normal y la más probable.
+                                Promediar baja la varianza: gana el acierto por tolerancia
+                                (±30m 37 % · ±1h 34 % · ±3h 31 %) más seguido que cualquiera de las
+                                tres por separado. Es la que conviene mostrar como hora principal.
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <div class="card h-100 border-primary">
                         <div class="card-body py-2">
-                            <div class="fw-bold text-primary">Normal</div>
+                            <div class="fw-bold text-primary">2. Normal — la de siempre</div>
                             <div class="small text-muted">
-                                La mediana. Es la que se usa para planificar y la que se compara en la tabla de aciertos.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card h-100 border-warning">
-                        <div class="card-body py-2">
-                            <div class="fw-bold text-warning">Tardado</div>
-                            <div class="small text-muted">
-                                Si se le cruza un descanso largo, una cola en planta o un viaje que se estira:
-                                el cuantil 75 (o +30 % de la cadena).
+                                La mediana del hueco. Es la que se compara en la tabla de aciertos y
+                                la que se guarda en <code>prediccion_resultados</code>.
+                                Acierta 26-28 % dentro del margen; su mediana está 4 h 25 adelantada.
                             </div>
                         </div>
                     </div>
@@ -173,26 +231,37 @@ JSON;
                 <div class="col-md-6">
                     <div class="card h-100 border-info">
                         <div class="card-body py-2">
-                            <div class="fw-bold text-info">Más probable (4.ª)</div>
+                            <div class="fw-bold text-info">3. Más probable (4.ª) — la mejor centrada</div>
                             <div class="small text-muted">
                                 La normal <strong>corregida</strong> con la mediana del error de su clase
-                                (evidencia × tramo del horizonte). El motor no se equivoca parejo: con
-                                <code>cadena</code> y horizonte largo publica decenas de horas antes de lo que
-                                pasa. Se mide con el botón <em>Medir los sesgos</em>; con el sesgo apagado es
-                                igual a la normal.
+                                (evidencia × tramo del horizonte). Tiene el mejor MAE (19 h 51) y la
+                                mediana en −16 min: es la hora "esperada". Se mide con el botón
+                                <em>Medir los sesgos</em>; con el sesgo apagado es igual a la normal.
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="card h-100 border-secondary">
+                    <div class="card h-100 border-success">
                         <div class="card-body py-2">
-                            <div class="fw-bold text-secondary">Consenso (5.ª)</div>
+                            <div class="fw-bold text-success">4. Rápido — el extremo temprano</div>
                             <div class="small text-muted">
-                                El <strong>promedio</strong> de la rápida, la normal y la más probable.
-                                Promediar baja la varianza, así que gana el acierto por tolerancia
-                                (±30m / ±1h / ±3h) más seguido que cualquiera de las tres por separado, pero
-                                casi nunca es la más cercana cuando compiten. Se publica para poder medirlo.
+                                Si el camión vuelve como sus mejores viajes: el cuantil 25 del hueco real
+                                (o −30 % de la cadena cuando no hay historia). Nunca es menor que el
+                                traslado medido. Sirve para el extremo optimista, no como hora.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-warning">
+                        <div class="card-body py-2">
+                            <div class="fw-bold text-warning">5. Tardado — el extremo tardío</div>
+                            <div class="small text-muted">
+                                Si se le cruza un descanso largo, una cola en planta o un viaje que se
+                                estira: el cuantil 75 (o +30 % de la cadena). Con el rápido forma la
+                                <strong>banda de la promesa</strong>; solo acierta 2-6 % dentro del
+                                margen, y su mediana está 23 h 42 atrasada.
                             </div>
                         </div>
                     </div>
@@ -288,7 +357,7 @@ JSON;
                         <tr><td><code>presenta_probable</code></td><td>la <strong>cuarta</strong>: la normal corregida con la mediana del error de su clase. Con el sesgo apagado es igual a <code>presenta</code></td></tr>
                         <tr><td><code>presenta_consenso</code></td><td>la <strong>quinta</strong>: el promedio de la rápida, la normal y la más probable. Gana por tolerancia (±30m/±1h/±3h); no siempre gana en "quién quedó más cerca"</td></tr>
                         <tr><td><code>sesgo</code></td><td><code>clase</code> (evidencia × tramo del horizonte), <code>min</code> (cuánto se corrió; negativo = se adelantó) y <code>aplicado</code></td></tr>
-                        <tr><td><code>presentaciones</code></td><td>las cinco fechas con etiqueta y <code>desde_ahora</code> en <code>h:mm</code>: <code>rapido</code>, <code>normal</code>, <code>tardado</code>, <code>probable</code>, <code>consenso</code></td></tr>
+                        <tr><td><code>presentaciones</code></td><td>las cinco fechas con etiqueta y <code>desde_ahora</code> en <code>h:mm</code>: <code>rapido</code>, <code>normal</code>, <code>tardado</code>, <code>probable</code>, <code>consenso</code>. Cada una trae además <code>delta_normal_min</code> (minutos respecto de la normal; negativo = antes) y <code>construccion</code> (de dónde sale ESA fecha, en una línea)</td></tr>
                         <tr><td><code>inicio_carga</code></td><td>presenta normal + espera en planta</td></tr>
                         <tr><td><code>espera_hhmm</code></td><td>la espera en planta, en <code>h:mm</code></td></tr>
                         <tr><td><code>duracion_total_hhmm</code></td><td>del ancla a la presentación normal (puede pasar de 24 h: <code>96:27</code>)</td></tr>

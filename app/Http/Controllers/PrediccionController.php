@@ -67,11 +67,34 @@ class PrediccionController extends Controller
     /** Filas que se dibujan como máximo en la tabla (el resto no hace falta verlo). */
     public const FILAS_TABLA_ACIERTOS = 100;
 
-    /** Filas que se pueden mostrar en la pantalla de predicciones guardadas. */
-    public const FILAS_GUARDADAS = [50, 100, 300, 600];
+    /**
+     * Límite de refs de "Predicciones guardadas": cuántas se cargan para las
+     * métricas y cuántas se le pasan al motor. `0` = todas (acotado por
+     * `Servicio::TOPE_EVALUACION` / `DBPrediccionResultados::TOPE_FILAS`).
+     *
+     * El motor tarda ~5 ms por fila: 2.000 son ~10 s y 10.000 ~50 s, y la corrida
+     * se cachea 10 minutos. Los valores chicos siguen estando para mirar rápido.
+     */
+    public const FILAS_GUARDADAS = [50, 100, 300, 600, 2000, 5000, 10000, 0];
+
+    /** Límite con el que abre la pantalla de guardadas (2.000 refs). */
+    public const FILAS_GUARDADAS_VALOR = 2000;
+
+    /** Filas que se dibujan en la tabla de abajo (el resto sólo suma a las métricas). */
+    public const FILAS_TABLA_GUARDADAS = 200;
 
     /**
-     * Topes de horizonte de la tabla de aciertos, en HORAS.
+     * Tope de refs de la CORRIDA DEL MOTOR (no del listado).
+     *
+     * El listado y las métricas de producción aguantan 10.000 o "todas" porque son
+     * filas de base nomás. La corrida del motor no: medido, 2.000 filas dejan
+     * 394 MB de pico y 5.000 agotan los 512 MB del host. Encima del tope se mide
+     * con el tope y la pantalla lo avisa.
+     */
+    public const FILAS_MOTOR_TOPE = 2000;
+
+    /**
+     * Tope de horizonte de la tabla de aciertos, en HORAS.
      *
      * No es cosmético: el motor acierta dentro de ±3 h el 57 % de las veces cuando
      * el camión se presenta antes de 6 h desde el corte, y el 6 % cuando pasa de
@@ -79,15 +102,6 @@ class PrediccionController extends Controller
      * del modelo (el camión se quedó días sin volver).
      */
     public const HORIZONTES_ACIERTOS = [0, 6, 12, 24, 48, 72];
-
-    /**
-     * Filas con las que se miden los KPIs del motor en "Predicciones guardadas".
-     *
-     * Es fijo y no sigue al selector de filas de la tabla: el número de arriba
-     * tiene que ser comparable entre visitas, y 300 filas dan ~3-4 s (se cachea
-     * 10 minutos igual que la tabla de aciertos).
-     */
-    public const FILAS_MOTOR = 300;
 
     /** Orígenes con los que se guarda una predicción (`prediccion_resultados.origen`). */
     public const ORIGENES_GUARDADAS = ['api', 'aciertos', 'pantalla'];
@@ -495,26 +509,36 @@ class PrediccionController extends Controller
             'fecha_inicio' => 'nullable|date',
             'fecha_fin' => 'nullable|date',
             'origen' => 'nullable|string|max:10',
+            'local' => 'nullable|string|max:100',
             'limite' => 'nullable|integer|in:' . implode(',', self::FILAS_GUARDADAS),
         ]);
 
         $desde = (string) $request->input('fecha_inicio', '') ?: now()->subDays(29)->toDateString();
         $hasta = (string) $request->input('fecha_fin', '') ?: now()->toDateString();
 
-        $limite = (int) $request->input('limite', self::FILAS_GUARDADAS[0]);
+        $limite = (int) $request->input('limite', self::FILAS_GUARDADAS_VALOR);
         if (!in_array($limite, self::FILAS_GUARDADAS, true)) {
-            $limite = self::FILAS_GUARDADAS[0];
+            $limite = self::FILAS_GUARDADAS_VALOR;
         }
+
+        // LOCAL = la planta de carga: el local donde el camión se presenta a cargar
+        // (el origen de la ruta). Filtra lo guardado y también la corrida del motor,
+        // para que las dos varas de la pantalla hablen del mismo local.
+        $local = trim((string) $request->input('local', ''));
 
         $filtros = [
             'desde' => $desde,
             'hasta' => $hasta,
             'origen' => trim((string) $request->input('origen', '')),
+            'local' => $local,
             'limite' => $limite,
         ];
 
+        // `limite` = cuántas refs se cargan para las métricas (0 = todas, con tope
+        // interno); la tabla de abajo dibuja sólo las primeras `FILAS_TABLA_GUARDADAS`.
         $resumen = \App\Database\DBPrediccionResultados::resumen(
-            Carbon::parse($desde), Carbon::parse($hasta), 2000, $filtros['origen'], $limite);
+            Carbon::parse($desde), Carbon::parse($hasta), $limite, $filtros['origen'],
+            self::FILAS_TABLA_GUARDADAS, $local !== '' ? $local : null);
 
         // Qué fechas entran en la comparación de la tarjeta de producción.
         // `comparar` viaja SÓLO si se apretó el botón: así "no tildé ninguna" no
@@ -538,7 +562,8 @@ class PrediccionController extends Controller
         }
 
         $tablero = self::tablero_guardadas($desde, $hasta, $resumen,
-            $request->boolean('refrescar'), $seleccionFechas, $request->boolean('promediar'));
+            $request->boolean('refrescar'), $seleccionFechas, $request->boolean('promediar'),
+            $local !== '' ? $local : null, $limite);
 
         if ($avisoFechas !== null) {
             $tablero['fechas']['aviso'] = $avisoFechas;
@@ -548,6 +573,8 @@ class PrediccionController extends Controller
             'filtros' => $filtros,
             'origenes' => self::ORIGENES_GUARDADAS,
             'limites' => self::FILAS_GUARDADAS,
+            // plantas para el combo con búsqueda (local donde presenta a cargar)
+            'plantas' => \App\Database\DBPrediccion::plantas_carga(),
             'resumen' => $resumen,
             'tablero' => $tablero,
         ]));
@@ -570,7 +597,8 @@ class PrediccionController extends Controller
      */
     private static function tablero_guardadas(string $desde, string $hasta, array $resumen,
                                               bool $refrescar = false, ?array $seleccionFechas = null,
-                                              bool $promediarFechas = false): array
+                                              bool $promediarFechas = false, ?string $local = null,
+                                              int $limiteMotor = 300): array
     {
         $tolerancia = \App\Database\DBPrediccionResultados::TOLERANCIA_ACEPTADA;
         $comparables = $resumen['comparables'] ?? [];
@@ -628,7 +656,15 @@ class PrediccionController extends Controller
         }
 
         // ---- motor: la corrida de aciertos (cacheada 10 min) -----------------
-        $llave = 'prediccion:guardadas:motor:v1:' . md5($inicio->toDateString() . '|' . $fin->toDateString());
+        // La llave incluye el local y el límite: con esos filtros la corrida es
+        // otra y no se puede reusar la de antes.
+        // El motor sigue el combo pero con su tope de memoria (ver FILAS_MOTOR_TOPE).
+        $limiteMotorEfectivo = max(300, min(
+            $limiteMotor > 0 ? $limiteMotor : self::FILAS_MOTOR_TOPE,
+            self::FILAS_MOTOR_TOPE));
+
+        $llave = 'prediccion:guardadas:motor:v3:'
+            . md5($inicio->toDateString() . '|' . $fin->toDateString() . '|' . (string) $local . '|' . $limiteMotorEfectivo);
 
         if ($refrescar) {
             \Illuminate\Support\Facades\Cache::forget($llave);
@@ -644,7 +680,10 @@ class PrediccionController extends Controller
                 fn () => Servicio::backtest([
                     'desde' => $inicio->toDateString(),
                     'hasta' => $fin->toDateString(),
-                    'limite' => self::FILAS_MOTOR,
+                    // el motor sigue el combo pero con su propio tope de memoria
+                    'limite' => $limiteMotorEfectivo,
+                    // misma planta de carga que el filtro de la pantalla
+                    'planta' => $local,
                 ])
             );
         } catch (\Throwable $e) {
@@ -658,6 +697,8 @@ class PrediccionController extends Controller
         if ($corrida !== null) {
             $motor = [
                 'n' => count($corrida->filas),
+                // con cuántas refs se midió (el combo puede pedir más)
+                'limite' => $limiteMotorEfectivo,
                 'resumen' => $corrida->resumen_motor,
                 'por_evidencia' => Tablero::por_evidencia($corrida->filas, $tolerancia),
                 'por_horizonte' => Tablero::por_horizonte($corrida->filas, $tolerancia, 'ancla', 'dentro'),
@@ -1149,18 +1190,32 @@ class PrediccionController extends Controller
             'fecha_inicio' => 'nullable|date',
             'fecha_fin' => 'nullable|date',
             'origen' => 'nullable|string|max:10',
+            'local' => 'nullable|string|max:100',
             'limite' => 'nullable|integer|in:' . implode(',', self::FILAS_GUARDADAS),
         ]);
 
         $desde = Carbon::parse((string) $request->input('fecha_inicio') ?: now()->subDays(29)->toDateString())->startOfDay();
         $hasta = Carbon::parse((string) $request->input('fecha_fin') ?: now()->toDateString())->endOfDay();
         $origen = trim((string) $request->input('origen', ''));
+        $local = trim((string) $request->input('local', ''));
 
         $consulta = DB::table('prediccion_resultados')
             ->whereBetween('ahora', [$desde->toDateTimeString(), $hasta->toDateTimeString()]);
 
         if ($origen !== '') {
             $consulta->where('origen', $origen);
+        }
+
+        // con filtro por local se borra SÓLO ese local (lo que se está viendo), no
+        // todo el rango: la fila guarda el `ruta_id` y, si viene vacío, se mira la
+        // ruta de la referencia
+        if ($local !== '') {
+            $rutasLocal = fn () => DB::table('rutas')->select('id')->where('origen_id', $local);
+
+            $consulta->where(function ($q) use ($rutasLocal) {
+                $q->whereIn('ruta_id', $rutasLocal())
+                    ->orWhereIn('ref', DB::table('referencias')->select('ref')->whereIn('ruta_id', $rutasLocal()));
+            });
         }
 
         try {
@@ -1171,6 +1226,7 @@ class PrediccionController extends Controller
         }
 
         $detalle = $origen !== '' ? ' (origen ' . $origen . ')' : '';
+        $detalle .= $local !== '' ? ' (local ' . $local . ')' : '';
 
         return redirect()->route('lupita.prediccion.guardadas', self::filtros_guardadas($request))
             ->with('estado', $borradas === 0
@@ -1187,6 +1243,7 @@ class PrediccionController extends Controller
             'fecha_inicio' => $request->input('fecha_inicio'),
             'fecha_fin' => $request->input('fecha_fin'),
             'origen' => $request->input('origen'),
+            'local' => $request->input('local'),
             'limite' => $request->input('limite'),
         ], fn ($valor) => $valor !== null && $valor !== '');
     }

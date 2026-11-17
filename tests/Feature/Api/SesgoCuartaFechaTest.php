@@ -288,5 +288,24 @@ class SesgoCuartaFechaTest extends TestCase
         $this->assertLessThanOrEqual(
             strtotime((string) $respuesta->json('presenta_tardado')),
             strtotime((string) $respuesta->json('presenta_consenso')));
+
+        // cada fecha viaja con SU construcción: no sólo la normal tiene pasos
+        $presentaciones = (array) $respuesta->json('presentaciones');
+        $porClave = [];
+
+        foreach ($presentaciones as $presentacion) {
+            $this->assertArrayHasKey('construccion', $presentacion, 'falta la construcción de ' . ($presentacion['clave'] ?? '?'));
+            $this->assertArrayHasKey('delta_normal_min', $presentacion);
+            $this->assertNotSame('', (string) $presentacion['construccion']);
+            $porClave[$presentacion['clave']] = $presentacion;
+        }
+
+        // la normal es la base: delta 0 y la construcción remite a los pasos
+        $this->assertSame(0, $porClave['normal']['delta_normal_min']);
+        $this->assertStringContainsString('los pasos', $porClave['normal']['construccion']);
+
+        // el rápido va antes y el tardado después: el signo del delta lo dice
+        $this->assertLessThanOrEqual(0, $porClave['rapido']['delta_normal_min']);
+        $this->assertGreaterThanOrEqual(0, $porClave['tardado']['delta_normal_min']);
     }
 }
