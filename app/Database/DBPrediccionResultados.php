@@ -104,9 +104,11 @@ class DBPrediccionResultados
                 'evidencia' => mb_substr((string) ($fila->evidencia ?? 'sin_datos'), 0, 20),
                 'confianza' => (int) ($fila->confianza ?? 0),
                 'origen' => $origen,
-                // igual que en guardar(): la cuarta fecha viaja en el desglose
+                // igual que en guardar(): la cuarta fecha y el consenso viajan
+                // en el desglose (sin columnas nuevas)
                 'desglose' => self::desgloseJson((object) [
                     'presenta_probable' => $fila->probable ?? null,
+                    'presenta_consenso' => $fila->consenso ?? null,
                     'sesgo_clase' => $fila->sesgo_clase ?? null,
                     'sesgo_min' => $fila->sesgo_min ?? 0,
                 ]),

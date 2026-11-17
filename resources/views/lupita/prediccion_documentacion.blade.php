@@ -14,10 +14,15 @@
   "presenta_rapido": "2026-11-14 21:33:00",
   "presenta": "2026-11-15 09:27:00",
   "presenta_tardado": "2026-11-16 18:44:00",
+  "presenta_probable": "2026-11-15 12:41:00",
+  "presenta_consenso": "2026-11-15 04:20:00",
+  "sesgo": { "clase": "parcial|largo", "min": -194, "aplicado": true },
   "presentaciones": [
-    { "clave": "rapido",  "etiqueta": "Rápido",  "fecha": "2026-11-14 21:33:00", "desde_ahora": "60:33" },
-    { "clave": "normal",  "etiqueta": "Normal",  "fecha": "2026-11-15 09:27:00", "desde_ahora": "96:27" },
-    { "clave": "tardado", "etiqueta": "Tardado", "fecha": "2026-11-16 18:44:00", "desde_ahora": "129:44" }
+    { "clave": "rapido",   "etiqueta": "Rápido",        "fecha": "2026-11-14 21:33:00", "desde_ahora": "60:33" },
+    { "clave": "normal",   "etiqueta": "Normal",        "fecha": "2026-11-15 09:27:00", "desde_ahora": "96:27" },
+    { "clave": "tardado",  "etiqueta": "Tardado",       "fecha": "2026-11-16 18:44:00", "desde_ahora": "129:44" },
+    { "clave": "probable", "etiqueta": "Más probable",  "fecha": "2026-11-15 12:41:00", "desde_ahora": "99:41" },
+    { "clave": "consenso", "etiqueta": "Consenso",      "fecha": "2026-11-15 04:20:00", "desde_ahora": "91:20" }
   ],
   "inicio_carga": "2026-11-15 11:16:00",
   "espera_hhmm": "1:49",
@@ -51,9 +56,12 @@ JSON;
             <p class="text-muted mb-1">
                 Predice a qué hora un camión se va a <strong>presentar para cargar</strong> y a qué hora
                 <strong>empieza a cargar</strong>. Es pública (sin token), como el resto de <code>/api</code>.
-                Devuelve tres fechas —<span class="text-success fw-bold">rápido</span>,
-                <span class="text-primary fw-bold">normal</span> y <span class="text-warning fw-bold">tardado</span>—
-                y los pasos con los que se armó cada hora.
+                Devuelve <strong>cinco fechas</strong> —<span class="text-success fw-bold">rápido</span>,
+                <span class="text-primary fw-bold">normal</span>,
+                <span class="text-warning fw-bold">tardado</span>,
+                <span class="text-info fw-bold">más probable</span> (la normal corregida por el sesgo de su
+                clase) y <span class="text-secondary fw-bold">consenso</span> (el promedio de la rápida, la
+                normal y la más probable)— y los pasos con los que se armó cada hora.
             </p>
             <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-sm btn-outline-primary" href="{{ route('lupita.prediccion.presenta') }}">
@@ -125,9 +133,9 @@ JSON;
         </div>
     </div>
 
-    {{-- ================= TRES FECHAS ================= --}}
+    {{-- ================= LAS CINCO FECHAS ================= --}}
     <div class="card mb-3">
-        <div class="card-header bg-success text-white"><strong>2. Las tres fechas</strong></div>
+        <div class="card-header bg-success text-white"><strong>2. Las cinco fechas</strong></div>
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
@@ -162,11 +170,38 @@ JSON;
                         </div>
                     </div>
                 </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-info">
+                        <div class="card-body py-2">
+                            <div class="fw-bold text-info">Más probable (4.ª)</div>
+                            <div class="small text-muted">
+                                La normal <strong>corregida</strong> con la mediana del error de su clase
+                                (evidencia × tramo del horizonte). El motor no se equivoca parejo: con
+                                <code>cadena</code> y horizonte largo publica decenas de horas antes de lo que
+                                pasa. Se mide con el botón <em>Medir los sesgos</em>; con el sesgo apagado es
+                                igual a la normal.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-secondary">
+                        <div class="card-body py-2">
+                            <div class="fw-bold text-secondary">Consenso (5.ª)</div>
+                            <div class="small text-muted">
+                                El <strong>promedio</strong> de la rápida, la normal y la más probable.
+                                Promediar baja la varianza, así que gana el acierto por tolerancia
+                                (±30m / ±1h / ±3h) más seguido que cualquiera de las tres por separado, pero
+                                casi nunca es la más cercana cuando compiten. Se publica para poder medirlo.
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="alert alert-light border mt-3 mb-0 small">
                 El <strong>rápido nunca es menor que el traslado medido</strong>: el camión no puede llegar antes de lo
                 que tarda el viaje. Si el cálculo cae dentro de una franja en la que el camión nunca hace nada
-                (su descanso), las tres fechas se corren al final de esa franja.
+                (su descanso), las fechas se corren al final de esa franja.
             </div>
         </div>
     </div>
@@ -249,8 +284,11 @@ JSON;
                 <div class="card-body">
                     <table class="table table-sm mb-0 small">
                         <tbody>
-                        <tr><td><code>presenta_rapido</code> / <code>presenta</code> / <code>presenta_tardado</code></td><td>las tres fechas</td></tr>
-                        <tr><td><code>presentaciones</code></td><td>las tres con etiqueta y <code>desde_ahora</code> en <code>h:mm</code></td></tr>
+                        <tr><td><code>presenta_rapido</code> / <code>presenta</code> / <code>presenta_tardado</code></td><td>la banda: la temprana, la normal y la tardía</td></tr>
+                        <tr><td><code>presenta_probable</code></td><td>la <strong>cuarta</strong>: la normal corregida con la mediana del error de su clase. Con el sesgo apagado es igual a <code>presenta</code></td></tr>
+                        <tr><td><code>presenta_consenso</code></td><td>la <strong>quinta</strong>: el promedio de la rápida, la normal y la más probable. Gana por tolerancia (±30m/±1h/±3h); no siempre gana en "quién quedó más cerca"</td></tr>
+                        <tr><td><code>sesgo</code></td><td><code>clase</code> (evidencia × tramo del horizonte), <code>min</code> (cuánto se corrió; negativo = se adelantó) y <code>aplicado</code></td></tr>
+                        <tr><td><code>presentaciones</code></td><td>las cinco fechas con etiqueta y <code>desde_ahora</code> en <code>h:mm</code>: <code>rapido</code>, <code>normal</code>, <code>tardado</code>, <code>probable</code>, <code>consenso</code></td></tr>
                         <tr><td><code>inicio_carga</code></td><td>presenta normal + espera en planta</td></tr>
                         <tr><td><code>espera_hhmm</code></td><td>la espera en planta, en <code>h:mm</code></td></tr>
                         <tr><td><code>duracion_total_hhmm</code></td><td>del ancla a la presentación normal (puede pasar de 24 h: <code>96:27</code>)</td></tr>
@@ -325,7 +363,11 @@ JSON;
                         <li>La hora cambia cuando entra un hito nuevo, no cada minuto: cachear ~5 minutos por ref.</li>
                         <li>Reintentar solo en 500 (1s, 2s, 4s).</li>
                         <li>Usar <code>presentaciones[].desde_ahora</code> para mostrar "en 3:15" sin dividir minutos.</li>
-                        <li>Mostrar las tres fechas y la confianza: una sola hora sin contexto se malinterpreta.</li>
+                        <li>Mostrar las fechas publicadas y la confianza: una sola hora sin contexto se malinterpreta.
+                            Si tenés que elegir una, la <strong>más probable</strong> es la que mejor MAE da; el
+                            <strong>consenso</strong> es el que más veces cae dentro de ±1h / ±3h.</li>
+                        <li>Comparar solo filas que tengan TODAS las fechas: si una no está, esa fila no entra
+                            (así ninguna gana por tener más casos fáciles).</li>
                         <li>Para predecir sin viaje en curso, mandar <code>ubicacion</code> (local o ubigeo).</li>
                     </ul>
                 </div>
@@ -409,8 +451,10 @@ php artisan prediccion:calibrar --aplicar   # guarda en prediccion_config</pre>
 
     <div class="alert alert-secondary small">
         ¿Dónde quedan los resultados? Cada predicción (de la pantalla o del API) se guarda en la tabla
-        <code>prediccion_resultados</code> con las tres fechas. Cuando la referencia consigue su presentación real,
-        se compara contra lo guardado y el porcentaje de éxito aparece en
+        <code>prediccion_resultados</code> con la normal, la rápida y la tardada; la <strong>más probable</strong> y
+        el <strong>consenso</strong> viajan dentro del campo <code>desglose</code> (no hay columnas nuevas: en
+        producción no se puede migrar). Cuando la referencia consigue su presentación real, se compara contra lo
+        guardado y el porcentaje de éxito aparece en
         <a href="{{ route('lupita.prediccion.aciertos') }}">la tabla de aciertos</a>.
     </div>
 

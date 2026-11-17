@@ -449,6 +449,10 @@ class PrediccionApiController extends Controller
             // clase (evidencia x tramo del horizonte). Si el sesgo está apagado es
             // igual a `presenta`.
             'presenta_probable' => self::fecha($resultado->presenta_probable ?? $resultado->presenta),
+            // QUINTA fecha: el consenso (promedio de la rápida, la normal y la
+            // cuarta). Se publica para poder MEDIRLO: gana por tolerancia, no en
+            // "quién quedó más cerca".
+            'presenta_consenso' => self::fecha($resultado->presenta_consenso ?? null),
             'sesgo' => [
                 'clase' => $resultado->sesgo_clase ?? null,
                 // minutos que se corrió la hora publicada: negativo = se adelantó

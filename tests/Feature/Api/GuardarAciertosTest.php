@@ -52,8 +52,55 @@ class GuardarAciertosTest extends TestCase
             DB::table('prediccion_resultados')->where('origen', self::ORIGEN)->count());
     }
 
-    public function test_el_resumen_ve_lo_guardado_en_el_rango(): void
+    /**
+     * La cuarta fecha y el CONSENSO tienen que quedar guardados en `desglose`.
+     *
+     * Se rompió una vez: `desgloseJson()` los escribe a partir del resultado del
+     * motor, pero este camino arma un objeto a mano con `presenta_probable` y se
+     * olvidó `presenta_consenso`, así que las predicciones se guardaban sin
+     * consenso y la pantalla mostraba "sin dato" para siempre.
+     */
+    public function test_guarda_la_cuarta_fecha_y_el_consenso_en_el_desglose(): void
     {
+        $aciertos = Servicio::backtest(['desde' => '2026-11-01', 'hasta' => '2026-11-10', 'limite' => 5]);
+
+        if ($aciertos->filas === []) {
+            $this->markTestSkipped('la base no tiene filas en ese rango');
+        }
+
+        DBPrediccionResultados::guardar_filas($aciertos->filas, self::ORIGEN);
+
+        $conConsenso = 0;
+        $filas = DB::table('prediccion_resultados')->where('origen', self::ORIGEN)->get(['ref', 'desglose']);
+
+        foreach ($filas as $fila) {
+            $datos = json_decode($fila->desglose, true);
+            $this->assertIsArray($datos);
+            $this->assertArrayHasKey('probable', $datos, 'falta la cuarta fecha en ' . $fila->ref);
+            $this->assertArrayHasKey('consenso', $datos, 'falta el consenso en ' . $fila->ref);
+
+            if (is_string($datos['consenso'] ?? null) && $datos['consenso'] !== '') {
+                $conConsenso++;
+            }
+        }
+
+        $this->assertGreaterThan(0, $conConsenso, 'ninguna fila guardó el consenso');
+
+        // y el resumen lo puede leer de vuelta
+        $resumen = DBPrediccionResultados::resumen(
+            \Carbon\Carbon::parse('2026-11-01'), \Carbon\Carbon::parse('2026-11-16'), 2000, self::ORIGEN, 50);
+
+        $conFecha = 0;
+        foreach ($resumen['comparables'] as $comparable) {
+            if (($comparable->consenso ?? null) !== null) {
+                $conFecha++;
+            }
+        }
+
+        $this->assertGreaterThan(0, $conFecha, 'el resumen no ve el consenso guardado');
+    }
+
+    public function test_el_resumen_ve_lo_guardado_en_el_rango(): void    {
         $desde = '2026-11-07';
         $hasta = '2026-11-13';
         $aciertos = Servicio::backtest(['desde' => $desde, 'hasta' => $hasta, 'limite' => 40]);

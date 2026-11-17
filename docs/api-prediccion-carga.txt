@@ -2170,6 +2170,31 @@ evidencia. Hay tres niveles.
                      gana las tolerancias chicas pero pierde +-3h y la carrera. Por
                      eso NO se usa para publicar la hora en lugar de nada: se mide.
 
+  1.28 14/11/2026  - EL CONSENSO NO SE GUARDABA DESDE LA TABLA DE ACIERTOS.
+                     Habia dos caminos de guardado y solo uno lo escribia:
+                       - `guardar()` (pantalla y API) pasa el resultado del motor
+                         entero a `desgloseJson()`, asi que guardaba bien;
+                       - `guardar_filas()` (boton "Guardar estas predicciones" de
+                         la tabla de aciertos) arma a mano un objeto con
+                         `presenta_probable` y se olvidaba `presenta_consenso`, asi
+                         que esas filas quedaban SIN consenso en `desglose` y la
+                         pantalla de guardadas mostraba "sin dato" para siempre.
+                     Arreglado y con test de regresion
+                     (`GuardarAciertosTest::test_guarda_la_cuarta_fecha_y_el_consenso_en_el_desglose`),
+                     que ademas verifica que el resumen lo lea de vuelta.
+                     OJO: lo guardado ANTES de este arreglo no tiene consenso en
+                     `desglose` (no hay como reconstruirlo: la hora de los bordes
+                     depende de la ventana que estaba en uso). Esas filas se
+                     saltan al comparar y el check dice cuantas "sin dato" hay; se
+                     llenan volviendo a predecir y guardar.
+
+                     Tambien se actualizo el TEXTO del API (`/lupita/prediccion/
+                     documentacion`): el ejemplo del JSON, la seccion "Las cinco
+                     fechas" (antes "las tres"), la tabla de campos y las buenas
+                     practicas. Un test (`DocumentacionApiTest`) falla si la
+                     documentacion vuelve a decir tres fechas o si le falta
+                     `presenta_probable` / `presenta_consenso`.
+
 ================================================================================
  FIN
 ================================================================================
