@@ -510,6 +510,7 @@ class PrediccionController extends Controller
             'fecha_fin' => 'nullable|date',
             'origen' => 'nullable|string|max:10',
             'local' => 'nullable|string|max:100',
+            'horizonte' => 'nullable|integer|in:' . implode(',', self::HORIZONTES_ACIERTOS),
             'limite' => 'nullable|integer|in:' . implode(',', self::FILAS_GUARDADAS),
         ]);
 
@@ -526,11 +527,20 @@ class PrediccionController extends Controller
         // para que las dos varas de la pantalla hablen del mismo local.
         $local = trim((string) $request->input('local', ''));
 
+        // HORIZONTE = tope en horas entre el ancla y la presentación real (0 = sin
+        // tope). Las filas con horizonte mayor quedan fuera de TODAS las métricas de
+        // la pantalla, igual que en la tabla de aciertos.
+        $horizonte = (int) $request->input('horizonte', 0);
+        if (!in_array($horizonte, self::HORIZONTES_ACIERTOS, true)) {
+            $horizonte = 0;
+        }
+
         $filtros = [
             'desde' => $desde,
             'hasta' => $hasta,
             'origen' => trim((string) $request->input('origen', '')),
             'local' => $local,
+            'horizonte' => $horizonte,
             'limite' => $limite,
         ];
 
@@ -563,7 +573,7 @@ class PrediccionController extends Controller
 
         $tablero = self::tablero_guardadas($desde, $hasta, $resumen,
             $request->boolean('refrescar'), $seleccionFechas, $request->boolean('promediar'),
-            $local !== '' ? $local : null, $limite);
+            $local !== '' ? $local : null, $limite, $horizonte);
 
         if ($avisoFechas !== null) {
             $tablero['fechas']['aviso'] = $avisoFechas;
@@ -573,6 +583,7 @@ class PrediccionController extends Controller
             'filtros' => $filtros,
             'origenes' => self::ORIGENES_GUARDADAS,
             'limites' => self::FILAS_GUARDADAS,
+            'horizontes' => self::HORIZONTES_ACIERTOS,
             // plantas para el combo con búsqueda (local donde presenta a cargar)
             'plantas' => \App\Database\DBPrediccion::plantas_carga(),
             'resumen' => $resumen,
@@ -598,7 +609,7 @@ class PrediccionController extends Controller
     private static function tablero_guardadas(string $desde, string $hasta, array $resumen,
                                               bool $refrescar = false, ?array $seleccionFechas = null,
                                               bool $promediarFechas = false, ?string $local = null,
-                                              int $limiteMotor = 300): array
+                                              int $limiteMotor = 300, int $horizonteMaxH = 0): array
     {
         $tolerancia = \App\Database\DBPrediccionResultados::TOLERANCIA_ACEPTADA;
         $comparables = $resumen['comparables'] ?? [];
@@ -611,6 +622,33 @@ class PrediccionController extends Controller
         // no: medido, hasta 6 h el MAE es ~340 min y pasando 24 h el acierto a ±3 h
         // cae al 6 %. Se calcula con los hitos de la placa en una sola consulta.
         $horizontes = self::horizontes_produccion($comparables, $inicio, $fin);
+
+        // FILTRO POR HORIZONTE: se quedan las filas cuyo horizonte real entra en el
+        // tope pedido (0 = sin tope). Las que no tienen horizonte calculable (sin
+        // ancla) también quedan fuera cuando se pide un tope, y se informan aparte.
+        $fueraHorizonte = 0;
+        $sinHorizonte = 0;
+
+        if ($horizonteMaxH > 0) {
+            $tope = $horizonteMaxH * 60;
+            $comparables = array_values(array_filter($comparables, function ($fila) use ($tope, &$fueraHorizonte, &$sinHorizonte) {
+                $minutos = $fila->horizonte_min ?? null;
+
+                if ($minutos === null) {
+                    $sinHorizonte++;
+
+                    return false;
+                }
+
+                if ((int) $minutos > $tope) {
+                    $fueraHorizonte++;
+
+                    return false;
+                }
+
+                return true;
+            }));
+        }
 
         // ---- producción: lo guardado que ya presentó -------------------------
         $produccion = [
@@ -627,6 +665,11 @@ class PrediccionController extends Controller
             'horizonte_n' => $horizontes['n'],
             'horizonte_corto' => $horizontes['corto'],
             'horizonte_largo' => $horizontes['largo'],
+            // filtro por horizonte: qué tope se pidió y cuántas filas dejó afuera
+            'horizonte_filtro' => $horizonteMaxH,
+            'horizonte_fuera' => $fueraHorizonte,
+            'horizonte_sin' => $sinHorizonte,
+            'horizonte_dentro' => count($comparables),
         ];
 
         // las cuatro fechas publicadas, cada una con su error y su escalera.
@@ -663,8 +706,9 @@ class PrediccionController extends Controller
             $limiteMotor > 0 ? $limiteMotor : self::FILAS_MOTOR_TOPE,
             self::FILAS_MOTOR_TOPE));
 
-        $llave = 'prediccion:guardadas:motor:v3:'
-            . md5($inicio->toDateString() . '|' . $fin->toDateString() . '|' . (string) $local . '|' . $limiteMotorEfectivo);
+        $llave = 'prediccion:guardadas:motor:v4:'
+            . md5($inicio->toDateString() . '|' . $fin->toDateString() . '|' . (string) $local
+                . '|' . $limiteMotorEfectivo . '|' . $horizonteMaxH);
 
         if ($refrescar) {
             \Illuminate\Support\Facades\Cache::forget($llave);
@@ -684,6 +728,8 @@ class PrediccionController extends Controller
                     'limite' => $limiteMotorEfectivo,
                     // misma planta de carga que el filtro de la pantalla
                     'planta' => $local,
+                    // y el mismo tope de horizonte (0 = sin tope)
+                    'horizonte_max_h' => $horizonteMaxH,
                 ])
             );
         } catch (\Throwable $e) {
@@ -697,6 +743,9 @@ class PrediccionController extends Controller
         if ($corrida !== null) {
             $motor = [
                 'n' => count($corrida->filas),
+                // cuántas de esas filas entran en las métricas (con tope de horizonte)
+                'dentro' => (int) ($corrida->resumen_motor->n ?? 0),
+                'fuera_tope' => (int) ($corrida->fuera_tope ?? 0),
                 // con cuántas refs se midió (el combo puede pedir más)
                 'limite' => $limiteMotorEfectivo,
                 'resumen' => $corrida->resumen_motor,
@@ -1244,6 +1293,7 @@ class PrediccionController extends Controller
             'fecha_fin' => $request->input('fecha_fin'),
             'origen' => $request->input('origen'),
             'local' => $request->input('local'),
+            'horizonte' => $request->input('horizonte'),
             'limite' => $request->input('limite'),
         ], fn ($valor) => $valor !== null && $valor !== '');
     }

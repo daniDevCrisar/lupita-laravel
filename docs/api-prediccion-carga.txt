@@ -2467,6 +2467,33 @@ evidencia. Hay tres niveles.
                      reproduce el caso (camion en viaje + banda de +-10 h) y exige
                      rapido > ahora y delta normal -2:00.
 
+  1.37 18/11/2026  - FILTRO POR HORIZONTE en guardadas. Select "Horizonte" con los
+                     mismos valores que la tabla de aciertos (sin tope / hasta 6 / 12
+                     / 24 / 48 / 72 h). El horizonte de cada fila guardada es el que
+                     ya calculaba `horizontes_produccion()`: desde el ULTIMO evento
+                     real de la placa antes del corte hasta la presentacion real. Con
+                     tope, las filas que lo pasan (y las que no tienen ancla) quedan
+                     fuera de TODAS las metricas de la pantalla: produccion, las
+                     cuatro fechas, la tabla de KPI por tolerancia y la corrida del
+                     motor (`backtest` recibe `horizonte_max_h`). La llave de cache
+                     del motor paso a v4 (incluye el horizonte).
+                     La pantalla informa cuantas quedaron fuera y cuantas sin ancla,
+                     y el encabezado del motor muestra "N dentro del horizonte / M
+                     fuera" (antes decia el total evaluado, que no era lo medido).
+                     Aviso en el borrado: el horizonte es una medida por fila, no un
+                     filtro de la base, asi que "Borrar las de este rango" borra el
+                     rango completo.
+
+                     MEDIDO en local (01-sep..16-nov, 1826 filas comparables):
+                       sin tope  1826 dentro -    0 fuera
+                       <= 6 h     606         1220
+                       <= 12 h    958          868
+                       <= 24 h   1200          626
+                       <= 48 h   1458          368
+                       <= 72 h   1612          214
+                     O sea: dos tercios del historial guardado son horizontes de mas
+                     de 6 h, que es justo donde el motor no acierta.
+
 ================================================================================
  FIN
 ================================================================================

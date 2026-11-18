@@ -89,7 +89,19 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-2">
+                    {{-- tope de horizonte: el motor acierta con horizontes cortos y no
+                         con los de días; esto deja fuera las filas que lo pasan --}}
+                    <label class="form-label" for="horizonte">Horizonte</label>
+                    <select name="horizonte" id="horizonte" class="form-select">
+                        @foreach($horizontes ?? [0] as $opcion)
+                            <option value="{{ $opcion }}" @selected((int) ($filtros['horizonte'] ?? 0) === (int) $opcion)>
+                                {{ (int) $opcion === 0 ? 'sin tope' : 'hasta ' . $opcion . ' h' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
                     {{-- local donde el camión se presenta a cargar (planta de carga) --}}
                     @include('lupita.tools.selector', [
                         'nombre' => 'local',
@@ -116,6 +128,14 @@
                             filtrando por <strong>{{ $filtros['local'] }}</strong>
                         </span>
                     @endif
+                    @if((int) ($filtros['horizonte'] ?? 0) > 0)
+                        <span class="align-self-center small text-muted">
+                            · horizonte <strong>≤ {{ (int) $filtros['horizonte'] }} h</strong>
+                            ({{ (int) ($prod['horizonte_dentro'] ?? 0) }} filas dentro,
+                            {{ (int) ($prod['horizonte_fuera'] ?? 0) }} fuera @if((int) ($prod['horizonte_sin'] ?? 0) > 0),
+                            {{ (int) $prod['horizonte_sin'] }} sin ancla @endif
+                        </span>
+                    @endif
                 </div>
             </form>
 
@@ -137,6 +157,10 @@
                     Borra de <code>prediccion_resultados</code> las predicciones cuyo <strong>corte</strong> cae en el
                     rango @if($filtros['origen'] !== ''), del origen <strong>{{ $filtros['origen'] }}</strong>@endif @if(($filtros['local'] ?? '') !== ''), del local <strong>{{ $filtros['local'] }}</strong>@endif.
                     El motor se recalibra seguido: lo guardado con otro modelo ensucia el acierto.
+                    @if((int) ($filtros['horizonte'] ?? 0) > 0)
+                        <strong>Ojo:</strong> el horizonte es una medida de cada fila, no un filtro de la
+                        base: se borra todo el rango (no sólo las de ≤ {{ (int) $filtros['horizonte'] }} h).
+                    @endif
                 </span>
             </form>
         </div>
@@ -288,6 +312,7 @@
                             <input type="hidden" name="origen" value="{{ $filtros['origen'] }}">
                             <input type="hidden" name="limite" value="{{ $filtros['limite'] }}">
                             <input type="hidden" name="local" value="{{ $filtros['local'] ?? '' }}">
+                            <input type="hidden" name="horizonte" value="{{ (int) ($filtros['horizonte'] ?? 0) }}">
                             <span class="small text-muted">comparar:</span>
                             @foreach($opcionesFechas as $opcion)
                                 <div class="form-check form-check-inline m-0">
@@ -544,6 +569,13 @@
                 @if($motor !== null)
                     {{ $motor['n'] }} filas · corrida {{ $motor['desde'] }} → {{ $motor['hasta'] }} ·
                     cacheada 10 min
+                    @if((int) ($motor['fuera_tope'] ?? 0) > 0)
+                        <span class="badge bg-warning text-dark"
+                              title="con el tope de horizonte, estas filas no entran en las métricas del motor">
+                            {{ (int) $motor['dentro'] }} dentro del horizonte ·
+                            {{ (int) $motor['fuera_tope'] }} fuera
+                        </span>
+                    @endif
                     @if((int) ($filtros['limite'] ?? 0) === 0 || (int) $filtros['limite'] > (int) ($motor['limite'] ?? 0))
                         <span class="badge bg-warning text-dark"
                               title="la corrida no puede pasar de este tope: más filas agotan la memoria del host">
