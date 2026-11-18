@@ -1,0 +1,136 @@
+[
+    {
+        "link": "https://gps.lidermanalarmas.com/?lang=es",
+        "credenciales": "user: Idonesin123 | pass: Idones2026+",
+        "comentario": "idones",
+        "placas": [
+            "B4N881",
+            "B7F782",
+            "B9Z847",
+            "C6P765",
+            "C7P819",
+            "V7T775"
+        ]
+    },
+    {
+        "link": "https://gps.lidermanalarmas.com/?lang=es",
+        "credenciales": "user: NORACLIENTES | pass: Nora40441239.",
+        "comentario": "Nora",
+        "placas": [
+            "B4J933",
+            "B8N785"
+        ]
+    },
+    {
+        "link": "https://s1.jerzugps.com/track/Track?page=login",
+        "credenciales": "cuenta: monitoreo | user: talcantara | pass: 999781234",
+        "comentario": "TRANSPORT COMPANY ALCANTARA S.A.C.",
+        "placas": [
+            "D9M918",
+            "D7G864",
+            "ATA934"
+        ]
+    },
+    {
+        "link": "https://tracker.naviogps.com/objects",
+        "credenciales": "user: sabinotorrestorres2@gmail.com | pass: 123456Ab",
+        "comentario": "LevExp - sabino torres",
+        "placas": [
+            "APU865",
+            "C9B827",
+            "D9T814",
+            "T3P873"
+        ]
+    },
+    {
+        "link": "https://gpsv4.j2f.pe/Account/Login",
+        "credenciales": "user: LICAMPOS | pass: 23471",
+        "comentario": "Logistica Inversiones Campos (LICAMPOS)",
+        "placas": [
+            "AKZ934",
+            "ASR732",
+            "BAT942",
+            "D3M701"
+        ]
+    },
+    {
+        "link": "https://gpsv4.j2f.pe/Account/Login",
+        "credenciales": "user: AHUAMAN | pass: 24796",
+        "comentario": "Huaman Ccorimanya Aquilino (AHUAMAN)",
+        "placas": [
+            "A6W897"
+        ]
+    },
+    {
+        "link": "https://gpsv4.j2f.pe/Account/Login",
+        "credenciales": "user: ANDAHUAYLAS | pass: 63800",
+        "comentario": "H & F Corporacion Andahuaylas (ANDAHUAYLAS)",
+        "placas": [
+            "V8W816"
+        ]
+    },
+    {
+        "link": "https://gpsv4.j2f.pe/Account/Login",
+        "credenciales": "user: ETAGPERU | pass: 16579",
+        "comentario": "Etagperu Sac (ETAGPERU)",
+        "placas": [
+            "A1U890",
+            "BKK741",
+            "F1E712"
+        ]
+    },
+    {
+        "link": "https://gpsv4.j2f.pe/Account/Login",
+        "credenciales": "user: GLFERNANDO | pass: 93376",
+        "comentario": "Grupo Logístico Fernando S.A.C.",
+        "placas": [
+            "CBQ804"
+        ]
+    },
+    {
+        "link": "https://gpsv4.j2f.pe/Account/Login",
+        "credenciales": "user: JFLORES | pass: 89375",
+        "comentario": "Flores Cadillo Joni",
+        "placas": [
+            "C4V742"
+        ]
+    },
+    {
+        "link": "https://gpsv4.j2f.pe/Account/Login",
+        "credenciales": "user: JPALACIOS | pass: 69322",
+        "comentario": "Jose Abel Palacios Campos",
+        "placas": [
+            "D9S818"
+        ]
+    },
+    {
+        "link": "https://gpsv4.j2f.pe/Account/Login",
+        "credenciales": "user: JMALLQUI | pass: 24961",
+        "comentario": "Mallqui Andrada Jhonatan",
+        "placas": [
+            "D7G923"
+        ]
+    },
+    {
+        "link": "https://plataforma.seguriper.com.pe/authentication/create",
+        "credenciales": "user: transportes.aguero@seguriper.gps | pass: Aguerot@26",
+        "comentario": "Transportes Aguero - Sin grupo",
+        "placas": [
+            "D1F769",
+            "D1F770",
+            "D1F771",
+            "F4W866",
+            "F9T858"
+        ]
+    },
+    {
+        "link": "https://plataforma.seguriper.com.pe/authentication/create",
+        "credenciales": "user: emma@seguriper.gps | pass: Bolivia@25",
+        "comentario": "expiradas: Placas A3P932 y B3F811",
+        "placas": [
+            "A3P932",
+            "B3F811",
+            "B4N882"
+        ]
+    }
+]

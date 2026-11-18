@@ -254,16 +254,24 @@ CAMPOS DE LA RESPUESTA
                    hueco; ahora sale de los RESIDUOS del backtest (ver 12.5):
                    con la ventana medida el `rapido`/`tardado` cubre el 70 % de
                    los casos, con el p25-p75 del hueco cubria el 31-35 %.
+                   PISO FISICO: nunca antes de "quedar libre del viaje en curso +
+                   volver a la planta de carga". Si el adelanto medido es mas ancho
+                   que lo que le falta al camion, se acota ahi y se avisa con
+                   `banda_acotada` (antes se recortaba a `ahora` y publicaba "0:00"
+                   con el camion a medio viaje). Ver 1.36.
   presenta_tardado la hora mas el atraso medido (misma fuente que el rapido).
   presenta_probable
                    la CUARTA fecha: la normal corregida con la mediana del error
                    de su clase (evidencia x tramo del horizonte). Con el sesgo
-                   apagado es igual a `presenta`. Ver 1.21.
+                   apagado es igual a `presenta`. Con sesgo aplicado tambien se
+                   acota al piso fisico si la correccion se pasaba de largo
+                   (`sesgo_acotado`). Ver 1.21 y 1.36.
   presenta_consenso
                    la QUINTA fecha: el promedio de rapido, normal y probable. Se
                    publica para MEDIRLO: con las guardadas gana el acierto por
                    tolerancia (+-30m/+-1h/+-3h) y en el backtest de octubre
-                   tambien gano "mas cerca" (26 % contra 19 %). Ver 1.27 y 1.32.
+                   tambien gano "mas cerca" (26 % contra 19 %). Siempre queda
+                   DENTRO de [rapido, tardado]. Ver 1.27 y 1.32.
 
 CUAL FECHA USAR (MEDIDO, 3.085 PRESENTACIONES REALES)
   El orden, de mas a menos probable dentro del margen:
@@ -594,6 +602,13 @@ puntos. Un consumidor puede filtrar por clave sin parsear el texto.
                           El hueco medido es menor que el traslado promedio de
                           la ruta. Se respeta el medido (es el dato real).
                           -> Nada; es informativo.
+  banda_acotada           El adelanto medido dejaba el rapido antes de lo
+                          fisicamente posible (el camion todavia tiene que quedar
+                          libre y volver a cargar), asi que se acoto al piso.
+                          -> Nada; antes eso publicaba "0:00". Ver 1.36.
+  sesgo_acotado           La correccion por clase mandaba la cuarta fecha antes
+                          del piso fisico; se acoto.
+                          -> Nada; la fisica manda. Ver 1.36.
   desplazamiento_maximo   La prediccion se movio por una franja inactiva pero
                           toco el tope (10 h): puede quedar dentro de la franja.
                           -> Revisar `desglose.espera_ventana`.
@@ -2374,6 +2389,83 @@ evidencia. Hay tres niveles.
                      Los `pasos` NO cambian: siguen siendo la linea de tiempo de la
                      normal (ancla → traslado → descansos → esperas), que es la que
                      se suma y cuadra. `sesgo`, `ventana` y `historia` tampoco.
+
+  1.34 14/11/2026  - EL LAYOUT REVENTABA SIN SESION (produccion). Sintoma: en
+                     /lupita/referencias "error de servidor" con
+                     "Call to a member function canAny() on null" en el layout
+                     compilado; en local nunca se veia porque uno esta logueado.
+                     Causa: `layouts/app.blade.php` llamaba a
+                     `auth()->user()->canAny(...)` en TRES menus y a
+                     `auth()->user()->name` en el menu de usuario sin preguntar si
+                     habia sesion. Cuando el middleware `permission:` corta la
+                     request, Laravel dibuja `errors/403` (que hereda ese layout) y
+                     ahi el usuario es NULL: el 403 se convertia en un 500.
+                     Arreglo: los tres `canAny` van con `auth()->check() &&`, y todo
+                     el menu de usuario quedo dentro de `@auth ... @else` (invitado:
+                     un boton "Entrar"). Tests: `LayoutSinSesionTest` dibuja el 403
+                     sin sesion y comprueba que las rutas con permiso no respondan
+                     500.
+                     OJO AL DESPLEGAR: si se suben los .blade.php sin que cambie la
+                     fecha de modificacion, Laravel NO recompila y sigue sirviendo el
+                     layout viejo; hay que borrar `storage/framework/views/*.php`.
+                     Y si despues de esto la pantalla dice "Acceso restringido", ya
+                     no es un bug: al usuario le falta el permiso `ver referencias`.
+
+  1.35 14/11/2026  - /lupita/referencias MORIA POR TIMEOUT: SE QUITO EL COMBO DE
+                     RUTAS. Al agregar el selector con busqueda en la consulta de
+                     referencias habia que llenarlo con
+                     `DBTiemposPromedio::rutas()`, que arma el nombre con CUATRO
+                     SUBCONSULTAS CORRELACIONADAS POR FILA:
+                       SELECT r.*,
+                         (SELECT nombre FROM locales WHERE id = r.origen_id),
+                         (SELECT nombre FROM locales WHERE id = r.destino_id),
+                         (SELECT distrito FROM ubigeo_distritos WHERE ubigeo = r.ubigeo_origen),
+                         (SELECT distrito FROM ubigeo_distritos WHERE ubigeo = r.ubigeo_destino)
+                       FROM rutas r ORDER BY r.id
+                     En local son 270 rutas y 0,33 s; con la tabla de rutas grande
+                     del hosting eso se pasa del tiempo del servidor y la pagina
+                     muere por "Request Timeout" (y el usuario ve un 500/504 sin
+                     traza). Y buscar en el combo (miles de opciones en el DOM)
+                     tampoco era gratis.
+                     DECISION: se quita el combo de la consulta de referencias y
+                     vuelve el CAMPO DE TEXTO de antes (`name="ruta"`,
+                     placeholder "origen o destino..."), que filtra por LIKE sin
+                     traer ningun catalogo. El controlador ya no consulta `rutas` en
+                     ningun camino y `DBPrediccion::rutas_para_selector()` se borro
+                     (quedo muerto). MEDIDO: la pantalla abre en 0,05 s y el filtro
+                     por texto responde en 1,5 s.
+                     El selector compartido sigue en las pantallas que ya lo usaban
+                     (tiempos promedio / ver / horario) sin cambios.
+
+  1.36 18/11/2026  - EL RAPIDO CAIA EN "AHORA" (bug de produccion). Caso: ref
+                     1186631, corte 18/11 12:18, camion a mitad de viaje en Puente
+                     Piedra rumbo a Huaral. La API publicaba:
+                       presenta_rapido   18/11 12:18  (desde_ahora 0:00)
+                       presenta          19/11 05:41  (17:23)
+                     El adelanto medido (17:23) era igual al horizonte, asi que
+                     restarlo daba una hora pasada y el codigo la recortaba contra
+                     `ahora` a secas: "se presenta en 0:00" con el camion a 63 km de
+                     la planta. Imposible: primero termina el viaje y vuelve.
+
+                     ARREGLO: PISO FISICO = `max(t_fin, ahora) + traslado`, o sea
+                     cuando el camion queda libre del viaje en curso MAS la vuelta a
+                     la planta de carga. Se aplica a:
+                       - el RAPIDO: si el adelanto medido lo manda mas atras, se
+                         acota ahi y se avisa `banda_acotada` (la construccion de la
+                         fecha lo dice: "acotado al minimo fisico");
+                       - la CUARTA: si el sesgo de la clase la manda antes del piso,
+                         se acota y se avisa `sesgo_acotado`. Con el sesgo apagado
+                         NO se toca (sigue siendo identica a la normal);
+                       - el CONSENSO: se acota para que quede siempre dentro de
+                         [rapido, tardado] (con la cuarta posterior a la normal el
+                         promedio podia caer antes del rapido).
+                     La NORMAL no se toca a proposito: cuando el hueco medido es
+                     menor que el traslado el motor ya avisa
+                     `hueco_menor_que_traslado` y respeta el dato real.
+
+                     Tests: `MotorPresentaTest::test_el_rapido_no_cae_en_ahora_con_el_camion_a_mitad_de_viaje`
+                     reproduce el caso (camion en viaje + banda de +-10 h) y exige
+                     rapido > ahora y delta normal -2:00.
 
 ================================================================================
  FIN

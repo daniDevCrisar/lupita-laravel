@@ -65,8 +65,7 @@ class MotorPresentaTest extends TestCase
         $this->assertSame(285, collect($r->desglose)->firstWhere('concepto', 'restante_viaje')['min']);
     }
 
-    public function test_el_tramo_desde_la_ubicacion_declarada_reemplaza_la_ida(): void
-    {
+    public function test_el_tramo_desde_la_ubicacion_declarada_reemplaza_la_ida(): void    {
         // El camión va en viaje y el operador declaró dónde está: lo que le falta
         // de la ida es el ruteo desde ese punto hasta el destino (60'), no la
         // mediana de la ruta contada desde el hito. Después de llegar, la
@@ -169,19 +168,22 @@ class MotorPresentaTest extends TestCase
 
         // presenta 09:00 + 300' = 14:00
         $this->assertSame('2026-11-14 14:00', $r->presenta->format('Y-m-d H:i'));
-        // OJO: la banda medida se centra en la HORA PUBLICADA, no en el hueco.
-        // Rápido pediría 14:00 - 600' = 04:00, que ya pasó (ahora es 10:00), así
-        // que se recorta al corte. Antes se recortaba contra el traslado (180' ->
-        // 12:00), y eso dejaba la banda asimétrica y la cobertura en la mitad.
-        $this->assertSame('2026-11-14 10:00', $r->presenta_rapido->format('Y-m-d H:i'));
+        // La banda medida se centra en la HORA PUBLICADA, pero el rápido no puede
+        // ser antes de lo físicamente posible: el camión tiene que volver a cargar.
+        // 14:00 − 600' daría 04:00 (ya pasó) y recortarlo al corte daba "0:00 hoy",
+        // que es imposible; el piso es ahora + traslado = 10:00 + 180' = 13:00.
+        $this->assertSame('2026-11-14 13:00', $r->presenta_rapido->format('Y-m-d H:i'));
         // tardado = 14:00 + 900' = 05:00 del día siguiente
         $this->assertSame('2026-11-15 05:00', $r->presenta_tardado->format('Y-m-d H:i'));
         // la ventana publicada es la misma banda, y se dice de dónde salió
         $this->assertSame('residuos', $r->ventana_fuente);
-        $this->assertSame('2026-11-14 10:00', $r->ventana['desde']->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 13:00', $r->ventana['desde']->format('Y-m-d H:i'));
         $this->assertSame('2026-11-15 05:00', $r->ventana['hasta']->format('Y-m-d H:i'));
         $this->assertEqualsWithDelta(0.7, (float) $r->ventana_cobertura, 0.001);
         $this->assertStringContainsString('error real', $r->presentaciones[0]['descripcion']);
+        // y avisa que la banda se acotó
+        $this->assertStringContainsString('banda_acotada', implode(' | ', $r->advertencias));
+        $this->assertStringContainsString('mínimo físico', $r->presentaciones[0]['construccion']);
     }
 
     public function test_la_ventana_medida_queda_simetrica_alrededor_de_la_hora_publicada(): void
@@ -203,6 +205,42 @@ class MotorPresentaTest extends TestCase
         $derecha = (int) round(($r->presenta_tardado->getTimestamp() - $r->presenta->getTimestamp()) / 60);
         $this->assertSame(600, $izquierda, 'el adelanto medido tiene que llegar completo');
         $this->assertSame(600, $derecha, 'el atraso medido tiene que llegar completo');
+    }
+
+    /**
+     * El rápido NO puede caer en `ahora` (el bug de producción de la ref 1186631).
+     *
+     * Con el camión a mitad de viaje y una banda medida más ancha que lo que le
+     * falta, restar el adelanto da una fecha pasada y el código la recortaba al
+     * corte: la API publicaba "se presenta en 0:00" con el camión en Puente Piedra
+     * rumbo a Huaral. El piso tiene que ser lo físicamente posible: quedar libre
+     * del viaje en curso + volver a la planta de carga.
+     */
+    public function test_el_rapido_no_cae_en_ahora_con_el_camion_a_mitad_de_viaje(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'ancla' => (object) ['hito' => 'inicio_ruta', 'cerrada' => false,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+            // la banda (±10 h) es mucho más ancha que lo que le falta al camión
+            'ventana_residuos' => (object) ['adelanto' => 600, 'atraso' => 700, 'cobertura' => 0.7],
+        ]));
+
+        // normal 18:45 (13:45 de quedar libre + 300' de hueco); el piso es
+        // 13:45 + traslado 180' = 16:45
+        $this->assertSame('2026-11-14 18:45', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 16:45', $r->presenta_rapido->format('Y-m-d H:i'));
+
+        // y por lo tanto NO es el corte
+        $minutos = (int) round(($r->presenta_rapido->getTimestamp() - $r->ahora->getTimestamp()) / 60);
+        $this->assertGreaterThan(0, $minutos, 'el rápido no puede ser "ahora"');
+        $this->assertSame('6:45', $r->presentaciones[0]['desde_ahora']);
+        $this->assertSame(-120, $r->presentaciones[0]['delta_normal_min']);
+        $this->assertStringContainsString('mínimo físico', $r->presentaciones[0]['construccion']);
+        $this->assertStringContainsString('banda_acotada', implode(' | ', $r->advertencias));
+
+        // el consenso se arma con el rápido ya acotado, así que tampoco es "ahora"
+        $this->assertGreaterThan($r->presenta_rapido->getTimestamp(), $r->presenta_consenso->getTimestamp());
+        $this->assertLessThanOrEqual($r->presenta->getTimestamp(), $r->presenta_consenso->getTimestamp());
     }
 
     public function test_la_cadena_usa_su_propia_banda_cuando_esta_medida(): void
@@ -693,7 +731,9 @@ class MotorPresentaTest extends TestCase
         ]));
 
         $this->assertSame(0, $sin->sesgo_min);
-        $this->assertSame('2026-11-14 11:00', $sin->presenta_rapido->format('Y-m-d H:i'));
+        // el rápido pediría 13:00 − 120' = 11:00, pero el camión necesita el
+        // traslado (180') desde ahora (10:00): el piso físico es 13:00 = la normal
+        $this->assertSame('2026-11-14 13:00', $sin->presenta_rapido->format('Y-m-d H:i'));
         $this->assertSame('2026-11-14 16:20', $sin->presenta_tardado->format('Y-m-d H:i'));
 
         // con sesgo −200: la misma banda, corrida a la cuarta fecha (16:20)

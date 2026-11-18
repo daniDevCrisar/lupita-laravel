@@ -315,11 +315,33 @@ final class MotorPresenta
         //
         // Se calcula ANTES de la banda porque la banda rápida/tardado se dibuja
         // sobre la hora que se va a usar, no sobre la que se descartó.
+        // PISO FÍSICO: el camión no puede presentarse antes de quedar libre del viaje
+        // que tiene en curso y volver a la planta de carga. Lo usan la cuarta fecha y
+        // el rápido: sin piso, corregir el sesgo o restar una banda más ancha que el
+        // horizonte publicaba horas imposibles (una incluso igual a `ahora`).
+        $libre = $tFin->greaterThan($ahora) ? $tFin->copy() : $ahora->copy();
+        $minimoFisico = $libre->addMinutes(max(0, (int) $trasladoMin));
+
         $horizontePredicho = (int) round(($t->getTimestamp() - $ahora->getTimestamp()) / 60);
         $sesgoMin = Sesgo::desplazamiento($evidencia, $horizontePredicho, $p);
         $salida->presenta_probable = $sesgoMin === 0 ? $t->copy() : $t->copy()->subMinutes($sesgoMin);
         $salida->sesgo_clase = Sesgo::clase($evidencia, $horizontePredicho);
         $salida->sesgo_min = $sesgoMin;
+
+        // Con el sesgo apagado la cuarta fecha es EXACTAMENTE la normal (no se toca:
+        // media docena de cosas dependen de eso). Con sesgo aplicado, si la
+        // corrección la manda antes del piso físico, la física manda… salvo que el
+        // piso quede DESPUÉS de la normal (hueco medido menor que el traslado): ahí
+        // el que está raro es el hueco, y la normal ya se avisa aparte.
+        if ($sesgoMin !== 0
+            && $minimoFisico->lessThanOrEqualTo($t)
+            && $salida->presenta_probable->lessThan($minimoFisico)) {
+            $salida->presenta_probable = $minimoFisico->copy();
+            $salida->advertencias[] = 'sesgo_acotado: la corrección de la clase ('
+                . (string) $salida->sesgo_clase . ': ' . $sesgoMin . ' min) se salía de lo'
+                . ' físicamente posible; la cuarta fecha se acotó al mínimo'
+                . ' (quedar libre + volver a cargar)';
+        }
 
         // las otras dos fechas: rápido y tardado.
         // Fuente preferida: los RESIDUOS medidos del backtest (radio alrededor de
@@ -327,6 +349,8 @@ final class MotorPresenta
         // los cuantiles del hueco (p25/p75) o el porcentaje de la cadena.
         $ventanaMedida = is_object($e->ventana_residuos ?? null) ? $e->ventana_residuos : null;
         $radio = self::radio_ventana($ventanaMedida, $evidencia);
+        // ¿el rápido se acotó al mínimo físico? (se avisa en la construcción)
+        $rapidoAcotado = false;
 
         if ($radio !== null) {
             // La banda medida va centrada en la HORA PUBLICADA, que es sobre lo que
@@ -348,9 +372,34 @@ final class MotorPresenta
             $rapido = $centro->copy()->subMinutes($radio['adelanto']);
             $tardado = $centro->copy()->addMinutes($radio['atraso']);
 
-            if ($rapido->lessThan($ahora)) {
+            // FÍSICA: el rápido no puede ser antes de que el camión quede libre del
+            // viaje que tiene en curso y vuelva a la planta de carga. Antes se
+            // recortaba contra `ahora` a secas, así que cuando la banda (medida)
+            // era más ancha que el horizonte el rápido salía igual a `ahora`: "se
+            // presenta en 0:00" con el camión a medio viaje. Caso real (ref
+            // 1186631): ahora 12:18, adelanto 17:23 → rápido = ahora, imposible
+            // estando en Puente Piedra rumbo a Huaral. El piso ya está calculado
+            // arriba (el mismo que usa la cuarta fecha).
+            $rapidoAcotado = false;
+            if ($rapido->lessThan($minimoFisico)) {
+                $rapido = $minimoFisico->copy();
+                $rapidoAcotado = true;
+            } elseif ($rapido->lessThan($ahora)) {
                 $rapido = $ahora->copy();
+                $rapidoAcotado = true;
             }
+            // y nunca después de la normal: el rápido es el borde temprano
+            if ($rapido->greaterThan($centro)) {
+                $rapido = $centro->copy();
+            }
+
+            if ($rapidoAcotado) {
+                $salida->advertencias[] = 'banda_acotada: la banda medida se salía de lo físicamente'
+                    . ' posible; el rápido se acotó a ' . Tiempo::hhmm((int) round(
+                        ($rapido->getTimestamp() - $ahora->getTimestamp()) / 60))
+                    . ' (quedar libre + volver a cargar)';
+            }
+
             // el tardado nunca queda antes de la hora publicada ni del centro
             if ($tardado->lessThan($t)) {
                 $tardado = $t->copy();
@@ -398,10 +447,21 @@ final class MotorPresenta
         // horas casi nunca es el extremo. Se publica para poder MEDIRLO.
         $salida->presenta_consenso = self::consenso($ahora, $rapido, $t, $salida->presenta_probable);
 
+        // el consenso se publica DENTRO de la banda: si el promedio cae antes del
+        // rápido (pasa cuando la cuarta es posterior a la normal), se acota. Sin
+        // esto la API mostraba un consenso anterior al rápido, que es absurdo.
+        if ($salida->presenta_consenso->lessThan($rapido)) {
+            $salida->presenta_consenso = $rapido->copy();
+        }
+        if ($salida->presenta_consenso->greaterThan($tardado)) {
+            $salida->presenta_consenso = $tardado->copy();
+        }
+
         $salida->presentaciones = self::presentaciones($ahora, $rapido, $t, $tardado, $salida->presenta_probable,
             $salida->presenta_consenso, $cal, $ventanaMedida !== null ? 'residuos' : null,
             $sesgoMin, $salida->sesgo_clase,
-            $ventanaMedida !== null ? ($ventanaMedida->cobertura ?? null) : null);
+            $ventanaMedida !== null ? ($ventanaMedida->cobertura ?? null) : null,
+            $rapidoAcotado ?? false);
         $salida->inicio_carga = $t->copy()->addMinutes($espera);
         $salida->espera_min = $espera;
         $salida->evidencia = $evidencia;
@@ -554,7 +614,8 @@ final class MotorPresenta
     private static function presentaciones(Carbon $ahora, Carbon $rapido, Carbon $normal, Carbon $tardado,
                                           Carbon $probable, ?Carbon $consenso, ?object $cal,
                                           ?string $fuente = null, int $sesgoMin = 0,
-                                          ?string $sesgoClase = null, ?float $cobertura = null): array
+                                          ?string $sesgoClase = null, ?float $cobertura = null,
+                                          bool $rapidoAcotado = false): array
     {
         $desde = fn (Carbon $fecha) => Tiempo::hhmm((int) round(($fecha->getTimestamp() - $ahora->getTimestamp()) / 60));
         // minutos entre una fecha y la normal (negativo = antes)
@@ -566,6 +627,11 @@ final class MotorPresenta
         $banda = $fuente === 'residuos'
             ? 'banda medida' . ($cobertura !== null ? ' (cubre ' . (int) round(100 * $cobertura) . ' %)' : '')
             : $nivel;
+        // cuando el rápido se acota al mínimo físico, la construcción lo dice
+        $construccionRapido = $rapidoAcotado
+            ? 'normal ' . self::delta_texto($delta($rapido))
+                . ' · acotado al mínimo físico (quedar libre + volver a cargar)'
+            : 'normal ' . self::delta_texto($delta($rapido)) . ' · ' . $banda;
         $centro = $consenso ?? $normal;
 
         return [
@@ -577,7 +643,7 @@ final class MotorPresenta
                 'desde_ahora' => $desde($rapido),
                 // cómo se armó: es el extremo temprano de la banda de la normal
                 'delta_normal_min' => $delta($rapido),
-                'construccion' => 'normal ' . self::delta_texto($delta($rapido)) . ' · ' . $banda,
+                'construccion' => $construccionRapido,
             ],
             [
                 'clave' => 'normal',

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Database\DBConsultarReferencias;
 use App\Database\DBRutas;
-use App\Database\DBTiemposPromedio;
 use Illuminate\Http\Request;
 
 class ReferenciasController extends Controller
@@ -23,9 +22,6 @@ class ReferenciasController extends Controller
                 'mapa'          => ['origen' => [], 'destino' => []],
                 'topRutas'      => [],
                 'depas'         => DBRutas::$depas,
-                // el selector de ruta necesita el catálogo aun sin filtros: si no,
-                // la pantalla abre con el desplegable vacío
-                'rutas'         => DBTiemposPromedio::rutas(),
                 'filtrando'     => false,
                 'noEncontradas' => [],
                 'etapas'        => DBConsultarReferencias::ETAPAS_LABELS,
@@ -62,9 +58,6 @@ class ReferenciasController extends Controller
             'mapa'          => $mapa,
             'topRutas'      => $topRutas,
             'depas'         => DBRutas::$depas,
-            // catalogo para el selector con búsqueda (tools/selector): antes la ruta
-            // era un texto libre y habia que adivinar el nombre
-            'rutas'         => DBTiemposPromedio::rutas(),
             'filtrando'     => true,
             'noEncontradas' => $noEncontradas,
             'etapas'        => DBConsultarReferencias::ETAPAS_LABELS,

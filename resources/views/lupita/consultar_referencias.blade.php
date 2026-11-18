@@ -59,20 +59,11 @@
                         <small class="text-white-50">Varias refs: separadas por coma, espacio o una por linea.</small>
                     </div>
                     <div class="col-md-2">
-                        @include('lupita.tools.selector', [
-                            'nombre' => 'ruta',
-                            'id' => 'ruta',
-                            'etiqueta' => 'Ruta',
-                            'tamano' => 'sm',
-                            'opciones' => collect($rutas ?? [])->map(fn ($ruta, $id) => [
-                                'valor' => (string) $id,
-                                'texto' => (string) $ruta->nombre,
-                                'extra' => (string) $id,
-                            ])->values()->all(),
-                            'todas' => 'Todas las rutas',
-                            'valor' => (string) request('ruta', ''),
-                            'ayuda' => 'Busca por ruta, origen o destino.',
-                        ])
+                        {{-- texto libre como antes: el combo con búsqueda de rutas
+                             se quitó porque era lo que trababa la pantalla --}}
+                        <label class="form-label" for="ruta">Ruta</label>
+                        <input type="text" id="ruta" name="ruta" value="{{ request('ruta') }}"
+                               class="form-control" placeholder="origen o destino...">
                     </div>
                     <div class="col-12 d-flex flex-wrap gap-3">
                         <div class="form-check">
@@ -402,8 +393,6 @@
 @endsection
 
 @section('scripts')
-    {{-- selector compartido con búsqueda: ver lupita/tools/selector.blade.php --}}
-    <script src="{{ asset('js/lupita-selectores.js') }}"></script>
     @if(!empty($noEncontradas))
         <script>
             (function () {

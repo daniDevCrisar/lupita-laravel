@@ -61,7 +61,7 @@
                 </li>
                 @endcan
 
-                @if(auth()->user()->canAny(['ver conductores', 'gestionar duplicados conductores']))
+                @if(auth()->check() && auth()->user()->canAny(['ver conductores', 'gestionar duplicados conductores']))
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
                        role="button"
@@ -108,7 +108,7 @@
                     </ul>
                 </li>
                 @endcan
-                @if(auth()->user()->canAny(['ver tiempos', 'compilar promedios']))
+                @if(auth()->check() && auth()->user()->canAny(['ver tiempos', 'compilar promedios']))
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
                        role="button"
@@ -165,7 +165,7 @@
                 </li>
                 @endcan
                 <!-- 🔽 MENÚ DESPLEGABLE -->
-                @if(auth()->user()->canAny(['importar json', 'importar excel', 'importar vapi', 'ver lista de lotes']))
+                @if(auth()->check() && auth()->user()->canAny(['importar json', 'importar excel', 'importar vapi', 'ver lista de lotes']))
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
                        role="button"
@@ -237,6 +237,10 @@
                 </li>
                 @endcan
 
+                {{-- el menú de usuario necesita sesión: la página de error 403
+                     hereda este layout y ahí NO hay usuario (antes reventaba con
+                     "Call to a member function canAny() on null") --}}
+                @auth
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#"
                        role="button"
@@ -285,6 +289,15 @@
                         </li>
                     </ul>
                 </li>
+                @else
+                <li class="nav-item">
+                    {{-- url() y no route('login'): si la app del hosting tiene otro
+                         nombre de ruta, route() reventaría TODAS las páginas --}}
+                    <a class="nav-link" href="{{ url('/login') }}">
+                        <i class="bi bi-box-arrow-in-right"></i> Entrar
+                    </a>
+                </li>
+                @endauth
 
             </ul>
         </div>

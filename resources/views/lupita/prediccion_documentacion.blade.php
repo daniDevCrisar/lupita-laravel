@@ -248,7 +248,10 @@ JSON;
                             <div class="small text-muted">
                                 Si el camión vuelve como sus mejores viajes: el cuantil 25 del hueco real
                                 (o −30 % de la cadena cuando no hay historia). Nunca es menor que el
-                                traslado medido. Sirve para el extremo optimista, no como hora.
+                                traslado medido —y tampoco antes de que el camión quede libre del viaje
+                                en curso y vuelva a cargar: si el adelanto medido se pasa de ahí, se acota
+                                y se avisa con <code>banda_acotada</code>. Sirve para el extremo optimista,
+                                no como hora.
                             </div>
                         </div>
                     </div>
@@ -394,6 +397,10 @@ JSON;
                         <li><code>etapa_vencida</code> — el viaje en curso ya consumió su etapa sin hitos nuevos.</li>
                         <li><code>espera_ventana</code> (paso) — la hora cayó en su franja de descanso o almuerzo.</li>
                         <li><code>hueco_menor_que_traslado</code> — el hueco medido es menor que el traslado: manda el medido.</li>
+                        <li><code>banda_acotada</code> — la banda dejaba el rápido antes de lo físicamente posible
+                            (el camión todavía tiene que quedar libre y volver): se acotó al piso.</li>
+                        <li><code>sesgo_acotado</code> — la corrección por clase mandaba la cuarta fecha antes del
+                            piso físico: se acotó.</li>
                     </ul>
                 </div>
             </div>

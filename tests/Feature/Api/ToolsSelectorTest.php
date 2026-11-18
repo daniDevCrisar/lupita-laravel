@@ -97,11 +97,13 @@ class ToolsSelectorTest extends TestCase
     {
         $this->autenticar();
 
+        // referencias NO va en esta lista: se le quitó el combo de rutas porque
+        // llenarlo costaba 4 subconsultas por ruta y en el hosting la pantalla
+        // moría por timeout. Volvió al campo de texto libre.
         $pantallas = [
             'lupita.tiempos.promedio' => ['ruta_id' => 3],          // ruta + 2 departamentos
             'lupita.tiempos.promedio.ver' => ['ruta_id' => 3],
             'lupita.tiempos.promedio.horario.ver' => ['ruta_id' => 1],
-            'lupita.referencias' => ['ruta' => 1],
         ];
 
         foreach ($pantallas as $nombre => $esperados) {
@@ -112,5 +114,19 @@ class ToolsSelectorTest extends TestCase
                 substr_count($html, 'data-selector="simple"'), $nombre . ': cantidad de selectores');
             $this->assertStringNotContainsString('data-combo', $html, $nombre . ' todavía usa el combo viejo');
         }
+    }
+
+    /** La consulta de referencias volvió al filtro de ruta por texto libre. */
+    public function test_referencias_usa_texto_libre_para_la_ruta(): void
+    {
+        $this->autenticar();
+
+        $html = (string) $this->get(route('lupita.referencias'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="ruta" name="ruta"', $html, 'falta el campo de texto de ruta');
+        $this->assertStringNotContainsString('data-selector="simple"', $html,
+            'referencias no tiene que cargar el combo de rutas');
+        $this->assertStringNotContainsString('lupita-selectores.js', $html);
+        $this->assertStringNotContainsString('Todas las rutas', $html);
     }
 }
