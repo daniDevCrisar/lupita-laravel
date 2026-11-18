@@ -298,6 +298,75 @@ class TableroGuardadasTest extends TestCase
     }
 
     /**
+     * Los cuatro desgloses (evidencia, horizonte, confianza y origen) ahora
+     * comparan las CINCO fechas DENTRO de cada tramo. Antes medían sólo la normal,
+     * así que no se veía lo único que importa: que en `cadena`, con confianza baja
+     * o pasando 24 h, la mejor fecha publicada es otra.
+     */
+    public function test_cada_desglose_compara_las_cinco_fechas_dentro_del_tramo(): void
+    {
+        [$vista, $tablero] = $this->vista();
+        $this->exigirComparables($tablero);
+
+        $desgloses = $tablero['produccion']['fechas_por'];
+        $this->assertSame(['evidencia', 'horizonte', 'confianza', 'origen'], array_keys($desgloses));
+
+        // la selección efectiva es la misma que la de la tabla cara a cara
+        $seleccion = $tablero['fechas']['seleccion'];
+
+        $sumas = [];
+        foreach ($desgloses as $clave => $desglose) {
+            $this->assertSame($clave, $desglose['clave']);
+            $this->assertSame(\App\Prediccion\Tablero::dimension_titulo($clave), $desglose['titulo']);
+            $this->assertSame($seleccion, array_column($desglose['fechas'], 'clave'),
+                'los desgloses comparan las mismas fechas que se tildaron');
+            $this->assertNotEmpty($desglose['filas'], 'el rango tiene datos: ' . $clave);
+
+            $suma = 0;
+            foreach ($desglose['filas'] as $fila) {
+                $suma += (int) $fila['n'];
+                $this->assertGreaterThan(0, (int) $fila['n']);
+                $this->assertCount(count($seleccion), $fila['celdas']);
+
+                // el MAE marcado es el más bajo de la fila
+                $maes = array_filter(array_column($fila['celdas'], 'mae'), fn ($mae) => $mae !== null);
+                $this->assertSame(min($maes), (int) $fila['celdas'][$fila['mejor']]['mae'],
+                    'el verde de la fila ' . $fila['clave'] . ' tiene que ser el MAE más bajo');
+            }
+
+            $sumas[$clave] = $suma;
+        }
+
+        // las cuatro tablas se miden sobre el MISMO conjunto (filas completas)
+        $this->assertCount(1, array_unique($sumas), 'los cuatro cuadros tienen que sumar el mismo n');
+        $this->assertLessThanOrEqual((int) $tablero['produccion']['errores']['n'], reset($sumas),
+            'el cara a cara no puede tener más filas que la producción');
+
+        // el horizonte aclara que se mide desde el ancla, igual que el filtro de arriba
+        $this->assertSame('horizonte desde el ancla (el que filtra el tope de arriba)',
+            $desgloses['horizonte']['nota']);
+        $this->assertNull($desgloses['evidencia']['nota']);
+
+        $html = (string) $vista->render();
+        $this->assertStringContainsString('Las cinco fechas dentro de cada segmento', $html);
+        $this->assertStringContainsString('Más cerca', $html);
+        $this->assertStringContainsString('el MAE más bajo de cada tramo va en verde', $html);
+    }
+
+    public function test_los_desgloses_siguen_las_fechas_tildadas(): void
+    {
+        [, $tablero] = $this->vistaCon(['comparar' => '1', 'fechas' => ['normal', 'tardado']]);
+        $this->exigirComparables($tablero);
+
+        foreach ($tablero['produccion']['fechas_por'] as $clave => $desglose) {
+            $this->assertSame(['normal', 'tardado'], array_column($desglose['fechas'], 'clave'), $clave);
+            foreach ($desglose['filas'] as $fila) {
+                $this->assertCount(2, $fila['celdas'], 'con dos tildadas no puede haber cinco celdas');
+            }
+        }
+    }
+
+    /**
      * Sin predicciones guardadas que ya presentaron no hay qué comparar: el
      * rango de prueba se queda sin datos cuando se recarga la base.
      */

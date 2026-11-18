@@ -526,6 +526,198 @@ final class Tablero
     }
 
     /**
+     * Desglose de las CINCO fechas por segmento: evidencia, horizonte, confianza u
+     * origen.
+     *
+     * Antes cada desglose medía sólo la normal, así que no se veía lo que importa:
+     * que en `cadena` o pasando 24 h la mejor fecha es otra. Acá cada celda trae el
+     * MAE y el acierto en la tolerancia de esa fecha DENTRO del tramo, y la fila
+     * marca el mejor MAE y quién gana la carrera de "más cerca" en ese tramo.
+     *
+     * Es cara a cara: sólo entran filas que tengan TODAS las fechas elegidas, así
+     * ninguna gana por tener más filas que las otras.
+     *
+     * @param  array<int, object>  $filas  comparables de producción
+     * @param  array<int, string>|null  $seleccion  fechas a comparar (null = las cinco)
+     * @return array{clave: string, titulo: string, nota: ?string,
+     *               fechas: array<int, array{clave: string, etiqueta: string}>,
+     *               filas: array<int, array<string, mixed>>}
+     */
+    public static function fechas_por(array $filas, string $dimension, int $tolerancia = 180,
+                                      ?array $seleccion = null): array
+    {
+        $seleccion = self::limpiar_seleccion($seleccion);
+        $catalogo = self::catalogo_fechas();
+        [$orden, $clave] = self::dimension($dimension);
+
+        $grupos = [];
+        foreach ($filas as $fila) {
+            $errores = [];
+
+            foreach ($seleccion as $fecha) {
+                $campo = $catalogo[$fecha]['campo'];
+                $valor = $fila->{$campo} ?? null;
+                if ($valor === null) {
+                    continue 2;     // sin todas las fechas no compite
+                }
+                $errores[$campo] = (int) $valor;
+            }
+
+            $grupos[(string) $clave($fila)][] = $errores;
+        }
+
+        // orden pedido primero; lo que sobre va al final (sin fecha, corte posterior)
+        $nombres = array_keys($grupos);
+        $nombres = array_merge(
+            array_values(array_filter($orden, fn (string $nombre) => in_array($nombre, $nombres, true))),
+            array_values(array_filter($nombres, fn (string $nombre) => !in_array($nombre, $orden, true))));
+
+        $cuadro = [];
+        foreach ($nombres as $nombre) {
+            $celdas = [];
+            $mejor = null;
+
+            foreach ($seleccion as $fecha) {
+                $campo = $catalogo[$fecha]['campo'];
+                $resumen = Aciertos::resumir(array_map(fn (array $error) => $error[$campo], $grupos[$nombre]));
+
+                $celdas[] = [
+                    'clave' => $fecha,
+                    'mae' => $resumen->mae_min,
+                    'pct' => $resumen->{'pct_' . $tolerancia} ?? null,
+                    'mediana' => $resumen->mediana_error_min,
+                    'n' => $resumen->n,
+                ];
+
+                if ($resumen->mae_min !== null
+                    && ($mejor === null || $resumen->mae_min < (int) $celdas[$mejor]['mae'])) {
+                    $mejor = count($celdas) - 1;
+                }
+            }
+
+            // quién gana la carrera de "más cerca" DENTRO del tramo. No sirve
+            // Aciertos::carrera() acá: acá las filas son arreglos de errores, no
+            // objetos con `error_*_min`, así que se cuenta sobre lo ya resumido.
+            $veces = [];
+            foreach ($seleccion as $fecha) {
+                $veces[$fecha] = 0;
+            }
+
+            foreach ($grupos[$nombre] as $error) {
+                $ganadoraFila = null;
+                foreach ($seleccion as $fecha) {
+                    $campo = $catalogo[$fecha]['campo'];
+                    $absoluto = abs((int) $error[$campo]);
+                    if ($ganadoraFila === null || $absoluto < $ganadoraFila[1]) {
+                        $ganadoraFila = [$fecha, $absoluto];
+                    }
+                }
+
+                if ($ganadoraFila !== null) {
+                    $veces[$ganadoraFila[0]]++;
+                }
+            }
+
+            $ganadora = null;
+            $ganaPct = -1;
+            foreach ($seleccion as $fecha) {
+                $pct = (int) round(100 * $veces[$fecha] / count($grupos[$nombre]));
+                if ($pct > $ganaPct) {
+                    $ganaPct = $pct;
+                    $ganadora = $fecha;
+                }
+            }
+
+            $cuadro[] = [
+                'clave' => $nombre,
+                'n' => count($grupos[$nombre]),
+                'celdas' => $celdas,
+                'mejor' => $mejor,
+                'gana' => $ganadora,
+                'gana_pct' => $ganadora === null ? null : (int) $ganaPct,
+            ];
+        }
+
+        $fechas = [];
+        foreach ($seleccion as $fecha) {
+            $fechas[] = ['clave' => $fecha, 'etiqueta' => $catalogo[$fecha]['etiqueta']];
+        }
+
+        return [
+            'clave' => $dimension,
+            'titulo' => self::dimension_titulo($dimension),
+            'nota' => $dimension === 'horizonte'
+                ? 'horizonte desde el ancla (el que filtra el tope de arriba)'
+                : null,
+            'fechas' => $fechas,
+            'filas' => $cuadro,
+            'tolerancia' => $tolerancia,
+        ];
+    }
+
+    /** Cómo se llama cada desglose en pantalla. */
+    public static function dimension_titulo(string $dimension): string
+    {
+        return match ($dimension) {
+            'evidencia' => 'Por evidencia',
+            'horizonte' => 'Por horizonte',
+            'confianza' => 'Por confianza declarada',
+            'origen' => 'Por origen',
+            default => 'Por ' . $dimension,
+        };
+    }
+
+    /**
+     * Orden de los tramos y cómo se calcula la clave de cada fila.
+     *
+     * @return array{0: array<int, string>, 1: callable(object): string}
+     */
+    private static function dimension(string $dimension): array
+    {
+        return match ($dimension) {
+            'evidencia' => [
+                ['medido', 'parcial', 'cadena', 'sin_datos'],
+                static fn ($fila) => (string) ($fila->evidencia ?? 'sin_datos'),
+            ],
+            'origen' => [
+                ['api', 'aciertos', 'pantalla'],
+                static fn ($fila) => (string) ($fila->origen ?? '—'),
+            ],
+            'confianza' => [
+                array_map(fn (array $tramo) => $tramo[0] . '–' . $tramo[1], self::TRAMOS_CONFIANZA),
+                static function ($fila) {
+                    $confianza = max(0, min(100, (int) ($fila->confianza ?? 0)));
+                    foreach (self::TRAMOS_CONFIANZA as [$desde, $hasta]) {
+                        if ($confianza >= $desde && $confianza <= $hasta) {
+                            return $desde . '–' . $hasta;
+                        }
+                    }
+
+                    return '96–100';
+                },
+            ],
+            'horizonte' => [
+                array_column(self::TRAMOS_HORIZONTE, 0),
+                static function ($fila) {
+                    $minutos = $fila->horizonte_min ?? null;
+                    if ($minutos === null) {
+                        return 'sin ancla';
+                    }
+
+                    foreach (self::TRAMOS_HORIZONTE as [$etiqueta, $desde, $hasta]) {
+                        if ($minutos >= $desde && ($hasta === null || $minutos < $hasta)) {
+                            return $etiqueta;
+                        }
+                    }
+
+                    return $minutos < 0 ? 'corte posterior' : 'más de 24 h';
+                },
+            ],
+            default => [[], static fn ($fila) => '—'],
+        };
+    }
+
+    /**
      * Acierto del MONITORISTA: `compromiso_carga` (la hora que promete a mano)
      * contra la presentación real. Es la vara contra la que se mira el motor.
      *

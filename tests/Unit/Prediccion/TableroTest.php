@@ -471,4 +471,142 @@ class TableroTest extends TestCase
         $this->assertSame('±2h', Tablero::kpi_etiqueta(120));
         $this->assertSame('±12h', Tablero::kpi_etiqueta(720));
     }
+
+    // ---- las cinco fechas dentro de cada segmento -------------------------
+
+    /** Fila de producción con las cinco fechas y el segmento que se quiera medir. */
+    private function filaSegmento(array $errores, array $segmento = []): object
+    {
+        return (object) array_merge([
+            'error_rapido_min' => $errores[0] ?? null,
+            'error_min' => $errores[1] ?? null,
+            'error_tardado_min' => $errores[2] ?? null,
+            'error_probable_min' => $errores[3] ?? null,
+            'error_consenso_min' => $errores[4] ?? null,
+        ], $segmento);
+    }
+
+    public function test_fechas_por_compara_las_cinco_dentro_de_cada_evidencia(): void
+    {
+        $filas = [
+            // medido: rápido 30 / normal 600 / tardado 900 / probable 120 / consenso 90
+            $this->filaSegmento([30, 600, 900, 120, 90], ['evidencia' => 'medido']),
+            // medido: rápido 60 / normal 300 / tardado 700 / probable 40 / consenso 200
+            $this->filaSegmento([60, 300, 700, 40, 200], ['evidencia' => 'medido']),
+            // cadena: todo mal menos la normal
+            $this->filaSegmento([2000, 100, 3000, 1500, 1200], ['evidencia' => 'cadena']),
+        ];
+
+        $t = Tablero::fechas_por($filas, 'evidencia', 180);
+
+        $this->assertSame('evidencia', $t['clave']);
+        $this->assertSame('Por evidencia', $t['titulo']);
+        $this->assertNull($t['nota'], 'sólo el horizonte necesita aclarar de dónde sale');
+        $this->assertSame(180, $t['tolerancia']);
+        $this->assertSame(['Rápido', 'Normal', 'Tardado', 'Más probable', 'Consenso'],
+            array_column($t['fechas'], 'etiqueta'));
+
+        // orden del catálogo (medido, parcial, cadena) y sólo los que aparecen
+        $this->assertSame(['medido', 'cadena'], array_column($t['filas'], 'clave'));
+        $this->assertSame([2, 1], array_column($t['filas'], 'n'));
+
+        [$medido, $cadena] = $t['filas'];
+
+        // el MAE de cada fecha DENTRO del tramo
+        $this->assertSame([45, 450, 800, 80, 145], array_column($medido['celdas'], 'mae'));
+        // y el acierto en la tolerancia pedida
+        $this->assertSame([100, 0, 0, 100, 50], array_column($medido['celdas'], 'pct'));
+
+        $this->assertSame(0, $medido['mejor'], 'dentro de medido, el rápido es el más fino');
+        $this->assertSame(1, $cadena['mejor'], 'dentro de cadena la única que se salva es la normal');
+
+        // carrera de "más cerca" por tramo: 30 vs 40 (empate a 50 %, gana el primero publicado)
+        $this->assertSame('rapido', $medido['gana']);
+        $this->assertSame(50, $medido['gana_pct']);
+        $this->assertSame('normal', $cadena['gana']);
+        $this->assertSame(100, $cadena['gana_pct']);
+    }
+
+    public function test_fechas_por_saltea_la_fila_a_la_que_le_falta_una_fecha(): void
+    {
+        $completa = $this->filaSegmento([30, 60, 90, 120, 150], ['evidencia' => 'medido']);
+        $sinConsenso = $this->filaSegmento([30, 60, 90, 120, null], ['evidencia' => 'medido']);
+
+        $t = Tablero::fechas_por([$completa, $sinConsenso], 'evidencia', 180);
+
+        $this->assertSame(1, $t['filas'][0]['n'], 'la incompleta no compite con las cinco');
+        $this->assertSame([30, 60, 90, 120, 150], array_column($t['filas'][0]['celdas'], 'mae'));
+
+        // y si se piden sólo cuatro, la misma fila sí entra: no se pierde nada
+        $cuatro = Tablero::fechas_por([$completa, $sinConsenso], 'evidencia', 180,
+            ['rapido', 'normal', 'tardado', 'probable']);
+        $this->assertSame(2, $cuatro['filas'][0]['n']);
+        $this->assertCount(4, $cuatro['filas'][0]['celdas']);
+
+        // sin ninguna fila completa no inventa filas
+        $vacio = Tablero::fechas_por([$sinConsenso], 'evidencia', 180);
+        $this->assertSame([], $vacio['filas']);
+    }
+
+    public function test_fechas_por_horizonte_usa_el_tramo_desde_el_ancla(): void
+    {
+        $filas = [
+            $this->filaSegmento([30, 60, 90, 120, 150], ['horizonte_min' => 30]),
+            $this->filaSegmento([30, 60, 90, 120, 150], ['horizonte_min' => 600]),
+            $this->filaSegmento([30, 60, 90, 120, 150], ['horizonte_min' => 1500]),
+            $this->filaSegmento([30, 60, 90, 120, 150], ['horizonte_min' => null]),
+        ];
+
+        $t = Tablero::fechas_por($filas, 'horizonte', 180);
+
+        $this->assertSame(['hasta 1 h', '6 a 24 h', 'más de 24 h', 'sin ancla'],
+            array_column($t['filas'], 'clave'));
+        $this->assertSame([1, 1, 1, 1], array_column($t['filas'], 'n'));
+        $this->assertSame('horizonte desde el ancla (el que filtra el tope de arriba)', $t['nota']);
+        // la última fila (sin ancla) no es un tramo del catálogo: va al final igual
+        foreach ($t['filas'] as $fila) {
+            $this->assertSame(0, $fila['mejor']);
+            $this->assertSame('rapido', $fila['gana']);
+        }
+    }
+
+    public function test_fechas_por_confianza_arma_los_tramos_del_motor(): void
+    {
+        $filas = [
+            $this->filaSegmento([90, 60, 90, 120, 150], ['confianza' => 5]),
+            $this->filaSegmento([70, 60, 90, 120, 150], ['confianza' => 35]),
+            $this->filaSegmento([80, 60, 90, 120, 150], ['confianza' => 90]),
+            // fuera de rango: se acota a 100 y cae en el último tramo
+            $this->filaSegmento([120, 60, 90, 120, 150], ['confianza' => 150]),
+        ];
+
+        $t = Tablero::fechas_por($filas, 'confianza', 180);
+
+        $this->assertSame(['0–20', '21–40', '71–95', '96–100'], array_column($t['filas'], 'clave'));
+        $this->assertSame('Por confianza declarada', $t['titulo']);
+        $this->assertSame([1, 1, 1, 1], array_column($t['filas'], 'n'),
+            'un tramo por cada banda de confianza, sin mezclar');
+
+        // en los cuatro tramos la normal (60) es la más fina de la fila
+        foreach ($t['filas'] as $fila) {
+            $this->assertSame(1, $fila['mejor']);
+            $this->assertSame('normal', $fila['gana']);
+        }
+    }
+
+    public function test_fechas_por_origen_respeta_el_orden_del_catalogo(): void
+    {
+        $filas = [
+            $this->filaSegmento([90, 60, 90, 120, 150], ['origen' => 'pantalla']),
+            $this->filaSegmento([30, 60, 90, 120, 150], ['origen' => 'api']),
+        ];
+
+        $t = Tablero::fechas_por($filas, 'origen', 180);
+
+        $this->assertSame(['api', 'pantalla'], array_column($t['filas'], 'clave'),
+            'el orden es api, aciertos, pantalla; no el de aparición');
+        $this->assertSame('Por origen', $t['titulo']);
+        $this->assertSame('rapido', $t['filas'][0]['gana']);
+        $this->assertSame('normal', $t['filas'][1]['gana']);
+    }
 }

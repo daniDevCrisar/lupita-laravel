@@ -677,6 +677,15 @@ class PrediccionController extends Controller
         // Con `promediar` se agrega una fila más: el promedio de las elegidas.
         $cuatroFechas = Tablero::fechas($comparables, $tolerancia, $seleccionFechas, $promediarFechas);
 
+        // y las mismas fechas DENTRO de cada segmento: evidencia, horizonte,
+        // confianza y origen. Antes cada desglose medía sólo la normal.
+        $produccion['fechas_por'] = [
+            'evidencia' => Tablero::fechas_por($comparables, 'evidencia', $tolerancia, $seleccionFechas),
+            'horizonte' => Tablero::fechas_por($comparables, 'horizonte', $tolerancia, $seleccionFechas),
+            'confianza' => Tablero::fechas_por($comparables, 'confianza', $tolerancia, $seleccionFechas),
+            'origen' => Tablero::fechas_por($comparables, 'origen', $tolerancia, $seleccionFechas),
+        ];
+
         // Sin elección y sin NINGUNA fila completa, se cae a las fechas que sí
         // tienen datos: las guardadas viejas no traen la cuarta, y abrir la
         // pantalla con la tabla vacía parece que el motor dejó de medir.
@@ -695,6 +704,13 @@ class PrediccionController extends Controller
                 $cuatroFechas['aviso'] = 'Ninguna fila guardada en este rango tiene las cuatro fechas:'
                     . ' se comparan las que sí tienen datos (' . implode(', ', $etiquetas) . ').'
                     . ' Las demás guardadas se llenan prediciendo de nuevo.';
+
+                // Los cuatro desgloses siguen la misma elección: si se está
+                // midiendo un subconjunto de fechas, se mide ese subconjunto.
+                foreach (['evidencia', 'horizonte', 'confianza', 'origen'] as $dimension) {
+                    $produccion['fechas_por'][$dimension] = Tablero::fechas_por(
+                        $comparables, $dimension, $tolerancia, $conDatos);
+                }
             }
         }
 

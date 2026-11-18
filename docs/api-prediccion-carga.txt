@@ -2494,6 +2494,31 @@ evidencia. Hay tres niveles.
                      O sea: dos tercios del historial guardado son horizontes de mas
                      de 6 h, que es justo donde el motor no acierta.
 
+  1.38 18/11/2026  - LAS CINCO FECHAS DENTRO DE CADA SEGMENTO. Los cuatro cuadros
+                     de la tarjeta "Produccion" (evidencia, horizonte, confianza y
+                     origen) median solo la fecha normal: se veia el error del
+                     tramo pero no QUE FECHA convenia ahi. Ahora cada cuadro trae
+                     una columna por fecha publicada (rapido, normal, tardado, mas
+                     probable y consenso) con el MAE del tramo y, debajo, el
+                     acierto en la tolerancia pedida; el MAE mas bajo de cada fila
+                     va en verde y la ultima columna dice quien gana la carrera de
+                     "mas cerca" DENTRO del tramo, con su porcentaje.
+                     Es cara a cara: solo entran filas que tengan TODAS las fechas
+                     tildadas, asi ninguna gana por tener mas casos que las otras.
+                     Los cuatro cuadros siguen los checks de fechas de la pantalla
+                     (y "promediar" no los toca: ahi se comparan las publicadas).
+                     El cuadro de horizonte mide desde el ANCLA (el mismo horizonte
+                     que filtra el select de arriba) y lo dice al pie.
+                     Los cuatro cuadros viejos de produccion (medidos solo con la
+                     normal, de donde salian mediana, p90 y ventana) se quitan: el
+                     detalle de mediana/p90/ventana sigue en el cuadro del motor,
+                     que se mide sobre el backtest.
+                     Tablero::fechas_por() es puro y no usa Aciertos::carrera():
+                     aca las filas ya vienen resumidas por fecha.
+
+                     Los numeros no se copian en este documento a proposito: se
+                     leen en la pantalla, con el rango y los filtros que se elijan.
+
 ================================================================================
  FIN
 ================================================================================

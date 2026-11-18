@@ -525,36 +525,21 @@
                         guardada. Es la misma escalera que muestra la tabla de aciertos, para comparar las dos varas.
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="small fw-semibold">Por evidencia</div>
-                    @include('lupita.partials.prediccion_desglose', [
-                        'grupos' => $prod['por_evidencia'] ?? [],
-                        'titulo' => 'evidencia',
-                        'tolerancia' => $tolerancia,
-                    ])
-                </div>
-                <div class="col-md-6">
-                    <div class="small fw-semibold">Por horizonte (cuánto antes se dijo)</div>
-                    @include('lupita.partials.prediccion_desglose', [
-                        'grupos' => $prod['por_horizonte'] ?? [],
-                        'titulo' => 'horizonte',
-                        'tolerancia' => $tolerancia,
-                    ])
-                </div>
-                <div class="col-md-6">
-                    <div class="small fw-semibold">Por confianza declarada</div>
-                    @include('lupita.partials.prediccion_desglose', [
-                        'grupos' => $prod['por_confianza'] ?? [],
-                        'titulo' => 'confianza',
-                        'tolerancia' => $tolerancia,
-                    ])
-                </div>
-                <div class="col-md-6">
-                    <div class="small fw-semibold">Por origen</div>
-                    @include('lupita.partials.prediccion_desglose', [
-                        'grupos' => $prod['por_origen'] ?? [],
-                        'titulo' => 'origen',
-                        'tolerancia' => $tolerancia,
+                {{-- las cinco fechas DENTRO de cada segmento ------------------
+                     Estos son los cuatro cuadros: evidencia, horizonte, confianza
+                     y origen, cada uno con las cinco fechas lado a lado. Antes
+                     medían sólo la normal, así que no se veía que en `cadena`,
+                     con confianza baja o pasando 24 h la mejor fecha es otra. --}}
+                <div class="col-12">
+                    <div class="small fw-semibold mb-1">
+                        Las cinco fechas dentro de cada segmento
+                        <span class="text-muted fw-normal">
+                            (cara a cara: sólo filas con todas las fechas elegidas;
+                            el MAE más bajo de cada tramo va en verde)
+                        </span>
+                    </div>
+                    @include('lupita.partials.prediccion_fechas_por', [
+                        'desgloses' => $prod['fechas_por'] ?? [],
                     ])
                 </div>
             </div>
