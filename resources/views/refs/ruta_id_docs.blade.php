@@ -66,7 +66,7 @@
                     <li><span class="paso">0</span> Si trae <code>MULTIPARADA</code> → error, no se procesa.</li>
                     <li><span class="paso">1</span> Corta todo en el <b>primer</b> <code>/</code> (fechas, “CARGA 16.04”).</li>
                     <li><span class="paso">2</span> Separa origen y destino por <code>&#34; - &#34;</code>, si no por <code>-</code>, si no por <code>&#34; A &#34;</code>.</li>
-                    <li><span class="paso">3</span> Limpia el origen: paréntesis, prefijos (<code>ENVIO</code>, <code>DESPACHO</code>, <code>CARGA</code>, <code>RETORNO</code>, <code>RECOJO</code>) con <code>PT</code>/<code>PLANTA</code> opcional y sufijo <code>PT</code>/<code>PLANTA</code>.</li>
+                    <li><span class="paso">3</span> Limpia el origen: convierte los paréntesis en <b>espacio</b> (no los borra), quita prefijos (<code>ENVIO</code>, <code>DESPACHO</code>, <code>CARGA</code>, <code>RETORNO</code>, <code>RECOJO</code>) con <code>PT</code>/<code>PLANTA</code> opcional y sufijo <code>PT</code>/<code>PLANTA</code>.</li>
                     <li><span class="paso">4</span> Busca el local por <code>palabra_clave</code> (regex con <code>\b</code>, el <code>|</code> separa variantes).</li>
                     <li><span class="paso">5</span> Si no hay local, busca el distrito del ubigeo y usa el <b>ubigeo como id</b>.</li>
                     <li><span class="paso">6</span> Arma el id, guarda la ruta y actualiza la ref.</li>
@@ -109,15 +109,15 @@ ELSE
 END IF;</pre>
 
                 <p class="text-warning small mb-1"><b>Paso 3 — limpiar origen y destino</b></p>
-<pre class="docs-pre"><span class="c">-- origen: quitar paréntesis y el prefijo del tipo de movimiento</span>
-v_origen_limpio = REPLACE(REPLACE(v_origen_raw, '(', ''), ')', '');
+<pre class="docs-pre"><span class="c">-- origen: los parentesis se vuelven ESPACIO (no se borran), y luego el prefijo</span>
+v_origen_limpio = REPLACE(REPLACE(v_origen_raw, '(', ' '), ')', ' ');
 v_origen_limpio = REGEXP_REPLACE(v_origen_limpio,
     '^(ENVIO|DESPACHO|CARGA|RETORNO|RECOJO)\\s+(PT|PLANTA)?\\s*', '');
 v_origen_limpio = REGEXP_REPLACE(v_origen_limpio, '\\s*(PT|PLANTA)\\s*$', '');
 v_origen_limpio = TRIM(v_origen_limpio);
 
-<span class="c">-- destino: paréntesis y fechas sueltas al final (“-18/04/2026”)</span>
-v_destino_limpio = REPLACE(REPLACE(v_destino_raw, '(', ''), ')', '');
+<span class="c">-- destino: parentesis a espacio y fechas sueltas al final (“-18/04/2026”)</span>
+v_destino_limpio = REPLACE(REPLACE(v_destino_raw, '(', ' '), ')', ' ');
 v_destino_limpio = REGEXP_REPLACE(v_destino_limpio, '-\\d{2}/\\d{2}/\\d{4}$', '');
 v_destino_limpio = TRIM(v_destino_limpio);</pre>
 
@@ -322,14 +322,16 @@ function rutaIdDesdeTitulo(titulo, locales, distritos) {
   }
 
   // PASO 3: limpiar
+  // OJO: los parentesis se vuelven ESPACIO, no se borran (PUCALLPA(CORONADO)
+  // queda "PUCALLPA CORONADO" y asi SI matchea el local)
   const limpiarOrigen = (x) => x
-    .replace(/[()]/g, '')
+    .replace(/[()]/g, ' ')
     .replace(/^(ENVIO|DESPACHO|CARGA|RETORNO|RECOJO)\s+(PT|PLANTA)?\s*/, '')
     .replace(/\s*(PT|PLANTA)\s*$/, '')
     .trim();
 
   const limpiarDestino = (x) => x
-    .replace(/[()]/g, '')
+    .replace(/[()]/g, ' ')
     .replace(/-\d{2}\/\d{2}\/\d{4}$/, '')
     .trim();
 

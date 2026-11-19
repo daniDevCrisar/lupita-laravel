@@ -191,7 +191,78 @@
 
                 <div class="card bg-dark text-light border-secondary mt-3">
                     <div class="card-header text-light">
-                        <i class="bi bi-toggle-on"></i> Estado
+                        <i class="bi bi-geo-alt"></i> Ubicación
+                        <span class="text-white-50 small">— opcional, pero es lo que va a usar la predicción</span>
+                    </div>
+                    <div class="card-body">
+
+                        {{-- pegar el link de Maps --}}
+                        <label class="form-label text-light small mb-1" for="link-maps-local">
+                            Pegá el link de Google Maps
+                        </label>
+                        <div class="input-group input-group-sm mb-1">
+                            <input type="text" class="form-control" id="link-maps-local"
+                                   placeholder="https://www.google.com/maps/place/.../@-11.10,-77.45,17z">
+                            <button class="btn btn-outline-primary" type="button" id="btn-extraer-local">
+                                <i class="bi bi-magic"></i> Extraer
+                            </button>
+                        </div>
+                        <div class="form-text text-white-50 mb-2">
+                            Las coordenadas salen del propio link, sin API ni key. Copialo desde
+                            Google Maps → Compartir → Copiar link.
+                        </div>
+                        <div id="error-maps-local" class="alert alert-danger py-2 mb-2 d-none small"></div>
+
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-light small mb-1" for="lat">Latitud</label>
+                                <input type="text" inputmode="decimal"
+                                       class="form-control form-control-sm @error('lat') is-invalid @enderror"
+                                       id="lat" name="lat" value="{{ old('lat', $local->lat ?? '') }}"
+                                       placeholder="Ej: -11.106312">
+                                @error('lat')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-light small mb-1" for="lng">Longitud</label>
+                                <input type="text" inputmode="decimal"
+                                       class="form-control form-control-sm @error('lng') is-invalid @enderror"
+                                       id="lng" name="lng" value="{{ old('lng', $local->lng ?? '') }}"
+                                       placeholder="Ej: -77.451234">
+                                @error('lng')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="geo_fuente" name="geo_fuente"
+                               value="{{ old('geo_fuente', $local->geo_fuente ?? '') }}">
+                        <input type="hidden" id="geo_texto" name="geo_texto"
+                               value="{{ old('geo_texto', $local->geo_texto ?? '') }}">
+
+                        <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" id="btn-distrito">
+                                <i class="bi bi-pin-map"></i> Usar el centro del distrito
+                            </button>
+                            <a href="#" target="_blank" rel="noopener" id="ver-mapa-local"
+                               class="btn btn-outline-light btn-sm {{ (old('lat', $local->lat ?? '') === '' || old('lng', $local->lng ?? '') === '') ? 'd-none' : '' }}">
+                                <i class="bi bi-map"></i> Ver en el mapa
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm" type="button" id="btn-limpiar-coords">
+                                <i class="bi bi-eraser"></i> Quitar
+                            </button>
+                        </div>
+
+                        <div class="form-text text-white-50 mt-2">
+                            O las dos coordenadas o ninguna. Si las cargás a mano, quedan con fuente
+                            <code>manual</code>; con el link, <code>maps</code>; con el distrito,
+                            <code>distrito</code>.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-dark text-light border-secondary mt-3">
                     </div>
                     <div class="card-body">
                         <label class="form-label text-light" for="activo">Activo</label>
@@ -245,6 +316,134 @@
             var nombreInput = document.getElementById('nombre');
             var idInput = document.getElementById('id');
             var btnGenerar = document.getElementById('generar-id');
+
+            // ---------------------------------------------------------------
+            // Coordenadas: pegar el link de Google Maps o usar el centro del distrito
+            // ---------------------------------------------------------------
+            (function () {
+                var link = document.getElementById('link-maps-local');
+                var btn = document.getElementById('btn-extraer-local');
+                var error = document.getElementById('error-maps-local');
+                var lat = document.getElementById('lat');
+                var lng = document.getElementById('lng');
+                var fuente = document.getElementById('geo_fuente');
+                var geoTexto = document.getElementById('geo_texto');
+                var verMapa = document.getElementById('ver-mapa-local');
+                var btnDistrito = document.getElementById('btn-distrito');
+                var btnLimpiar = document.getElementById('btn-limpiar-coords');
+
+                if (!link || !btn || !lat || !lng) {
+                    return;
+                }
+
+                function actualizarMapa() {
+                    var ok = lat.value.trim() !== '' && lng.value.trim() !== '';
+                    if (ok) {
+                        verMapa.href = 'https://www.google.com/maps?q=' + lat.value.trim() + ',' + lng.value.trim();
+                        verMapa.classList.remove('d-none');
+                    } else {
+                        verMapa.classList.add('d-none');
+                    }
+                }
+
+                function mostrarError(mensaje) {
+                    error.textContent = mensaje;
+                    error.classList.remove('d-none');
+                }
+
+                btn.addEventListener('click', function () {
+                    error.classList.add('d-none');
+                    var valor = link.value.trim();
+                    if (!valor) {
+                        mostrarError('Pegá un link de Google Maps.');
+                        return;
+                    }
+
+                    btn.disabled = true;
+
+                    fetch({{ Illuminate\Support\Js::from(route('lupita.ubicaciones.maps.extraer')) }}, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ link: valor })
+                    })
+                        .then(function (r) { return r.json(); })
+                        .then(function (datos) {
+                            if (!datos.ok) {
+                                mostrarError(datos.error || 'No se pudieron sacar las coordenadas.');
+                                return;
+                            }
+                            lat.value = datos.lat;
+                            lng.value = datos.lng;
+                            fuente.value = 'maps';
+                            geoTexto.value = datos.nombre || '';
+                            actualizarMapa();
+                        })
+                        .catch(function () { mostrarError('No se pudo leer el link. Probá de nuevo.'); })
+                        .finally(function () { btn.disabled = false; });
+                });
+
+                btnDistrito.addEventListener('click', function () {
+                    error.classList.add('d-none');
+
+                    var ubigeo = null;
+                    var oculto = document.getElementById('distrito_ubigeo');
+                    var select = document.getElementById('distrito');
+                    if (oculto && oculto.value) {
+                        ubigeo = oculto.value;
+                    } else if (select && select.value) {
+                        ubigeo = select.value;
+                    }
+
+                    if (!ubigeo) {
+                        mostrarError('Elegí primero el distrito del local.');
+                        return;
+                    }
+
+                    btnDistrito.disabled = true;
+
+                    fetch({{ Illuminate\Support\Js::from(url('/lupita/ubicaciones/maps/distrito')) }}/' + ubigeo,
+                          { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.json(); })
+                        .then(function (datos) {
+                            if (!datos.ok) {
+                                mostrarError(datos.error || 'Ese distrito no tiene coordenadas guardadas.');
+                                return;
+                            }
+                            lat.value = datos.lat;
+                            lng.value = datos.lng;
+                            fuente.value = 'distrito';
+                            geoTexto.value = datos.nombre || '';
+                            actualizarMapa();
+                        })
+                        .catch(function () { mostrarError('No se pudo leer el distrito.'); })
+                        .finally(function () { btnDistrito.disabled = false; });
+                });
+
+                btnLimpiar.addEventListener('click', function () {
+                    lat.value = '';
+                    lng.value = '';
+                    fuente.value = '';
+                    geoTexto.value = '';
+                    link.value = '';
+                    error.classList.add('d-none');
+                    actualizarMapa();
+                });
+
+                lat.addEventListener('input', function () {
+                    fuente.value = fuente.value === '' ? 'manual' : fuente.value;
+                    actualizarMapa();
+                });
+                lng.addEventListener('input', function () {
+                    fuente.value = fuente.value === '' ? 'manual' : fuente.value;
+                    actualizarMapa();
+                });
+
+                actualizarMapa();
+            })();
 
             // ---------------------------------------------------------------
             // Utilidades de texto

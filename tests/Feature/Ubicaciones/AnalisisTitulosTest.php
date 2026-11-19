@@ -34,6 +34,7 @@ class AnalisisTitulosTest extends TestCase
                 ['id' => 'LOC_CODISAL_JULIACA', 'palabra_clave' => 'CODISAL JULIACA', 'cliente_id' => 'CLI_CODISAL'],
                 ['id' => 'LOC_CODISAL_CUSCO', 'palabra_clave' => 'CODISAL CUSCO', 'cliente_id' => 'CLI_CODISAL'],
                 ['id' => 'LOC_PUCALLPA', 'palabra_clave' => 'PUCALLPA', 'cliente_id' => 'CLI_AJEPER'],
+                ['id' => 'LOC_TRUJILLO', 'palabra_clave' => 'TRUJILLO', 'cliente_id' => 'CLI_AJEPER'],
                 ['id' => 'LOC_PRADERAS_TINGO_MARIA', 'palabra_clave' => 'PRADERAS TINGO MARIA', 'cliente_id' => 'CLI_PRADERAS'],
             ],
             []
@@ -87,14 +88,20 @@ class AnalisisTitulosTest extends TestCase
         $this->assertContains('MAQUILA', $frases);
     }
 
-    public function test_pucallpa_sale_como_cubierto_por_parseo(): void
+    public function test_una_palabra_pegada_al_local_aparece_como_cubierto(): void
     {
-        $r = $this->analisis()->calcular($this->refs());
-        $fila = collect($r['candidatos'])->firstWhere('frase', 'PUCALLPA');
+        // SPATRUJILLO no lleva parentesis: el texto viene pegado desde el origen,
+        // asi que la busqueda por palabra falla pero TRUJILLO esta adentro.
+        $refs = [
+            ['ref' => 'C1', 'titulo' => 'DESPACHO PLANTA CHICLAYO - SPATRUJILLO'],
+        ];
 
-        $this->assertNotNull($fila, 'PUCALLPA esta pegado dentro de PUCALLPACORONADO y debe aparecer');
+        $r = $this->analisis()->calcular($refs);
+        $fila = collect($r['candidatos'])->firstWhere('frase', 'SPATRUJILLO');
+
+        $this->assertNotNull($fila, 'SPATRUJILLO contiene TRUJILLO y debe aparecer');
         $this->assertSame('cubierto_parseo', $fila['veredicto']);
-        $this->assertSame('LOC_PUCALLPA', $fila['local_id']);
+        $this->assertSame('LOC_TRUJILLO', $fila['local_id']);
     }
 
     public function test_los_fragmentos_no_llevan_numeros_ni_duplicados(): void
@@ -104,9 +111,9 @@ class AnalisisTitulosTest extends TestCase
 
         $this->assertContains('MAQUILA AGUA', $fragmentos);
         $this->assertSame(count($fragmentos), count(array_unique($fragmentos)));
-        // MAQUILA AGUA + DE PT PLANTA PUCALLPACORONADO + CEDI TINGO MARIA
-        // (el destino de A3 tampoco resuelve: la clave es "PRADERAS TINGO MARIA")
-        $this->assertSame(3, $r['fragmentos']);
+        // con el SP nuevo los parentesis se vuelven espacio, asi que el origen de A3
+        // (PUCALLPA CORONADO) SI resuelve y solo queda su destino sin resolver
+        $this->assertSame(2, $r['fragmentos']);
     }
 
     public function test_un_titulo_repetido_cuenta_sus_refs_pero_es_un_solo_fragmento(): void

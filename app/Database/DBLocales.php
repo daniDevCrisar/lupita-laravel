@@ -45,6 +45,11 @@ class DBLocales
                 'l.nombre',
                 'l.palabra_clave',
                 'l.distrito_ubigeo',
+                'l.lat',
+                'l.lng',
+                'l.geo_texto',
+                'l.geo_fuente',
+                'l.geo_actualizado_en',
                 'l.activo',
                 'd.distrito',
                 'p.provincia',
@@ -120,6 +125,11 @@ class DBLocales
                 'l.nombre',
                 'l.palabra_clave',
                 'l.distrito_ubigeo',
+                'l.lat',
+                'l.lng',
+                'l.geo_texto',
+                'l.geo_fuente',
+                'l.geo_actualizado_en',
                 'l.activo',
                 'd.distrito',
                 'p.provincia',
@@ -153,6 +163,10 @@ class DBLocales
      */
     private static function fila(array $datos): array
     {
+        // coordenadas: o las dos o ninguna. Si no hay lat/lng, la metadata geo_* se
+        // limpia para no quedar con una "fuente" que no describe ninguna coordenada.
+        $con_coordenadas = ($datos['lat'] ?? '') !== '' && ($datos['lng'] ?? '') !== '';
+
         return [
             'cliente_id'      => $datos['cliente_id'],
             'nombre'          => $datos['nombre'],
@@ -160,7 +174,79 @@ class DBLocales
             'distrito_ubigeo' => ($datos['distrito_ubigeo'] ?? '') !== ''
                 ? $datos['distrito_ubigeo']
                 : null,
+            'lat'             => $con_coordenadas ? $datos['lat'] : null,
+            'lng'             => $con_coordenadas ? $datos['lng'] : null,
+            'geo_texto'       => $con_coordenadas && ($datos['geo_texto'] ?? '') !== ''
+                ? mb_substr((string) $datos['geo_texto'], 0, 200)
+                : null,
+            'geo_fuente'      => $con_coordenadas && ($datos['geo_fuente'] ?? '') !== ''
+                ? mb_substr((string) $datos['geo_fuente'], 0, 20)
+                : ($con_coordenadas ? 'manual' : null),
+            'geo_actualizado_en' => $con_coordenadas ? now() : null,
             'activo'          => (int) ($datos['activo'] ?? 1),
+        ];
+    }
+
+    /**
+     * Guarda SOLO las coordenadas de un local (lo usa la pantalla "Desde Google Maps",
+     * donde el resto del catalogo no se toca).
+     */
+    public static function actualizarCoordenadas(
+        string $id,
+        float $lat,
+        float $lng,
+        ?string $texto = null,
+        string $fuente = 'maps'
+    ): void {
+        DB::table('locales')->where('id', $id)->update([
+            'lat'                => $lat,
+            'lng'                => $lng,
+            'geo_texto'          => $texto !== null ? mb_substr($texto, 0, 200) : null,
+            'geo_fuente'         => mb_substr($fuente, 0, 20),
+            'geo_actualizado_en' => now(),
+        ]);
+    }
+
+    /**
+     * Locales sin coordenadas (para el contador de la pantalla de Maps).
+     */
+    public static function sinCoordenadas(): array
+    {
+        return DB::table('locales')
+            ->where(function ($q) {
+                $q->whereNull('lat')->orWhereNull('lng');
+            })
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'cliente_id'])
+            ->all();
+    }
+
+    /**
+     * Coordenadas de un local (para el atajo "centro del distrito" y la pantalla de Maps).
+     *
+     * @return array{lat: float, lng: float, nombre: string}|null
+     */
+    public static function coordenadasDistrito(?string $ubigeo): ?array
+    {
+        $ubigeo = trim((string) $ubigeo);
+        if (preg_match('/^\d{6}$/', $ubigeo) !== 1) {
+            return null;
+        }
+
+        try {
+            $fila = DB::table('geo_coordenadas')->where('ubigeo', $ubigeo)->first(['lat', 'lng', 'texto']);
+        } catch (\Throwable $e) {
+            return null;   // tabla sin crear
+        }
+
+        if ($fila === null) {
+            return null;
+        }
+
+        return [
+            'lat'    => (float) $fila->lat,
+            'lng'    => (float) $fila->lng,
+            'nombre' => (string) ($fila->texto ?? $ubigeo),
         ];
     }
 }

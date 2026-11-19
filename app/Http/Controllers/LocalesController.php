@@ -159,6 +159,12 @@ class LocalesController extends Controller
             'nombre'          => trim((string) $request->input('nombre')),
             'palabra_clave'   => trim((string) $request->input('palabra_clave')),
             'distrito_ubigeo' => trim((string) $request->input('distrito_ubigeo')),
+            // coordenadas: se aceptan con coma decimal ("-11,1063") porque asi se
+            // copian de Google Maps en es-CL/ES
+            'lat'             => str_replace(',', '.', trim((string) $request->input('lat'))),
+            'lng'             => str_replace(',', '.', trim((string) $request->input('lng'))),
+            'geo_texto'       => trim((string) $request->input('geo_texto')),
+            'geo_fuente'      => trim((string) $request->input('geo_fuente')),
         ]);
     }
 
@@ -173,6 +179,11 @@ class LocalesController extends Controller
             'nombre'          => ['required', 'string', 'max:100'],
             'palabra_clave'   => ['required', 'string', 'max:100'],
             'distrito_ubigeo' => ['nullable', 'string', 'size:6', Rule::exists('ubigeo_distritos', 'ubigeo')],
+            // o las dos coordenadas o ninguna (required_with en cada lado)
+            'lat'             => ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'],
+            'lng'             => ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'],
+            'geo_texto'       => ['nullable', 'string', 'max:200'],
+            'geo_fuente'      => ['nullable', 'in:maps,manual,distrito'],
             'activo'          => ['nullable', 'in:0,1'],
         ];
 
@@ -203,6 +214,13 @@ class LocalesController extends Controller
             'palabra_clave.max'       => 'La palabra clave no puede pasar de 100 caracteres.',
             'distrito_ubigeo.size'    => 'El ubigeo del distrito debe tener 6 digitos.',
             'distrito_ubigeo.exists'  => 'El distrito elegido no existe en el ubigeo.',
+            'lat.numeric'             => 'La latitud tiene que ser un numero.',
+            'lat.between'             => 'La latitud tiene que estar entre -90 y 90.',
+            'lat.required_with'       => 'Si cargas la longitud, falta la latitud.',
+            'lng.numeric'             => 'La longitud tiene que ser un numero.',
+            'lng.between'             => 'La longitud tiene que estar entre -180 y 180.',
+            'lng.required_with'       => 'Si cargas la latitud, falta la longitud.',
+            'geo_fuente.in'           => 'El origen de las coordenadas no es valido.',
             'activo.in'               => 'El estado solo puede ser activo o inactivo.',
         ];
     }

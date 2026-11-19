@@ -63,13 +63,15 @@ class AnalizadorTitulosTest extends TestCase
         $this->assertFalse($r['ya_resolveria']);
     }
 
-    public function test_los_parentesis_pegan_las_palabras(): void
+    public function test_los_parentesis_se_convierten_en_espacio(): void
     {
-        // fidelidad: PUCALLPA(CORONADO) queda PUCALLPACORONADO y ya no matchea PUCALLPA
+        // El SP cambio: ahora REPLACE(..., '(', ' ') en vez de borrarlos, asi que
+        // PUCALLPA(CORONADO) queda "PUCALLPA CORONADO" y SI matchea el local.
         $r = $this->analizador()->analizar('ENVIO DE PT PLANTA PUCALLPA(CORONADO) - CEDI TINGO MARIA');
 
-        $this->assertSame('DE PT PLANTA PUCALLPACORONADO', $r['origen']);
-        $this->assertNull($r['origen_resuelto']);
+        $this->assertSame('DE PT PLANTA PUCALLPA CORONADO', $r['origen']);
+        $this->assertNotNull($r['origen_resuelto']);
+        $this->assertSame('LOC_PUCALLPA', $r['origen_resuelto']['id']);
     }
 
     public function test_multiparada_se_rechaza_antes_de_partir_el_titulo(): void

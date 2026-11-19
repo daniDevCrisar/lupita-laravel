@@ -64,6 +64,7 @@
                         <th>Nombre</th>
                         <th>Palabra clave</th>
                         <th>Distrito</th>
+                        <th>Coordenadas</th>
                         <th style="width: 110px;">Estado</th>
                         <th style="width: 90px;" class="text-end">Acciones</th>
                     </tr>
@@ -94,6 +95,21 @@
                                 @endif
                             </td>
                             <td>
+                                @if($local->lat !== null && $local->lng !== null)
+                                    <a href="https://www.google.com/maps?q={{ $local->lat }},{{ $local->lng }}"
+                                       target="_blank" rel="noopener"
+                                       class="btn btn-outline-light btn-sm"
+                                       title="Abrir en Google Maps ({{ $local->geo_fuente ?? 'sin fuente' }})">
+                                        <i class="bi bi-map"></i> Mapa
+                                    </a>
+                                    <span class="d-block text-white-50 small">
+                                        {{ $local->lat }}, {{ $local->lng }}
+                                    </span>
+                                @else
+                                    <span class="text-white-50 small">sin coordenadas</span>
+                                @endif
+                            </td>
+                            <td>
                                 @if((int) $local->activo === 1)
                                     <span class="badge bg-success">Activo</span>
                                 @else
@@ -109,7 +125,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-white-50 text-center py-4">
+                            <td colspan="8" class="text-white-50 text-center py-4">
                                 Todavía no hay locales cargados.
                                 <a href="{{ route('lupita.locales.crear') }}" class="text-warning">Crear el primero</a>.
                             </td>

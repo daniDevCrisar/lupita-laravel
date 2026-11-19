@@ -17,7 +17,7 @@ origen del problema se reparte así:
 |---|---|---|
 | falla el destino | 302 | casi todo **tiendas MAKRO de Lima** que no están en el catálogo (VES, ATE, SURCO, SJL, SMP, VENEZUELA, INDP, HUAYLAS, ZARATE). Locales faltantes reales. |
 | falla el origen | 225 | `MAQUILA AGUA` (92), `MAQUILA` (9), `MAQUILA AGUA AQP` (4) y `REDI ...` / `DETERGENTE TACZANA`. Locales faltantes. |
-| falla por paréntesis | ~90 | `PLANTA PUCALLPA(CORONADO)` → el SP borra los paréntesis y queda `PUCALLPACORONADO`, que ya no matchea `PUCALLPA`. **Bug de parseo, no local faltante.** |
+| falla por paréntesis | ~90 (histórico) | **corregido**: el SP ahora convierte los paréntesis en espacio, así que `PLANTA PUCALLPA(CORONADO)` queda `PUCALLPA CORONADO` y sí matchea `PUCALLPA`. Antes los borraba y dejaba `PUCALLPACORONADO`, que no matcheaba. |
 | MULTIPARADA | 54 | el SP las rechaza a propósito. Decisión de negocio, no catálogo. |
 | títulos basura | ~15 | `----` como título. |
 
@@ -136,7 +136,7 @@ diagnóstico miente:
 
 - corta en el **primer** `/`;
 - separa por `" - "`, si no por `-`, si no por `" A "`;
-- borra paréntesis **antes** de todo → `PUCALLPA(CORONADO)` queda `PUCALLPACORONADO` (esta es la causa de ~90 refs);
+- convierte los paréntesis en **espacio** antes de todo → `PUCALLPA(CORONADO)` queda `PUCALLPA CORONADO` (el SP hacía esto borrándolos hasta que se corrigió);
 - `|` en `palabra_clave` es alternancia regex, y el texto viaja **crudo** al regex (por eso `.CHICLAYO` matchea `BABEL CHICLAYO`);
 - gana **la primera fila que devuelva el plan** del `SELECT ... LIMIT 1`, que **no tiene `ORDER BY`** — no "la mejor coincidencia". El analizador itera en orden de PK como aproximación, y por eso su resultado es predictivo y no autoritativo (§3c);
 - si no hay local, busca el distrito del ubigeo y usa el ubigeo como id.
@@ -605,7 +605,7 @@ terminada, o al menos probarlo una vez con una ref real.
   691 refs repetidas).
 - Se reconstruye la logica del SP en PHP **solo para predecir y diagnosticar**. El SP sigue siendo
   el unico que escribe: el analizador nunca hace `INSERT` ni `UPDATE`.
-- Se replica la logica **con sus rarezas** (parentesis, `|` como regex, primera fila sin `ORDER BY`)
+- Se replica la logica **con sus rarezas** (parentesis a espacio, `|` como regex, primera fila sin `ORDER BY`)
   en vez de "arreglarla". Si el analizador fuera mas listo que el SP, el diagnostico mentiria.
 - **El preview del reproceso es predictivo, no autoritativo**: el SP puede resolver distinto por el
   `LIMIT 1` sin `ORDER BY`. Se muestra la diferencia cuando aparece.

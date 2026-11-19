@@ -9,8 +9,28 @@ CREATE TABLE `locales` (
                            `nombre` VARCHAR(100) NOT NULL COMMENT 'Nombre comercial del local',
                            `palabra_clave` VARCHAR(100) NOT NULL COMMENT 'Palabra que aparece en el título para identificar este local',
                            `distrito_ubigeo` VARCHAR(6) DEFAULT NULL COMMENT 'Código ubigeo del distrito (6 dígitos)',
+                           `lat` DECIMAL(9,6) DEFAULT NULL COMMENT 'Latitud -90..90 (mismo tipo que geo_coordenadas)',
+                           `lng` DECIMAL(9,6) DEFAULT NULL COMMENT 'Longitud -180..180',
+                           `geo_texto` VARCHAR(200) DEFAULT NULL COMMENT 'Nombre o direccion que trajo el link de Google Maps',
+                           `geo_fuente` VARCHAR(20) DEFAULT NULL COMMENT 'maps | manual | distrito',
+                           `geo_actualizado_en` TIMESTAMP NULL DEFAULT NULL,
                            `activo` TINYINT DEFAULT 1 COMMENT '1=activo, 0=inactivo'
 );
+
+-- ============================================
+-- COORDENADAS (2026-11-19)
+-- ============================================
+-- Para una base que YA tiene `locales` sin coordenadas, alcanza con este ALTER (es
+-- lo mismo que hace database/migrations/2026_11_19_130000_add_coordenadas_to_locales.php).
+-- Las coordenadas se cargan pegando el link de Google Maps en /lupita/locales/{id}/editar
+-- o desde /lupita/ubicaciones/maps.
+--
+-- ALTER TABLE `locales`
+--   ADD COLUMN `lat`                DECIMAL(9,6)  NULL COMMENT 'latitud -90..90'             AFTER `distrito_ubigeo`,
+--   ADD COLUMN `lng`                DECIMAL(9,6)  NULL COMMENT 'longitud -180..180'          AFTER `lat`,
+--   ADD COLUMN `geo_texto`          VARCHAR(200)  NULL COMMENT 'nombre o direccion del link' AFTER `lng`,
+--   ADD COLUMN `geo_fuente`         VARCHAR(20)   NULL COMMENT 'maps | manual | distrito'   AFTER `geo_texto`,
+--   ADD COLUMN `geo_actualizado_en` TIMESTAMP     NULL DEFAULT NULL                          AFTER `geo_fuente`;
 -- ============================================
 -- LOCALES - AJEPER (Plantas de producción)
 -- ============================================

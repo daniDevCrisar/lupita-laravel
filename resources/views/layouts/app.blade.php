@@ -167,6 +167,11 @@
                                 <i class="bi bi-shop"></i> Locales
                             </a>
                         </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('lupita.ubicaciones.maps') }}">
+                                <i class="bi bi-map"></i> Desde Google Maps
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 @endrole

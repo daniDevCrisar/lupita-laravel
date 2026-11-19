@@ -173,11 +173,12 @@ class AnalizadorTitulos
     }
 
     /**
-     * Quita parentesis y el prefijo del tipo de movimiento.
+     * Quita los parentesis (los vuelve ESPACIO, como el SP) y el prefijo del tipo
+     * de movimiento.
      */
     private function limpiar_origen(string $texto): string
     {
-        $texto = str_replace(['(', ')'], '', $texto);
+        $texto = str_replace(['(', ')'], ' ', $texto);
         $texto = (string) preg_replace('/^(ENVIO|DESPACHO|CARGA|RETORNO|RECOJO)\s+(PT|PLANTA)?\s*/iu', '', $texto);
         $texto = (string) preg_replace('/\s*(PT|PLANTA)\s*$/iu', '', $texto);
 
@@ -185,11 +186,12 @@ class AnalizadorTitulos
     }
 
     /**
-     * Quita parentesis y las fechas sueltas del final ("-18/04/2026").
+     * Quita los parentesis (los vuelve ESPACIO, como el SP) y las fechas sueltas
+     * del final ("-18/04/2026").
      */
     private function limpiar_destino(string $texto): string
     {
-        $texto = str_replace(['(', ')'], '', $texto);
+        $texto = str_replace(['(', ')'], ' ', $texto);
         $texto = (string) preg_replace('#-\d{2}/\d{2}/\d{4}$#u', '', $texto);
 
         return trim($texto);

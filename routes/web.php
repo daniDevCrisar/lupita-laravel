@@ -32,6 +32,7 @@ use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PrediccionController;
 use App\Http\Controllers\VerificarReferenciasController;
 // `PalabrasController` ya existe para /lupita/palabras: el de Ubicaciones va con alias
+use App\Http\Controllers\Ubicaciones\MapsController;
 use App\Http\Controllers\Ubicaciones\PalabrasController as UbicacionesPalabrasController;
 use App\Http\Controllers\Ubicaciones\ReprocesarController;
 use App\Http\Controllers\Ubicaciones\TitulosController;
@@ -260,6 +261,18 @@ Route::middleware(['auth'])->group(function () {
             ->name('lupita.ubicaciones.reprocesar.estado')->middleware('role:admin');
         Route::post('/ubicaciones/reprocesar', [ReprocesarController::class, 'procesar'])
             ->name('lupita.ubicaciones.reprocesar')->middleware('role:admin');
+
+        //--- Coordenadas desde un link de Google Maps (sin API ni key) ---
+        Route::get('/ubicaciones/maps', [MapsController::class, 'index'])
+            ->name('lupita.ubicaciones.maps')->middleware('role:admin');
+        Route::post('/ubicaciones/maps/extraer', [MapsController::class, 'extraer'])
+            ->name('lupita.ubicaciones.maps.extraer')->middleware('role:admin');
+        Route::post('/ubicaciones/maps/asignar', [MapsController::class, 'asignar'])
+            ->name('lupita.ubicaciones.maps.asignar')->middleware('role:admin');
+        // el ubigeo son 6 digitos: se restringe para que la ruta no atrape otras
+        Route::get('/ubicaciones/maps/distrito/{ubigeo}', [MapsController::class, 'distrito'])
+            ->where('ubigeo', '[0-9]{6}')
+            ->name('lupita.ubicaciones.maps.distrito')->middleware('role:admin');
 
         Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario')
             ->middleware('permission:ver tiempos');
