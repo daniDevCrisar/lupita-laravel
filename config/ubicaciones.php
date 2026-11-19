@@ -61,4 +61,18 @@ return [
     'parecido_porcentaje' => 85,
     'parecido_distancia' => 2,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Forzar la deteccion del procedimiento
+    |--------------------------------------------------------------------------
+    |
+    | null  = se consulta information_schema (comportamiento normal)
+    | true  = se asume instalado
+    | false = se asume ausente (deshabilita el boton de reprocesar)
+    |
+    | Existe para los tests (que no pueden depender de una base con el SP) y para
+    | poder apagar el boton sin tocar la base.
+    */
+    'sp_forzado' => null,
+
 ];

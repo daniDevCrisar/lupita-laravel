@@ -80,6 +80,7 @@
                         <th style="width: 150px;">Por qué falla</th>
                         <th>Origen</th>
                         <th>Destino</th>
+                        <th style="width: 130px;">Acciones</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -133,10 +134,28 @@
                                     @endif
                                 </td>
                             @endforeach
+                            <td>
+                                @if($motivo === 'sin_titulo')
+                                    <span class="text-white-50 small">—</span>
+                                @else
+                                    <form method="POST" action="{{ route('lupita.ubicaciones.reprocesar') }}">
+                                        @csrf
+                                        @foreach($fila['refs_lista'] as $ref)
+                                            <input type="hidden" name="refs[]" value="{{ $ref }}">
+                                        @endforeach
+                                        <button class="btn btn-outline-warning btn-sm"
+                                                @if(!$sp_disponible) disabled
+                                                title="Instalá sp_actualizar_ruta_id para usarlo" @endif
+                                                title="Llamar al procedimiento sobre estas {{ $fila['refs'] }} refs">
+                                            <i class="bi bi-signpost-split"></i> Encontrar ruta
+                                        </button>
+                                    </form>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-white-50 text-center py-4">
+                            <td colspan="6" class="text-white-50 text-center py-4">
                                 No hay títulos pendientes: todas las refs tienen ruta.
                             </td>
                         </tr>
@@ -168,6 +187,22 @@
                                     No les falta ningún local: nunca se procesaron. Se resuelven corriendo
                                     <code>sp_actualizar_ruta_id</code> sobre cada ref.
                                 </p>
+                                <form method="POST" action="{{ route('lupita.ubicaciones.reprocesar') }}" class="mb-3">
+                                    @csrf
+                                    @foreach($resueltos as $fila)
+                                        @foreach($fila['refs_lista'] as $ref)
+                                            <input type="hidden" name="refs[]" value="{{ $ref }}">
+                                        @endforeach
+                                    @endforeach
+                                    <button class="btn btn-warning btn-sm"
+                                            @if(!$sp_disponible) disabled @endif>
+                                        <i class="bi bi-signpost-split"></i>
+                                        Reprocesar las {{ $ya_resolverian }} refs que ya resolverían
+                                    </button>
+                                    <span class="text-white-50 small ms-2">
+                                        Ojo: el procedimiento suma en <code>rutas.veces_usada</code> en cada llamada.
+                                    </span>
+                                </form>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-bordered align-middle">
                                         <thead class="thead-lupita">

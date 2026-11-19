@@ -33,6 +33,7 @@ use App\Http\Controllers\PrediccionController;
 use App\Http\Controllers\VerificarReferenciasController;
 // `PalabrasController` ya existe para /lupita/palabras: el de Ubicaciones va con alias
 use App\Http\Controllers\Ubicaciones\PalabrasController as UbicacionesPalabrasController;
+use App\Http\Controllers\Ubicaciones\ReprocesarController;
 use App\Http\Controllers\Ubicaciones\TitulosController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
@@ -254,6 +255,11 @@ Route::middleware(['auth'])->group(function () {
             ->name('lupita.ubicaciones.palabras.descartar')->middleware('role:admin');
         Route::post('/ubicaciones/palabras/restaurar', [UbicacionesPalabrasController::class, 'restaurar'])
             ->name('lupita.ubicaciones.palabras.restaurar')->middleware('role:admin');
+
+        Route::get('/ubicaciones/reprocesar/estado', [ReprocesarController::class, 'estado'])
+            ->name('lupita.ubicaciones.reprocesar.estado')->middleware('role:admin');
+        Route::post('/ubicaciones/reprocesar', [ReprocesarController::class, 'procesar'])
+            ->name('lupita.ubicaciones.reprocesar')->middleware('role:admin');
 
         Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario')
             ->middleware('permission:ver tiempos');
