@@ -31,6 +31,8 @@ use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PrediccionController;
 use App\Http\Controllers\VerificarReferenciasController;
+// `PalabrasController` ya existe para /lupita/palabras: el de Ubicaciones va con alias
+use App\Http\Controllers\Ubicaciones\PalabrasController as UbicacionesPalabrasController;
 use App\Http\Controllers\Ubicaciones\TitulosController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
@@ -243,6 +245,15 @@ Route::middleware(['auth'])->group(function () {
         // mismo criterio que locales: es mantenimiento del catalogo, solo admin
         Route::get('/ubicaciones/titulos', [TitulosController::class, 'index'])
             ->name('lupita.ubicaciones.titulos')->middleware('role:admin');
+
+        Route::get('/ubicaciones/palabras', [UbicacionesPalabrasController::class, 'index'])
+            ->name('lupita.ubicaciones.palabras')->middleware('role:admin');
+        Route::get('/ubicaciones/palabras/exportar', [UbicacionesPalabrasController::class, 'exportar'])
+            ->name('lupita.ubicaciones.palabras.exportar')->middleware('role:admin');
+        Route::post('/ubicaciones/palabras/descartar', [UbicacionesPalabrasController::class, 'descartar'])
+            ->name('lupita.ubicaciones.palabras.descartar')->middleware('role:admin');
+        Route::post('/ubicaciones/palabras/restaurar', [UbicacionesPalabrasController::class, 'restaurar'])
+            ->name('lupita.ubicaciones.palabras.restaurar')->middleware('role:admin');
 
         Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario')
             ->middleware('permission:ver tiempos');

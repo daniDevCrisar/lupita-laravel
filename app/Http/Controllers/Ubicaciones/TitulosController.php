@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Ubicaciones;
 use App\Database\DBUbicaciones;
 use App\Http\Controllers\Controller;
 use App\Ubicaciones\AnalisisTitulos;
+use Illuminate\Http\Request;
 
 /**
  * Ubicaciones\TitulosController
@@ -21,7 +22,7 @@ use App\Ubicaciones\AnalisisTitulos;
  */
 class TitulosController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $refs = DBUbicaciones::refsSinRuta();
         $calculo = AnalisisTitulos::desdeBase()->calcular($refs);
@@ -41,6 +42,8 @@ class TitulosController extends Controller
             'fragmentos'     => $calculo['fragmentos'],
             'ya_resolverian' => $calculo['ya_resolverian'],
             'sp_disponible'  => DBUbicaciones::spDisponible(),
+            // llega desde "Ver títulos" del ranking de palabras
+            'fragmento'      => mb_substr(trim((string) $request->query('fragmento', '')), 0, 120),
         ]);
     }
 }

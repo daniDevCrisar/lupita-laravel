@@ -278,6 +278,11 @@
                                         </a>
                                     </li>
                                     <li>
+                                        <a href="{{ route('lupita.ubicaciones.palabras') }}" class="dropdown-item">
+                                            <i class="bi bi-list-check"></i> Palabras repetidas
+                                        </a>
+                                    </li>
+                                    <li>
                                         <a href="{{ route('lupita.locales') }}" class="dropdown-item">
                                             <i class="bi bi-shop"></i> Locales
                                         </a>

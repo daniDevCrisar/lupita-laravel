@@ -61,6 +61,7 @@
         <div class="col-12 col-md-5 col-lg-4">
             <label class="form-label text-light small mb-1" for="filtro-texto">Buscar</label>
             <input type="text" class="form-control form-control-sm" id="filtro-texto"
+                   value="{{ $fragmento ?? '' }}"
                    placeholder="título, ref, origen o destino">
         </div>
         <div class="col-12 col-lg-5">

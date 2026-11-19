@@ -34,12 +34,23 @@ class LocalesController extends Controller
 
     /**
      * Formulario de alta.
+     *
+     * Acepta `nombre` y `palabra_clave` por query para que /lupita/ubicaciones
+     * pueda mandar un candidato ya prellenado ("Crear local" desde el ranking de
+     * palabras repetidas). Se trunca a 100, que es el largo de la columna.
      */
-    public function crear()
+    public function crear(Request $request)
     {
         return view('lupita.locales.form', [
             'modo'     => 'crear',
-            'local'    => null,
+            'local'    => (object) [
+                'id'              => '',
+                'cliente_id'      => '',
+                'nombre'          => mb_substr(trim((string) $request->query('nombre', '')), 0, 100),
+                'palabra_clave'   => mb_substr(trim((string) $request->query('palabra_clave', '')), 0, 100),
+                'distrito_ubigeo' => '',
+                'activo'          => 1,
+            ],
             'accion'   => route('lupita.locales.guardar'),
             'clientes' => DBLocales::clientes(),
             'ubigeo'   => DBLocales::ubigeo(),
