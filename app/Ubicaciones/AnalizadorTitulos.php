@@ -54,6 +54,25 @@ class AnalizadorTitulos
     }
 
     /**
+     * Catalogo de locales con el que trabaja (lo consume Clasificador para
+     * comparar candidatos contra las palabras clave ya registradas).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function locales(): array
+    {
+        return $this->locales;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function distritos(): array
+    {
+        return $this->distritos;
+    }
+
+    /**
      * Analiza un titulo y devuelve el diagnostico completo.
      *
      * Claves: motivo, titulo, origen_raw, destino_raw, origen, destino,
