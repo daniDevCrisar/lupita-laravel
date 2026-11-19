@@ -57,16 +57,7 @@ class Clasificador
             return $this->resultado(self::BASURA, null, 'solo signos o espacios');
         }
 
-        // 2. generica por clientes: una palabra que aparece en titulos de clientes distintos
-        if (count($clientes) > 1) {
-            return $this->resultado(self::GENERICA, null, sprintf(
-                'aparece en titulos de %d clientes distintos (%s): no es un local',
-                count($clientes),
-                implode(', ', $clientes)
-            ));
-        }
-
-        // 3. generica por parentesis: el catalogo solo la cubre con una variante "(...)"
+        // 2. generica por parentesis: el catalogo solo la cubre con una variante "(...)"
         $cubierto = $this->cubierto_por($frase);
         $por_parentesis = $this->cubierto_solo_por_parentesis($frase);
         if ($por_parentesis !== null && $cubierto !== null) {
@@ -77,22 +68,33 @@ class Clasificador
             ));
         }
 
-        // 4. familia: varias sedes del mismo nombre
+        // 3. familia: varias sedes del mismo nombre (MAKRO CAÑETE, MAKRO PIURA, ...)
         $familia = $this->familia($frase);
         if (count($familia) >= 2) {
             return $this->resultado(self::FAMILIA, null, 'el catalogo tiene varias sedes: '
                 . implode(', ', $familia) . '. Decidir si se crea una por sede o una generica');
         }
 
-        // 5. el local ya existe (no es que falte: el titulo se corto)
+        // 4. el local ya existe (no es que falte: el titulo se corto o la palabra
+        //    quedo pegada). Va antes que "generica": si el catalogo ya lo cubre, no
+        //    es una palabra nueva que haya que registrar.
         if ($cubierto !== null) {
             return $this->resultado(self::CUBIERTO, $cubierto, 'el local ya existe: ' . $cubierto);
         }
 
-        // 6. parecido a un local existente
+        // 5. parecido a un local existente
         $parecido = $this->parecido($frase);
         if ($parecido !== null) {
             return $this->resultado(self::TYPO, $parecido, 'se parece a ' . $parecido);
+        }
+
+        // 6. generica por clientes: una palabra que aparece en titulos de clientes distintos
+        if (count($clientes) > 1) {
+            return $this->resultado(self::GENERICA, null, sprintf(
+                'aparece en titulos de %d clientes distintos (%s): no es un local',
+                count($clientes),
+                implode(', ', $clientes)
+            ));
         }
 
         return $this->resultado(self::NUEVO, null, 'no se parece a ningun local del catalogo');
@@ -107,7 +109,8 @@ class Clasificador
     }
 
     /**
-     * Id del primer local que cubre la frase (mismos dos sentidos que el analizador).
+     * Id del primer local que cubre la frase (mismos dos sentidos que el analizador,
+     * mas el caso de la palabra PEGADA).
      */
     private function cubierto_por(string $frase): ?string
     {
@@ -115,9 +118,49 @@ class Clasificador
             return null;
         }
 
+        // El SP se queda con la primera fila del catalogo, que puede no ser la
+        // esperada: 'PUCALLPA' lo cubren tanto LOC_HUK (variante "HUK PUCALLPA")
+        // como LOC_PUCALLPA. Para SUGERIR un local, el match exacto manda; si no
+        // hay exacto, se respeta el orden del catalogo como hace el SP.
+        $buscada = ExtractorCandidatos::normalizar($frase);
+        foreach ($this->analizador->locales() as $local) {
+            foreach ($this->variantes($local) as $variante) {
+                if (ExtractorCandidatos::normalizar(trim($variante, '()')) === $buscada) {
+                    return (string) $local['id'];
+                }
+            }
+        }
+
         foreach ($this->analizador->locales() as $local) {
             foreach ($this->variantes($local) as $variante) {
                 if ($this->matchea($frase, $variante) || $this->matchea($variante, $frase)) {
+                    return (string) $local['id'];
+                }
+            }
+        }
+
+        return $this->pegada_en($frase);
+    }
+
+    /**
+     * El SP borra los parentesis antes de buscar, asi que PUCALLPA(CORONADO) queda
+     * PUCALLPACORONADO y la busqueda por palabra falla aunque el local este ahi.
+     *
+     * Aca se busca la palabra clave como SUBCADENA de la frase (y no al reves, para
+     * que 'ECO' no quede "cubierto" por 'ALM. BAMA (ECO)'). Piso de 4 caracteres
+     * para no generar ruido con siglas.
+     */
+    private function pegada_en(string $frase): ?string
+    {
+        $buscado = ExtractorCandidatos::normalizar($frase);
+
+        foreach ($this->analizador->locales() as $local) {
+            foreach ($this->variantes($local) as $variante) {
+                $normalizada = ExtractorCandidatos::normalizar(trim($variante, '()'));
+                if (mb_strlen($normalizada) < 4) {
+                    continue;
+                }
+                if (str_contains($buscado, $normalizada)) {
                     return (string) $local['id'];
                 }
             }

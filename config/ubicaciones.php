@@ -25,8 +25,8 @@ return [
         // conectores y articulos
         'DE', 'DEL', 'LA', 'EL', 'LOS', 'LAS', 'Y', 'A', 'EN', 'CON', 'SIN', 'POR', 'PARA', 'UN',
         // tipo de movimiento / formato del titulo
-        'PT', 'PTA', 'PLANTA', 'CARGA', 'DESCARGA', 'ENVIO', 'DESPACHO', 'RETORNO', 'RECOJO',
-        'INSUMOS', 'MULTIPARADA', 'REDI', 'TRASLADO', 'NN', 'CEDI', 'ALM', 'ALMACEN',
+        'PT', 'PTA', 'PLANTA', 'CARGA', 'CARGAR', 'DESCARGA', 'ENVIO', 'DESPACHO', 'RETORNO',
+        'RECOJO', 'INSUMOS', 'MULTIPARADA', 'REDI', 'TRASLADO', 'NN', 'CEDI', 'ALM', 'ALMACEN',
         // documentos y condiciones del servicio
         'EIRL', 'SAC', 'SRL', 'SA', 'RUC', 'PH', 'GPS', 'SCTR', 'UTCON', 'UT', 'TN',
         'CARRETA', 'CORTINERO', 'ESTIBAS', 'PALLETS', 'PALETS', 'REQUIERE', 'MERCADERIA',
