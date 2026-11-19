@@ -265,11 +265,24 @@
                             <li><hr class="dropdown-divider"></li>
                         @endcan
                         @role('admin')
-                            {{-- catalogo de locales/plantas: solo el rol admin --}}
-                            <li>
-                                <a href="{{ route('lupita.locales') }}" class="dropdown-item">
-                                    <i class="bi bi-shop"></i> Locales
+                            {{-- Ubicaciones: diagnostico del catalogo de locales/plantas + alta y edicion --}}
+                            <li class="nav-item dropdown">
+                                <a class="dropdown-item dropdown-toggle" href="#" role="button"
+                                   data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-geo-alt"></i> Ubicaciones
                                 </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a href="{{ route('lupita.ubicaciones.titulos') }}" class="dropdown-item">
+                                            <i class="bi bi-question-circle"></i> Títulos sin ruta
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="{{ route('lupita.locales') }}" class="dropdown-item">
+                                            <i class="bi bi-shop"></i> Locales
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                             <li><hr class="dropdown-divider"></li>
                         @endrole

@@ -37,6 +37,62 @@ class AnalisisTitulos
     }
 
     /**
+     * Un analizador armado con el catalogo de la base y el resto de las piezas.
+     */
+    public static function desdeBase(?array $config = null): self
+    {
+        $analizador = \App\Database\DBUbicaciones::analizador();
+        $config = $config ?? (array) config('ubicaciones', []);
+
+        return new self(
+            $analizador,
+            new ExtractorCandidatos($config),
+            new Clasificador($analizador, $config),
+            $config
+        );
+    }
+
+    /**
+     * Diagnostico por titulo agrupado, para la pantalla "Títulos sin ruta".
+     *
+     * @param array<int, array{ref: string, titulo: string}> $refs
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function filas_por_titulo(array $grupos): array
+    {
+        $salida = [];
+
+        foreach ($grupos as $grupo) {
+            $analisis = $this->analizador->analizar($grupo['titulo']);
+
+            $salida[] = [
+                'titulo'           => $grupo['titulo'],
+                'refs'             => count($grupo['refs']),
+                'refs_lista'       => $grupo['refs'],
+                'motivo'           => $analisis['motivo'],
+                'falla'            => $analisis['falla'],
+                'origen'           => $analisis['origen'],
+                'origen_resuelto'  => $analisis['origen_resuelto'],
+                'destino'          => $analisis['destino'],
+                'destino_resuelto' => $analisis['destino_resuelto'],
+                'ruta_id'          => $analisis['ruta_id'],
+                'ya_resolveria'    => $analisis['ya_resolveria'],
+            ];
+        }
+
+        usort($salida, function (array $a, array $b) {
+            if ($a['refs'] !== $b['refs']) {
+                return $b['refs'] <=> $a['refs'];
+            }
+
+            return strcmp($a['titulo'], $b['titulo']);
+        });
+
+        return $salida;
+    }
+
+    /**
      * @param array<int, array{ref: string, titulo: string}> $refs
      *
      * @return array{
@@ -92,6 +148,7 @@ class AnalisisTitulos
             'ya_resolverian'     => $ya_resolverian,
             'candidatos'         => $this->clasificar_y_ordenar($candidatos),
             'detalle_fragmentos' => $this->ordenar_fragmentos($fragmentos),
+            'titulos_detalle'    => $this->filas_por_titulo($grupos),
         ];
     }
 

@@ -31,6 +31,7 @@ use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PrediccionController;
 use App\Http\Controllers\VerificarReferenciasController;
+use App\Http\Controllers\Ubicaciones\TitulosController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
 
@@ -237,6 +238,11 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('role:admin');
         Route::post('/locales/{id}', [LocalesController::class, 'actualizar'])->name('lupita.locales.actualizar')
             ->middleware('role:admin');
+
+        //--- Ubicaciones: diagnostico del catalogo y de los titulos sin ruta ---
+        // mismo criterio que locales: es mantenimiento del catalogo, solo admin
+        Route::get('/ubicaciones/titulos', [TitulosController::class, 'index'])
+            ->name('lupita.ubicaciones.titulos')->middleware('role:admin');
 
         Route::get('/tiempos/horario', [TiemposHorarioController::class, 'index'])->name('lupita.tiempos.horario')
             ->middleware('permission:ver tiempos');
