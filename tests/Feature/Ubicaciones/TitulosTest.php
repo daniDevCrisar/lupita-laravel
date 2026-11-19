@@ -62,4 +62,22 @@ class TitulosTest extends TestCase
             ->get(route('lupita.ubicaciones.titulos'))
             ->assertSee('Ubicaciones');
     }
+
+    /**
+     * El desplegable Ubicaciones vivia anidado dentro del menu de Usuario y no
+     * mostraba ningun link: Bootstrap 5.3 no soporta submenus. Ahora es de primer
+     * nivel. La prueba mira la ESTRUCTURA y no los href, porque el submenu roto
+     * igual emitia los <a>: lo que no hacia era dibujarlos.
+     */
+    public function test_ubicaciones_es_un_desplegable_de_primer_nivel(): void
+    {
+        $resp = $this->actingAs($this->usuario('admin'))
+            ->get(route('lupita.ubicaciones.titulos'));
+
+        // ningun submenu anidado (era lo que rompia el desplegable)
+        $resp->assertDontSee('dropdown-item dropdown-toggle', false);
+
+        // y hay un nav-link de primer nivel que se llama Ubicaciones
+        $resp->assertSeeInOrder(['nav-link dropdown-toggle', 'Ubicaciones'], false);
+    }
 }

@@ -946,9 +946,10 @@ class PrediccionController extends Controller
             // lo que el motor mira y no se toca desde acá (se mide o se calibra solo)
             'fijos' => [
                 ['clave' => 'horario_activo', 'valor' => (int) ($enUso->horario_activo ?? 1),
-                 'texto' => 'El viaje sale del compilado POR HORA de la ruta (tiempos_ruta_horario)'],
+                 'texto' => 'El viaje y el traslado de regreso salen del compilado POR HORA de la ruta '
+                     . '(tiempos_ruta_horario), mezclado con lo medido de la ruta'],
                 ['clave' => 'horario_viajes_k', 'valor' => (int) ($enUso->horario_viajes_k ?? 3),
-                 'texto' => 'Peso de la celda día/hora: w = viajes/(viajes+k)'],
+                 'texto' => 'Peso de la celda día/hora en el viaje y en el traslado: w = viajes/(viajes+k)'],
                 ['clave' => 'descontar_transcurrido', 'valor' => (int) ($enUso->descontar_transcurrido ?? 1),
                  'texto' => 'Descuenta el tiempo ya manejado y, si la mediana se consumió, espera hasta el p75'],
                 ['clave' => 'dia_activo', 'valor' => (int) ($enUso->dia_activo ?? 1),

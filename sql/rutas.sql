@@ -306,8 +306,8 @@ BEGIN
     SET v_origen_limpio = v_origen_raw;
     -- Eliminar palabras iniciales (ENVIO, DESPACHO, CARGA, etc.)
 
-    SET v_origen_limpio = REPLACE(v_origen_limpio, '(', '');
-    SET v_origen_limpio = REPLACE(v_origen_limpio, ')', '');
+    SET v_origen_limpio = REPLACE(v_origen_limpio, '(', ' ');
+    SET v_origen_limpio = REPLACE(v_origen_limpio, ')', ' ');
 
     SET v_origen_limpio = REGEXP_REPLACE(v_origen_limpio, '^(ENVIO|DESPACHO|CARGA|RETORNO|RECOJO)\\s+(PT|PLANTA)?\\s*', '');
     -- Eliminar AJEPER y PT/PLANTA al final

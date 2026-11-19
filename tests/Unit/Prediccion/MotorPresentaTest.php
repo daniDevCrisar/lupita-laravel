@@ -805,4 +805,41 @@ class MotorPresentaTest extends TestCase
         $this->assertNull(MotorPresenta::faltantes('fin_descargue', $etapas));
         $this->assertNull(MotorPresenta::faltantes('inicio_ruta', ['e4' => 180]));
     }
+
+    /**
+     * El paso del traslado explica la MISMA cadena que el del viaje: compilado de
+     * la ruta, mezcla con la placa y compilado por día y hora. Sin esto el número
+     * del traslado no se puede auditar (era el pedido: "los dos procesos iguales").
+     */
+    public function test_el_paso_del_traslado_explica_la_misma_mezcla_que_el_viaje(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'traslado' => (object) [
+                'min' => 282,
+                'fuente' => 'ruta_medida',
+                'texto' => 'PLANTA HUACHIPA → SMI',
+                'viaje' => (object) [
+                    'min' => 282, 'base' => 269, 'tras_placa' => 301,
+                    'placa' => 396, 'placa_n' => 1,
+                    'celda' => 279, 'celda_viajes' => 16, 'celda_dia' => 4, 'celda_hora' => 19,
+                ],
+            ],
+        ]));
+
+        $paso = collect($r->pasos)->firstWhere('concepto', 'traslado');
+        $detalle = (string) $paso['detalle'];
+
+        $this->assertStringContainsString('fuente: ruta_medida', $detalle);
+        $this->assertStringContainsString('compilado 4:29', $detalle);                    // 269
+        $this->assertStringContainsString('1 viaje de la placa (6:36)', $detalle);        // 396
+        $this->assertStringContainsString('franja vie 19 h (16 viajes, 4:39)', $detalle); // 279
+        $this->assertStringContainsString('→ 4:42', $detalle);                            // 282
+
+        // sin piezas de mezcla (traslado por defecto, por ejemplo) no ensucia el paso
+        $sinMezcla = MotorPresenta::predecir($this->entrada([
+            'traslado' => (object) ['min' => 240, 'fuente' => 'defecto', 'texto' => 'tramo'],
+        ]));
+        $paso = collect($sinMezcla->pasos)->firstWhere('concepto', 'traslado');
+        $this->assertSame('tramo · fuente: defecto', (string) $paso['detalle']);
+    }
 }

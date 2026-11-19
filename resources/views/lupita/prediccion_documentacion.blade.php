@@ -310,8 +310,12 @@ JSON;
                         El hueco se parte en dos en el JSON y en la pantalla:
                     </p>
                     <ul class="small mb-1">
-                        <li><strong>traslado_regreso</strong>: el viaje de vuelta hasta la planta de carga
-                            (promedio medido de la ruta, o el manejo real de Geoapify si no hay promedio).</li>
+                        <li><strong>traslado_regreso</strong>: el viaje de vuelta hasta la planta de carga. El
+                            tiempo de esa ruta se calcula <strong>igual que el tramo que le falta al camión</strong>:
+                            lo medido de la ruta, mezclado con lo que esa placa tarda en ella y con el compilado
+                            por día y hora de salida (los promedios de ida y vuelta son casi iguales; la
+                            incertidumbre está en el descanso). Si no hay ruta, la mediana por departamentos y por
+                            último el manejo real de Geoapify.</li>
                         <li><strong>tiempo_muerto</strong>: <code>hueco − traslado</code>. Es exactamente lo que el
                             camión estuvo parado: <em>descanso, dormir, almuerzo, cola</em>.</li>
                     </ul>
@@ -372,7 +376,11 @@ JSON;
                         <tr><td><code>atrasado</code></td><td>el cálculo cayó antes de <code>ahora</code>: ya debería haber presentado</td></tr>
                         <tr><td><code>historia</code></td><td>cuántos pares se usaron, con quién se calibró
                             (<code>grupo</code> = <code>placa</code> o <code>conductor</code>), las franjas y si
-                            Geoapify estaba disponible</td></tr>
+                            Geoapify estaba disponible. <code>viaje_cruce</code> y <code>traslado_cruce</code>
+                            dicen cómo se mezcló el compilado de la ruta con lo que hace esta placa;
+                            <code>viaje_horario</code> y <code>traslado_horario</code>, cómo entró el compilado
+                            por día y hora. El traslado de regreso se calcula con la misma cadena que el tramo
+                            que le falta al camión.</td></tr>
                         <tr><td><code>geoapify</code></td><td><code>usado</code>, <code>min</code>, <code>km</code>, <code>tramo</code>,
                             <code>motivo</code>, <code>llamadas</code> (lo que gastó esta predicción) y
                             <code>uso_hoy</code> (llamadas del día en toda la app)</td></tr>
@@ -511,15 +519,20 @@ php artisan prediccion:calibrar --aplicar   # guarda en prediccion_config</pre>
                 = hora con historia real; <code>cadena</code> con 0 pares = estimación gruesa, no comprometer.
                 <br>
                 <strong>De dónde sale cada número (cruce de las APIs compiladas).</strong> El <em>viaje al destino</em>
-                sale del compilado de la ruta (<code>/api/tiempos/promedio</code>: <code>mediana_min</code>) mezclado
-                con lo que <em>esa placa</em> tarda en la misma ruta, con peso <code>w = n/(n+k)</code>
-                (<code>cruce_pares_k</code>, k=3: 1 viaje propio pesa 25 %, 3 pesan 50 %, 10 pesan 77 %). La
+                y el <em>traslado de regreso</em> salen del compilado de la ruta
+                (<code>/api/tiempos/promedio</code>: <code>mediana_min</code>) mezclado con lo que <em>esa placa</em>
+                tarda en la misma ruta, con peso <code>w = n/(n+k)</code>
+                (<code>cruce_pares_k</code>, k=3: 1 viaje propio pesa 25 %, 3 pesan 50 %, 10 pesan 77 %), y después
+                con el compilado <strong>por día y hora de salida</strong> (<code>/api/tiempos/promedio/horario</code>,
+                <code>horario_viajes_k</code>) con el mismo peso por muestra. La
                 <em>cola en destino</em> y el <em>descargue</em> salen del compilado por planta
                 (<code>/api/tiempos/promedio/plantas</code>: <code>prom_fuera_descarga_min</code> +
                 <code>prom_dentro_descarga_min</code>); la <em>espera en la planta de carga</em>, de
                 <code>prom_fuera_carga_min</code> + <code>prom_dentro_carga_min</code>. El
                 <em>tiempo muerto/descanso</em> es el único que no existe en esas APIs: sale de los pares de la
-                placa/chofer. Todo queda en <code>historia.viaje_cruce</code> y en <code>historia.traslado_fuente</code>.
+                placa/chofer. Todo queda en <code>historia.viaje_cruce</code>, <code>historia.viaje_horario</code>,
+                <code>historia.traslado_cruce</code>, <code>historia.traslado_horario</code> y
+                <code>historia.traslado_fuente</code>.
             </p>
             </div>
         </div>

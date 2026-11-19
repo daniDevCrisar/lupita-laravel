@@ -137,6 +137,40 @@
                     </ul>
                 </li>
                 @endif
+                {{-- Ubicaciones: catalogo de locales/plantas y diagnostico de los
+                     titulos sin ruta. Va de PRIMER NIVEL a proposito: Bootstrap 5.3
+                     no soporta submenus anidados, y anidarlo dentro de Usuario dejaba
+                     el desplegable sin links visibles. --}}
+                @role('admin')
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#"
+                       role="button"
+                       data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        Ubicaciones
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{{ route('lupita.ubicaciones.titulos') }}">
+                                <i class="bi bi-question-circle"></i> Títulos sin ruta
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('lupita.ubicaciones.palabras') }}">
+                                <i class="bi bi-list-check"></i> Palabras repetidas
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('lupita.locales') }}">
+                                <i class="bi bi-shop"></i> Locales
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                @endrole
+
                 {{-- el modulo de scoring solo se muestra si el usuario trae el permiso
                      de lectura: `can()` devuelve false antes que el seeder corra, y no
                      revienta como `hasPermissionTo` --}}
@@ -264,33 +298,6 @@
                             </li>
                             <li><hr class="dropdown-divider"></li>
                         @endcan
-                        @role('admin')
-                            {{-- Ubicaciones: diagnostico del catalogo de locales/plantas + alta y edicion --}}
-                            <li class="nav-item dropdown">
-                                <a class="dropdown-item dropdown-toggle" href="#" role="button"
-                                   data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-geo-alt"></i> Ubicaciones
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li>
-                                        <a href="{{ route('lupita.ubicaciones.titulos') }}" class="dropdown-item">
-                                            <i class="bi bi-question-circle"></i> Títulos sin ruta
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="{{ route('lupita.ubicaciones.palabras') }}" class="dropdown-item">
-                                            <i class="bi bi-list-check"></i> Palabras repetidas
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="{{ route('lupita.locales') }}" class="dropdown-item">
-                                            <i class="bi bi-shop"></i> Locales
-                                        </a>
-                                    </li>
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                        @endrole
                         <li>
                             <span class="dropdown-item-text text-light">
                                 {{ auth()->user()->name }}@if(auth()->user()->nombres)<small class="text-white-50"> · {{ auth()->user()->nombres }}</small>@endif

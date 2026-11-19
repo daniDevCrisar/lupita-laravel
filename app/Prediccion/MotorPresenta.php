@@ -773,7 +773,8 @@ final class MotorPresenta
         $agregar('traslado', 'Traslado de regreso a ' . $planta,
             trim((string) ($traslado->texto ?? 'tramo estimado'))
             . (isset($traslado->km) && $traslado->km !== null ? ' · ' . $traslado->km . ' km' : '')
-            . ' · fuente: ' . (string) ($traslado->fuente ?? 'sin dato'),
+            . ' · fuente: ' . (string) ($traslado->fuente ?? 'sin dato')
+            . self::mezcla_tramo($traslado->viaje ?? null),
             (int) ($trasladoMin ?? 0));
 
         $agregar('tiempo_muerto', 'Espera y descanso del conductor',
@@ -1079,6 +1080,49 @@ final class MotorPresenta
             'presenta_tardado' => null,
             'presentaciones' => [],
         ];
+    }
+
+    /**
+     * Cómo se armó el tiempo de un tramo, para pegar al detalle del paso:
+     * " · compilado 4:29 · 1 viaje de la placa (6:36) · franja vie 19 h (16 viajes, 4:39) → 4:42".
+     *
+     * El tramo que le falta al camión y el traslado de regreso salen de la MISMA
+     * cadena (`Servicio::viaje_ruta()`), así que se explican igual.
+     */
+    private static function mezcla_tramo(?object $mezcla): string
+    {
+        if ($mezcla === null || !isset($mezcla->min)) {
+            return '';
+        }
+
+        $partes = [];
+        if (isset($mezcla->base)) {
+            $partes[] = 'compilado ' . Tiempo::hhmm((int) $mezcla->base);
+        }
+
+        if (($mezcla->placa ?? null) !== null && (int) ($mezcla->placa_n ?? 0) > 0) {
+            $partes[] = (int) $mezcla->placa_n . ((int) $mezcla->placa_n === 1 ? ' viaje' : ' viajes')
+                . ' de la placa (' . Tiempo::hhmm((int) $mezcla->placa) . ')';
+        }
+
+        if (($mezcla->celda ?? null) !== null) {
+            $partes[] = 'franja ' . self::dia_semana($mezcla->celda_dia ?? null) . ' '
+                . (int) ($mezcla->celda_hora ?? 0) . ' h ('
+                . (int) ($mezcla->celda_viajes ?? 0) . ' viajes, '
+                . Tiempo::hhmm((int) $mezcla->celda) . ')';
+        }
+
+        if ($partes === []) {
+            return '';
+        }
+
+        return ' · ' . implode(' · ', $partes) . ' → ' . Tiempo::hhmm((int) $mezcla->min);
+    }
+
+    /** Nombre corto del día (0 = lunes, como lo guarda `tiempos_ruta_horario`). */
+    private static function dia_semana(?int $dia): string
+    {
+        return ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'][$dia ?? -1] ?? 'día';
     }
 
     /** @return array<int, array{concepto: string, min: int, fuente: string}> */

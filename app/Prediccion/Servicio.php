@@ -282,6 +282,34 @@ class Servicio
             }
         }
 
+        // Las piezas con las que se armó el traslado (ruta → placa → día y hora).
+        // Van al JSON y a los supuestos, igual que las del viaje: los dos procesos
+        // se calculan con la misma cadena y se explican igual.
+        $trasladoViaje = is_object($traslado->viaje ?? null) ? $traslado->viaje : null;
+        $trasladoCruce = null;
+        $trasladoHorario = null;
+
+        if ($trasladoViaje !== null) {
+            if ($trasladoViaje->placa !== null && (int) $trasladoViaje->placa_n > 0) {
+                $trasladoCruce = (object) [
+                    'min' => (int) $trasladoViaje->tras_placa,
+                    'compilado' => (int) $trasladoViaje->base,
+                    'placa' => (int) $trasladoViaje->placa,
+                    'n' => (int) $trasladoViaje->placa_n,
+                ];
+            }
+
+            if ($trasladoViaje->celda !== null) {
+                $trasladoHorario = (object) [
+                    'min' => (int) $trasladoViaje->min,
+                    'horario' => (int) $trasladoViaje->celda,
+                    'viajes' => (int) $trasladoViaje->celda_viajes,
+                    'dia' => (int) $trasladoViaje->celda_dia,
+                    'hora' => (int) $trasladoViaje->celda_hora,
+                ];
+            }
+        }
+
         // TIEMPO DEL VIAJE que le falta al camión: lo medido de la ruta, mezclado
         // con lo que esta placa tarda en la misma ruta y con el compilado por día y
         // hora de salida. Es la MISMA cadena que usa el traslado de regreso
@@ -605,12 +633,18 @@ class Servicio
             'viaje_cruce' => $cruceViaje,
             // y el ajuste por hora de salida (tiempos_ruta_horario), si se aplicó
             'viaje_horario' => $viajeHorario,
+            // el traslado de regreso se arma igual que el viaje: mismas dos mezclas
+            'traslado_cruce' => $trasladoCruce,
+            'traslado_horario' => $trasladoHorario,
             'ventanas' => $ventanas['ventanas'],
             'ventanas_origen' => $ventanas['origen'],
             'calibrador_usado' => !$anclaDeclarada,
             'geoapify_disponible' => \App\Prediccion\Geoapify::disponible(),
             'geoapify_usado' => $usoGeo,
             'traslado_fuente' => (string) ($traslado->fuente ?? 'sin_dato'),
+            // qué ruta se usó para el regreso (auditoría: el traslado acepta la
+            // ruta de los dos locales en cualquier sentido)
+            'traslado_ruta' => $traslado->ruta ?? null,
         ];
 
         // De dónde salió la posición del camión y, sobre todo, SI ENTRÓ en el
@@ -689,6 +723,19 @@ class Servicio
             $resultado->supuestos[] = 'viaje de la ruta por hora de salida: el compilado de esa franja ('
                 . Tiempo::hhmm((int) $viajeHorario->horario) . ', ' . $viajeHorario->viajes . ' viajes)'
                 . ' dejó el viaje en ' . Tiempo::hhmm((int) $viajeHorario->min);
+        }
+
+        // el regreso se arma igual que el viaje: mismas dos mezclas, mismo texto
+        if ($trasladoCruce !== null) {
+            $resultado->supuestos[] = 'traslado de regreso: compilado ' . Tiempo::hhmm((int) $trasladoCruce->compilado)
+                . ' mezclado con ' . $trasladoCruce->n . ' viajes de esta placa ('
+                . Tiempo::hhmm((int) $trasladoCruce->placa) . ')';
+        }
+
+        if ($trasladoHorario !== null) {
+            $resultado->supuestos[] = 'traslado de regreso por día y hora: el compilado de esa franja ('
+                . Tiempo::hhmm((int) $trasladoHorario->horario) . ', ' . $trasladoHorario->viajes . ' viajes)'
+                . ' dejó el traslado en ' . Tiempo::hhmm((int) $trasladoHorario->min);
         }
 
         if ($anclaDeclarada) {
