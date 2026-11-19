@@ -365,11 +365,12 @@ Rutas:
 
 **Como se procesa el lote** (no bloquea y no aborta):
 
-- Lotes de **50 refs por request**; si el usuario elige más, el JS encadena requests y dibuja una
-  barra de avance. 691 refs × 1 `CALL` es rápido, pero un request de 691 llamadas es un riesgo
-  innecesario.
-- Cada ref va en su propio `try/catch`. Un `SIGNAL` del SP (origen/destino no encontrado,
-  multiparada, título vacío) **no corta el lote**: se anota el mensaje y se sigue.
+- **Un solo request**, con `set_time_limit(300)` y un tope de 700 refs. Medido en esta base:
+  **6,85 ms por `CALL`**, así que las ~82 refs del caso real tardaron **0,52 s**. Trocear en lotes
+  de 50 sólo agregaría complejidad y un bucle de JS.
+- Cada ref va en su propio `try/catch`. Un error del SP **no corta el lote**: se anota el mensaje y
+  se sigue.
+- Se **omiten** las refs que ya tienen `ruta_id` (el SP incrementa `veces_usada` en cada llamada).
 - Antes de escribir: **confirmación** con el preview (cuántas resolverían y cuántas no, según el
   analizador) y dos avisos obligatorios:
   - si entre las seleccionadas hay títulos con `ACEITE`, avisar que hoy caerían en
@@ -377,6 +378,27 @@ Rutas:
   - recordar que el SP incrementa `veces_usada`.
 - Reporte final en pantalla: `ref · resultado (ok/error) · ruta_id obtenido · mensaje del SP`, con
   totales. Se puede **exportar a CSV**.
+
+**Lo que pasó cuando se corrió de verdad** (82 refs del bloque "ya resolverían", 2026-11-19):
+
+| resultado | refs |
+|---|---|
+| resueltas | 78 |
+| error del SP | 4 |
+| refs sin `ruta_id` | 688 → 610 (bajó exactamente 78) |
+
+Y los dos avisos resultaron ser proféticos:
+
+1. **23 de las 78 quedaron con la ruta equivocada.** Todas `RECOJO ACEITE GRUPO PATRONA` /
+   `ALDEBSA` / `SUPERALIMENTOS` cayeron en `RUT_AJEPER_GRUPO_PACIFIC_OIL-HUACHIPA` por el
+   `(ACEITE)` de §3bis. El aviso existía; el botón lo mostró tarde. **Consecuencia de diseño:
+   el aviso tiene que bloquear la selección de esas refs por defecto** (checkbox explícito), no
+   sólo advertir.
+2. **4 refs revientan el SP**: los títulos que empiezan con `*`
+   (`*ENVIO PT CARAL - INVERSIONES BEINMA (HUANTA) ECO`) dejan `*ENVIO PT CARAL` como texto
+   limpio, el SP lo mete crudo en el `REGEXP` y MySQL responde
+   `3688 Syntax error in regular expression`. No es un bug del módulo: es del SP (que no escapa
+   nada). El botón lo muestra como error por ref, sin cortar el lote.
 
 **Permisos:** `role:admin`, igual que el resto de Ubicaciones. Es una pantalla que **escribe** en
 `rutas` y `referencias`, así que además queda registrado en el reporte quién lo corrió y cuándo.
