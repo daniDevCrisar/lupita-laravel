@@ -2598,6 +2598,60 @@ evidencia. Hay tres niveles.
                      ParametrosPantallaTest (los cuatro bloques "En uso ahora", la
                      grilla de las nueve clases y la marca de cambiado).
 
+  1.41 19/11/2026  - EL TRASLADO DE REGRESO SE CALCULA IGUAL QUE EL TRAMO QUE LE
+                     FALTA AL CAMION (era el pedido: "esos 2 procesos deben ser
+                     calculados asi"). Antes `DBPrediccion::traslado()` tomaba el
+                     promedio DIARIO de la ruta y nunca abria `tiempos_ruta_horario`:
+                     un regreso a las 20 h de un viernes se estimaba con la mediana
+                     del dia. Ahora los dos comparten `Servicio::viaje_ruta()`:
+                       1. lo medido de la ruta (`DBPrediccion::viaje_ruta_base()`:
+                          mediana compilada; sin compilado, mediana de referencias, y
+                          si la ruta no tiene refs en la ventana, la fila de
+                          `tiempos_ruta_promedio`: fusion -> promedio -> mediana);
+                       2. mezclado con lo que ESA placa tarda en la misma ruta
+                          (`cruce_pares_k`, w = n/(n+k));
+                       3. mezclado con el compilado POR DIA Y HORA de esa ruta
+                          (`horario_activo`, `horario_viajes_k`, `horario_viajes_min`,
+                          misma w). La hora que indexa la celda es la hora a la que el
+                          camion queda libre (la que ya calculaba `salidaRegreso`), no
+                          la del corte.
+                     Los promedios de ida y vuelta son casi los mismos: la
+                     incertidumbre no esta en el transito sino en lo que el conductor
+                     descansa/come/duerme, que el motor suma aparte como tiempo muerto.
+                     La escalera de RESOLUCION de la ruta no cambia (mismos locales,
+                     mismo par de ubigeos, ruta de la referencia, Geoapify,
+                     departamentos, defecto). El backtest pasa el mismo resolvedor,
+                     asi la tabla de aciertos mide el traslado de produccion.
+
+                     JSON: `historia` agrega `traslado_cruce`, `traslado_horario` y
+                     `traslado_ruta` (que ruta se uso), y los `supuestos` explican las
+                     dos mezclas igual que las del viaje. El paso `traslado` del
+                     timeline trae la cadena completa:
+                     "compilado 4:29 · 1 viaje de la placa (6:36) · franja vie 19 h
+                     (16 viajes, 4:39) -> 4:42".
+
+                     Donde puede mover la hora publicada: evidencia `cadena` (el hueco
+                     es traslado + muerto), el piso fisico del rapido, el reparto
+                     tiempo_muerto = hueco - traslado y la condicion `cerca`
+                     (traslado <= cerca_min decide con que pares se calibra).
+
+                     MEDIDO en local (397 filas guardadas de octubre, mismas rutas y
+                     placas, comparando el traslado viejo contra el nuevo):
+                       cambia en 238 de 342 traslados por ruta (70 %)
+                       |delta| mediano 14 min · p90 118 min · > 30 min en 126 filas
+                       delta medio +13,7 min (el traslado queda algo mas largo)
+                     El A/B punta a punta sobre esas mismas filas NO aisla este
+                     cambio: los parametros con los que se guardaron no son los de
+                     hoy. La medicion limpia es post-deploy, mismo rango y mismos
+                     parametros.
+
+                     Tests: tests/Feature/Api/TrasladoConHorarioTest.php (el traslado
+                     usa el resolvedor y devuelve las piezas; sin resolvedor sigue
+                     usando lo medido; la mezcla ruta -> placa -> dia/hora se compara
+                     contra SQL; sin fecha no se inventa la franja; la respuesta trae
+                     las claves nuevas) y un caso en MotorPresentaTest para el texto
+                     del paso.
+
 ================================================================================
  FIN
 ================================================================================
