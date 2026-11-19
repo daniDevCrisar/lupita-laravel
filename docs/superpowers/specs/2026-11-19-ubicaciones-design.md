@@ -59,12 +59,14 @@ lista de decisiones, la 1 es el "ver los títulos" de cada decisión.
 - Ver un ranking de **fragmentos y palabras que no resuelven**, agrupado, con conteo de refs.
 - Que cada candidato venga **clasificado solo** contra el catálogo: *local nuevo* / *typo de uno existente* / *el local existe pero el título se cortó* / *basura o multiparada*.
 - Poder **descartar** un candidato para que no vuelva a aparecer, y **crear el local** desde ahí mismo con el nombre y la palabra clave prellenados.
+- Poder **encontrar la ruta de una ref llamando al stored procedure** `sp_actualizar_ruta_id`, desde las mismas pantallas, viendo qué pasó con cada ref.
 - Guardar `lat`/`lng` por local, mostrarlas y dejar el campo listo para que predicción lo consuma después.
 - Obtener `lat`/`lng` pegando un link de Google Maps, **sin APIs de pago**.
 
 ## Non-goals
 
-- **No** se toca `sp_actualizar_ruta_id` ni se reprocesan refs: este módulo diagnostica y edita el catálogo, no recalcula rutas. Si un local nuevo hace que una ref deba re-procesarse, eso se hace con el mecanismo que ya existe (`CALL sp_actualizar_ruta_id`), fuera de estas pantallas.
+- **No** se modifica `sp_actualizar_ruta_id` ni se reescribe su lógica en PHP para escribir en la base. El botón de reprocesar **llama al SP tal como está**; el analizador en PHP solo sirve para *predecir* y *diagnosticar*, nunca para guardar.
+- **No** se instala el SP como parte del código de la aplicación. Si falta, el botón lo detecta y muestra cómo instalarlo (ver §3c); instalarlo es una acción sobre la base que se hace aparte.
 - **No** se llama a ninguna API de Google ni de pago. El link se parsea localmente.
 - **No** se consume Geoapify en este módulo. La key está en el `.env` y el servicio existe (`App\Prediccion\Geoapify`), pero acá no se usa: las coordenadas las provee el usuario con el link. Queda disponible para cuando predicción use `lat`/`lng`.
 - **No** se calculan distancias ni tiempos en estas pantallas.
@@ -73,7 +75,8 @@ lista de decisiones, la 1 es el "ver los títulos" de cada decisión.
 ## Anti-goals (aunque técnicamente funcionen, serían un fracaso)
 
 - Un ranking de palabras sueltas lleno de `DE`, `CARGA`, `PT`, `PLANTA`, `CON`, `GPS`, `UT`, `AUXILIAR`, `VALIDAR`, `MERCADERIA`: sería mirar y no decidir nada.
-- Que la pantalla muestre el mismo problema 691 veces (una por ref) en vez de 702 fragmentos agrupados.
+- Que la pantalla muestre el mismo problema 691 veces (una por ref) en vez de 155 fragmentos agrupados.
+- Que el boton de reprocesar se pueda apretar dos veces sobre la misma ref y sin saber que hizo: el SP sube `veces_usada` en cada llamada, asi que reprocesar de mas ensucia el historico de rutas.
 - Que "crear local" sea un link a otra pantalla donde hay que volver a escribir todo lo que la vista ya sabía.
 - Que las coordenadas queden como texto libre sin validar (una lat `-1110` rompe cualquier cálculo futuro).
 - Depender de una lista negra de palabras que hay que engordar a mano en el código.
@@ -135,11 +138,11 @@ diagnóstico miente:
 - separa por `" - "`, si no por `-`, si no por `" A "`;
 - borra paréntesis **antes** de todo → `PUCALLPA(CORONADO)` queda `PUCALLPACORONADO` (esta es la causa de ~90 refs);
 - `|` en `palabra_clave` es alternancia regex, y el texto viaja **crudo** al regex (por eso `.CHICLAYO` matchea `BABEL CHICLAYO`);
-- **gana la primera fila en orden de PK** (`locales.id`), no la mejor coincidencia;
+- gana **la primera fila que devuelva el plan** del `SELECT ... LIMIT 1`, que **no tiene `ORDER BY`** — no "la mejor coincidencia". El analizador itera en orden de PK como aproximación, y por eso su resultado es predictivo y no autoritativo (§3c);
 - si no hay local, busca el distrito del ubigeo y usa el ubigeo como id.
 
-Fidelidad y costo: la resolución se hace **por fragmento distinto, no por ref**. 702 fragmentos
-× 84 locales ≈ 59.000 comparaciones; se puede iterar en orden de PK para ser fiel al SP y sigue
+Fidelidad y costo: la resolución se hace **por fragmento distinto, no por ref**. 155 fragmentos
+× 84 locales ≈ 13.000 comparaciones; se puede iterar en orden de PK para acercarse al SP y sigue
 siendo instantáneo.
 
 `DBUbicaciones` (capa de datos, al estilo `DBLocales` / `DBTiemposPlanta`) hace las consultas y
@@ -288,14 +291,8 @@ título** (las que se analizan) y **3 sin `titulo_viaje`**, que se muestran apar
 
 El motivo `ya_resolveria` no existe en el SP; es propio de esta pantalla y es el que evita
 confundir "nunca procesado" con "falta un local". Esas 88 refs se muestran en un bloque aparte,
-plegable, con la etiqueta **"no necesita local nuevo"** y sin acciones de catálogo.
-
-**Reprocesar está fuera de fase 1.** El módulo diagnostica y edita el catálogo; no recalcula
-`ruta_id`. Consecuencia que hay que tener presente: **crear los locales que faltan no mueve el
-contador de 691** — las refs siguen en nulo hasta que alguien corra
-`sp_actualizar_ruta_id` / `sp_actualizar_rutas_lote`. Y en esta base el SP **no está instalado**
-(`SHOW PROCEDURE STATUS` viene vacío), así que hoy no hay nada que correr. Instalarlo y reprocesar
-es un trabajo aparte, con su propio riesgo (escribe en `rutas` y `referencias`).
+plegable, con la etiqueta **"no necesita local nuevo"** — y son justamente las candidatas
+naturales al botón de reprocesar (§3c).
 
 Filtros: por motivo, por texto, y por fragmento (parámetro `?fragmento=`) para llegar desde la
 pantalla de palabras. Acepta `?ref=` para mostrar una sola ref (drill-down desde cualquier lado).
@@ -318,6 +315,71 @@ Es la prueba de que una palabra clave genérica hace daño. Consecuencias para e
   antes de reprocesar.
 
 Acepta `?ref=` para mostrar una sola ref (drill-down desde cualquier otro lado).
+
+### 3c. Boton "Encontrar ruta" (reprocesar con el stored procedure)
+
+Lo que hace: dado un conjunto de refs, llamar `CALL sp_actualizar_ruta_id('<ref>')` una vez por ref.
+El SP es el que manda: deduce origen/destino contra `locales` y `ubigeo_distritos`, hace el
+`INSERT ... ON DUPLICATE KEY` en `rutas` y escribe `referencias.ruta_id`.
+
+Rutas:
+
+| metodo | ruta | que hace |
+|---|---|---|
+| `POST` | `/lupita/ubicaciones/reprocesar` | procesa un lote de refs y devuelve el reporte por ref |
+| `GET` | `/lupita/ubicaciones/reprocesar/estado` | si el SP esta instalado, y cuantas refs quedan |
+
+**Donde aparece el boton:**
+
+- Pantalla **Títulos sin ruta**: un botón por familia (procesa todas las refs de ese título) y un
+  botón de cabecera **"Reprocesar las 88 que ya resolverían"**.
+- Drill-down desde **Palabras repetidas** ("Ver títulos") hereda los mismos botones.
+- Nunca sobre una ref que ya tiene `ruta_id` (no está en la lista, pero se valida en el servidor).
+
+**Tres cosas que encontré leyendo el SP (`sql/rutas.sql`, líneas 243-400) y que el botón tiene que manejar:**
+
+1. **El SP devuelve un result set.** Las tres salidas — los dos `SELECT` de diagnóstico antes de
+   cada `SIGNAL` y el `SELECT` final de éxito — devuelven 12 columnas. Si se llama con
+   `DB::statement()` como hace hoy `DBRefsActualizar::reprocesar_ruta()`, el resultado queda sin
+   consumir y encadenar varias llamadas puede romper con *"Cannot execute queries while other
+   unbuffered queries are active"*. El botón usa **`DB::select("CALL ...")`**, que consume el
+   result set, y trabaja con la fila que devuelve (título, limpios, ids, ubigeos).
+2. **El SP sube `veces_usada` en cada llamada.** El `ON DUPLICATE KEY UPDATE` hace
+   `veces_usada = veces_usada + 1` **aunque el resultado sea el mismo** `ruta_id`. Reprocesar dos
+   veces la misma ref infla el histórico de la ruta. Por eso: el botón deshabilita las refs ya
+   procesadas en la sesión (y el servidor ignora las que ya tienen `ruta_id`), y el reporte dice
+   explícitamente cuántas rutas se incrementaron.
+3. **No es determinista.** El `SELECT ... LIMIT 1` que busca el local no tiene `ORDER BY`: gana lo
+   que diga el plan, no "la mejor coincidencia". Por eso el analizador en PHP es **predictivo, no
+   autoritativo**: el preview muestra lo que *creemos* que va a pasar, y lo que vale es lo que
+   devuelve el SP. Si no coinciden, se muestra la diferencia.
+
+**Guardia por SP ausente.** En esta base el SP **no está instalado**
+(`SHOW PROCEDURE STATUS` / `information_schema.ROUTINES` viene vacío). El botón consulta
+`information_schema.ROUTINES WHERE ROUTINE_NAME = 'sp_actualizar_ruta_id'` y, si falta:
+
+- el botón queda **deshabilitado** con el motivo visible (nunca un 500 al apretarlo);
+- muestra el comando exacto de instalación: ejecutar el bloque activo (V3) de `sql/rutas.sql`,
+  **líneas 243-400**, en la base del servidor (V1 y V2 están comentadas);
+- la pantalla sigue sirviendo para diagnosticar y editar el catálogo.
+
+**Como se procesa el lote** (no bloquea y no aborta):
+
+- Lotes de **50 refs por request**; si el usuario elige más, el JS encadena requests y dibuja una
+  barra de avance. 691 refs × 1 `CALL` es rápido, pero un request de 691 llamadas es un riesgo
+  innecesario.
+- Cada ref va en su propio `try/catch`. Un `SIGNAL` del SP (origen/destino no encontrado,
+  multiparada, título vacío) **no corta el lote**: se anota el mensaje y se sigue.
+- Antes de escribir: **confirmación** con el preview (cuántas resolverían y cuántas no, según el
+  analizador) y dos avisos obligatorios:
+  - si entre las seleccionadas hay títulos con `ACEITE`, avisar que hoy caerían en
+    `LOC_AJEPER_GRUPO_PACIFIC_OIL` por la palabra clave `(ACEITE)` (ver §3bis);
+  - recordar que el SP incrementa `veces_usada`.
+- Reporte final en pantalla: `ref · resultado (ok/error) · ruta_id obtenido · mensaje del SP`, con
+  totales. Se puede **exportar a CSV**.
+
+**Permisos:** `role:admin`, igual que el resto de Ubicaciones. Es una pantalla que **escribe** en
+`rutas` y `referencias`, así que además queda registrado en el reporte quién lo corrió y cuándo.
 
 ### 4. Locales con coordenadas
 
@@ -402,6 +464,9 @@ Nuevo desplegable **Ubicaciones** en el menu de usuario (donde hoy vive "Locales
 Desde Google Maps. Se quita la entrada suelta "Locales" (queda dentro del grupo) y los nombres de
 ruta `lupita.locales*` no cambian.
 
+La pantalla de **reporte del reproceso** no es una entrada de menú: se llega a ella después de
+apretar el botón (y se puede volver desde ahí).
+
 ### 8. Persistencia de decisiones
 
 Una sola tabla, **solo para lo que decide el humano**. Todo lo demas se recalcula:
@@ -444,10 +509,11 @@ Nuevos:
 - `app/Ubicaciones/LinkGoogleMaps.php` — parser del link (puro, testeable).
 - `app/Ubicaciones/ExtractorCandidatos.php` — fragmentos → palabras y n-gramas.
 - `app/Ubicaciones/Clasificador.php` — veredicto contra el catalogo.
-- `app/Database/DBUbicaciones.php` — consultas de refs/rutas + descartes.
+- `app/Database/DBUbicaciones.php` — consultas de refs/rutas + descartes + deteccion del SP.
+- `app/Database/DBReprocesar.php` — llama al SP ref por ref, arma el reporte (no hace parseo).
 - `app/Database/DBClientes.php` — CRUD de clientes.
-- `app/Http/Controllers/Ubicaciones/{PalabrasController,TitulosController,ClientesController,MapsController}.php`
-- `resources/views/lupita/ubicaciones/{palabras,titulos,clientes,maps}.blade.php`
+- `app/Http/Controllers/Ubicaciones/{PalabrasController,TitulosController,ReprocesarController,ClientesController,MapsController}.php`
+- `resources/views/lupita/ubicaciones/{palabras,titulos,reprocesar,clientes,maps}.blade.php`
 - `resources/views/lupita/ubicaciones/partials/tabla-candidatos.blade.php` (si hace falta)
 - `config/ubicaciones.php`
 - `database/migrations/…_add_lat_lng_to_locales.php`
@@ -474,17 +540,30 @@ PHPUnit como el resto (`tests/Feature/Ubicaciones/`):
 - `LinkGoogleMapsTest` — un link por patron (`!3d`, `@`, `?q=`, place, corto, host invalido, coordenadas fuera de rango). Sin red: el caso del link corto se prueba con el resolvedor inyectado.
 - `PalabrasTest` — la pantalla responde 200 con admin, 403 sin rol, y el conteo de una fixture cuadra.
 - `DescartesTest` — descartar oculta la fila, marcado "ver descartados" aparece, y restaurar la devuelve.
+- `ReprocesarTest` — con el SP **simulado** (no se puede depender de que este instalado en el
+  entorno de pruebas):
+  - si el SP no existe, el endpoint responde con el aviso y **no** intenta escribir;
+  - una ref con `ruta_id` ya puesto se ignora y no se llama al SP;
+  - un `SIGNAL` en una ref no corta el lote y queda en el reporte con su mensaje;
+  - el lote respeta el tope de 50 y el JS encadena.
+  El test marca `information_schema` como no disponible y usa un doble del llamador, para que la
+  suite no dependa de una base con procedimientos.
 - `ClientesTest` — alta y edicion; el `id` no se puede cambiar.
 
 ### 12. Fases
 
 | fase | contenido | por que |
 |---|---|---|
-| **1** | Analizador + las 2 pantallas de diagnostico + tabla de descartes + menu Ubicaciones | es lo que el usuario pidio primero: identificar locales faltantes |
+| **1** | Analizador + las 2 pantallas de diagnostico + boton de reprocesar (§3c) + tabla de descartes + menu Ubicaciones | es lo que el usuario pidio primero: identificar locales faltantes y encontrarles la ruta |
 | 2 | `lat`/`lng` en locales + pantalla "Desde Google Maps" | depende de que el catalogo ya este completo; su valor es preparar prediccion |
 | 3 | Pantalla de clientes | independiente, puede ir en cualquier momento |
 
 Fase 1 se entrega y se usa antes de empezar la 2.
+
+**Nota sobre el orden dentro de fase 1:** el boton de reprocesar se puede construir y probar sin el
+SP instalado (la guardia y el reporte), pero **no se puede usar de verdad** hasta ejecutar las
+lineas 243-400 de `sql/rutas.sql` en la base. Conviene instalar el SP antes de dar la fase 1 por
+terminada, o al menos probarlo una vez con una ref real.
 
 ## Decisiones
 
@@ -495,16 +574,24 @@ Fase 1 se entrega y se usa antes de empezar la 2.
   consuma despues. No se toca prediccion ni Geoapify en este trabajo.
 - Empezar por las palabras mas usadas para identificar locales.
 - Opcion 3 para el conteo (fragmentos + palabras + clasificacion + descartes).
+- **Boton "Encontrar ruta" que reprocesa llamando al stored procedure** (§3c). Esto cambia el
+  alcance que yo habia propuesto: fase 1 ya **escribe** en `rutas` y `referencias`.
 
 **Mias (para que las revises):**
 
 - Conteo **por título y fragmento distinto, no por ref** (508 títulos y 155 fragmentos en vez de
   691 refs repetidas).
-- Se reconstruye la logica del SP en PHP en vez de instalar el SP y consultarlo. El SP no esta
-  instalado en esta base (`SHOW PROCEDURE STATUS` viene vacio) y ademas el analisis necesita
-  correr sobre texto hipotetico ("¿que pasaria si..."), que un SP no permite.
-- Se replica la logica **con sus rarezas** (parentesis, `|` como regex, primera fila en orden de
-  PK) en vez de "arreglarla". Si el analizador fuera mas listo que el SP, el diagnostico mentiria.
+- Se reconstruye la logica del SP en PHP **solo para predecir y diagnosticar**. El SP sigue siendo
+  el unico que escribe: el analizador nunca hace `INSERT` ni `UPDATE`.
+- Se replica la logica **con sus rarezas** (parentesis, `|` como regex, primera fila sin `ORDER BY`)
+  en vez de "arreglarla". Si el analizador fuera mas listo que el SP, el diagnostico mentiria.
+- **El preview del reproceso es predictivo, no autoritativo**: el SP puede resolver distinto por el
+  `LIMIT 1` sin `ORDER BY`. Se muestra la diferencia cuando aparece.
+- El boton de reprocesar **se deshabilita si el SP no esta instalado** y muestra como instalarlo, en
+  vez de intentar y reventar. Hoy en esta base esta deshabilitado.
+- Se llama con `DB::select()` y no `DB::statement()`, porque el SP devuelve un result set.
+- Se ignoran las refs que ya tienen `ruta_id`, para no inflar `veces_usada`.
+- Lotes de 50 por request, cada ref con su `try/catch`, sin abortar el lote.
 - Solo se persisten los **descartes**; el resto se recalcula siempre.
 - Los descartes **se pueden ver y restaurar** desde la misma pantalla (no se filtran en el servidor).
 - El veredicto `generica` (palabra que es producto y captura clientes distintos) **no ofrece crear
@@ -517,14 +604,11 @@ Fase 1 se entrega y se usa antes de empezar la 2.
 - Ubicaciones queda `role:admin`, igual que locales hoy.
 - Se entrega en 3 fases con la 1 primero.
 
-**Abierto para vos (una sola pregunta):**
-
-- Las **88 refs que ya resolverian** no necesitan local nuevo: necesitan que alguien corra el SP,
-  que en esta base no esta instalado. O sea que **crear los locales que faltan no va a mover el
-  contador de 691**. ¿Esta bien que fase 1 solo lo **muestre** (bloque "no necesita local nuevo",
-  sin acciones), y el reproceso se trate despues como trabajo aparte? ¿O queres que fase 1 incluya
-  un boton "reprocesar estas refs", que implica instalar el SP y escribir en `rutas`/`referencias`
-  (y hoy dispararia el problema de `(ACEITE)`)? Mi recomendacion: **solo mostrarlo en fase 1**.
+**Decision que ya no queda abierta:** fase 1 incluye el boton de reprocesar. Consecuencia que hay
+que asumir: `sp_actualizar_ruta_id` **no esta instalado en esta base**, asi que el boton se
+entrega deshabilitado y con las instrucciones. Para que funcione hay que ejecutar las lineas
+243-400 de `sql/rutas.sql` en el servidor — accion sobre la base que no forma parte del codigo de
+la aplicacion.
 
 ## Lo que queda a criterio del que implementa
 
