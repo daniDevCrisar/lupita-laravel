@@ -181,7 +181,7 @@
                                 @endif
 
                                 @if($c['local_id'])
-                                    <a href="{{ route('lupita.locales.editar', $c['local_id']) }}"
+                                    <a href="{{ route('lupita.locales.editar', ['id' => $c['local_id'], 'variante' => $c['frase']]) }}"
                                        class="btn btn-outline-info btn-sm"
                                        title="Agregar esta frase como variante de la palabra clave">
                                         <i class="bi bi-pencil-square"></i> Variante

@@ -234,6 +234,11 @@ class Clasificador
             return null;
         }
 
+        // Con tokens cortos la distancia de edicion da falsos positivos que ademas se
+        // ofrecen como "agregar variante": SMP->SMI, INDP->CAQUI/INGA. El minimo de
+        // longitud evita proponer una palabra clave que despues manda viajes a otra ruta.
+        $minimo = 5;
+
         $mejor = null;
         $mejor_porcentaje = -1;
 
@@ -249,7 +254,9 @@ class Clasificador
                 $distancia = levenshtein($buscado, $normalizada);
 
                 $es_parecido = $porcentaje >= (float) $this->config['parecido_porcentaje']
-                    || $distancia <= (int) $this->config['parecido_distancia'];
+                    || ($distancia <= (int) $this->config['parecido_distancia']
+                        && mb_strlen($buscado) >= $minimo
+                        && mb_strlen($normalizada) >= $minimo);
 
                 if ($es_parecido && $porcentaje > $mejor_porcentaje) {
                     $mejor_porcentaje = $porcentaje;

@@ -87,6 +87,14 @@ class DBReprocesar
         $error = 0;
 
         foreach ($a_procesar as $ref) {
+            // se revalida justo antes de llamar: entre la comprobacion del lote y este
+            // momento, otro proceso (u otro admin) pudo resolverla, y el SP suma en
+            // `veces_usada` en cada llamada aunque el ruta_id salga igual
+            if (DBUbicaciones::refsConRuta([$ref]) !== []) {
+                $omitidas[] = $ref;
+                continue;
+            }
+
             try {
                 $resultado = $llamar($ref);
                 $filas[] = [

@@ -41,9 +41,9 @@ class TitulosController extends Controller
             'titulos_total'  => $calculo['titulos'],
             'fragmentos'     => $calculo['fragmentos'],
             'ya_resolverian' => $calculo['ya_resolverian'],
-            'sp_disponible'  => DBUbicaciones::spDisponible(),
+            'sp_disponible'  => \App\Database\DBReprocesar::spDisponible(),
             // llega desde "Ver títulos" del ranking de palabras
-            'fragmento'      => mb_substr(trim((string) $request->query('fragmento', '')), 0, 120),
+            'fragmento'      => (function ($v) { return is_string($v) ? mb_substr(trim($v), 0, 120) : ''; })($request->query('fragmento', '')),
         ]);
     }
 }

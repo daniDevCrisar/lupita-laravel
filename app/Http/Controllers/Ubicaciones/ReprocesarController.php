@@ -60,6 +60,22 @@ class ReprocesarController extends Controller
                     . 'Ejecutá el bloque activo (V3) de sql/rutas.sql, líneas 243-400, y volvé a intentar.');
         }
 
+        // GUARDIA DEL (ACEITE): LOC_AJEPER_GRUPO_PACIFIC_OIL declara la palabra clave
+        // "(ACEITE)", que es un producto y no un cliente. Cuando se corrio el reproceso
+        // de verdad, 23 refs de "RECOJO ACEITE GRUPO PATRONA / ALDEBSA / SUPERALIMENTOS"
+        // quedaron con la ruta equivocada. Hasta que se limpie esa palabra clave, esas
+        // refs no se procesan salvo confirmacion explicita.
+        $aceite = $this->refsConAceite($datos['refs']);
+        if ($aceite !== [] && (string) $request->input('confirmar_aceite') !== '1') {
+            return redirect()
+                ->route('lupita.ubicaciones.titulos')
+                ->with('error', 'No se procesó nada: ' . count($aceite) . ' refs mencionan ACEITE '
+                    . '(' . implode(', ', array_slice($aceite, 0, 8)) . (count($aceite) > 8 ? '…' : '') . '). '
+                    . 'La palabra clave "(ACEITE)" de LOC_AJEPER_GRUPO_PACIFIC_OIL las manda a la ruta '
+                    . 'equivocada. Limpiá esa palabra clave en el local, o volvé a enviar con la '
+                    . 'confirmación explícita.');
+        }
+
         // 691 llamadas a ~7 ms son ~5 s: no hace falta trocear, pero el limite
         // por defecto de PHP (30 s) es corto si la base esta lenta
         set_time_limit(300);
@@ -70,5 +86,28 @@ class ReprocesarController extends Controller
             'reporte'       => $reporte,
             'sp_disponible' => true,
         ]);
+    }
+
+    /**
+     * Refs cuya ref o titulo mencionan ACEITE (el caso que manda a la ruta equivocada).
+     *
+     * @param array<int, string> $refs
+     *
+     * @return array<int, string>
+     */
+    private function refsConAceite(array $refs): array
+    {
+        $salida = [];
+
+        foreach (array_chunk($refs, 500) as $lote) {
+            foreach (\Illuminate\Support\Facades\DB::table('referencias')
+                ->whereIn('ref', $lote)
+                ->where('titulo_viaje', 'like', '%ACEITE%')
+                ->pluck('ref') as $ref) {
+                $salida[] = (string) $ref;
+            }
+        }
+
+        return $salida;
     }
 }

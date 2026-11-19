@@ -253,7 +253,12 @@ class Servicio
             ? DBPrediccion::traslado($plantaCarga, $desdePlanta !== '' ? $desdePlanta : null,
                 $desdeUbigeo !== '' ? $desdeUbigeo : null, (string) ($fila->ubigeo_origen ?? ''),
                 $etapasPorRuta, $rutaRef !== '' ? $rutaRef : null, (int) $p->traslado_defecto_min,
-                $ubicacionDeclarada && !$viajeEnCurso, $salidaRegreso)
+                $ubicacionDeclarada && !$viajeEnCurso, $salidaRegreso,
+                // el regreso se estima con EL MISMO cálculo que el tramo que le
+                // falta al camión (ruta → placa → día y hora), desde la hora a la
+                // que el camión queda libre
+                fn (string $ruta): ?object => self::viaje_ruta($ruta, $etapasPorRuta, $salidaRegreso,
+                    $placa, $desde, $ahora, $p))
             : null;
         $traslado = self::limitar_traslado($traslado, $p);
 
@@ -277,60 +282,48 @@ class Servicio
             }
         }
 
-        // CRUCE de fuentes para el VIAJE que le falta al camión:
-        //  - población: el compilado de la ruta (módulo de tiempos);
-        //  - entidad: lo que ESTA placa tarda en esa misma ruta.
-        // Se mezclan por muestra: w = n/(n+k). Con pocos viajes propios manda el
-        // compilado; con muchos, la placa. Es la forma de que un camión que
-        // siempre tarda 10 % más no quede tapado por el promedio de la flota, sin
-        // que dos viajes raros muevan la aguja.
+        // TIEMPO DEL VIAJE que le falta al camión: lo medido de la ruta, mezclado
+        // con lo que esta placa tarda en la misma ruta y con el compilado por día y
+        // hora de salida. Es la MISMA cadena que usa el traslado de regreso
+        // (`Servicio::viaje_ruta()`), porque los promedios de ida y vuelta son casi
+        // los mismos y la incertidumbre está en lo que el conductor descansa.
         $etapasAncla = $etapasPorRuta[$rutaAncla] ?? [];
         $cruceViaje = null;
+        $viajeHorario = null;
         $anclaAbierta = $ancla !== null && !($ancla->cerrado ?? false);
 
-        if ($rutaAncla !== '' && $anclaAbierta && !$anclaDeclarada) {
-            $viajeCompilado = $etapasAncla['e4'] ?? null;
-            $viajePlaca = DBPrediccion::viaje_placa($placa, $rutaAncla, $desde, $ahora);
-            $mezclado = self::mezclar_viaje($viajeCompilado, $viajePlaca['mediana'], (int) $viajePlaca['n'],
-                (int) ($p->cruce_pares_k ?? 3));
-
-            if ($mezclado !== null) {
-                $etapasAncla['e4'] = $mezclado;
-                $cruceViaje = (object) [
-                    'min' => $mezclado,
-                    'compilado' => $viajeCompilado,
-                    'placa' => $viajePlaca['mediana'],
-                    'n' => (int) $viajePlaca['n'],
-                ];
-            }
-        }
-
-        // El viaje compilado tiene versión POR HORA de salida
-        // (`tiempos_ruta_horario`, la misma que sirve /api/tiempos/promedio/horario):
-        // ahí está la demora de la hora pico, que la mediana diaria no tiene. Se
-        // mezcla con lo que ya se calculó usando la muestra de la celda, igual
-        // que el resto: una celda con 2 viajes no mueve la aguja.
-        $viajeHorario = null;
-        if ((int) ($p->horario_activo ?? 1) === 1 && $rutaAncla !== '' && ($etapasAncla['e4'] ?? null) !== null) {
+        if ($rutaAncla !== '' && ($etapasAncla['e4'] ?? null) !== null) {
             // hora de salida: la del propio hito si ya arrancó, si no la del corte
             $salidaViaje = ((string) ($ancla->hito ?? '') === 'inicio_ruta' && $ancla->fecha instanceof Carbon)
                 ? $ancla->fecha
                 : $ahora;
 
-            $celda = DBPrediccion::viaje_horario($rutaAncla, $salidaViaje, (int) ($p->horario_viajes_min ?? 3));
+            // la placa sólo entra con el viaje abierto: con el ancla cerrada la
+            // etapa no se usa para calcular y no vale la pena medirla
+            $conPlaca = $anclaAbierta && !$anclaDeclarada;
 
-            if ($celda !== null) {
-                $conHorario = self::mezclar_viaje((int) $etapasAncla['e4'], $celda->min,
-                    (int) $celda->viajes, (int) ($p->horario_viajes_k ?? 3));
+            $estimado = self::viaje_ruta($rutaAncla, $etapasPorRuta, $salidaViaje,
+                $conPlaca ? $placa : '', $conPlaca ? $desde : null, $conPlaca ? $ahora : null, $p);
 
-                if ($conHorario !== null && $conHorario !== (int) $etapasAncla['e4']) {
-                    $etapasAncla['e4'] = $conHorario;
+            if ($estimado !== null) {
+                $etapasAncla['e4'] = (int) $estimado->min;
+
+                if ($estimado->placa !== null && (int) $estimado->placa_n > 0) {
+                    $cruceViaje = (object) [
+                        'min' => (int) $estimado->tras_placa,
+                        'compilado' => (int) $estimado->base,
+                        'placa' => (int) $estimado->placa,
+                        'n' => (int) $estimado->placa_n,
+                    ];
+                }
+
+                if ($estimado->celda !== null) {
                     $viajeHorario = (object) [
-                        'min' => $conHorario,
-                        'horario' => (int) $celda->min,
-                        'viajes' => (int) $celda->viajes,
-                        'dia' => (int) $celda->dia,
-                        'hora' => (int) $celda->hora,
+                        'min' => (int) $estimado->min,
+                        'horario' => (int) $estimado->celda,
+                        'viajes' => (int) $estimado->celda_viajes,
+                        'dia' => (int) $estimado->celda_dia,
+                        'hora' => (int) $estimado->celda_hora,
                     ];
                 }
             }
@@ -1383,7 +1376,12 @@ class Servicio
             $traslado = $plantaCarga !== ''
                 ? DBPrediccion::traslado($plantaCarga, $desdePlanta !== '' ? $desdePlanta : null,
                     $desdeUbigeo !== '' ? $desdeUbigeo : null, $plantaUbigeo,
-                    $etapas, $rutaSiguiente !== '' ? $rutaSiguiente : null, (int) $p->traslado_defecto_min)
+                    $etapas, $rutaSiguiente !== '' ? $rutaSiguiente : null, (int) $p->traslado_defecto_min,
+                    // el backtest tiene que medir el MISMO traslado que producción:
+                    // ruta → placa → día y hora, desde el ancla (ahí queda libre)
+                    false, $par->ancla instanceof Carbon ? $par->ancla : null,
+                    fn (string $ruta): ?object => self::viaje_ruta($ruta, $etapas, $par->ancla, $par->placa,
+                        $desde, $hasta, $p))
                 : null;
             $traslado = self::limitar_traslado($traslado, $p);
 
@@ -2029,6 +2027,90 @@ class Servicio
         $w = $k === 0 ? 1.0 : $n / ($n + $k);
 
         return (int) round($w * $entidad + (1 - $w) * $compilado);
+    }
+
+    /**
+     * Tiempo de VIAJE de una ruta: la MISMA cadena para el tramo que le falta al
+     * camión y para el traslado de regreso.
+     *
+     * Antes el traslado miraba sólo el promedio diario de la ruta: no abría el
+     * compilado POR DÍA Y HORA, así que un regreso a las 20 h de un viernes se
+     * estimaba con la mediana del día. Los dos procesos son el mismo problema (cuánto
+     * tarda el camión en un tramo concreto), así que se resuelven igual:
+     *
+     *   1. lo medido de la ruta (`DBPrediccion::viaje_ruta_base()`: mediana
+     *      compilada o, sin compilado, mediana de las referencias);
+     *   2. mezclado con lo que ESA placa tarda en esa misma ruta (w = n/(n+k));
+     *   3. mezclado con el compilado por día y hora de esa ruta (w = n/(n+k)).
+     *
+     * Los promedios de ida y vuelta son casi los mismos: la incertidumbre del
+     * modelo no está en el tránsito sino en lo que el conductor descansa, come o
+     * duerme, que el motor suma aparte como tiempo muerto.
+     *
+     * Devuelve null si esa ruta no tiene NADA medido: ahí decide el que llama
+     * (Geoapify, la flota o el valor por defecto).
+     *
+     * @param  array<string, array<string, int|null>>  $etapas  salida de etapas_por_ruta()
+     * @return object{min: int, base: int, tras_placa: int, placa: ?int, placa_n: int,
+     *                celda: ?int, celda_viajes: int, celda_dia: ?int, celda_hora: ?int}|null
+     */
+    public static function viaje_ruta(string $ruta, array $etapas, ?Carbon $salida = null,
+                                      string $placa = '', ?Carbon $desde = null, ?Carbon $hasta = null,
+                                      ?object $p = null): ?object
+    {
+        $ruta = trim($ruta);
+        if ($ruta === '') {
+            return null;
+        }
+
+        $p = $p ?? Parametros::cargar();
+
+        $base = DBPrediccion::viaje_ruta_base($ruta, $etapas);
+        if ($base === null) {
+            return null;
+        }
+
+        $min = $base;
+        $placaMediana = null;
+        $placaN = 0;
+
+        if ($placa !== '' && $desde !== null && $hasta !== null) {
+            $propio = DBPrediccion::viaje_placa($placa, $ruta, $desde, $hasta);
+            $placaMediana = $propio['mediana'] ?? null;
+            $placaN = (int) ($propio['n'] ?? 0);
+            $min = self::mezclar_viaje($min, $placaMediana, $placaN, (int) ($p->cruce_pares_k ?? 3)) ?? $min;
+        }
+
+        $trasPlaca = $min;
+        $celda = null;
+
+        // El compilado por día y hora de la RUTA (tiempos_ruta_horario): ahí está la
+        // demora de la hora pico, que la mediana diaria no tiene. Entra con el peso
+        // de la muestra de la celda, igual que la placa: dos viajes no mueven la aguja.
+        if ((int) ($p->horario_activo ?? 1) === 1 && $salida !== null) {
+            $celda = DBPrediccion::viaje_horario($ruta, $salida, (int) ($p->horario_viajes_min ?? 3));
+
+            if ($celda !== null) {
+                $conHorario = self::mezclar_viaje($min, (int) $celda->min,
+                    (int) $celda->viajes, (int) ($p->horario_viajes_k ?? 3));
+
+                if ($conHorario !== null) {
+                    $min = $conHorario;
+                }
+            }
+        }
+
+        return (object) [
+            'min' => (int) $min,
+            'base' => (int) $base,
+            'tras_placa' => (int) $trasPlaca,
+            'placa' => $placaMediana,
+            'placa_n' => $placaN,
+            'celda' => $celda !== null ? (int) $celda->min : null,
+            'celda_viajes' => $celda !== null ? (int) $celda->viajes : 0,
+            'celda_dia' => $celda !== null ? (int) $celda->dia : null,
+            'celda_hora' => $celda !== null ? (int) $celda->hora : null,
+        ];
     }
 
     public static function cerca_minutos(?object $p = null): int

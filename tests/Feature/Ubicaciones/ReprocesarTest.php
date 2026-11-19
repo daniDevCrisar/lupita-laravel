@@ -111,6 +111,46 @@ class ReprocesarTest extends TestCase
             ->assertJsonStructure(['disponible', 'pendientes', 'ya_resolverian']);
     }
 
+    // [C-1 del review] el (ACEITE) de LOC_AJEPER_GRUPO_PACIFIC_OIL ya mando 23 refs
+    // a la ruta equivocada: el servidor tiene que bloquearlas, no solo avisar
+    public function test_bloquea_las_refs_de_aceite_sin_confirmacion_explicita(): void
+    {
+        DB::table('referencias')->insert([
+            ['ref' => 'ZACEITE', 'titulo_viaje' => 'RECOJO ACEITE GRUPO PATRONA - PTA HUACHIPA', 'ruta_id' => null],
+        ]);
+
+        $this->actingAs($this->usuario())
+            ->post(route('lupita.ubicaciones.reprocesar'), ['refs' => ['ZACEITE']])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('referencias', ['ref' => 'ZACEITE', 'ruta_id' => null]);
+    }
+
+    // [I-1 del review] dos POST simultaneos: se revalida la ref justo antes de llamar al SP
+    public function test_revalida_la_ref_justo_antes_de_llamar_al_sp(): void
+    {
+        DB::table('referencias')->insert([
+            ['ref' => 'ZDOBLE1', 'titulo_viaje' => 'ENVIO PT CARAL - BABEL MAXO', 'ruta_id' => null],
+            ['ref' => 'ZDOBLE2', 'titulo_viaje' => 'ENVIO PT CARAL - BABEL MAXO', 'ruta_id' => null],
+        ]);
+
+        $llamadas = [];
+        $reporte = DBReprocesar::procesar(['ZDOBLE1', 'ZDOBLE2'], function (string $ref) use (&$llamadas) {
+            $llamadas[] = $ref;
+            // simula otro proceso que resolvio ZDOBLE2 mientras se procesaba el lote
+            if ($ref === 'ZDOBLE1') {
+                DB::table('referencias')->where('ref', 'ZDOBLE2')->update(['ruta_id' => 'RUT_OTRO']);
+            }
+
+            return ['v_ruta_id' => 'RUT_' . $ref];
+        });
+
+        $this->assertSame(['ZDOBLE1'], $llamadas);
+        $this->assertSame(1, $reporte['ok']);
+        $this->assertContains('ZDOBLE2', $reporte['omitidas']);
+    }
+
     public function test_valida_las_refs(): void
     {
         $this->actingAs($this->usuario())

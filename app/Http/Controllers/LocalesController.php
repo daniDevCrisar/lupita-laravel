@@ -46,8 +46,8 @@ class LocalesController extends Controller
             'local'    => (object) [
                 'id'              => '',
                 'cliente_id'      => '',
-                'nombre'          => mb_substr(trim((string) $request->query('nombre', '')), 0, 100),
-                'palabra_clave'   => mb_substr(trim((string) $request->query('palabra_clave', '')), 0, 100),
+                'nombre'          => mb_substr($this->texto_query($request, 'nombre'), 0, 100),
+                'palabra_clave'   => mb_substr($this->texto_query($request, 'palabra_clave'), 0, 100),
                 'distrito_ubigeo' => '',
                 'activo'          => 1,
             ],
@@ -58,13 +58,39 @@ class LocalesController extends Controller
     }
 
     /**
-     * Formulario de edicion.
+     * Un parametro de query como texto seguro.
+     *
+     * `(string) $request->query(...)` revienta con "Array to string conversion" si
+     * el parametro llega como arreglo (`?nombre[]=x`).
      */
-    public function editar(string $id)
+    private function texto_query(Request $request, string $clave): string
+    {
+        $valor = $request->query($clave, '');
+
+        return is_string($valor) ? trim($valor) : '';
+    }
+
+    /**
+     * Formulario de edicion.
+     *
+     * Acepta `variante` por query: es lo que manda el boton "Variante" de
+     * /lupita/ubicaciones/palabras, que agrega la frase candidata al final de
+     * `palabra_clave` (separada por `|`) para que el usuario solo confirme.
+     */
+    public function editar(Request $request, string $id)
     {
         $local = DBLocales::buscar($id);
         if (!$local) {
             abort(404, 'El local no existe.');
+        }
+
+        $variante = $this->texto_query($request, 'variante');
+        if ($variante !== '') {
+            $actual = trim((string) $local->palabra_clave);
+            $variantes = array_filter(array_map('trim', explode('|', $actual)));
+            if (!in_array($variante, $variantes, true)) {
+                $local->palabra_clave = mb_substr($actual . ($actual !== '' ? '|' : '') . $variante, 0, 100);
+            }
         }
 
         return view('lupita.locales.form', [

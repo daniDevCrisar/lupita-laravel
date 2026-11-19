@@ -138,15 +138,18 @@
                                 @if($motivo === 'sin_titulo')
                                     <span class="text-white-50 small">—</span>
                                 @else
-                                    <form method="POST" action="{{ route('lupita.ubicaciones.reprocesar') }}">
+                                    <form method="POST" action="{{ route('lupita.ubicaciones.reprocesar') }}"
+                                          onsubmit="this.querySelectorAll('button').forEach(function (b) { b.disabled = true; });">
                                         @csrf
                                         @foreach($fila['refs_lista'] as $ref)
                                             <input type="hidden" name="refs[]" value="{{ $ref }}">
                                         @endforeach
                                         <button class="btn btn-outline-warning btn-sm"
-                                                @if(!$sp_disponible) disabled
-                                                title="Instalá sp_actualizar_ruta_id para usarlo" @endif
-                                                title="Llamar al procedimiento sobre estas {{ $fila['refs'] }} refs">
+                                                @if(!$sp_disponible)
+                                                    disabled title="Instalá sp_actualizar_ruta_id para usarlo"
+                                                @else
+                                                    title="Llamar al procedimiento sobre estas {{ $fila['refs'] }} refs"
+                                                @endif>
                                             <i class="bi bi-signpost-split"></i> Encontrar ruta
                                         </button>
                                     </form>
@@ -187,7 +190,8 @@
                                     No les falta ningún local: nunca se procesaron. Se resuelven corriendo
                                     <code>sp_actualizar_ruta_id</code> sobre cada ref.
                                 </p>
-                                <form method="POST" action="{{ route('lupita.ubicaciones.reprocesar') }}" class="mb-3">
+                                <form method="POST" action="{{ route('lupita.ubicaciones.reprocesar') }}" class="mb-3"
+                                      onsubmit="this.querySelectorAll('button').forEach(function (b) { b.disabled = true; });">
                                     @csrf
                                     @foreach($resueltos as $fila)
                                         @foreach($fila['refs_lista'] as $ref)

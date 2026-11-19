@@ -41,7 +41,7 @@ class PalabrasController extends Controller
             'total_frags'  => $calculo['fragmentos'],
             'ya_resolverian' => $calculo['ya_resolverian'],
             'descartados'  => count($descartes),
-            'sp_disponible' => DBUbicaciones::spDisponible(),
+            'sp_disponible' => \App\Database\DBReprocesar::spDisponible(),
         ]);
     }
 

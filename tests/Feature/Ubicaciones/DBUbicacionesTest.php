@@ -84,12 +84,6 @@ class DBUbicacionesTest extends TestCase
         $this->assertCount(1, DBUbicaciones::descartes('fragmento'));
     }
 
-    public function test_el_sp_se_detecta_instalado(): void
-    {
-        // en esta base sp_actualizar_ruta_id esta instalado (verificado con SHOW PROCEDURE STATUS)
-        $this->assertTrue(DBUbicaciones::spDisponible());
-    }
-
     public function test_el_catalogo_trae_cliente_id_para_clasificar(): void
     {
         $catalogos = DBUbicaciones::catalogos();

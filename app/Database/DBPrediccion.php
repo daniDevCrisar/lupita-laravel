@@ -890,16 +890,24 @@ class DBPrediccion
      *   5. la mediana de las rutas con ese par de departamentos;
      *   6. el valor por defecto de la configuración.
      *
+     * Para los escalones 1 a 3 el tiempo de la ruta lo resuelve `$viaje`: es el
+     * MISMO cálculo que el tramo que le falta al camión (`Servicio::viaje_ruta()`),
+     * porque los promedios de ida y vuelta son casi los mismos y la incertidumbre
+     * está en lo que el conductor descansa, no en el tránsito. Sin `$viaje` (otros
+     * usos del método) se usa sólo lo medido de la ruta, sin mezclas.
+     *
      * Todas las respuestas traen `min` (minutos), `fuente`, `ruta` y `texto`
      * (legible: "PLANTA CARAL (Supe, Barranca, Lima) → PLANTA CHICLAYO (...)").
-     * Geoapify agrega `km`.
+     * Geoapify agrega `km`. Con `$viaje`, `viaje` trae las piezas de la mezcla
+     * (lo medido de la ruta, los viajes de la placa y la celda día/hora).
      *
      * @param  array<string, array<string, int|null>>  $etapas  salida de etapas_por_ruta()
+     * @param  callable(string): ?object|null  $viaje  resolvedor de `Servicio::viaje_ruta()`
      */
     public static function traslado(?string $plantaCarga, ?string $desdePlanta, ?string $desdeUbigeo,
                                     ?string $plantaUbigeo, array $etapas, ?string $rutaPropia = null,
                                     ?int $defectoMin = null, bool $posicionDeclarada = false,
-                                    ?Carbon $salida = null): ?object
+                                    ?Carbon $salida = null, ?callable $viaje = null): ?object
     {
         if ($plantaCarga === null || $plantaCarga === '') {
             return null;
@@ -911,12 +919,33 @@ class DBPrediccion
             . ' → ' . ($hastaTexto !== '' ? $hastaTexto : 'la planta de carga');
 
         if ($desdePlanta === $plantaCarga || ($desdeUbigeo !== null && $desdeUbigeo === $plantaUbigeo && $desdeUbigeo !== '')) {
-            return (object) ['min' => 0, 'fuente' => 'ya_esta_en_planta', 'ruta' => null, 'texto' => $texto, 'km' => null];
+            return (object) ['min' => 0, 'fuente' => 'ya_esta_en_planta', 'ruta' => null, 'texto' => $texto,
+                             'km' => null, 'viaje' => null];
         }
 
         $rutas = self::rutas();
-        $compilados = self::promedios_ruta();
-        $minutos = fn (?string $ruta): ?int => self::minutos_ruta($ruta, $etapas, $compilados);
+        $ultimoViaje = null;
+
+        // el tiempo de la ruta lo resuelve el mismo cálculo que el tramo que le
+        // falta al camión; `$ultimoViaje` guarda las piezas del que ganó
+        $minutos = function (?string $ruta) use ($etapas, $viaje, &$ultimoViaje): ?int {
+            if ($ruta === null || $ruta === '') {
+                return null;
+            }
+
+            if ($viaje === null) {
+                return self::viaje_ruta_base($ruta, $etapas);
+            }
+
+            $estimado = $viaje($ruta);
+            if ($estimado === null) {
+                return null;
+            }
+
+            $ultimoViaje = $estimado;
+
+            return max(0, (int) ($estimado->min ?? 0));
+        };
 
         // 1..3: lo medido (ruta entre los dos locales, mismo par de ubigeos, la ruta
         // de la propia referencia). Geoapify NO se llama si hay promedio: el dato de
@@ -928,7 +957,7 @@ class DBPrediccion
                 $min = $minutos((string) $id);
                 if ($min !== null) {
                     return (object) ['min' => $min, 'fuente' => 'ruta_medida', 'ruta' => (string) $id,
-                                     'texto' => $texto, 'km' => null];
+                                     'texto' => $texto, 'km' => null, 'viaje' => $ultimoViaje];
                 }
             }
         }
@@ -941,7 +970,7 @@ class DBPrediccion
                     $min = $minutos((string) $id);
                     if ($min !== null) {
                         return (object) ['min' => $min, 'fuente' => 'mismo_ubigeo', 'ruta' => (string) $id,
-                                         'texto' => $texto, 'km' => null];
+                                         'texto' => $texto, 'km' => null, 'viaje' => $ultimoViaje];
                     }
                 }
             }
@@ -951,7 +980,7 @@ class DBPrediccion
             $min = $minutos($rutaPropia);
             if ($min !== null) {
                 return (object) ['min' => $min, 'fuente' => 'ruta_de_la_ref', 'ruta' => $rutaPropia,
-                                 'texto' => $texto, 'km' => null];
+                                 'texto' => $texto, 'km' => null, 'viaje' => $ultimoViaje];
             }
         }
 
@@ -967,6 +996,7 @@ class DBPrediccion
                 'texto' => $texto,
                 'km' => $geo->km,
                 'min_medido' => null,
+                'viaje' => null,
             ];
         }
 
@@ -992,6 +1022,7 @@ class DBPrediccion
                     'ruta' => null,
                     'texto' => $texto,
                     'km' => null,
+                    'viaje' => null,
                 ];
             }
         }
@@ -1003,6 +1034,7 @@ class DBPrediccion
             'ruta' => null,
             'texto' => $texto,
             'km' => null,
+            'viaje' => null,
         ];
     }
 
@@ -1275,8 +1307,21 @@ class DBPrediccion
         return implode(', ', $partes);
     }
 
-    /** Minutos de tránsito medidos de una ruta: primero las refs, después el compilado. */
-    private static function minutos_ruta(?string $ruta, array $etapas, array $compilados): ?int
+    /**
+     * Tiempo de tránsito medido de una ruta (el "viaje", e4), sin mezclas.
+     *
+     * Es el primer escalón de `Servicio::viaje_ruta()`, que es el cálculo que
+     * comparten el tramo que le falta al camión y el traslado de regreso:
+     *
+     *   1. `etapas[ruta]['e4']` — mediana compilada de la ruta (si tiene ≥3 viajes)
+     *      o, sin compilado, la mediana de las referencias;
+     *   2. la fila de `tiempos_ruta_promedio`, para rutas que tienen compilado pero
+     *      no referencias en la ventana: promedio fusionado de los dos sentidos,
+     *      después promedio y por último mediana.
+     *
+     * Devuelve null cuando esa ruta no tiene nada medido.
+     */
+    public static function viaje_ruta_base(?string $ruta, array $etapas): ?int
     {
         if ($ruta === null || $ruta === '') {
             return null;
@@ -1287,7 +1332,7 @@ class DBPrediccion
             return (int) $e4;
         }
 
-        $fila = $compilados[$ruta] ?? null;
+        $fila = self::promedios_ruta()[$ruta] ?? null;
         if ($fila === null) {
             return null;
         }
