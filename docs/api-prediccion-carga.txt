@@ -2519,6 +2519,85 @@ evidencia. Hay tres niveles.
                      Los numeros no se copian en este documento a proposito: se
                      leen en la pantalla, con el rango y los filtros que se elijan.
 
+  1.39 19/11/2026  - EXPORTAR E IMPORTAR LA CONFIGURACION. Tarjeta nueva en la
+                     pantalla de parametros. La base no guarda historial de
+                     `prediccion_config`, asi que hasta ahora "volver al valor de
+                     antes" era acordarse del numero.
+
+                     EXPORTAR (GET /lupita/prediccion/parametros/exportar): baja un
+                     JSON con la configuracion EFECTIVA, o sea TODAS las claves de
+                     `config/prediccion.php` pisadas por lo guardado: params
+                     editables, cruce_pares_k, la ventana rapido/tardado (incluida
+                     la de cadena), los interruptores (dia, curva, horario, cola,
+                     feriado, descontar, ventana_residuos), los topes y las nueve
+                     claves del sesgo por clase. Los valores van tipados (int o
+                     float), no como texto. El archivo lleva tambien `formato`,
+                     `exportado`, `tabla` y `guardadas` (que claves tienen fila
+                     propia en la base).
+
+                     IMPORTAR (POST /lupita/prediccion/parametros/importar):
+                       - `accion=ver`    -> NO guarda: deja el antes/despues en
+                                            pantalla y desde ahi se confirma;
+                       - `accion=aplicar`-> guarda en un paso (con confirmacion);
+                       - `confirmado=1`  -> el boton del diff, manda los valores
+                                            como campos ocultos (no hace falta
+                                            volver a subir el archivo).
+                     Acepta `{"parametros":{...}}` (lo que exporta la pantalla),
+                     `{"claves":{...}}` o un objeto plano.
+                     Se ignoran las claves que no existen en `config/prediccion.php`
+                     y se informan en pantalla; se rechazan los valores que no son
+                     numeros y los NEGATIVOS, salvo en `sesgo_clase_*`, donde el
+                     signo es el dato. Importar no puede entonces dejar el motor en
+                     un estado que no entiende.
+                     Tope del archivo: 256 KB. Si `prediccion_config` no existe (o
+                     no hay permisos) el export igual sale con los defaults y el
+                     import avisa el error de guardado sin romper la pantalla.
+
+                     Tests: tests/Feature/Api/ExportarImportarParametrosTest.php
+                     (export completo y tipado, diff sin guardar, guardado con
+                     confirmacion, claves inventadas, valores no numericos,
+                     negativos, JSON invalido, ida y vuelta export->import, y la
+                     tarjeta dibujada en la pantalla).
+
+  1.40 19/11/2026  - LOS VALORES EN USO EN CADA CALIBRACION. Cruce, ventana, sesgo y
+                     ablacion escriben claves en `prediccion_config` sin pasar por
+                     un formulario: el valor con el que corre el motor hoy no se veia
+                     en ninguna parte de la pantalla (habia que abrir la base). Cada
+                     tarjeta trae ahora su bloque "En uso ahora".
+
+                     - cruce: `cruce_pares_k` y la traduccion a operacion ("con N
+                       viajes propios la placa pesa igual que el compilado", que es
+                       el w = n/(n+k) en 50/50).
+                     - ventana: `ventana_residuos`, `ventana_adelanto_min`,
+                       `ventana_atraso_min`, las dos de cadena, `ventana_cobertura`
+                       y `ventana_min_filas`.
+                     - sesgo: grilla 3x3 (evidencia `cadena|parcial|medido` x tramo
+                       `corto|medio|largo`) con las nueve correcciones vigentes, en
+                       formato corto y el detalle en el `title`; si la cuarta fecha
+                       esta apagada lo dice (los nueve valores no se usan).
+                     - ablacion: `dia_modo`, `curva_modo` y `pares_recientes_max`,
+                       o sea los que pisa cada variante. Los modos se leen con su
+                       nombre (3 = compilado por ruta), no como numero.
+
+                     FORMATO DE LECTURA (Parametros::texto() / corto()):
+                       - minutos en `N min (h:mm)`; son minutos los que terminan en
+                         `_min`, `ventana_adelanto_cadena`/`ventana_atraso_cadena`
+                         (OJO: no terminan en `_min` y antes se mostraban crudos:
+                         2.086 en vez de 34:46) y todo `sesgo_clase_*` menos el
+                         interruptor `sesgo_clase_activo`;
+                       - el sesgo conserva el signo (−49:17 en la grilla);
+                       - interruptores en si/no; `ventana_cobertura` y
+                         `spread_cadena` en porcentaje; los numeros con separador de
+                         miles.
+                     Cada fila marca `cambiado` cuando el valor en uso difiere del de
+                     `config/prediccion.php` y muestra al lado el de fabrica.
+
+                     Tests: tests/Unit/Prediccion/ParametrosTextoTest.php (formatos,
+                     signo, claves en minutos que no terminan en _min, en_uso con
+                     fabrica y clave desconocida) y tres casos nuevos en
+                     ParametrosPantallaTest (los cuatro bloques "En uso ahora", la
+                     grilla de las nueve clases y la marca de cambiado).
+
 ================================================================================
  FIN
 ================================================================================

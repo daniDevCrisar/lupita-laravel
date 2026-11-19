@@ -116,6 +116,14 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:ver tiempos');
         Route::post('/prediccion/parametros', [PrediccionController::class, 'guardar_parametros'])->name('lupita.prediccion.parametros')
             ->middleware('permission:ver tiempos');
+        // la configuración completa (parámetros + calibraciones) en un JSON, para
+        // copiarla entre servidores o volver atrás después de una calibración
+        Route::get('/prediccion/parametros/exportar', [PrediccionController::class, 'exportar'])
+            ->name('lupita.prediccion.parametros.exportar')
+            ->middleware('permission:ver tiempos');
+        Route::post('/prediccion/parametros/importar', [PrediccionController::class, 'importar'])
+            ->name('lupita.prediccion.parametros.importar')
+            ->middleware('permission:ver tiempos');
         // calibra cruce_pares_k con entrenamiento + validación y deja la recomendación
         Route::post('/prediccion/calibrar', [PrediccionController::class, 'calibrar_cruce'])->name('lupita.prediccion.calibrar')
             ->middleware('permission:ver tiempos');

@@ -52,6 +52,9 @@ class PrediccionController extends Controller
     /** Rejilla del botón "Calibrar cruce_pares_k". */
     public const REJILLA_CRUCE = [1, 2, 3, 5, 8, 12];
 
+    /** Tope del JSON de configuración que se puede importar (256 KB). */
+    public const TAMANO_MAX_CONFIG = 262144;
+
     /** Calculadora: referencia a predecir + viaje ancla + ubicación declarada. */
     /**
      * Filas que se pueden pedir a la tabla de aciertos. `0` = todas (las que entren
@@ -920,6 +923,26 @@ class PrediccionController extends Controller
             'por_defecto' => Parametros::por_defecto(),
             'calibrables' => self::PARAMETROS_CALIBRABLES,
             'rejilla_cruce' => self::REJILLA_CRUCE,
+            // qué está gobernando HOY en cada calibración: sin esto, cruce, ventana
+            // y sesgo escriben claves que no se ven en ningún formulario
+            'en_uso_calibraciones' => [
+                'cruce' => Parametros::en_uso(['cruce_pares_k']),
+                'ventana' => Parametros::en_uso([
+                    'ventana_residuos', 'ventana_adelanto_min', 'ventana_atraso_min',
+                    'ventana_adelanto_cadena', 'ventana_atraso_cadena',
+                    'ventana_cobertura', 'ventana_min_filas',
+                ]),
+                'sesgo' => Parametros::en_uso(array_merge(
+                    ['sesgo_clase_activo'], array_keys(\App\Prediccion\Sesgo::claves()))),
+                // la ablación compara contra "en uso": estos son los que pisa
+                'ablacion' => Parametros::en_uso(['dia_modo', 'curva_modo', 'pares_recientes_max']),
+            ],
+            'sesgo_clases' => array_column(Parametros::en_uso(
+                array_keys(\App\Prediccion\Sesgo::claves())), null, 'clave'),
+            // exportar/importar: cuántas claves entran en el archivo y cuáles tienen
+            // valor propio guardado (las demás corren con el default de fábrica)
+            'claves_totales' => count(Parametros::claves()),
+            'claves_guardadas' => Parametros::guardadas(),
             // lo que el motor mira y no se toca desde acá (se mide o se calibra solo)
             'fijos' => [
                 ['clave' => 'horario_activo', 'valor' => (int) ($enUso->horario_activo ?? 1),
@@ -1487,6 +1510,140 @@ class PrediccionController extends Controller
         }
 
         return redirect()->route('lupita.prediccion.parametros.ver')->with('estado', $mensaje);
+    }
+
+    /**
+     * Descarga la configuración completa del motor en un JSON.
+     *
+     * Se lleva la configuración EFECTIVA (defaults pisados por lo guardado) y la
+     * lista de claves que tienen valor propio, así el mismo archivo sirve para
+     * copiar la configuración entre servidores o para volver atrás si una
+     * calibración sale mal (no hay historial en la base).
+     */
+    public static function exportar()
+    {
+        $json = json_encode(Parametros::exportar(),
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $nombre = 'prediccion-config-' . now()->format('Ymd-His') . '.json';
+
+        return response()->make($json, 200, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $nombre . '"',
+        ]);
+    }
+
+    /**
+     * Importa un JSON de configuración (el que arma `exportar()`).
+     *
+     * Mismo patrón que las calibraciones: no se guarda nada sin confirmar.
+     *  - `accion=ver`  → deja el diff en pantalla y no toca la base;
+     *  - `accion=aplicar` (o el botón del diff, con `confirmado=1`) → guarda.
+     */
+    public static function importar(Request $request)
+    {
+        $destino = redirect()->route('lupita.prediccion.parametros.ver');
+
+        // El botón "Importar N claves" del diff: los valores vuelven como campos
+        // ocultos, así no hay que volver a subir el archivo.
+        if ($request->boolean('confirmado')) {
+            $nombre = (string) $request->input('archivo_nombre', 'configuración revisada');
+            $normalizado = Parametros::normalizar((array) $request->input('cambios', []));
+        } else {
+            $archivo = $request->file('archivo');
+
+            if ($archivo === null) {
+                return $destino->with('importar_error', 'Elegí el archivo JSON que exportaste.')
+                    ->with('estado', 'No se importó nada: falta el archivo.');
+            }
+
+            if ($archivo->getSize() > self::TAMANO_MAX_CONFIG) {
+                return $destino
+                    ->with('importar_error', 'El archivo es demasiado grande (máximo 256 KB).')
+                    ->with('estado', 'No se importó nada: el archivo no se leyó.');
+            }
+
+            $nombre = (string) $archivo->getClientOriginalName();
+            $normalizado = self::leer_configuracion((string) file_get_contents($archivo->getRealPath()));
+
+            if (isset($normalizado['error'])) {
+                return $destino->with('estado', $normalizado['error'])
+                    ->with('importar_error', $normalizado['error']);
+            }
+        }
+
+        // diff contra lo que está en uso, para que el cambio se vea antes y después
+        $actual = Parametros::cargar();
+        $cambios = [];
+        foreach ($normalizado['validos'] as $clave => $valor) {
+            $antes = $actual->{$clave} ?? null;
+            if ($antes === null || (string) $antes !== (string) $valor) {
+                $cambios[$clave] = ['antes' => $antes, 'despues' => $valor];
+            }
+        }
+
+        $paquete = [
+            'nombre' => $nombre,
+            'recibidas' => count($normalizado['validos']),
+            'ignoradas' => $normalizado['ignoradas'],
+            'rechazadas' => $normalizado['rechazadas'],
+            'cambios' => $cambios,
+            'valores' => $normalizado['validos'],
+        ];
+
+        if ($request->input('accion') === 'ver' && !$request->boolean('confirmado')) {
+            return $destino
+                ->with('importar_vista', $paquete)
+                ->with('estado', 'Revisá qué cambiaría: todavía no se guardó nada.');
+        }
+
+        $error = null;
+        try {
+            Parametros::guardar($normalizado['validos']);
+        } catch (\Throwable $e) {
+            $error = $e->getMessage();
+        }
+
+        $paquete['error'] = $error;
+        $paquete['aplicado'] = $error === null;
+
+        $mensaje = $error === null
+            ? 'Configuración importada: ' . count($cambios) . ' claves cambiadas de '
+                . $paquete['recibidas'] . ' recibidas.'
+            : 'No se pudo guardar la configuración: ' . $error;
+
+        return $destino->with('importar_resultado', $paquete)->with('estado', $mensaje);
+    }
+
+    /**
+     * Lee el JSON de un archivo de configuración y lo normaliza.
+     *
+     * Acepta las tres formas que puede tener un archivo hecho a mano:
+     * `{"parametros": {...}}` (lo que exporta la pantalla), `{"claves": {...}}` o
+     * un objeto plano `{"clave": valor}`.
+     *
+     * @return array{validos?: array<string, int|float>, ignoradas?: array<int, string>,
+     *               rechazadas?: array<string, string>, error?: string}
+     */
+    private static function leer_configuracion(string $contenido): array
+    {
+        $datos = json_decode($contenido, true);
+
+        if (!is_array($datos)) {
+            return ['error' => 'El archivo no es un JSON válido (no se pudo leer).'];
+        }
+
+        foreach (['parametros', 'claves', 'configuracion'] as $envoltorio) {
+            if (isset($datos[$envoltorio]) && is_array($datos[$envoltorio])) {
+                $datos = $datos[$envoltorio];
+                break;
+            }
+        }
+
+        if ($datos === []) {
+            return ['error' => 'El archivo no trae valores para importar.'];
+        }
+
+        return Parametros::normalizar($datos);
     }
 
     private static function carbon(?string $valor): ?Carbon

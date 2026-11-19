@@ -29,6 +29,17 @@
         </div>
     </div>
 
+    {{-- lo que dice el último guardar / calibrar / importar --}}
+    @if(session('estado'))
+        <div class="alert alert-success py-2">{{ session('estado') }}</div>
+    @endif
+
+    @if(session('importar_error'))
+        <div class="alert alert-warning py-2 small">
+            <strong>No se importó nada.</strong> {{ session('importar_error') }}
+        </div>
+    @endif
+
     {{-- ============ CÓMO SE USA ============ --}}
     <div class="card mb-3">
         <div class="card-header bg-dark text-white"><strong>Cómo se usa</strong></div>
@@ -72,6 +83,167 @@
                 subí el límite a <strong>300-1000</strong> antes de creerle a un botón. Con 100 filas la validación
                 queda con 10-20 y cualquier valor "gana" por suerte.
             </div>
+        </div>
+    </div>
+
+    {{-- ============ EXPORTAR / IMPORTAR LA CONFIGURACIÓN ============ --}}
+    @php
+        $vistaImport = session('importar_vista');
+        $resultadoImport = session('importar_resultado');
+        $guardadas = $claves_guardadas ?? [];
+    @endphp
+
+    <div class="card mb-3 border-secondary">
+        <div class="card-header bg-secondary text-white">
+            <strong>Exportar / importar la configuración</strong>
+            <span class="small">— la configuración completa del motor en un archivo</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <div class="small fw-semibold mb-1">
+                        <i class="bi bi-download"></i> Exportar
+                    </div>
+                    <p class="small text-muted mb-2">
+                        Baja un JSON con las <strong>{{ (int) ($claves_totales ?? 0) }} claves</strong> del motor:
+                        los parámetros, la ventana rápido/tardado, el sesgo por clase y los interruptores. Se lleva
+                        los valores <strong>en uso</strong> (fábrica + lo guardado), así el mismo archivo deja otro
+                        servidor igual.
+                    </p>
+                    <a class="btn btn-sm btn-primary"
+                       href="{{ route('lupita.prediccion.parametros.exportar') }}">
+                        <i class="bi bi-filetype-json"></i> Descargar configuración
+                    </a>
+                    <div class="text-muted mt-2" style="font-size:.7rem">
+                        {{ count($guardadas) }} claves tienen valor propio en
+                        <code>prediccion_config</code>; las demás corren con el default de
+                        <code>config/prediccion.php</code>.
+                        @if($guardadas !== [])
+                            <div class="mt-1">
+                                guardadas: <code>{{ implode(', ', $guardadas) }}</code>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="small fw-semibold mb-1">
+                        <i class="bi bi-upload"></i> Importar
+                    </div>
+                    <form method="POST" action="{{ route('lupita.prediccion.parametros.importar') }}"
+                          enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2">
+                        @csrf
+                        <div class="flex-grow-1">
+                            <label class="form-label small mb-0" for="archivo-config">Archivo JSON</label>
+                            <input type="file" id="archivo-config" name="archivo"
+                                   class="form-control form-control-sm"
+                                   accept=".json,application/json">
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" name="accion" value="ver">
+                            <i class="bi bi-search"></i> Ver qué cambiaría
+                        </button>
+                        <button class="btn btn-sm btn-success" name="accion" value="aplicar"
+                                onclick="return confirm('¿Importar la configuración del archivo? Se pisan los valores en uso.');">
+                            <i class="bi bi-upload"></i> Importar y aplicar
+                        </button>
+                    </form>
+                    <div class="text-muted mt-2" style="font-size:.7rem">
+                        <strong>«Ver qué cambiaría» no guarda nada</strong>: muestra el antes/después y desde ahí
+                        confirmás. Sólo se aceptan claves que existen en <code>config/prediccion.php</code> y valores
+                        numéricos; lo demás se ignora y se informa. Los negativos sólo entran en el sesgo por clase.
+                    </div>
+                </div>
+            </div>
+
+            {{-- vista previa: el diff antes de pisar nada --}}
+            @if(is_array($vistaImport))
+                <div class="alert alert-info mt-3 mb-0">
+                    <div class="small mb-2">
+                        <strong>{{ $vistaImport['nombre'] ?? 'archivo' }}</strong> ·
+                        {{ (int) ($vistaImport['recibidas'] ?? 0) }} claves recibidas ·
+                        <strong>{{ count($vistaImport['cambios'] ?? []) }}</strong> cambiarían.
+                        <span class="text-muted">Todavía no se guardó nada.</span>
+                    </div>
+
+                    @include('lupita.partials.prediccion_cambios', ['cambios' => $vistaImport['cambios'] ?? []])
+
+                    @if(($vistaImport['ignoradas'] ?? []) !== [])
+                        <div class="small text-muted mt-2">
+                            ignoradas (no existen en <code>config/prediccion.php</code>):
+                            <code>{{ implode(', ', $vistaImport['ignoradas']) }}</code>
+                        </div>
+                    @endif
+                    @if(($vistaImport['rechazadas'] ?? []) !== [])
+                        <div class="small text-warning mt-1">
+                            rechazadas:
+                            @foreach($vistaImport['rechazadas'] as $clave => $motivo)
+                                <code>{{ $clave }}</code> ({{ $motivo }})@if(!$loop->last) · @endif
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('lupita.prediccion.parametros.importar') }}"
+                          class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                        @csrf
+                        <input type="hidden" name="confirmado" value="1">
+                        <input type="hidden" name="accion" value="aplicar">
+                        <input type="hidden" name="archivo_nombre" value="{{ $vistaImport['nombre'] ?? '' }}">
+                        @foreach(($vistaImport['valores'] ?? []) as $clave => $valor)
+                            <input type="hidden" name="cambios[{{ $clave }}]" value="{{ $valor }}">
+                        @endforeach
+                        <button class="btn btn-sm btn-success"
+                                onclick="return confirm('¿Guardar la configuración revisada? Se pisan los valores en uso.');">
+                            <i class="bi bi-check2"></i> Importar {{ count($vistaImport['valores'] ?? []) }} claves
+                        </button>
+                        <span class="text-muted small">
+                            cambian {{ count($vistaImport['cambios'] ?? []) }}
+                            · o subí otro archivo para comparar de nuevo
+                        </span>
+                    </form>
+                </div>
+            @endif
+
+            {{-- resultado después de aplicar --}}
+            @if(is_array($resultadoImport))
+                @php $fallo = ($resultadoImport['error'] ?? null) !== null; @endphp
+                <div class="alert {{ $fallo ? 'alert-danger' : 'alert-success' }} mt-3 mb-0">
+                    <div class="small mb-2">
+                        @if($fallo)
+                            <strong>No se guardó.</strong> {{ $resultadoImport['error'] }}
+                        @else
+                            <strong>{{ $resultadoImport['nombre'] ?? 'archivo' }}</strong> ·
+                            {{ (int) ($resultadoImport['recibidas'] ?? 0) }} claves recibidas ·
+                            <strong>{{ count($resultadoImport['cambios'] ?? []) }}</strong> cambiadas.
+                            Ya valen para la próxima predicción (calculadora, API y aciertos al mismo tiempo).
+                        @endif
+                    </div>
+
+                    @unless($fallo)
+                        @include('lupita.partials.prediccion_cambios', ['cambios' => $resultadoImport['cambios'] ?? []])
+                    @endunless
+
+                    @if(($resultadoImport['ignoradas'] ?? []) !== [])
+                        <div class="small text-muted mt-2">
+                            ignoradas: <code>{{ implode(', ', $resultadoImport['ignoradas']) }}</code>
+                        </div>
+                    @endif
+                    @if(($resultadoImport['rechazadas'] ?? []) !== [])
+                        <div class="small mt-1">
+                            rechazadas:
+                            @foreach($resultadoImport['rechazadas'] as $clave => $motivo)
+                                <code>{{ $clave }}</code> ({{ $motivo }})@if(!$loop->last) · @endif
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @unless($fallo)
+                        <div class="small text-muted mt-2">
+                            Si algo salió mal, volvé a importar el archivo que exportaste antes: ese es el
+                            «deshacer», porque la base no guarda historial.
+                        </div>
+                    @endunless
+                </div>
+            @endif
         </div>
     </div>
 
@@ -121,6 +293,13 @@
                     tarda unos segundos por variante la primera vez; después sale de la caché
                 </div>
             </form>
+
+            <div class="mt-2">
+                @include('lupita.partials.prediccion_valores_en_uso', [
+                    'filas' => $en_uso_calibraciones['ablacion'] ?? [],
+                    'titulo' => 'En uso ahora (es lo que pisa cada variante)',
+                ])
+            </div>
 
             @php $ablacion = session('ablacion'); @endphp
 
@@ -436,7 +615,7 @@
             <ul class="mb-0 small">
                 <li>Los valores valen para <strong>todos</strong>: cambian la calculadora, el API y la tabla de aciertos al mismo tiempo.</li>
                 <li>Toman efecto en la <strong>próxima</strong> predicción (no hay que reiniciar nada).</li>
-                <li>No hay historial de cambios ni botón de deshacer: <strong>anotá el valor anterior</strong> antes de aplicar.</li>
+                <li>No hay historial de cambios ni botón de deshacer: <strong>exportá la configuración antes de tocar</strong> (tarjeta «Exportar / importar»), así podés volver al estado anterior importando ese archivo.</li>
                 <li>Cambiar parámetros <strong>no</strong> cambia los datos: si el MAE es malo por hitos incompletos, refs sin ruta o huecos de varios días, ningún parámetro lo arregla. Para eso está
                     <code>php artisan prediccion:diagnostico</code>.</li>
                 <li>La calibración y la medición de la ventana usan la tabla de aciertos con Geoapify apagado: no gastan API.</li>

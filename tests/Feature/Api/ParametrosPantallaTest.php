@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -80,5 +81,93 @@ class ParametrosPantallaTest extends TestCase
 
         $this->assertStringContainsString('CALIBRAR POR CHOFER', $html);
         $this->assertStringContainsString('1.540', $html);   // la mejora medida con C3
+    }
+
+    /**
+     * Las tres calibraciones (cruce, ventana y sesgo) escriben claves en
+     * `prediccion_config` sin pasar por ningún formulario: la pantalla tiene que
+     * mostrar qué está gobernando hoy, o el único modo de saberlo es abrir la base.
+     */
+    public function test_cada_calibracion_muestra_los_valores_en_uso(): void
+    {
+        $html = $this->html();
+        $p = \App\Prediccion\Parametros::cargar();
+
+        // un bloque por calibración: ablación, cruce, ventana y sesgos
+        $this->assertGreaterThanOrEqual(4, substr_count($html, 'En uso ahora'));
+
+        // cruce
+        $this->assertStringContainsString('<code>cruce_pares_k</code>', $html);
+        $this->assertStringContainsString(
+            \App\Prediccion\Parametros::texto('cruce_pares_k', $p->cruce_pares_k), $html);
+
+        // ventana: las siete claves que escribe, con los minutos en h:mm
+        foreach (['ventana_residuos', 'ventana_adelanto_min', 'ventana_atraso_min',
+                  'ventana_adelanto_cadena', 'ventana_atraso_cadena',
+                  'ventana_cobertura', 'ventana_min_filas'] as $clave) {
+            $this->assertStringContainsString('<code>' . $clave . '</code>', $html, 'falta ' . $clave);
+        }
+        $this->assertStringContainsString(
+            \App\Prediccion\Parametros::texto('ventana_adelanto_min', $p->ventana_adelanto_min), $html);
+        // la de cadena NO termina en _min: si se muestra cruda, el operador lee 2.086
+        $this->assertStringContainsString(
+            \App\Prediccion\Parametros::texto('ventana_adelanto_cadena', $p->ventana_adelanto_cadena), $html);
+
+        // ablación: los tres parámetros que pisa cada variante, con el modo por nombre
+        $this->assertStringContainsString(
+            \App\Prediccion\Parametros::texto('dia_modo', $p->dia_modo), $html);
+        $this->assertStringContainsString(
+            \App\Prediccion\Parametros::texto('curva_modo', $p->curva_modo), $html);
+        $this->assertStringContainsString(
+            \App\Prediccion\Parametros::texto('pares_recientes_max', $p->pares_recientes_max), $html);
+    }
+
+    public function test_la_grilla_muestra_las_nueve_correcciones_de_sesgo_en_uso(): void
+    {
+        $html = $this->html();
+        $p = \App\Prediccion\Parametros::cargar();
+
+        $this->assertStringContainsString('En uso ahora: corrección por clase', $html);
+
+        foreach (\App\Prediccion\Sesgo::clases() as $clase) {
+            $clave = \App\Prediccion\Sesgo::clave($clase);
+            $this->assertStringContainsString(
+                'title="' . \App\Prediccion\Parametros::texto($clave, $p->{$clave} ?? 0) . '"',
+                $html, 'falta el sesgo de ' . $clase);
+        }
+
+        // y avisa si la cuarta fecha está apagada: los nueve valores no se usan
+        $this->assertStringContainsString(
+            (int) ($p->sesgo_clase_activo ?? 0) === 1 ? 'prendida' : 'apagada', $html);
+    }
+
+    public function test_marca_en_la_calibracion_lo_que_se_aparto_del_valor_de_fabrica(): void
+    {
+        $clave = 'ventana_adelanto_min';
+        $fabrica = (int) \App\Prediccion\Parametros::por_defecto()->{$clave};
+        $antes = DB::table('prediccion_config')->where('clave', $clave)->first();
+
+        DB::table('prediccion_config')->updateOrInsert(
+            ['clave' => $clave],
+            ['valor' => (string) ($fabrica + 151), 'updated_at' => now()]);
+        \App\Prediccion\Parametros::olvidar();
+
+        try {
+            $html = $this->html();
+
+            // el valor nuevo y, al lado, el de fábrica con la marca de cambiado
+            $this->assertStringContainsString(
+                \App\Prediccion\Parametros::texto($clave, $fabrica + 151), $html);
+            $this->assertStringContainsString(
+                'fábrica ' . \App\Prediccion\Parametros::texto($clave, $fabrica), $html);
+            $this->assertStringContainsString('cambiado', $html);
+        } finally {
+            DB::table('prediccion_config')->where('clave', $clave)->delete();
+            if ($antes !== null) {
+                DB::table('prediccion_config')->insert(
+                    ['clave' => $clave, 'valor' => (string) $antes->valor, 'updated_at' => now()]);
+            }
+            \App\Prediccion\Parametros::olvidar();
+        }
     }
 }

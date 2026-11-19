@@ -83,8 +83,17 @@
                 </button>
             </form>
             <div class="ms-auto small text-muted">
-                en uso: <strong>{{ $p->cruce_pares_k ?? '—' }}</strong>
+                @if((int) ($p->cruce_pares_k ?? 0) > 0)
+                    con <strong>{{ (int) $p->cruce_pares_k }}</strong> viajes propios la placa pesa igual
+                    que el compilado
+                @endif
             </div>
+        </div>
+
+        <div class="mt-2">
+            @include('lupita.partials.prediccion_valores_en_uso', [
+                'filas' => $en_uso_calibraciones['cruce'] ?? [],
+            ])
         </div>
 
         @if(is_array($calibracion))
@@ -247,14 +256,18 @@
                 </button>
             </form>
             <div class="ms-auto small text-muted">
-                en uso: <strong>−{{ (int) ($p->ventana_adelanto_min ?? 0) }} / +{{ (int) ($p->ventana_atraso_min ?? 0) }} min</strong>
-                <span class="text-muted">(cadena ±{{ (int) ($p->ventana_adelanto_cadena ?? 0) }})</span>
                 @if((int) ($p->ventana_residuos ?? 0) === 1)
                     <span class="badge bg-success">aplicada</span>
                 @else
                     <span class="badge bg-secondary">sin aplicar</span>
                 @endif
             </div>
+        </div>
+
+        <div class="mt-2">
+            @include('lupita.partials.prediccion_valores_en_uso', [
+                'filas' => $en_uso_calibraciones['ventana'] ?? [],
+            ])
         </div>
 
         @if(is_array($ventana))
@@ -380,6 +393,49 @@
                         </button>
                     </form>
                 @endif
+            </div>
+        </div>
+
+        {{-- los nueve sesgos que están gobernando AHORA (no los medidos) --}}
+        <div class="alert alert-secondary py-2 px-2 mb-0 mt-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-1">
+                <span class="small fw-semibold">En uso ahora: corrección por clase</span>
+                @if((int) ($p->sesgo_clase_activo ?? 0) === 1)
+                    <span class="small">la cuarta fecha <span class="badge bg-success">prendida</span></span>
+                @else
+                    <span class="small">la cuarta fecha <span class="badge bg-secondary">apagada</span>
+                        — estos nueve valores no se usan</span>
+                @endif
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-borderless mb-0 text-end" style="font-size:.78rem">
+                    <thead>
+                    <tr class="text-muted">
+                        <th class="text-start">evidencia</th>
+                        @foreach(array_keys(\App\Prediccion\Sesgo::TRAMOS) as $tramo)
+                            <th class="text-end">{{ $tramo }}</th>
+                        @endforeach
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach(\App\Prediccion\Sesgo::EVIDENCIAS as $evidencia)
+                        <tr>
+                            <td class="text-start"><code>{{ $evidencia }}</code></td>
+                            @foreach(array_keys(\App\Prediccion\Sesgo::TRAMOS) as $tramo)
+                                @php $claveSesgo = \App\Prediccion\Sesgo::clave($evidencia . '|' . $tramo); @endphp
+                                <td title="{{ $sesgo_clases[$claveSesgo]['texto'] ?? '' }}">
+                                    {{ $sesgo_clases[$claveSesgo]['corto'] ?? '—' }}
+                                </td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-muted mt-1" style="font-size:.7rem">
+                tramos del horizonte desde el ancla: corto ≤ 6 h · medio ≤ 24 h · largo &gt; 24 h.
+                Un valor en <strong>0</strong> deja esa clase igual a la hora normal; no es que falte el dato:
+                la cuarta fecha sólo se corre donde se midió.
             </div>
         </div>
 
