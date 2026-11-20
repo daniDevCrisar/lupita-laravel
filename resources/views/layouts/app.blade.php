@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>@yield('title', 'Sistema')</title>
 
+    {{-- token para los fetch que no pasan por un <form> (extraer link de Maps, etc.) --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Bootstrap CSS -->
@@ -230,6 +233,14 @@
                     </ul>
                 </li>
                 @endif
+
+                {{-- Modulo Eleven Labs: solo lectura de la API de Conversational AI.
+                     Los documentos tecnicos viven en z-eleven-labs/ --}}
+                @can('ver eleven labs')
+                <li class="nav-item">
+                    <a class="nav-link" href="{{route('elevenlabs.main')}}">Eleven Labs</a>
+                </li>
+                @endcan
 
                 {{-- Grupo API: se abre con el permiso de lectura `ver api` --}}
                 @can('ver api')

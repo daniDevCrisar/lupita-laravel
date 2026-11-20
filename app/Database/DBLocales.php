@@ -206,47 +206,4 @@ class DBLocales
             'geo_actualizado_en' => now(),
         ]);
     }
-
-    /**
-     * Locales sin coordenadas (para el contador de la pantalla de Maps).
-     */
-    public static function sinCoordenadas(): array
-    {
-        return DB::table('locales')
-            ->where(function ($q) {
-                $q->whereNull('lat')->orWhereNull('lng');
-            })
-            ->orderBy('nombre')
-            ->get(['id', 'nombre', 'cliente_id'])
-            ->all();
-    }
-
-    /**
-     * Coordenadas de un local (para el atajo "centro del distrito" y la pantalla de Maps).
-     *
-     * @return array{lat: float, lng: float, nombre: string}|null
-     */
-    public static function coordenadasDistrito(?string $ubigeo): ?array
-    {
-        $ubigeo = trim((string) $ubigeo);
-        if (preg_match('/^\d{6}$/', $ubigeo) !== 1) {
-            return null;
-        }
-
-        try {
-            $fila = DB::table('geo_coordenadas')->where('ubigeo', $ubigeo)->first(['lat', 'lng', 'texto']);
-        } catch (\Throwable $e) {
-            return null;   // tabla sin crear
-        }
-
-        if ($fila === null) {
-            return null;
-        }
-
-        return [
-            'lat'    => (float) $fila->lat,
-            'lng'    => (float) $fila->lng,
-            'nombre' => (string) ($fila->texto ?? $ubigeo),
-        ];
-    }
 }

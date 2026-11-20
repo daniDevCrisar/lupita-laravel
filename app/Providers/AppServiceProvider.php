@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\ElevenLabs\AgentesElevenLabs;
+use App\ElevenLabs\ElevenLabsClient;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,7 +15,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // El cliente de Eleven Labs se arma desde config/services.php: su
+        // constructor pide la key y la URL base, que el contenedor no puede
+        // adivinar (parámetros primitivos). Singleton porque no guarda estado.
+        $this->app->singleton(ElevenLabsClient::class, fn () => ElevenLabsClient::desdeConfig());
+
+        $this->app->bind(
+            AgentesElevenLabs::class,
+            fn ($app) => new AgentesElevenLabs($app->make(ElevenLabsClient::class))
+        );
     }
 
     /**

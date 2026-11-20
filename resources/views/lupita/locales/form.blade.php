@@ -178,13 +178,32 @@
                             @enderror
                         </div>
 
-                        <div class="d-flex align-items-center gap-2 small">
+                        <div class="d-flex flex-wrap align-items-center gap-2 small">
                             <span class="text-white-50">Código ubigeo:</span>
                             <span class="badge bg-secondary" id="ubigeo-codigo">
                                 {{ old('distrito_ubigeo', $local->distrito_ubigeo ?? '') ?: 'sin distrito' }}
                             </span>
                             <span class="text-white-50">(6 dígitos, opcional)</span>
                         </div>
+
+                        {{-- La ubicacion guardada se muestra SIEMPRE como texto: no depende de
+                             que la cascada de combos logre armarse. --}}
+                        @if($modo === 'editar' && ($local->distrito ?? null))
+                            <div class="small mt-2">
+                                <span class="text-white-50">Ubicación guardada:</span>
+                                <span class="text-light">
+                                    {{ $local->departamento }} / {{ $local->provincia }} / {{ $local->distrito }}
+                                </span>
+                            </div>
+                        @elseif($modo === 'editar' && ($local->distrito_ubigeo ?? null))
+                            <div class="small mt-2 text-warning">
+                                El ubigeo {{ $local->distrito_ubigeo }} no existe en el catálogo de
+                                <code>ubigeo_distritos</code>: no se puede mostrar el distrito.
+                            </div>
+                        @endif
+
+                        {{-- aviso que llena el JS si no puede armar la cascada --}}
+                        <div class="small mt-2 text-warning d-none" id="aviso-cascada"></div>
 
                     </div>
                 </div>
@@ -242,9 +261,6 @@
                                value="{{ old('geo_texto', $local->geo_texto ?? '') }}">
 
                         <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
-                            <button class="btn btn-outline-secondary btn-sm" type="button" id="btn-distrito">
-                                <i class="bi bi-pin-map"></i> Usar el centro del distrito
-                            </button>
                             <a href="#" target="_blank" rel="noopener" id="ver-mapa-local"
                                class="btn btn-outline-light btn-sm {{ (old('lat', $local->lat ?? '') === '' || old('lng', $local->lng ?? '') === '') ? 'd-none' : '' }}">
                                 <i class="bi bi-map"></i> Ver en el mapa
@@ -256,13 +272,14 @@
 
                         <div class="form-text text-white-50 mt-2">
                             O las dos coordenadas o ninguna. Si las cargás a mano, quedan con fuente
-                            <code>manual</code>; con el link, <code>maps</code>; con el distrito,
-                            <code>distrito</code>.
+                            <code>manual</code>; con el link, <code>maps</code>.
                         </div>
                     </div>
                 </div>
 
                 <div class="card bg-dark text-light border-secondary mt-3">
+                    <div class="card-header text-light">
+                        <i class="bi bi-toggle-on"></i> Estado
                     </div>
                     <div class="card-body">
                         <label class="form-label text-light" for="activo">Activo</label>
@@ -317,133 +334,6 @@
             var idInput = document.getElementById('id');
             var btnGenerar = document.getElementById('generar-id');
 
-            // ---------------------------------------------------------------
-            // Coordenadas: pegar el link de Google Maps o usar el centro del distrito
-            // ---------------------------------------------------------------
-            (function () {
-                var link = document.getElementById('link-maps-local');
-                var btn = document.getElementById('btn-extraer-local');
-                var error = document.getElementById('error-maps-local');
-                var lat = document.getElementById('lat');
-                var lng = document.getElementById('lng');
-                var fuente = document.getElementById('geo_fuente');
-                var geoTexto = document.getElementById('geo_texto');
-                var verMapa = document.getElementById('ver-mapa-local');
-                var btnDistrito = document.getElementById('btn-distrito');
-                var btnLimpiar = document.getElementById('btn-limpiar-coords');
-
-                if (!link || !btn || !lat || !lng) {
-                    return;
-                }
-
-                function actualizarMapa() {
-                    var ok = lat.value.trim() !== '' && lng.value.trim() !== '';
-                    if (ok) {
-                        verMapa.href = 'https://www.google.com/maps?q=' + lat.value.trim() + ',' + lng.value.trim();
-                        verMapa.classList.remove('d-none');
-                    } else {
-                        verMapa.classList.add('d-none');
-                    }
-                }
-
-                function mostrarError(mensaje) {
-                    error.textContent = mensaje;
-                    error.classList.remove('d-none');
-                }
-
-                btn.addEventListener('click', function () {
-                    error.classList.add('d-none');
-                    var valor = link.value.trim();
-                    if (!valor) {
-                        mostrarError('Pegá un link de Google Maps.');
-                        return;
-                    }
-
-                    btn.disabled = true;
-
-                    fetch({{ Illuminate\Support\Js::from(route('lupita.ubicaciones.maps.extraer')) }}, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({ link: valor })
-                    })
-                        .then(function (r) { return r.json(); })
-                        .then(function (datos) {
-                            if (!datos.ok) {
-                                mostrarError(datos.error || 'No se pudieron sacar las coordenadas.');
-                                return;
-                            }
-                            lat.value = datos.lat;
-                            lng.value = datos.lng;
-                            fuente.value = 'maps';
-                            geoTexto.value = datos.nombre || '';
-                            actualizarMapa();
-                        })
-                        .catch(function () { mostrarError('No se pudo leer el link. Probá de nuevo.'); })
-                        .finally(function () { btn.disabled = false; });
-                });
-
-                btnDistrito.addEventListener('click', function () {
-                    error.classList.add('d-none');
-
-                    var ubigeo = null;
-                    var oculto = document.getElementById('distrito_ubigeo');
-                    var select = document.getElementById('distrito');
-                    if (oculto && oculto.value) {
-                        ubigeo = oculto.value;
-                    } else if (select && select.value) {
-                        ubigeo = select.value;
-                    }
-
-                    if (!ubigeo) {
-                        mostrarError('Elegí primero el distrito del local.');
-                        return;
-                    }
-
-                    btnDistrito.disabled = true;
-
-                    fetch({{ Illuminate\Support\Js::from(url('/lupita/ubicaciones/maps/distrito')) }}/' + ubigeo,
-                          { headers: { 'Accept': 'application/json' } })
-                        .then(function (r) { return r.json(); })
-                        .then(function (datos) {
-                            if (!datos.ok) {
-                                mostrarError(datos.error || 'Ese distrito no tiene coordenadas guardadas.');
-                                return;
-                            }
-                            lat.value = datos.lat;
-                            lng.value = datos.lng;
-                            fuente.value = 'distrito';
-                            geoTexto.value = datos.nombre || '';
-                            actualizarMapa();
-                        })
-                        .catch(function () { mostrarError('No se pudo leer el distrito.'); })
-                        .finally(function () { btnDistrito.disabled = false; });
-                });
-
-                btnLimpiar.addEventListener('click', function () {
-                    lat.value = '';
-                    lng.value = '';
-                    fuente.value = '';
-                    geoTexto.value = '';
-                    link.value = '';
-                    error.classList.add('d-none');
-                    actualizarMapa();
-                });
-
-                lat.addEventListener('input', function () {
-                    fuente.value = fuente.value === '' ? 'manual' : fuente.value;
-                    actualizarMapa();
-                });
-                lng.addEventListener('input', function () {
-                    fuente.value = fuente.value === '' ? 'manual' : fuente.value;
-                    actualizarMapa();
-                });
-
-                actualizarMapa();
-            })();
 
             // ---------------------------------------------------------------
             // Utilidades de texto
@@ -594,6 +484,21 @@
             // con el que venía en old() si el POST falló
             // ---------------------------------------------------------------
             (function arrancar() {
+                var aviso = document.getElementById('aviso-cascada');
+
+                function avisar(mensaje) {
+                    if (aviso) {
+                        aviso.textContent = mensaje;
+                        aviso.classList.remove('d-none');
+                    }
+                }
+
+                if (!UBIGEO || UBIGEO.length === 0) {
+                    avisar('El catálogo de ubigeo llegó vacío: revisá las tablas ubigeo_departamentos, '
+                        + 'ubigeo_provincias y ubigeo_distritos. El código guardado se conserva igual.');
+                    return;
+                }
+
                 UBIGEO.forEach(function (dep) {
                     depSel.appendChild(opcion(dep.id, dep.nombre));
                 });
@@ -619,7 +524,128 @@
                         }
                     }
                 }
+
+                // el ubigeo guardado no esta en el arbol: no se toca, pero se avisa
+                provSel.appendChild(opcion('', '— Primero el departamento —'));
+                distSel.appendChild(opcion('', '— Primero la provincia —'));
+                avisar('El ubigeo guardado (' + inicial + ') no está en el catálogo de distritos: '
+                    + 'elegí el distrito de nuevo si querés cambiarlo. Mientras no lo toques, se conserva.');
             })();
+
+            // ---------------------------------------------------------------
+            // Coordenadas: pegar el link de Google Maps (las saca del propio link, sin API)
+            //
+            // Va DESPUES de arrancar(): si este bloque fallara (por un id que no esta,
+            // por un navegador viejo), la cascada del ubigeo de arriba ya se armo. Antes
+            // estaba antes y un error aca dejaba los combos de ubigeo en blanco.
+            // ---------------------------------------------------------------
+            try {
+            (function () {
+                var link = document.getElementById('link-maps-local');
+                var btn = document.getElementById('btn-extraer-local');
+                var error = document.getElementById('error-maps-local');
+                var lat = document.getElementById('lat');
+                var lng = document.getElementById('lng');
+                var fuente = document.getElementById('geo_fuente');
+                var geoTexto = document.getElementById('geo_texto');
+                var verMapa = document.getElementById('ver-mapa-local');
+                var btnLimpiar = document.getElementById('btn-limpiar-coords');
+
+                if (!link || !btn || !lat || !lng || !error || !fuente || !geoTexto || !verMapa || !btnLimpiar) {
+                    return;
+                }
+
+                // Lee la respuesta como JSON, pero si el servidor contesto HTML (419 de
+                // CSRF, 500, un redirect al login) muestra un mensaje entendible en vez
+                // de un "no se pudo" generico.
+                function leerJson(r) {
+                    var tipo = r.headers.get('content-type') || '';
+                    if (tipo.indexOf('application/json') === -1) {
+                        if (r.status === 419) {
+                            throw new Error('La sesión expiró. Recargá la página (F5) y volvé a pegar el link.');
+                        }
+                        throw new Error('El servidor contestó ' + r.status + '. Recargá la página e intentá de nuevo.');
+                    }
+                    return r.json();
+                }
+
+                function actualizarMapa() {
+                    var ok = lat.value.trim() !== '' && lng.value.trim() !== '';
+                    if (ok) {
+                        verMapa.href = {{ Illuminate\Support\Js::from(config('ubicaciones.mapa_url')) }} + lat.value.trim() + ',' + lng.value.trim();
+                        verMapa.classList.remove('d-none');
+                    } else {
+                        verMapa.classList.add('d-none');
+                    }
+                }
+
+                function mostrarError(mensaje) {
+                    error.textContent = mensaje;
+                    error.classList.remove('d-none');
+                }
+
+                btn.addEventListener('click', function () {
+                    error.classList.add('d-none');
+                    var valor = link.value.trim();
+                    if (!valor) {
+                        mostrarError('Pegá un link de Google Maps.');
+                        return;
+                    }
+
+                    btn.disabled = true;
+
+                    fetch({{ Illuminate\Support\Js::from(route('lupita.ubicaciones.maps.extraer')) }}, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ link: valor })
+                    })
+                        .then(leerJson)
+                        .then(function (datos) {
+                            if (!datos.ok) {
+                                mostrarError(datos.error || 'No se pudieron sacar las coordenadas.');
+                                return;
+                            }
+                            lat.value = datos.lat;
+                            lng.value = datos.lng;
+                            fuente.value = 'maps';
+                            geoTexto.value = datos.nombre || '';
+                            actualizarMapa();
+                        })
+                        .catch(function (e) {
+                            mostrarError(e && e.message ? e.message : 'No se pudo leer el link. Probá de nuevo.');
+                        })
+                        .finally(function () { btn.disabled = false; });
+                });
+
+                btnLimpiar.addEventListener('click', function () {
+                    lat.value = '';
+                    lng.value = '';
+                    fuente.value = '';
+                    geoTexto.value = '';
+                    link.value = '';
+                    error.classList.add('d-none');
+                    actualizarMapa();
+                });
+
+                lat.addEventListener('input', function () {
+                    fuente.value = fuente.value === '' ? 'manual' : fuente.value;
+                    actualizarMapa();
+                });
+                lng.addEventListener('input', function () {
+                    fuente.value = fuente.value === '' ? 'manual' : fuente.value;
+                    actualizarMapa();
+                });
+
+                actualizarMapa();
+            })();
+            } catch (e) {
+                // nunca dejar que un fallo del bloque de coordenadas rompa el formulario
+                if (window.console) { console.warn('coordenadas: no se pudo inicializar', e); }
+            }
         })();
     </script>
 @endsection

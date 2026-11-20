@@ -12,6 +12,14 @@ class DBTmpLlamadas {
     public static $razones_finalizacion = [];
     public static $log;
 
+    /**
+     * Cache de plataforma por lote: la cabecera no cambia durante un procesamiento
+     * y `plataformaDelLote()` se llama una vez por llamada del lote.
+     *
+     * @var array<string, int>
+     */
+    private static array $plataformaPorLote = [];
+
     public function __construct() {
         self::$razones_finalizacion = DB::select("select * from razones_finalizacion");
 
@@ -31,6 +39,38 @@ class DBTmpLlamadas {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Plataforma de origen del lote: 1 = Excel/VAPI, 2 = API de ElevenLabs.
+     *
+     * Se lee de `tmp_lotes.tipo`, la cabecera del lote (decision §12 del plan del
+     * modulo): asi el pipeline sabe de donde vino cada llamada sin agregar
+     * columnas al detalle. Si el lote no existe se asume VAPI, que es el caso de
+     * todo el historico.
+     */
+    public static function plataformaDelLote($id_lote): int {
+        $clave = (string) $id_lote;
+
+        if (! array_key_exists($clave, self::$plataformaPorLote)) {
+            $tipo = DB::table('tmp_lotes')->where('lote_id', $id_lote)->value('tipo');
+            self::$plataformaPorLote[$clave] = ((int) $tipo) === 2 ? 2 : 1;
+        }
+
+        return self::$plataformaPorLote[$clave];
+    }
+
+    /**
+     * ¿La llamada entro (la llamo el conductor) o salio (la llamo la IA)?
+     *
+     * `tmp_lotes_det.type` guarda el tipo de llamada del contrato legacy, en
+     * mayusculas y sin separadores: `INBOUNDPHONECALL` / `OUTBOUNDPHONECALL`.
+     * Se compara en mayusculas por si algun lote trae otra grafia.
+     */
+    public static function esEntrante($tipo): int {
+        $tipo = strtoupper(trim((string) $tipo));
+
+        return in_array($tipo, ['INBOUNDPHONECALL', 'INBOUND'], true) ? 1 : 0;
     }
 
     public static function importar_llamadas_de_tmp_al_sistema($id_trt,$id_conductor,$id_lote,$item) {
@@ -54,7 +94,19 @@ class DBTmpLlamadas {
         }
         $llamada->llamada_tipo_id = $tipol;
 
-        $llamada->es_entrante = 0; //OUTBOUNDPHONECALL
+        // Plataforma del lote (Etapa 6): 1 = Excel/VAPI, 2 = API de ElevenLabs.
+        // Sale de `tmp_lotes.tipo`, que el modulo de ElevenLabs crea en 2.
+        $llamada->id_plataforma = self::plataformaDelLote($id_lote);
+
+        // El id explicito por plataforma: en ElevenLabs es su `conversation_id`
+        // (el mismo valor de `vapi_id`, que es la llave de todo el sistema). En
+        // VAPI se deja NULL: ahi `vapi_id` ya es el id nativo.
+        $llamada->el_id = $llamada->id_plataforma === 2 ? $item->vapi_id : null;
+
+        // Entrante o saliente segun `type` del detalle ("INBOUNDPHONECALL" en las
+        // que llama el conductor, "OUTBOUNDPHONECALL" en las que llama la IA).
+        // Antes estaba fijo en 0 y por eso todas las llamadas quedaban salientes.
+        $llamada->es_entrante = self::esEntrante($item->type ?? '');
         $llamada->razon_finalizacion_id =self::obtener_id_razon($item->razon_finalizacion);
 
         if ($llamada->razon_finalizacion_id==4) $item->error_origen=2;
@@ -166,7 +218,31 @@ class DBTmpLlamadas {
         return $id->id;
     }
 
+    /**
+     * Normaliza el valor de una columna de etiqueta a 1 / 0.
+     *
+     * POR QUE NO ES UN CAST SIMPLE
+     * En PHP el string "false" es VERDADERO: `if ("false")` entra. Con el codigo
+     * anterior, un `tmp_lotes_det.buzon_de_voz = "false"` se guardaba como 1, o sea
+     * exactamente lo contrario de lo que decia el dato. Ahora los textos "false",
+     * "no" y "0" (en cualquier caja) se leen como 0 y "true"/"si"/"1" como 1.
+     *
+     * Cualquier otro texto no vacio sigue contando como 1, que es el
+     * comportamiento historico del flujo de VAPI.
+     */
     public static function etiqueta_valor($valor){
+        if (is_string($valor)) {
+            $texto = mb_strtolower(trim($valor));
+
+            if ($texto === '' || $texto === '0' || $texto === 'false' || $texto === 'no') {
+                return 0;
+            }
+
+            if ($texto === '1' || $texto === 'true' || $texto === 'si' || $texto === 'sí' || $texto === 'yes') {
+                return 1;
+            }
+        }
+
         if ($valor) return 1;
         return 0;
     }
@@ -194,7 +270,10 @@ class DBTmpLlamadas {
             $mensaje = trim($mensaje);
             if ($mensaje === '') continue;
 
-            $msg= explode(':', $mensaje);
+            // Limite 2: el texto del turno puede tener dos puntos ("a las 3:53",
+            // hora, etc.). Sin el limite, `explode(':')` devolvia 3+ partes y el
+            // turno se descartaba entero, perdiendo el mensaje en silencio.
+            $msg= explode(':', $mensaje, 2);
             if (count($msg) != 2) continue;
             $msg[0] = trim($msg[0]);
             $msg[1] = trim($msg[1]);
@@ -264,10 +343,13 @@ class DBTmpLlamadas {
             ia_result_delay_reason_desc,
             ia_result_comments_text,
 
+            el_id,
+            id_plataforma,
             fecha_prometida,
             created_at
         ) VALUES (
             ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+            ?,?,
             FROM_UNIXTIME(?),
             FROM_UNIXTIME(?)
         )";
@@ -322,6 +404,8 @@ class DBTmpLlamadas {
             $llamada->ia_result_delay_reason_desc,
             $llamada->ia_result_comments_text,
 
+            $llamada->el_id,
+            $llamada->id_plataforma,
             $llamada->fecha_prometida,
             $llamada->created_at,
 

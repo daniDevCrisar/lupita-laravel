@@ -183,7 +183,7 @@ class LocalesController extends Controller
             'lat'             => ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'],
             'lng'             => ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'],
             'geo_texto'       => ['nullable', 'string', 'max:200'],
-            'geo_fuente'      => ['nullable', 'in:maps,manual,distrito'],
+            'geo_fuente'      => ['nullable', 'in:maps,manual'],
             'activo'          => ['nullable', 'in:0,1'],
         ];
 

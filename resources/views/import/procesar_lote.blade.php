@@ -37,7 +37,8 @@ $total_trts = count($trts);
                 <div class="card-body">
                     <div class="col-12">
 
-                        <h5 class="card-title mb-3">Información del Lote</h5>
+                        <h5 class="card-title mb-3">Información del Lote -
+                            <img src="{{ asset("images/plataformas/$cabecera->tipo.svg") }}" style="width: 120px;" class=""></h5>
                     </div>
 
                     <div class="row">

@@ -117,30 +117,15 @@ class MapsTest extends TestCase
         $this->assertNull(DB::table('locales')->where('id', $local->id)->value('lat'));
     }
 
-    public function test_el_centro_del_distrito_responde_404_si_no_esta_cacheado(): void
+    public function test_el_atajo_del_distrito_quedo_deshabilitado_explicando_por_que(): void
     {
-        // geo_coordenadas solo tiene unos pocos distritos: se busca uno que no este
-        $ubigeo = DB::table('ubigeo_distritos')->orderBy('ubigeo')->value('ubigeo');
-        DB::table('geo_coordenadas')->where('ubigeo', $ubigeo)->delete();
-
+        // geocodificar un distrito por nombre se equivoca de ciudad (Puente Piedra ->
+        // Chiclayo), asi que el atajo devuelve 410 con la explicacion en vez de un
+        // punto equivocado que despues usa la prediccion
         $this->actingAs($this->usuario())
-            ->getJson(route('lupita.ubicaciones.maps.distrito', $ubigeo))
-            ->assertStatus(404)
+            ->getJson(route('lupita.ubicaciones.maps.distrito', '150125'))
+            ->assertStatus(410)
             ->assertJson(['ok' => false]);
-    }
-
-    public function test_el_centro_del_distrito_devuelve_las_coordenadas_guardadas(): void
-    {
-        DB::table('geo_coordenadas')->updateOrInsert(
-            ['ubigeo' => '150101'],
-            ['lat' => -12.046374, 'lng' => -77.042793, 'texto' => 'LIMA, LIMA, LIMA', 'fuente' => 'test']
-        );
-
-        $this->actingAs($this->usuario())
-            ->getJson(route('lupita.ubicaciones.maps.distrito', '150101'))
-            ->assertOk()
-            ->assertJson(['ok' => true])
-            ->assertJsonPath('nombre', 'LIMA, LIMA, LIMA');
     }
 
     public function test_el_listado_de_locales_muestra_la_columna_de_coordenadas(): void
@@ -153,6 +138,23 @@ class MapsTest extends TestCase
             ->assertOk()
             ->assertSee('Coordenadas')
             ->assertSee('https://www.google.com/maps?q=-11.106312,-77.451234', false);
+    }
+
+    public function test_el_formulario_conserva_los_combos_de_ubigeo_y_la_tarjeta_de_estado(): void
+    {
+        // el bloque de coordenadas se inserto en medio del formulario: esto fija que
+        // los tres selects del ubigeo y la tarjeta de Estado siguen ahi y bien armados
+        $this->actingAs($this->usuario())
+            ->get(route('lupita.locales.editar', $this->unLocal()->id))
+            ->assertOk()
+            ->assertSee('id="departamento"', false)
+            ->assertSee('id="provincia"', false)
+            ->assertSee('id="distrito"', false)
+            ->assertSee('id="distrito_ubigeo"', false)
+            ->assertSee('<i class="bi bi-toggle-on"></i> Estado', false)
+            ->assertSee('id="link-maps-local"', false)
+            ->assertSee('id="lat"', false)
+            ->assertSee('id="lng"', false);
     }
 
     public function test_el_formulario_de_local_guarda_las_coordenadas(): void

@@ -116,6 +116,29 @@ class LinkGoogleMaps
     }
 
     /**
+     * Link externo para ver un punto en el mapa.
+     *
+     * UNICO lugar donde se arma: las vistas no escriben la URL a mano (Google no es
+     * una ruta de la aplicacion, pero la base vive en config para no repetir texto).
+     */
+    public static function urlMapa($lat, $lng): ?string
+    {
+        if (!is_numeric($lat) || !is_numeric($lng)) {
+            return null;
+        }
+
+        $lat = (float) $lat;
+        $lng = (float) $lng;
+
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return null;
+        }
+
+        return (string) config('ubicaciones.mapa_url', 'https://www.google.com/maps?q=')
+            . $lat . ',' . $lng;
+    }
+
+    /**
      * Nombre del lugar que aparece en `/maps/place/...`.
      */
     private static function nombre(string $link): ?string

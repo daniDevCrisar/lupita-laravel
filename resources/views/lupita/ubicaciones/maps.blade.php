@@ -237,7 +237,17 @@
                     },
                     body: JSON.stringify({ link: link })
                 })
-                    .then(function (r) { return r.json(); })
+                    .then(function (r) {
+                        // si contesta HTML (419 de CSRF, 500) se avisa claro en vez de un
+                        // "no se pudo" generico
+                        var tipo = r.headers.get('content-type') || '';
+                        if (tipo.indexOf('application/json') === -1) {
+                            throw new Error(r.status === 419
+                                ? 'La sesión expiró. Recargá la página (F5) y volvé a pegar el link.'
+                                : 'El servidor contestó ' + r.status + '. Recargá la página e intentá de nuevo.');
+                        }
+                        return r.json();
+                    })
                     .then(function (datos) {
                         if (!datos.ok) {
                             cajaError.textContent = datos.error || 'No se pudieron sacar las coordenadas.';
@@ -250,7 +260,7 @@
                         texto('res-fuente', datos.fuente);
                         texto('res-nombre', datos.nombre);
                         document.getElementById('res-ver-mapa').href =
-                            'https://www.google.com/maps?q=' + datos.lat + ',' + datos.lng;
+                            {{ Illuminate\Support\Js::from(config('ubicaciones.mapa_url')) }} + datos.lat + ',' + datos.lng;
                         cajaOk.classList.remove('d-none');
 
                         campoLat.value = datos.lat;
@@ -258,8 +268,10 @@
                         campoTexto.value = datos.nombre || '';
                         asignar.disabled = false;
                     })
-                    .catch(function () {
-                        cajaError.textContent = 'No se pudo leer el link. Probá de nuevo.';
+                    .catch(function (e) {
+                        cajaError.textContent = (e && e.message)
+                            ? e.message
+                            : 'No se pudo leer el link. Probá de nuevo.';
                         cajaError.classList.remove('d-none');
                     })
                     .finally(function () { boton.disabled = false; });

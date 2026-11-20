@@ -96,7 +96,7 @@
                             </td>
                             <td>
                                 @if($local->lat !== null && $local->lng !== null)
-                                    <a href="https://www.google.com/maps?q={{ $local->lat }},{{ $local->lng }}"
+                                    <a href="{{ \App\Ubicaciones\LinkGoogleMaps::urlMapa($local->lat, $local->lng) }}"
                                        target="_blank" rel="noopener"
                                        class="btn btn-outline-light btn-sm"
                                        title="Abrir en Google Maps ({{ $local->geo_fuente ?? 'sin fuente' }})">

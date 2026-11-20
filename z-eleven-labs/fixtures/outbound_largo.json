@@ -1,0 +1,1387 @@
+{
+    "agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+    "agent_name": "DespachIA - Camila",
+    "conversation_product": "agent",
+    "status": "done",
+    "user_id": "+573115246409",
+    "branch_id": "agtbrch_3701m0dx8m35ecsv3tjpsd06v6fa",
+    "version_id": "agtvrsn_7001m7nepzwcey4b499733qrbtc8",
+    "metadata": {
+        "start_time_unix_secs": 1795104505,
+        "accepted_time_unix_secs": 1795104505,
+        "call_duration_secs": 66,
+        "queue_wait_secs": null,
+        "cost": 1509,
+        "deletion_settings": {
+            "deletion_time_unix_secs": null,
+            "deleted_logs_at_time_unix_secs": null,
+            "deleted_audio_at_time_unix_secs": null,
+            "deleted_transcript_at_time_unix_secs": null,
+            "delete_transcript_and_pii": false,
+            "delete_audio": false
+        },
+        "feedback": {
+            "type": null,
+            "overall_score": null,
+            "likes": 0,
+            "dislikes": 0,
+            "rating": null,
+            "comment": null
+        },
+        "authorization_method": "signed_url",
+        "charging": {
+            "dev_discount": false,
+            "is_burst": false,
+            "tier": "creator",
+            "llm_usage": {
+                "irreversible_generation": {
+                    "model_usage": {
+                        "claude-opus-4-7": {
+                            "input": {
+                                "tokens": 30,
+                                "price": 0.000165
+                            },
+                            "input_cache_read": {
+                                "tokens": 163882,
+                                "price": 0.09013510000000001
+                            },
+                            "input_cache_write": {
+                                "tokens": 950,
+                                "price": 0.006531250000000001
+                            },
+                            "output_total": {
+                                "tokens": 336,
+                                "price": 0.00924
+                            }
+                        }
+                    },
+                    "detailed_model_usage": [
+                        {
+                            "config": {
+                                "model": "claude-opus-4-7",
+                                "service_tier": "standard"
+                            },
+                            "usage": {
+                                "input": {
+                                    "tokens": 30,
+                                    "price": 0.000165
+                                },
+                                "input_cache_read": {
+                                    "tokens": 163882,
+                                    "price": 0.09013510000000001
+                                },
+                                "input_cache_write": {
+                                    "tokens": 950,
+                                    "price": 0.006531250000000001
+                                },
+                                "output_total": {
+                                    "tokens": 336,
+                                    "price": 0.00924
+                                }
+                            }
+                        }
+                    ]
+                },
+                "initiated_generation": {
+                    "model_usage": {
+                        "claude-opus-4-7": {
+                            "input": {
+                                "tokens": 54,
+                                "price": 0.00029699999999999996
+                            },
+                            "input_cache_read": {
+                                "tokens": 294385,
+                                "price": 0.16191175000000005
+                            },
+                            "input_cache_write": {
+                                "tokens": 2062,
+                                "price": 0.014176250000000001
+                            },
+                            "output_total": {
+                                "tokens": 367,
+                                "price": 0.0100925
+                            }
+                        }
+                    },
+                    "detailed_model_usage": [
+                        {
+                            "config": {
+                                "model": "claude-opus-4-7",
+                                "service_tier": "standard"
+                            },
+                            "usage": {
+                                "input": {
+                                    "tokens": 54,
+                                    "price": 0.00029699999999999996
+                                },
+                                "input_cache_read": {
+                                    "tokens": 294385,
+                                    "price": 0.16191175000000005
+                                },
+                                "input_cache_write": {
+                                    "tokens": 2062,
+                                    "price": 0.014176250000000001
+                                },
+                                "output_total": {
+                                    "tokens": 367,
+                                    "price": 0.0100925
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            "llm_price": 0.18647750000000005,
+            "llm_charge": 1027,
+            "call_charge": 482,
+            "platform_charge": 482,
+            "platform_usage": {
+                "category_usage": {
+                    "voice": {
+                        "credits": 482,
+                        "price": 0.08771728484130775,
+                        "quantity": 1.096466060516347
+                    }
+                }
+            },
+            "platform_price": 0.08771728484130775,
+            "free_minutes_consumed": 0,
+            "free_llm_dollars_consumed": 0,
+            "tts_usage": {
+                "primary_tts_model": "eleven_multilingual_v2",
+                "total_audio_output_seconds": 35.74675,
+                "total_characters": 571,
+                "per_voice_usage": [
+                    {
+                        "voice_id": "86V9x9hrQds83qf7zaGn",
+                        "audio_output_seconds": 35.74675
+                    }
+                ]
+            },
+            "asr_usage": {
+                "asr_model": "scribe_v3_live",
+                "total_transcription_calls": 147,
+                "total_audio_input_seconds": 26.280000000000015
+            },
+            "analysis": null,
+            "subagent_charge": 0,
+            "voice_surcharge_charge": null,
+            "user_memory": null
+        },
+        "phone_call": {
+            "direction": "outbound",
+            "phone_number_id": "phnum_8401m0dx5yadej6a6r0h2kgstf87",
+            "agent_number": "+576013074167",
+            "external_number": "+573115246409",
+            "call_result": "answered",
+            "type": "twilio",
+            "stream_sid": "MZbc0e657e7ce5a6d4d6a820736adf8c55",
+            "call_sid": "CA9549b020e676a6e65149f934cb43474e"
+        },
+        "batch_call": null,
+        "termination_reason": "Call ended by remote party",
+        "error": null,
+        "warnings": [],
+        "main_language": "es",
+        "rag_usage": null,
+        "text_only": false,
+        "features_usage": {
+            "language_detection": {
+                "enabled": false,
+                "used": false
+            },
+            "transfer_to_agent": {
+                "enabled": false,
+                "used": false
+            },
+            "transfer_to_number": {
+                "enabled": false,
+                "used": false
+            },
+            "multivoice": {
+                "enabled": false,
+                "used": false
+            },
+            "dtmf_tones": {
+                "enabled": true,
+                "used": false
+            },
+            "external_mcp_servers": {
+                "enabled": false,
+                "used": false
+            },
+            "pii_zrm_workspace": false,
+            "pii_zrm_agent": false,
+            "tool_dynamic_variable_updates": {
+                "enabled": false,
+                "used": false
+            },
+            "is_livekit": false,
+            "voicemail_detection": {
+                "enabled": true,
+                "used": false
+            },
+            "dtmf_input": {
+                "enabled": false,
+                "used": false
+            },
+            "workflow": {
+                "enabled": false,
+                "version": 1,
+                "tool_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "standalone_agent_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "phone_number_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "end_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "override_agent_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "say_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "update_state_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "subgraph_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "transfer_to_genesys_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "start_procedure_node": {
+                    "enabled": false,
+                    "used": false
+                }
+            },
+            "agent_testing": {
+                "enabled": false,
+                "tests_ran_after_last_modification": false,
+                "tests_ran_in_last_7_days": false
+            },
+            "versioning": {
+                "enabled": true,
+                "used": false
+            },
+            "file_input": {
+                "enabled": true,
+                "used": false
+            },
+            "freeform_procedure": {
+                "enabled": false,
+                "used": false
+            },
+            "structured_procedure": {
+                "enabled": false,
+                "used": false
+            }
+        },
+        "eleven_assistant": {
+            "is_eleven_assistant": false
+        },
+        "initiator_id": null,
+        "conversation_initiation_source": "twilio",
+        "conversation_initiation_source_version": null,
+        "timezone": "America/Bogota",
+        "async_metadata": null,
+        "whatsapp": null,
+        "sms": null,
+        "agent_created_from": "api",
+        "agent_last_updated_from": "ui",
+        "stream_state": null,
+        "voice_rewards": [
+            {
+                "voice_id": "86V9x9hrQds83qf7zaGn",
+                "reward_usd_cents": 0.3939626668044077
+            }
+        ],
+        "avatar_sessions": [],
+        "cost_fiat": 0.27419478484130777
+    },
+    "analysis": {
+        "evaluation_criteria_results": [],
+        "data_collection_results": [],
+        "evaluation_criteria_results_list": [],
+        "data_collection_results_list": [],
+        "call_successful": "success",
+        "call_success_score": null,
+        "transcript_summary": "The agent, Camila from LOGISTICA MASTERS, initiated a call with Álvaro to inquire about available units and vehicle types for potential trips. Álvaro initially provided unclear information regarding vehicle types (\"Tupán Avril\", \"caballería\"). He then listed \"Tortosa, Maicao, Varadero\" as destinations, but the agent only clearly understood \"Maicao\" and requested clarification on the others. The conversation focused on gathering details about Álvaro's transport capabilities.",
+        "call_summary_title": "Logistics Unit Availability",
+        "scoped": [],
+        "sentiment_analysis": {
+            "overall_label": "neutral",
+            "overall_sentiment_score": -0.1,
+            "overall_frustration_score": 0.2,
+            "min_user_sentiment_score": -0.2,
+            "max_user_frustration_score": 0.2,
+            "num_scored_user_turns": 4
+        },
+        "not_applicable": []
+    },
+    "user_message_count": 5,
+    "agent_message_count": 6,
+    "visited_agents": [
+        {
+            "agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+            "branch_id": "agtbrch_3701m0dx8m35ecsv3tjpsd06v6fa"
+        }
+    ],
+    "conversation_initiation_client_data": {
+        "conversation_config_override": {
+            "asr": null,
+            "turn": null,
+            "tts": null,
+            "conversation": null,
+            "agent": null
+        },
+        "custom_llm_extra_body": [],
+        "user_id": null,
+        "source_info": {
+            "source": null,
+            "version": null
+        },
+        "branch_id": null,
+        "environment": null,
+        "starting_workflow_node_id": null,
+        "experiments": [],
+        "procedure_ids": null,
+        "start_procedure_ids": null,
+        "dynamic_variables": {
+            "carrier_name": "DUVAN GONZALO ABRIL CUERVO",
+            "operador_logistico": "LOGISTICA MASTERS",
+            "info_empresa": "Dirección: Funa Siberia km52 Parque industrial peru japon, Jefe de Operaciones: Lucia Castro",
+            "es_recurrente": "NO",
+            "trip_code": "1189448",
+            "reference": "1189448",
+            "tipo_viaje": "subasta_inversa",
+            "origen": "Malambo",
+            "destino": "Cartagena De Indias",
+            "tipo_vehiculo": "TRACTOMULA",
+            "producto_carga": "",
+            "fecha_carga_texto": "el sábado 21 de noviembre a las 7 y 28 de la mañana",
+            "fecha_entrega_texto": "el jueves 26 de noviembre a las 6 y 28 de la tarde",
+            "tarifa_base": "1400000",
+            "tarifa_ofrecida": "1400000",
+            "tarifa_maxima": "1400000",
+            "margen_negociable_pct": "0",
+            "margen_negociable_monto": "0",
+            "ajuste_monto": "0",
+            "ajuste_motivo": "",
+            "ajuste_mencionar": "solo_si_pregunta",
+            "anticipo_pct_ofrecido": "70",
+            "anticipo_pct_tope": "70",
+            "anticipo_contra": "cargue",
+            "dias_pago": "0",
+            "dias_minimo_negociable": "0",
+            "pronto_pago_concesion": "NO",
+            "condiciones_forma_pago": "",
+            "condiciones_adicionales": "",
+            "ofrecer_otra_ruta": "NO",
+            "ruta_alt_origen": "",
+            "ruta_alt_destino": "",
+            "ruta_alt_trip_code": "",
+            "ruta_alt_tarifa_ofrecida": "0",
+            "ruta_alt_tarifa_maxima": "0",
+            "escalar_tarifa": "SI",
+            "escalar_tarifa_limite": "1400000",
+            "escalar_anticipo": "SI",
+            "escalar_anticipo_limite_pct": "70",
+            "escalar_forma_pago": "SI",
+            "escalar_forma_pago_limite_dias": "0",
+            "escalar_ajuste": "SI",
+            "escalar_ajuste_limite": "0",
+            "escalar_ruta_alt": "SI",
+            "escalar_fecha": "SI",
+            "aplica_cita_cargue": "NO",
+            "aplica_cita_entrega": "NO",
+            "escalar_cita": "NO",
+            "monto_cargue": "0",
+            "cargue_incluido": "NO",
+            "monto_descargue": "0",
+            "descargue_incluido": "NO",
+            "aplica_sicetac": "true",
+            "minutos_para_expirar": "2240",
+            "observaciones": "",
+            "vehiculo_obligatorio": "si",
+            "conductor_obligatorio": "si",
+            "empresas": "[{\"id\":2618,\"nombre\":\"LOGISTICA MASTERS\"}]",
+            "empresa_id": "2618",
+            "telefono": "+573115246409",
+            "requesterid": "9667",
+            "saludo_apertura": "Aló, buenas, un gusto. Habla con Camila de LOGISTICA MASTERS. ¿Con quién tengo el gusto?",
+            "simulacion": "false",
+            "cierre_primera_oferta": "false",
+            "supervisor_nombre": "LOGISTICA MASTERS SAS",
+            "supervisor_telefono": "573215057872",
+            "transportista_identificado": true,
+            "es_nuevo": false,
+            "system__agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+            "system__agent_turns": 6,
+            "system__current_agent_turns": 6,
+            "system__current_subagent_turns": 6,
+            "system__current_workflow_node_id": null,
+            "system__current_agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+            "system__conversation_id": "conv_6601m7t91gake51vntgb6bdhrn5c",
+            "system__call_duration_secs": 65,
+            "system__time_utc": "2026-11-19T16:09:31.172002+00:00",
+            "system__timezone": "America/Bogota",
+            "system__time": "Thursday, 11:09 19 November 2026",
+            "system__time_date": "Thursday, 19 November 2026",
+            "system__time_hour": 11,
+            "system__time_minute": 9,
+            "system__time_second": 31,
+            "system__is_text_only": false,
+            "system__channel": "twilio",
+            "system__caller_id": "+576013074167",
+            "system__guardrail_synthetic_voice": false,
+            "system__guardrail_human_voice": false,
+            "system__called_number": "+573115246409",
+            "system__call_sid": "CA9549b020e676a6e65149f934cb43474e",
+            "system__call_id": null,
+            "system__conversation_history": "{\"x-elevenlabs-history\": true, \"entries\": [{\"role\": \"agent\", \"message\": \"Al\\u00f3, buenas, un gusto. Habla con Camila de LOGISTICA MASTERS. \\u00bfCon qui\\u00e9n tengo el...\"}, {\"role\": \"user\", \"message\": \"Hola, est\\u00e1s t\\u00fa, \\u00c1lvaro.\"}, {\"role\": \"agent\", \"message\": \"Mucho gusto, \\u00c1lvaro. Cu\\u00e9ntame, \\u00bftienes unidades disponibles en este momento y qu\\u00e9 tipolog\\u00eda manejas?\"}, {\"role\": \"user\", \"message\": \"Tup\\u00e1n Avril.\"}, {\"role\": \"agent\", \"message\": \"Disculpa, \\u00c1lvaro, \\u00bfme repites porfa? No te escuch\\u00e9 bien.\"}, {\"role\": \"user\", \"message\": \"\\u00bfQu\\u00e9 necesitas?\"}, {\"role\": \"agent\", \"message\": \"Claro, te cuento. Tengo viajes disponibles ahorita y quer\\u00eda validar contigo si cuentas con alguna unidad disponible y qu\\u00e9 tipolog\\u00eda manejas.\"}, {\"role\": \"user\", \"message\": \"Eh, caballer\\u00eda .\"}, {\"role\": \"agent\", \"message\": \"Perfecto, \\u00c1lvaro. \\u00bfY tienes alguna disponible en este momento? \\u00bfY qu\\u00e9 destinos manejas normalmente?\"}, {\"role\": \"user\", \"message\": \"Tortosa, Maicao, Varadero.\"}, {\"role\": \"agent\", \"message\": \"Escuch\\u00e9 Maicao, pero los otros dos no te los pill\\u00e9 bien. \\u00bfMe repites porfa los destinos?\"}]}",
+            "system__user_id": "+573115246409",
+            "system__initiator_id": null,
+            "system__environment": "production",
+            "system__agents_user_id": null,
+            "system__user_verification_level": null,
+            "system__uploaded_file_ids": []
+        },
+        "tool_mock_config": {
+            "mocking_strategy": "none",
+            "fallback_strategy": "raise_error",
+            "mocked_tool_names": []
+        },
+        "tool_mock_overrides": []
+    },
+    "environment": "production",
+    "experiment_assignments": null,
+    "hiding_reason": null,
+    "smb_metadata": null,
+    "conversation_id": "conv_6601m7t91gake51vntgb6bdhrn5c",
+    "has_audio": true,
+    "has_user_audio": true,
+    "has_response_audio": true,
+    "has_auxiliary_audio": false,
+    "transcript": [
+        {
+            "role": "agent",
+            "agent_metadata": {
+                "agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+                "branch_id": "agtbrch_3701m0dx8m35ecsv3tjpsd06v6fa",
+                "workflow_node_id": null,
+                "version_id": "agtvrsn_7001m7nepzwcey4b499733qrbtc8"
+            },
+            "message": "Aló, buenas, un gusto. Habla con Camila de LOGISTICA MASTERS. ¿Con quién tengo el...",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": "claude-opus-4-7",
+            "time_in_call_secs": 0,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_tts_service_ttfb": {
+                        "elapsed_time": 0.538183844066225
+                    },
+                    "convai_ttf_audio_since_silence": {
+                        "elapsed_time": 0.5460602140519768
+                    },
+                    "convai_turn_silence_before_initiation": {
+                        "elapsed_time": 0
+                    }
+                },
+                "convai_asr_provider": null,
+                "convai_tts_model": "eleven_multilingual_v2",
+                "convai_tts_cascade": null,
+                "voice_id": "86V9x9hrQds83qf7zaGn"
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": null,
+            "interrupted": true,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": "Aló, buenas, un gusto. Habla con Camila de LOGISTICA MASTERS. ¿Con quién tengo el gusto?",
+            "reasoning": [],
+            "source_medium": null,
+            "source_event_id": 1,
+            "used_static_kb_document_ids": [],
+            "analysis": null,
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "user",
+            "agent_metadata": null,
+            "message": "Hola, estás tú, Álvaro.",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": null,
+            "time_in_call_secs": 5,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_asr_trailing_service_latency": {
+                        "elapsed_time": 0.027005770010873675
+                    }
+                },
+                "convai_asr_provider": "Scribe v3 Live",
+                "convai_tts_model": null,
+                "convai_tts_cascade": null,
+                "voice_id": null
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": null,
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": "audio",
+            "source_event_id": 53,
+            "used_static_kb_document_ids": [],
+            "analysis": {
+                "user_sentiment_score": 0,
+                "user_frustration_score": 0
+            },
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "agent",
+            "agent_metadata": {
+                "agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+                "branch_id": "agtbrch_3701m0dx8m35ecsv3tjpsd06v6fa",
+                "workflow_node_id": null,
+                "version_id": "agtvrsn_7001m7nepzwcey4b499733qrbtc8"
+            },
+            "message": "Mucho gusto, Álvaro. Cuéntame, ¿tienes unidades disponibles en este momento y qué tipología manejas?",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": "claude-opus-4-7",
+            "time_in_call_secs": 9,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_llm_service_ttf_sentence": {
+                        "elapsed_time": 0.5221338639967144
+                    },
+                    "convai_llm_service_ttfb": {
+                        "elapsed_time": 0.40127838600892574
+                    },
+                    "convai_llm_service_tt_last_sentence": {
+                        "elapsed_time": 0.8466627510497347
+                    },
+                    "convai_tts_service_ttfb": {
+                        "elapsed_time": 0.2733233169419691
+                    },
+                    "convai_ttf_audio_since_silence": {
+                        "elapsed_time": 1.9766868000198157
+                    },
+                    "convai_turn_silence_before_initiation": {
+                        "elapsed_time": 1.12
+                    },
+                    "convai_turn_asr_latency": {
+                        "elapsed_time": 0.027005770010873675
+                    },
+                    "convai_turn_asr_excess": {
+                        "elapsed_time": 0.027005770010873675
+                    }
+                },
+                "convai_asr_provider": null,
+                "convai_tts_model": "eleven_multilingual_v2",
+                "convai_tts_cascade": null,
+                "voice_id": "86V9x9hrQds83qf7zaGn"
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": {
+                "model_usage": {
+                    "claude-opus-4-7": {
+                        "input": {
+                            "tokens": 6,
+                            "price": 3.3e-5
+                        },
+                        "input_cache_read": {
+                            "tokens": 32555,
+                            "price": 0.01790525
+                        },
+                        "input_cache_write": {
+                            "tokens": 283,
+                            "price": 0.001945625
+                        },
+                        "output_total": {
+                            "tokens": 52,
+                            "price": 0.00143
+                        }
+                    }
+                },
+                "detailed_model_usage": [
+                    {
+                        "config": {
+                            "model": "claude-opus-4-7",
+                            "service_tier": "standard"
+                        },
+                        "usage": {
+                            "input": {
+                                "tokens": 6,
+                                "price": 3.3e-5
+                            },
+                            "input_cache_read": {
+                                "tokens": 32555,
+                                "price": 0.01790525
+                            },
+                            "input_cache_write": {
+                                "tokens": 283,
+                                "price": 0.001945625
+                            },
+                            "output_total": {
+                                "tokens": 52,
+                                "price": 0.00143
+                            }
+                        }
+                    }
+                ]
+            },
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": null,
+            "source_event_id": 53,
+            "used_static_kb_document_ids": [],
+            "analysis": null,
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "user",
+            "agent_metadata": null,
+            "message": "Tupán Avril.",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": null,
+            "time_in_call_secs": 16,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_asr_trailing_service_latency": {
+                        "elapsed_time": 0.030402839998714626
+                    }
+                },
+                "convai_asr_provider": "Scribe v3 Live",
+                "convai_tts_model": null,
+                "convai_tts_cascade": null,
+                "voice_id": null
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": null,
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": "audio",
+            "source_event_id": 114,
+            "used_static_kb_document_ids": [],
+            "analysis": null,
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "agent",
+            "agent_metadata": {
+                "agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+                "branch_id": "agtbrch_3701m0dx8m35ecsv3tjpsd06v6fa",
+                "workflow_node_id": null,
+                "version_id": "agtvrsn_7001m7nepzwcey4b499733qrbtc8"
+            },
+            "message": "Disculpa, Álvaro, ¿me repites porfa? No te escuché bien.",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": "claude-opus-4-7",
+            "time_in_call_secs": 19,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_llm_service_ttf_sentence": {
+                        "elapsed_time": 0.7389460520353168
+                    },
+                    "convai_llm_service_ttfb": {
+                        "elapsed_time": 0.35748548607807606
+                    },
+                    "convai_llm_service_tt_last_sentence": {
+                        "elapsed_time": 0.8050194110255688
+                    },
+                    "convai_tts_service_ttfb": {
+                        "elapsed_time": 0.40913845610339195
+                    },
+                    "convai_ttf_audio_since_silence": {
+                        "elapsed_time": 2.0065588769037275
+                    },
+                    "convai_turn_silence_before_initiation": {
+                        "elapsed_time": 0.8
+                    },
+                    "convai_turn_asr_latency": {
+                        "elapsed_time": 0.030402839998714626
+                    },
+                    "convai_turn_asr_excess": {
+                        "elapsed_time": 0.030402839998714626
+                    }
+                },
+                "convai_asr_provider": null,
+                "convai_tts_model": "eleven_multilingual_v2",
+                "convai_tts_cascade": null,
+                "voice_id": "86V9x9hrQds83qf7zaGn"
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": {
+                "model_usage": {
+                    "claude-opus-4-7": {
+                        "input": {
+                            "tokens": 6,
+                            "price": 3.3e-5
+                        },
+                        "input_cache_read": {
+                            "tokens": 32838,
+                            "price": 0.0180609
+                        },
+                        "input_cache_write": {
+                            "tokens": 66,
+                            "price": 0.00045375
+                        },
+                        "output_total": {
+                            "tokens": 34,
+                            "price": 0.000935
+                        }
+                    }
+                },
+                "detailed_model_usage": [
+                    {
+                        "config": {
+                            "model": "claude-opus-4-7",
+                            "service_tier": "standard"
+                        },
+                        "usage": {
+                            "input": {
+                                "tokens": 6,
+                                "price": 3.3e-5
+                            },
+                            "input_cache_read": {
+                                "tokens": 32838,
+                                "price": 0.0180609
+                            },
+                            "input_cache_write": {
+                                "tokens": 66,
+                                "price": 0.00045375
+                            },
+                            "output_total": {
+                                "tokens": 34,
+                                "price": 0.000935
+                            }
+                        }
+                    }
+                ]
+            },
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": null,
+            "source_event_id": 114,
+            "used_static_kb_document_ids": [],
+            "analysis": null,
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "user",
+            "agent_metadata": null,
+            "message": "¿Qué necesitas?",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": null,
+            "time_in_call_secs": 23,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_asr_trailing_service_latency": {
+                        "elapsed_time": 0.02722424897365272
+                    }
+                },
+                "convai_asr_provider": "Scribe v3 Live",
+                "convai_tts_model": null,
+                "convai_tts_cascade": null,
+                "voice_id": null
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": null,
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": "audio",
+            "source_event_id": 155,
+            "used_static_kb_document_ids": [],
+            "analysis": {
+                "user_sentiment_score": -0.2,
+                "user_frustration_score": 0.2
+            },
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "agent",
+            "agent_metadata": {
+                "agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+                "branch_id": "agtbrch_3701m0dx8m35ecsv3tjpsd06v6fa",
+                "workflow_node_id": null,
+                "version_id": "agtvrsn_7001m7nepzwcey4b499733qrbtc8"
+            },
+            "message": "Claro, te cuento. Tengo viajes disponibles ahorita y quería validar contigo si cuentas con alguna unidad disponible y qué tipología manejas.",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": "claude-opus-4-7",
+            "time_in_call_secs": 25,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_llm_service_ttf_sentence": {
+                        "elapsed_time": 0.5202815349912271
+                    },
+                    "convai_llm_service_ttfb": {
+                        "elapsed_time": 0.3621185860829428
+                    },
+                    "convai_llm_service_tt_last_sentence": {
+                        "elapsed_time": 1.0763110889820382
+                    },
+                    "convai_tts_service_ttfb": {
+                        "elapsed_time": 0.2886379570700228
+                    },
+                    "convai_ttf_audio_since_silence": {
+                        "elapsed_time": 1.3394525109510869
+                    },
+                    "convai_turn_silence_before_initiation": {
+                        "elapsed_time": 0.48
+                    },
+                    "convai_turn_asr_latency": {
+                        "elapsed_time": 0.02722424897365272
+                    },
+                    "convai_turn_asr_excess": {
+                        "elapsed_time": 0.02722424897365272
+                    }
+                },
+                "convai_asr_provider": null,
+                "convai_tts_model": "eleven_multilingual_v2",
+                "convai_tts_cascade": null,
+                "voice_id": "86V9x9hrQds83qf7zaGn"
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": {
+                "model_usage": {
+                    "claude-opus-4-7": {
+                        "input": {
+                            "tokens": 6,
+                            "price": 3.3e-5
+                        },
+                        "input_cache_read": {
+                            "tokens": 32904,
+                            "price": 0.0180972
+                        },
+                        "input_cache_write": {
+                            "tokens": 51,
+                            "price": 0.000350625
+                        },
+                        "output_total": {
+                            "tokens": 61,
+                            "price": 0.0016775
+                        }
+                    }
+                },
+                "detailed_model_usage": [
+                    {
+                        "config": {
+                            "model": "claude-opus-4-7",
+                            "service_tier": "standard"
+                        },
+                        "usage": {
+                            "input": {
+                                "tokens": 6,
+                                "price": 3.3e-5
+                            },
+                            "input_cache_read": {
+                                "tokens": 32904,
+                                "price": 0.0180972
+                            },
+                            "input_cache_write": {
+                                "tokens": 51,
+                                "price": 0.000350625
+                            },
+                            "output_total": {
+                                "tokens": 61,
+                                "price": 0.0016775
+                            }
+                        }
+                    }
+                ]
+            },
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": null,
+            "source_event_id": 155,
+            "used_static_kb_document_ids": [],
+            "analysis": null,
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "user",
+            "agent_metadata": null,
+            "message": "Eh, caballería .",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": null,
+            "time_in_call_secs": 37,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_asr_trailing_service_latency": {
+                        "elapsed_time": 0.034077830030582845
+                    }
+                },
+                "convai_asr_provider": "Scribe v3 Live",
+                "convai_tts_model": null,
+                "convai_tts_cascade": null,
+                "voice_id": null
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": null,
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": "audio",
+            "source_event_id": 267,
+            "used_static_kb_document_ids": [],
+            "analysis": {
+                "user_sentiment_score": 0,
+                "user_frustration_score": 0
+            },
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "agent",
+            "agent_metadata": {
+                "agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+                "branch_id": "agtbrch_3701m0dx8m35ecsv3tjpsd06v6fa",
+                "workflow_node_id": null,
+                "version_id": "agtvrsn_7001m7nepzwcey4b499733qrbtc8"
+            },
+            "message": "Perfecto, Álvaro. ¿Y tienes alguna disponible en este momento? ¿Y qué destinos manejas normalmente?",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": "claude-opus-4-7",
+            "time_in_call_secs": 43,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_llm_service_ttf_sentence": {
+                        "elapsed_time": 0.5314397349720821
+                    },
+                    "convai_llm_service_ttfb": {
+                        "elapsed_time": 0.41198227601125836
+                    },
+                    "convai_llm_service_tt_last_sentence": {
+                        "elapsed_time": 0.9587259299587458
+                    },
+                    "convai_tts_service_ttfb": {
+                        "elapsed_time": 0.27896332705859095
+                    },
+                    "convai_ttf_audio_since_silence": {
+                        "elapsed_time": 1.6661059109726921
+                    },
+                    "convai_turn_silence_before_initiation": {
+                        "elapsed_time": 0.8
+                    },
+                    "convai_turn_asr_latency": {
+                        "elapsed_time": 0.034077830030582845
+                    },
+                    "convai_turn_asr_excess": {
+                        "elapsed_time": 0.034077830030582845
+                    }
+                },
+                "convai_asr_provider": null,
+                "convai_tts_model": "eleven_multilingual_v2",
+                "convai_tts_cascade": null,
+                "voice_id": "86V9x9hrQds83qf7zaGn"
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": {
+                "model_usage": {
+                    "claude-opus-4-7": {
+                        "input": {
+                            "tokens": 6,
+                            "price": 3.3e-5
+                        },
+                        "input_cache_read": {
+                            "tokens": 32555,
+                            "price": 0.01790525
+                        },
+                        "input_cache_write": {
+                            "tokens": 475,
+                            "price": 0.003265625
+                        },
+                        "output_total": {
+                            "tokens": 53,
+                            "price": 0.0014575
+                        }
+                    }
+                },
+                "detailed_model_usage": [
+                    {
+                        "config": {
+                            "model": "claude-opus-4-7",
+                            "service_tier": "standard"
+                        },
+                        "usage": {
+                            "input": {
+                                "tokens": 6,
+                                "price": 3.3e-5
+                            },
+                            "input_cache_read": {
+                                "tokens": 32555,
+                                "price": 0.01790525
+                            },
+                            "input_cache_write": {
+                                "tokens": 475,
+                                "price": 0.003265625
+                            },
+                            "output_total": {
+                                "tokens": 53,
+                                "price": 0.0014575
+                            }
+                        }
+                    }
+                ]
+            },
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": null,
+            "source_event_id": 267,
+            "used_static_kb_document_ids": [],
+            "analysis": null,
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "user",
+            "agent_metadata": null,
+            "message": "Tortosa, Maicao, Varadero.",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": null,
+            "time_in_call_secs": 52,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_asr_trailing_service_latency": {
+                        "elapsed_time": 0.03427111997734755
+                    }
+                },
+                "convai_asr_provider": "Scribe v3 Live",
+                "convai_tts_model": null,
+                "convai_tts_cascade": null,
+                "voice_id": null
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": null,
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [],
+            "source_medium": "audio",
+            "source_event_id": 357,
+            "used_static_kb_document_ids": [],
+            "analysis": {
+                "user_sentiment_score": 0,
+                "user_frustration_score": 0
+            },
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": false
+        },
+        {
+            "role": "agent",
+            "agent_metadata": {
+                "agent_id": "agent_2101m0dx8hw3ehasf49ry4dkke3w",
+                "branch_id": "agtbrch_3701m0dx8m35ecsv3tjpsd06v6fa",
+                "workflow_node_id": null,
+                "version_id": "agtvrsn_7001m7nepzwcey4b499733qrbtc8"
+            },
+            "message": "Escuché Maicao, pero los otros dos no te los pillé bien. ¿Me repites porfa los destinos?",
+            "multivoice_message": null,
+            "tool_calls": [],
+            "tool_results": [],
+            "feedback": null,
+            "llm_override": null,
+            "producing_llm": "claude-opus-4-7",
+            "time_in_call_secs": 59,
+            "conversation_turn_metrics": {
+                "metrics": {
+                    "convai_llm_service_ttf_sentence": {
+                        "elapsed_time": 1.704111100989394
+                    },
+                    "convai_llm_service_ttfb": {
+                        "elapsed_time": 1.3719754950143397
+                    },
+                    "convai_llm_service_tt_last_sentence": {
+                        "elapsed_time": 1.9408679190091789
+                    },
+                    "convai_tts_service_ttfb": {
+                        "elapsed_time": 0.4212994060944766
+                    },
+                    "convai_ttf_audio_since_silence": {
+                        "elapsed_time": 3.143199926977977
+                    },
+                    "convai_turn_silence_before_initiation": {
+                        "elapsed_time": 0.96
+                    },
+                    "convai_turn_asr_latency": {
+                        "elapsed_time": 0.03427111997734755
+                    },
+                    "convai_turn_asr_excess": {
+                        "elapsed_time": 0.03427111997734755
+                    }
+                },
+                "convai_asr_provider": null,
+                "convai_tts_model": "eleven_multilingual_v2",
+                "convai_tts_cascade": null,
+                "voice_id": "86V9x9hrQds83qf7zaGn"
+            },
+            "rag_retrieval_info": null,
+            "llm_usage": {
+                "model_usage": {
+                    "claude-opus-4-7": {
+                        "input": {
+                            "tokens": 6,
+                            "price": 3.3e-5
+                        },
+                        "input_cache_read": {
+                            "tokens": 33030,
+                            "price": 0.0181665
+                        },
+                        "input_cache_write": {
+                            "tokens": 75,
+                            "price": 0.000515625
+                        },
+                        "output_total": {
+                            "tokens": 136,
+                            "price": 0.00374
+                        }
+                    }
+                },
+                "detailed_model_usage": [
+                    {
+                        "config": {
+                            "model": "claude-opus-4-7",
+                            "service_tier": "standard"
+                        },
+                        "usage": {
+                            "input": {
+                                "tokens": 6,
+                                "price": 3.3e-5
+                            },
+                            "input_cache_read": {
+                                "tokens": 33030,
+                                "price": 0.0181665
+                            },
+                            "input_cache_write": {
+                                "tokens": 75,
+                                "price": 0.000515625
+                            },
+                            "output_total": {
+                                "tokens": 136,
+                                "price": 0.00374
+                            }
+                        }
+                    }
+                ]
+            },
+            "interrupted": false,
+            "ignored_as_backchannel": false,
+            "platform_event": null,
+            "original_message": null,
+            "reasoning": [
+                {
+                    "summary": null,
+                    "provider_redact": false,
+                    "type": "reasoning"
+                }
+            ],
+            "source_medium": null,
+            "source_event_id": 357,
+            "used_static_kb_document_ids": [],
+            "analysis": null,
+            "user_identifier": null,
+            "id": null,
+            "created_at_unix_ms": null,
+            "compaction": null,
+            "triggered_guardrails": [],
+            "workflow_goal": null,
+            "file_input": null,
+            "file_inputs": [],
+            "contextual_update_info": null,
+            "config_snapshot_id": null,
+            "origin": null,
+            "reasoned": true
+        }
+    ],
+    "tag_ids": [],
+    "realtime_config_snapshots": null,
+    "orchestrator": "conversational",
+    "realtime_context": null,
+    "otlp_traces": null
+}

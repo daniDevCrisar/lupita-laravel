@@ -23,8 +23,10 @@ class DBTmpLotes
             $lote_id,
             $usuario_id,
             $tipo,
-            $nombre,
-            $comentario,
+            // nombre = varchar(50) y comentario = varchar(200): se recortan aqui
+            // para que ningun llamador rompa el insert con datos largos.
+            mb_substr((string) $nombre, 0, 50),
+            mb_substr((string) $comentario, 0, 200),
         ]);
     }
 

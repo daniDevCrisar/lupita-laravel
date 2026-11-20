@@ -75,4 +75,16 @@ return [
     */
     'sp_forzado' => null,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Link externo a Google Maps
+    |--------------------------------------------------------------------------
+    |
+    | Base para "ver en el mapa" un punto. NO es una ruta de la aplicacion (Google no
+    | es parte del proyecto), pero vive en config para que no haya links crudos
+    | escritos en las vistas: siempre se arma con LinkGoogleMaps::urlMapa().
+    | Asi se puede apuntar a otro visor sin tocar codigo.
+    */
+    'mapa_url' => env('UBICACIONES_MAPA_URL', 'https://www.google.com/maps?q='),
+
 ];

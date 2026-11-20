@@ -81,28 +81,26 @@ class MapsController extends Controller
     }
 
     /**
-     * GET /lupita/ubicaciones/maps/distrito/{ubigeo} : centro del distrito
+     * GET /lupita/ubicaciones/maps/distrito/{ubigeo}
      *
-     * Atajo para el formulario del local: si todavia no tenes el pin exacto, carga el
-     * centro del distrito (de `geo_coordenadas`) y lo marca con fuente `distrito`.
-     * No llama a ninguna API: si el distrito no esta cacheado, responde 404.
+     * SE QUITO el atajo "centro del distrito": geocodificar un distrito POR NOMBRE no
+     * es confiable en este pais. Geoapify resuelve "PUENTE PIEDRA, LIMA, LIMA" como
+     * Chiclayo (-6.77,-79.84 en vez de -11.86,-77.08, ~700 km de error), y varias de
+     * las filas que ya estaban en `geo_coordenadas` tienen el mismo problema (050101
+     * AYACUCHO, 140101 CHICLAYO y 150601 HUARAL apuntan al mismo grifo en Lurin).
+     *
+     * Escribir un centroide asi en `locales.lat/lng` seria peor que no tener
+     * coordenadas, porque la prediccion las va a consumir. El pin real se carga con
+     * el link de Google Maps; si algun dia hace falta el centroide, el camino
+     * confiable es geocodificacion INVERSA desde un punto, no directa desde un nombre.
      */
     public function distrito(string $ubigeo)
     {
-        $coordenadas = DBLocales::coordenadasDistrito($ubigeo);
-
-        if ($coordenadas === null) {
-            return response()->json([
-                'ok'    => false,
-                'error' => 'Ese distrito todavía no tiene coordenadas guardadas.',
-            ], 404);
-        }
-
         return response()->json([
-            'ok'     => true,
-            'lat'    => $coordenadas['lat'],
-            'lng'    => $coordenadas['lng'],
-            'nombre' => $coordenadas['nombre'],
-        ]);
+            'ok'    => false,
+            'error' => 'El centro del distrito no se carga automáticamente: buscar un distrito por '
+                . 'nombre se equivoca de ciudad (Puente Piedra terminó en Chiclayo). Pegá el link '
+                . 'de Google Maps del pin exacto.',
+        ], 410);
     }
 }

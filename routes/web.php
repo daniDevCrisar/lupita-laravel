@@ -30,6 +30,7 @@ use App\Http\Controllers\TiemposPromedioVerController;
 use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\PermisosController;
 use App\Http\Controllers\PrediccionController;
+use App\Http\Controllers\ElevenLabsController;
 use App\Http\Controllers\VerificarReferenciasController;
 // `PalabrasController` ya existe para /lupita/palabras: el de Ubicaciones va con alias
 use App\Http\Controllers\Ubicaciones\MapsController;
@@ -372,6 +373,72 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/vapi/procesar', [VapiController::class, 'procesarZip'])->name('vapi.procesar')
             ->middleware('permission:importar vapi');
 
+    });
+
+    //--- MODULO ELEVEN LABS ---
+    // Solo lectura de la API de Conversational AI. Etapas 0-2 son de
+    // visualizacion: aqui NO se escribe en `llamadas` ni en `tmp_lotes_det`.
+    // Documentacion del modulo en `z-eleven-labs/`.
+    Route::prefix('eleven-labs')->group(function () {
+        Route::get('/', [ElevenLabsController::class, 'main'])->name('elevenlabs.main')
+            ->middleware('permission:ver eleven labs');
+
+        // JSON del rango pedido: listado crudo de la API (con cursor)
+        Route::get('/conversaciones', [ElevenLabsController::class, 'conversaciones'])
+            ->name('elevenlabs.conversaciones')
+            ->middleware('permission:ver eleven labs');
+
+        // JSON completo de UNA conversacion, para el modal "Ver JSON"
+        Route::get('/conversaciones/{conversation_id}/json', [ElevenLabsController::class, 'detalleJson'])
+            ->name('elevenlabs.detalle.json')
+            ->middleware('permission:ver eleven labs');
+
+        // Audio en streaming: nunca se guarda en disco
+        Route::get('/audio/{conversation_id}', [ElevenLabsController::class, 'audio'])
+            ->name('elevenlabs.audio')
+            ->middleware('permission:escuchar audio eleven labs');
+
+        // Trae el catalogo de asistentes del workspace a `elevenlabs_agentes`
+        Route::post('/asistentes/sincronizar', [ElevenLabsController::class, 'sincronizarAsistentes'])
+            ->name('elevenlabs.asistentes.sincronizar')
+            ->middleware('permission:ver eleven labs');
+
+        // Catalogo de equivalencias agente -> tipo de llamada (modal)
+        Route::get('/equivalencias', [ElevenLabsController::class, 'equivalencias'])
+            ->name('elevenlabs.equivalencias')
+            ->middleware('permission:ver eleven labs');
+
+        // Equivalencias de traduccion: campos y reglas (pestanas del mismo modal)
+        Route::get('/mapeo', [ElevenLabsController::class, 'mapeo'])
+            ->name('elevenlabs.mapeo')
+            ->middleware('permission:ver eleven labs');
+
+        // "Probar": resuelve una llamada real contra el mapeo guardado, sin escribir
+        Route::post('/mapeo/probar', [ElevenLabsController::class, 'probarMapeo'])
+            ->name('elevenlabs.mapeo.probar')
+            ->middleware('permission:ver eleven labs');
+
+        // Rutas hoja del JSON de una llamada, para el buscador de rutas
+        Route::post('/mapeo/rutas', [ElevenLabsController::class, 'rutasJson'])
+            ->name('elevenlabs.mapeo.rutas')
+            ->middleware('permission:ver eleven labs');
+
+        // Etapa 4b: traduce un grupo de llamadas y dice cuales entrarian al lote.
+        // No escribe nada; la importacion al lote es la Etapa 5.
+        Route::post('/previsualizar', [ElevenLabsController::class, 'previsualizar'])
+            ->name('elevenlabs.previsualizar')
+            ->middleware('permission:ver eleven labs');
+
+        // Etapa 5: crea el lote (tmp_lotes + tmp_lotes_det). Por bloques de 25.
+        Route::post('/importar', [ElevenLabsController::class, 'importar'])
+            ->name('elevenlabs.importar')
+            ->middleware('permission:importar eleven labs');
+
+        // Editar equivalencias define que llamadas entran al lote: pide el permiso
+        // de importacion, no el de lectura.
+        Route::post('/equivalencias', [ElevenLabsController::class, 'guardarEquivalencias'])
+            ->name('elevenlabs.equivalencias.guardar')
+            ->middleware('permission:importar eleven labs');
     });
 
     // Rutas de soporte: solo el administrador

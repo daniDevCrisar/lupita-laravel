@@ -1,0 +1,444 @@
+{
+    "agent_id": "agent_5901m2zvgqjeey1bd39vmjyayybc",
+    "agent_name": "DespachIA - Camila Inbound",
+    "conversation_product": "agent",
+    "status": "failed",
+    "user_id": "+573138581902",
+    "branch_id": "agtbrch_4601m2zvgqjyeapt3bh7c623b59r",
+    "version_id": "agtvrsn_3501m7nsvzmteg4b9a2xg8pcf176",
+    "metadata": {
+        "start_time_unix_secs": 1795019247,
+        "accepted_time_unix_secs": 1795019247,
+        "call_duration_secs": 1,
+        "queue_wait_secs": null,
+        "cost": 5,
+        "deletion_settings": {
+            "deletion_time_unix_secs": null,
+            "deleted_logs_at_time_unix_secs": null,
+            "deleted_audio_at_time_unix_secs": null,
+            "deleted_transcript_at_time_unix_secs": null,
+            "delete_transcript_and_pii": false,
+            "delete_audio": false
+        },
+        "feedback": {
+            "type": null,
+            "overall_score": null,
+            "likes": 0,
+            "dislikes": 0,
+            "rating": null,
+            "comment": null
+        },
+        "authorization_method": "signed_url",
+        "charging": {
+            "dev_discount": false,
+            "is_burst": false,
+            "tier": "creator",
+            "llm_usage": {
+                "irreversible_generation": {
+                    "model_usage": [],
+                    "detailed_model_usage": []
+                },
+                "initiated_generation": {
+                    "model_usage": [],
+                    "detailed_model_usage": []
+                }
+            },
+            "llm_price": 0,
+            "llm_charge": 0,
+            "call_charge": 5,
+            "platform_charge": 5,
+            "platform_usage": {
+                "category_usage": {
+                    "voice": {
+                        "credits": 5,
+                        "price": 0.0008473773586253325,
+                        "quantity": 0.010592216982816656
+                    }
+                }
+            },
+            "platform_price": 0.0008473773586253325,
+            "free_minutes_consumed": 0,
+            "free_llm_dollars_consumed": 0,
+            "tts_usage": {
+                "primary_tts_model": "eleven_multilingual_v2",
+                "total_audio_output_seconds": 0,
+                "total_characters": 80,
+                "per_voice_usage": []
+            },
+            "asr_usage": {
+                "asr_model": "scribe_v3_live",
+                "total_transcription_calls": 0,
+                "total_audio_input_seconds": 0
+            },
+            "analysis": null,
+            "subagent_charge": 0,
+            "voice_surcharge_charge": null,
+            "user_memory": null
+        },
+        "phone_call": {
+            "direction": "inbound",
+            "phone_number_id": "phnum_8401m0dx5yadej6a6r0h2kgstf87",
+            "agent_number": "+576013074167",
+            "external_number": "+573138581902",
+            "call_result": "answered",
+            "type": "twilio",
+            "stream_sid": "MZ0180088c4cfecb80f0fe95d9fa008c87",
+            "call_sid": "CA4c76c945f62c1e6d2a6c79f778fa631c"
+        },
+        "batch_call": null,
+        "termination_reason": "Missing required dynamic variables in tools: {'shipperid'}",
+        "error": {
+            "code": 1008,
+            "reason": "Missing required dynamic variables in tools: {'shipperid'}",
+            "error_type": "agent_configuration_error"
+        },
+        "warnings": [],
+        "main_language": "es",
+        "rag_usage": null,
+        "text_only": false,
+        "features_usage": {
+            "language_detection": {
+                "enabled": false,
+                "used": false
+            },
+            "transfer_to_agent": {
+                "enabled": false,
+                "used": false
+            },
+            "transfer_to_number": {
+                "enabled": false,
+                "used": false
+            },
+            "multivoice": {
+                "enabled": false,
+                "used": false
+            },
+            "dtmf_tones": {
+                "enabled": true,
+                "used": false
+            },
+            "external_mcp_servers": {
+                "enabled": false,
+                "used": false
+            },
+            "pii_zrm_workspace": false,
+            "pii_zrm_agent": false,
+            "tool_dynamic_variable_updates": {
+                "enabled": false,
+                "used": false
+            },
+            "is_livekit": false,
+            "voicemail_detection": {
+                "enabled": true,
+                "used": false
+            },
+            "dtmf_input": {
+                "enabled": false,
+                "used": false
+            },
+            "workflow": {
+                "enabled": false,
+                "version": 1,
+                "tool_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "standalone_agent_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "phone_number_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "end_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "override_agent_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "say_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "update_state_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "subgraph_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "transfer_to_genesys_node": {
+                    "enabled": false,
+                    "used": false
+                },
+                "start_procedure_node": {
+                    "enabled": false,
+                    "used": false
+                }
+            },
+            "agent_testing": {
+                "enabled": false,
+                "tests_ran_after_last_modification": false,
+                "tests_ran_in_last_7_days": false
+            },
+            "versioning": {
+                "enabled": true,
+                "used": false
+            },
+            "file_input": {
+                "enabled": true,
+                "used": false
+            },
+            "freeform_procedure": {
+                "enabled": false,
+                "used": false
+            },
+            "structured_procedure": {
+                "enabled": false,
+                "used": false
+            }
+        },
+        "eleven_assistant": {
+            "is_eleven_assistant": false
+        },
+        "initiator_id": null,
+        "conversation_initiation_source": "twilio",
+        "conversation_initiation_source_version": null,
+        "timezone": "America/Bogota",
+        "async_metadata": null,
+        "whatsapp": null,
+        "sms": null,
+        "agent_created_from": "ui",
+        "agent_last_updated_from": "ui",
+        "stream_state": null,
+        "voice_rewards": [],
+        "avatar_sessions": [],
+        "cost_fiat": 0.0008473773586253325
+    },
+    "analysis": {
+        "evaluation_criteria_results": [],
+        "data_collection_results": [],
+        "evaluation_criteria_results_list": [],
+        "data_collection_results_list": [],
+        "call_successful": "failure",
+        "call_success_score": 0,
+        "transcript_summary": "Summary couldn't be generated for this call.",
+        "call_summary_title": null,
+        "scoped": [],
+        "sentiment_analysis": null,
+        "not_applicable": []
+    },
+    "user_message_count": 0,
+    "agent_message_count": 0,
+    "visited_agents": [],
+    "conversation_initiation_client_data": {
+        "conversation_config_override": {
+            "asr": null,
+            "turn": null,
+            "tts": null,
+            "conversation": null,
+            "agent": null
+        },
+        "custom_llm_extra_body": [],
+        "user_id": null,
+        "source_info": {
+            "source": null,
+            "version": null
+        },
+        "branch_id": null,
+        "environment": null,
+        "starting_workflow_node_id": null,
+        "experiments": [],
+        "procedure_ids": null,
+        "start_procedure_ids": null,
+        "dynamic_variables": {
+            "trip_code": "",
+            "reference": "",
+            "origen": "",
+            "destino": "",
+            "tarifa_base": "0",
+            "tarifa_ofrecida": "0",
+            "tarifa_maxima": "0",
+            "fecha_carga_texto": "",
+            "fecha_entrega_texto": "",
+            "simulacion": "false",
+            "cierre_primera_oferta": "false",
+            "supervisor_nombre": "",
+            "supervisor_telefono": "",
+            "modo_llamada": "inbound",
+            "tipo": "transportista",
+            "personid": null,
+            "nombre": null,
+            "telefono": "+573138581902",
+            "pais": null,
+            "paisid": null,
+            "negociaciones_activas": [
+                {
+                    "id": 9,
+                    "shippingrequestid": 1106421,
+                    "transportista_personid": null,
+                    "shipperid": null,
+                    "estado": "iniciada",
+                    "canal": "whatsapp",
+                    "precio_tarifario": "6000000.00",
+                    "precio_minimo": "6000000.00",
+                    "precio_maximo": "6000000.00",
+                    "moneda": "COP",
+                    "rondas": 0,
+                    "rondas_maximas": 3,
+                    "tiempo_limite_min": 30,
+                    "iniciado_por": "sistema",
+                    "serviceofferid": null,
+                    "created_at": "2026-08-21 16:42:23",
+                    "updated_at": "2026-08-21 16:42:23",
+                    "cerrado_at": null
+                },
+                {
+                    "id": 8,
+                    "shippingrequestid": 1106421,
+                    "transportista_personid": null,
+                    "shipperid": null,
+                    "estado": "iniciada",
+                    "canal": "whatsapp",
+                    "precio_tarifario": "6000000.00",
+                    "precio_minimo": "6000000.00",
+                    "precio_maximo": "6000000.00",
+                    "moneda": "COP",
+                    "rondas": 0,
+                    "rondas_maximas": 3,
+                    "tiempo_limite_min": 30,
+                    "iniciado_por": "sistema",
+                    "serviceofferid": null,
+                    "created_at": "2026-08-21 16:41:58",
+                    "updated_at": "2026-08-21 16:41:58",
+                    "cerrado_at": null
+                },
+                {
+                    "id": 7,
+                    "shippingrequestid": 1109701,
+                    "transportista_personid": null,
+                    "shipperid": null,
+                    "estado": "iniciada",
+                    "canal": "whatsapp",
+                    "precio_tarifario": "6000000.00",
+                    "precio_minimo": "6000000.00",
+                    "precio_maximo": "6000000.00",
+                    "moneda": "COP",
+                    "rondas": 0,
+                    "rondas_maximas": 3,
+                    "tiempo_limite_min": 30,
+                    "iniciado_por": "sistema",
+                    "serviceofferid": null,
+                    "created_at": "2026-08-21 11:50:01",
+                    "updated_at": "2026-08-21 11:50:01",
+                    "cerrado_at": null
+                },
+                {
+                    "id": 6,
+                    "shippingrequestid": 1109701,
+                    "transportista_personid": null,
+                    "shipperid": null,
+                    "estado": "iniciada",
+                    "canal": "whatsapp",
+                    "precio_tarifario": "6000000.00",
+                    "precio_minimo": "6000000.00",
+                    "precio_maximo": "6000000.00",
+                    "moneda": "COP",
+                    "rondas": 0,
+                    "rondas_maximas": 3,
+                    "tiempo_limite_min": 30,
+                    "iniciado_por": "sistema",
+                    "serviceofferid": null,
+                    "created_at": "2026-08-21 11:48:08",
+                    "updated_at": "2026-08-21 11:48:08",
+                    "cerrado_at": null
+                },
+                {
+                    "id": 5,
+                    "shippingrequestid": 1108415,
+                    "transportista_personid": null,
+                    "shipperid": null,
+                    "estado": "iniciada",
+                    "canal": "whatsapp",
+                    "precio_tarifario": "1400000.00",
+                    "precio_minimo": "1400000.00",
+                    "precio_maximo": "1400000.00",
+                    "moneda": "COP",
+                    "rondas": 0,
+                    "rondas_maximas": 3,
+                    "tiempo_limite_min": 30,
+                    "iniciado_por": "sistema",
+                    "serviceofferid": null,
+                    "created_at": "2026-08-20 19:33:55",
+                    "updated_at": "2026-08-20 19:33:55",
+                    "cerrado_at": null
+                }
+            ],
+            "transportista_identificado": "true",
+            "es_nuevo": "false",
+            "carrier_name": "",
+            "requesterid": "9667",
+            "operador_logistico": "LOGISTICA MASTERS",
+            "info_empresa": "",
+            "es_recurrente": "NO",
+            "saludo_apertura": "Aló, buen día. Habla con Camila de LOGISTICA MASTERS. ¿Con quién tengo el gusto?",
+            "empresa_id": "",
+            "empresas": "[]",
+            "system__agent_id": "agent_5901m2zvgqjeey1bd39vmjyayybc",
+            "system__agent_turns": 0,
+            "system__current_agent_turns": 0,
+            "system__current_subagent_turns": 0,
+            "system__current_workflow_node_id": null,
+            "system__current_agent_id": "agent_5901m2zvgqjeey1bd39vmjyayybc",
+            "system__conversation_id": "conv_7401m7qqr33kf1asprp4s8qqkhza",
+            "system__call_duration_secs": 14,
+            "system__time_utc": "2026-11-18T16:27:42.333360+00:00",
+            "system__timezone": "America/Bogota",
+            "system__time": "Wednesday, 11:27 18 November 2026",
+            "system__time_date": "Wednesday, 18 November 2026",
+            "system__time_hour": 11,
+            "system__time_minute": 27,
+            "system__time_second": 42,
+            "system__is_text_only": false,
+            "system__channel": "twilio",
+            "system__caller_id": "+573138581902",
+            "system__guardrail_synthetic_voice": false,
+            "system__guardrail_human_voice": false,
+            "system__called_number": "+576013074167",
+            "system__call_sid": "CA4c76c945f62c1e6d2a6c79f778fa631c",
+            "system__call_id": null,
+            "system__conversation_history": "{\"x-elevenlabs-history\": true, \"entries\": [{\"role\": \"agent\", \"message\": \"Al\\u00f3, buen d\\u00eda. Habla con Camila de LOGISTICA MASTERS. \\u00bfCon qui\\u00e9n tengo el gusto?\"}]}",
+            "system__user_id": "+573138581902",
+            "system__initiator_id": null,
+            "system__environment": "production",
+            "system__agents_user_id": null,
+            "system__user_verification_level": null,
+            "system__uploaded_file_ids": []
+        },
+        "tool_mock_config": {
+            "mocking_strategy": "none",
+            "fallback_strategy": "raise_error",
+            "mocked_tool_names": []
+        },
+        "tool_mock_overrides": []
+    },
+    "environment": "production",
+    "experiment_assignments": null,
+    "hiding_reason": null,
+    "smb_metadata": null,
+    "conversation_id": "conv_7401m7qqr33kf1asprp4s8qqkhza",
+    "has_audio": true,
+    "has_user_audio": true,
+    "has_response_audio": true,
+    "has_auxiliary_audio": false,
+    "transcript": [],
+    "tag_ids": [],
+    "realtime_config_snapshots": null,
+    "orchestrator": "conversational",
+    "realtime_context": null,
+    "otlp_traces": null
+}

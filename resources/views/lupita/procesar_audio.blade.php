@@ -922,10 +922,14 @@
         async function descargar_lista() {
             @php
                 $fila_inicial= ($llamadas::$lista->perPage() * ($llamadas::$lista->currentPage()-1));
+                // El 4 ("En ruta") se agrega porque desde 2026-11 la IA hace esas
+                // llamadas: sin esta clave la descarga masiva tiraba "Undefined array
+                // key 4" y armaba el nombre del MP3 sin prefijo.
                 $prefijos= [
                     1 => 'Conf',
                     2 => 'FPlantaCarga',
                     3 => 'DPlantaCarga',
+                    4 => 'EnRuta',
                     5 => 'FPlantaDescarga',
                     6 => 'DPlantaDescarga',
                 ];
@@ -933,6 +937,7 @@
                     1 => 0,
                     2 => 0,
                     3 => 0,
+                    4 => 0,
                     5 => 0,
                     6 => 0,
                 ];
@@ -942,10 +947,13 @@
                 @php
                     $fecha_prefijo = new DateTime($row->created_at);
                     $fecha_prefijo = $fecha_prefijo->format('dmy');
-                    $cont[$row->llamada_tipo_id]++;
-                    $num=$cont[$row->llamada_tipo_id]
+                    // ?? 0 / ?? 'TipoN' para que un tipo nuevo no rompa la descarga
+                    $tipo_fila = (int) $row->llamada_tipo_id;
+                    $cont[$tipo_fila] = ($cont[$tipo_fila] ?? 0) + 1;
+                    $num = $cont[$tipo_fila];
+                    $prefijo_fila = $prefijos[$tipo_fila] ?? ('Tipo' . $tipo_fila);
                 @endphp
-            lista_mp3.push(['{{ $fecha_prefijo.' '.$prefijos[$row->llamada_tipo_id].'-' . $num . ' ' . strtolower($row->vapi_id) }}', '{{ strtolower($row->audio_link) }}']);
+            lista_mp3.push(['{{ $fecha_prefijo.' '.$prefijo_fila.'-' . $num . ' ' . strtolower($row->vapi_id) }}', '{{ strtolower($row->audio_link) }}']);
             @endforeach
 
             let total= lista_mp3.length,count=0;
