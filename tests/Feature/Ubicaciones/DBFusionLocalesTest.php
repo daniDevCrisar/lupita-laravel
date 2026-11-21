@@ -208,4 +208,73 @@ class DBFusionLocalesTest extends TestCase
         DBFusionLocales::aplicar('ZFUS_L1', 'ZFUS_L2');
         $this->assertLessThanOrEqual(100, mb_strlen(DB::table('locales')->where('id', 'ZFUS_L1')->value('palabra_clave')));
     }
+
+    /**
+     * Regresion del error en produccion: `tiempos_ruta_horario` tiene un indice UNICO
+     * (ruta_id, dia, hora). Al absorber una ruta en otra que ya tenia horarios, el
+     * `update ruta_id` reventaba con 1062 Duplicate entry.
+     */
+    public function test_fusiona_aunque_la_ruta_destino_ya_tenga_horarios(): void
+    {
+        $this->local('ZFUS_HO', 'CLAVEHO');
+        $this->local('ZFUS_HD', 'CLAVEHD');
+        $this->local('ZFUS_HX', 'CLAVEHD');
+
+        DB::table('rutas')->insert([
+            ['id' => 'RUT_ZFUS_HO-ZFUS_HD', 'origen_id' => 'ZFUS_HO', 'destino_id' => 'ZFUS_HD',
+             'veces_usada' => 1, 'ultima_vez' => now()],
+            ['id' => 'RUT_ZFUS_HO-ZFUS_HX', 'origen_id' => 'ZFUS_HO', 'destino_id' => 'ZFUS_HX',
+             'veces_usada' => 1, 'ultima_vez' => now()],
+        ]);
+
+        // coinciden en dia 1 hora 13; la que se va tiene ademas dia 2 hora 10
+        DB::table('tiempos_ruta_horario')->insert([
+            ['ruta_id' => 'RUT_ZFUS_HO-ZFUS_HD', 'dia' => 1, 'hora' => 13, 'tope_min' => 10, 'viajes' => 2, 'prom_min' => 10],
+            ['ruta_id' => 'RUT_ZFUS_HO-ZFUS_HX', 'dia' => 1, 'hora' => 13, 'tope_min' => 10, 'viajes' => 5, 'prom_min' => 12],
+            ['ruta_id' => 'RUT_ZFUS_HO-ZFUS_HX', 'dia' => 2, 'hora' => 10, 'tope_min' => 10, 'viajes' => 3, 'prom_min' => 11],
+        ]);
+
+        $resultado = DBFusionLocales::aplicar('ZFUS_HD', 'ZFUS_HX');
+
+        $this->assertTrue($resultado['ok'], 'la fusion no deberia fallar por el indice de horarios');
+
+        // no queda nada apuntando a la ruta que se fue
+        $this->assertSame(0, DB::table('tiempos_ruta_horario')->where('ruta_id', 'RUT_ZFUS_HO-ZFUS_HX')->count());
+
+        // el horario que solo existia en la que se va se mueve
+        $this->assertDatabaseHas('tiempos_ruta_horario', [
+            'ruta_id' => 'RUT_ZFUS_HO-ZFUS_HD', 'dia' => 2, 'hora' => 10,
+        ]);
+
+        // y el que colisionaba no se duplica
+        $this->assertSame(2, DB::table('tiempos_ruta_horario')->where('ruta_id', 'RUT_ZFUS_HO-ZFUS_HD')->count());
+    }
+
+    /**
+     * El caso exacto que fallo: la ruta destino NO existe en `rutas`, pero dejo filas
+     * huerfanas en `tiempos_ruta_horario` (de una fusion o un renombre anterior).
+     */
+    public function test_no_revienta_si_la_ruta_destino_solo_tiene_horarios_huerfanos(): void
+    {
+        $this->local('ZFUS_UO', 'CLAVEUO');
+        $this->local('ZFUS_UD', 'CLAVEUD');
+        $this->local('ZFUS_UX', 'CLAVEUD');
+
+        // la ruta destino solo existe en el horario (huerfana)
+        DB::table('rutas')->insert([
+            'id' => 'RUT_ZFUS_UO-ZFUS_UX', 'origen_id' => 'ZFUS_UO', 'destino_id' => 'ZFUS_UX',
+            'veces_usada' => 1, 'ultima_vez' => now(),
+        ]);
+        DB::table('tiempos_ruta_horario')->insert([
+            ['ruta_id' => 'RUT_ZFUS_UO-ZFUS_UD', 'dia' => 3, 'hora' => 9, 'tope_min' => 5, 'viajes' => 1, 'prom_min' => 9],
+            ['ruta_id' => 'RUT_ZFUS_UO-ZFUS_UX', 'dia' => 3, 'hora' => 9, 'tope_min' => 5, 'viajes' => 1, 'prom_min' => 9],
+            ['ruta_id' => 'RUT_ZFUS_UO-ZFUS_UX', 'dia' => 4, 'hora' => 9, 'tope_min' => 5, 'viajes' => 1, 'prom_min' => 9],
+        ]);
+
+        $resultado = DBFusionLocales::aplicar('ZFUS_UD', 'ZFUS_UX');
+
+        $this->assertTrue($resultado['ok']);
+        $this->assertSame(0, DB::table('tiempos_ruta_horario')->where('ruta_id', 'RUT_ZFUS_UO-ZFUS_UX')->count());
+        $this->assertDatabaseHas('tiempos_ruta_horario', ['ruta_id' => 'RUT_ZFUS_UO-ZFUS_UD', 'dia' => 4, 'hora' => 9]);
+    }
 }

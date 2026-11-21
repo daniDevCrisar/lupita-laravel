@@ -87,6 +87,8 @@
                                 @if ($row->exitosa_segun_ia)
                                     <i class="bi bi-robot text-success"></i><i class="bi bi-check-lg text-success"></i>
                                 @endif
+                                <img src="{{ asset("images/plataformas/$row->id_plataforma.svg") }}" style="width: 50px">
+
                                 </span>
 
                             </td>

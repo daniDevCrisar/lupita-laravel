@@ -136,7 +136,8 @@ class DBConductores
         SELECT
             llamadas.conductor_id,
             SUBSTRING_INDEX(GROUP_CONCAT(trts.nombres ORDER BY llamadas.created_at DESC), ',', 1) as nom_trt,
-            SUBSTRING_INDEX(GROUP_CONCAT(trts.id ORDER BY llamadas.created_at DESC), ',', 1) as id_trt
+            SUBSTRING_INDEX(GROUP_CONCAT(trts.id ORDER BY llamadas.created_at DESC), ',', 1) as
+            id_trt
         FROM trts
         INNER JOIN llamadas ON llamadas.trt_id = trts.id
         GROUP BY llamadas.conductor_id

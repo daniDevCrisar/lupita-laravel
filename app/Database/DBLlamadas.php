@@ -159,6 +159,7 @@ class DBLlamadas {
         ->leftJoin('trts as c', 'c.id', '=', 'a.trt_id')
         ->select(
             'a.vapi_id',
+            'a.id_plataforma',
             'a.created_at',
             'a.llamada_tipo_id',
             'a.ref',

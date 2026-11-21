@@ -297,22 +297,45 @@ class DBFusionLocales
 
     /**
      * Mueve todo lo que cuelga de una ruta a otra.
+     *
+     * OJO con los indices unicos, que es lo que hacia reventar la fusion:
+     *  - `tiempos_ruta_promedio` tiene `ruta_id` como PK;
+     *  - `tiempos_ruta_horario` tiene el UNICO (ruta_id, dia, hora).
+     * Un `UPDATE ... SET ruta_id` a secas da 1062 Duplicate entry cuando la ruta destino
+     * ya tiene filas. Por eso se borra solo lo que colisiona y se mueve el resto: las dos
+     * tablas son datos COMPILADOS y se regeneran con "compilar promedios / horarios".
      */
     private static function repuntar_dependientes(string $id_viejo, string $id_nuevo): void
     {
-        foreach (['referencias', 'tiempos_ruta_horario', 'prediccion_resultados'] as $tabla) {
+        // refs y predicciones: PK propia (ref / id), el ruta_id no es unico
+        foreach (['referencias', 'prediccion_resultados'] as $tabla) {
             DB::table($tabla)->where('ruta_id', $id_viejo)->update(['ruta_id' => $id_nuevo]);
         }
 
-        // tiempos_ruta_promedio tiene ruta_id como PK: si la fila nueva ya existe, se
-        // descarta la vieja (los promedios se recompilan)
-        $existe = DB::table('tiempos_ruta_promedio')->where('ruta_id', $id_nuevo)->exists();
+        // promedios: PK ruta_id
+        $hay_promedio_nuevo = DB::table('tiempos_ruta_promedio')->where('ruta_id', $id_nuevo)->exists();
 
-        if ($existe) {
+        if ($hay_promedio_nuevo) {
             DB::table('tiempos_ruta_promedio')->where('ruta_id', $id_viejo)->delete();
         } else {
             DB::table('tiempos_ruta_promedio')->where('ruta_id', $id_viejo)->update(['ruta_id' => $id_nuevo]);
         }
+
+        // horarios: UNICO (ruta_id, dia, hora). Se borran las celdas que ya existen en la
+        // ruta destino y se mueven las demas.
+        $ocupadas = DB::table('tiempos_ruta_horario')
+            ->where('ruta_id', $id_nuevo)
+            ->get(['dia', 'hora']);
+
+        foreach ($ocupadas as $celda) {
+            DB::table('tiempos_ruta_horario')
+                ->where('ruta_id', $id_viejo)
+                ->where('dia', $celda->dia)
+                ->where('hora', $celda->hora)
+                ->delete();
+        }
+
+        DB::table('tiempos_ruta_horario')->where('ruta_id', $id_viejo)->update(['ruta_id' => $id_nuevo]);
     }
 
     /**
