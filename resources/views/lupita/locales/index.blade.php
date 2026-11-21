@@ -19,6 +19,8 @@
                 El <b>ID</b> es la clave con la que los viajes apuntan al local, la
                 <b>palabra clave</b> es la que se busca en el título del viaje y el
                 <b>distrito</b> sale del ubigeo de 6 dígitos.
+                Solo se puede <b>eliminar</b> un local que no aparezca en ninguna ruta:
+                si lo usa algún viaje, desactivalo o fusionalo con el correcto.
             </p>
         </div>
     </div>
@@ -37,7 +39,7 @@
             <select class="form-select form-select-sm" id="filtro-cliente">
                 <option value="">Todos los clientes</option>
                 @foreach($clientes as $cliente)
-                    <option value="{{ $cliente->id }}">
+                    <option value="{{ $cliente->id }}" @selected(($cliente_filtro ?? '') === $cliente->id)>
                         {{ $cliente->nombre }} ({{ $cliente->id }})
                     </option>
                 @endforeach
@@ -121,6 +123,24 @@
                                    class="btn btn-outline-light btn-sm" title="Editar {{ $local->id }}">
                                     <i class="bi bi-pencil"></i> Editar
                                 </a>
+
+                                @if((int) ($local->rutas_count ?? 0) === 0)
+                                    {{-- sin rutas no hay nada vinculado: se puede borrar --}}
+                                    <form method="POST" action="{{ route('lupita.locales.eliminar', $local->id) }}"
+                                          class="d-inline"
+                                          onsubmit="return confirm('¿Eliminar {{ $local->id }}? No tiene rutas ni referencias vinculadas. Esta acción no se puede deshacer.');">
+                                        @csrf
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                title="Eliminar {{ $local->id }} (no tiene nada vinculado)">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </button>
+                                    </form>
+                                @else
+                                    <button class="btn btn-outline-secondary btn-sm" disabled
+                                            title="No se puede eliminar: aparece en {{ $local->rutas_count }} ruta(s). Usá Editar → desactivar, o Fusionar locales.">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                @endif
                             </td>
                         </tr>
                     @empty

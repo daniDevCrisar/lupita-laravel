@@ -33,6 +33,8 @@ use App\Http\Controllers\PrediccionController;
 use App\Http\Controllers\ElevenLabsController;
 use App\Http\Controllers\VerificarReferenciasController;
 // `PalabrasController` ya existe para /lupita/palabras: el de Ubicaciones va con alias
+use App\Http\Controllers\Ubicaciones\ClientesController;
+use App\Http\Controllers\Ubicaciones\FusionLocalesController;
 use App\Http\Controllers\Ubicaciones\MapsController;
 use App\Http\Controllers\Ubicaciones\PalabrasController as UbicacionesPalabrasController;
 use App\Http\Controllers\Ubicaciones\ReprocesarController;
@@ -243,6 +245,9 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('role:admin');
         Route::post('/locales/{id}', [LocalesController::class, 'actualizar'])->name('lupita.locales.actualizar')
             ->middleware('role:admin');
+        // solo borra si el local no tiene nada vinculado (lo verifica el controlador)
+        Route::post('/locales/{id}/eliminar', [LocalesController::class, 'eliminar'])
+            ->name('lupita.locales.eliminar')->middleware('role:admin');
 
         //--- Ubicaciones: diagnostico del catalogo y de los titulos sin ruta ---
         // mismo criterio que locales: es mantenimiento del catalogo, solo admin
@@ -263,6 +268,22 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/ubicaciones/reprocesar', [ReprocesarController::class, 'procesar'])
             ->name('lupita.ubicaciones.reprocesar')->middleware('role:admin');
 
+        //--- Clientes: catalogo del que cuelgan los locales ---
+        Route::get('/ubicaciones/clientes', [ClientesController::class, 'index'])
+            ->name('lupita.ubicaciones.clientes')->middleware('role:admin');
+        Route::get('/ubicaciones/clientes/nuevo', [ClientesController::class, 'crear'])
+            ->name('lupita.ubicaciones.clientes.crear')->middleware('role:admin');
+        Route::post('/ubicaciones/clientes', [ClientesController::class, 'guardar'])
+            ->name('lupita.ubicaciones.clientes.guardar')->middleware('role:admin');
+        Route::get('/ubicaciones/clientes/{id}/editar', [ClientesController::class, 'editar'])
+            ->name('lupita.ubicaciones.clientes.editar')->middleware('role:admin');
+        Route::post('/ubicaciones/clientes/{id}', [ClientesController::class, 'actualizar'])
+            ->name('lupita.ubicaciones.clientes.actualizar')->middleware('role:admin');
+        //--- Fusionar locales repetidos (simula antes de escribir) ---
+        Route::get('/ubicaciones/fusion', [FusionLocalesController::class, 'index'])
+            ->name('lupita.ubicaciones.fusion')->middleware('role:admin');
+        Route::post('/ubicaciones/fusion', [FusionLocalesController::class, 'aplicar'])
+            ->name('lupita.ubicaciones.fusion.aplicar')->middleware('role:admin');
         //--- Coordenadas desde un link de Google Maps (sin API ni key) ---
         Route::get('/ubicaciones/maps', [MapsController::class, 'index'])
             ->name('lupita.ubicaciones.maps')->middleware('role:admin');

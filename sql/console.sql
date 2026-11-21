@@ -91,3 +91,7 @@ ORDER BY COALESCE(
              b.presenta_para_carga
          ) DESC
 LIMIT 10;
+
+
+select * from roles
+select * from role_has_permissions

@@ -997,7 +997,7 @@ Ya listo para la importación: el catálogo (asistentes + campos + reglas), la t
 columnas verificada contra llamadas reales, el analizador de transcripción, el parser de fechas, y la
 previsualización que dice exactamente qué se va a insertar.
 
-
+---
 
 ## 12. Dónde se guarda el id de llamada y el origen del lote
 
@@ -1041,3 +1041,64 @@ hueco para el origen:
 requisito de saber de dónde vino el lote.
 
 ---
+
+## 13. Pasar la configuración a otra base (producción)
+
+**Archivo:** `z-eleven-labs/sql/configuracion_elevenlabs.sql` (273 líneas, 43 KB, UTF-8).
+
+Contiene **solo configuración**: la estructura y las filas de las cuatro tablas de configuración
+del módulo, más dos bloques de verificación y un anexo opcional de permisos.
+
+| Tabla | Qué es | Filas |
+|---|---|---|
+| `elevenlabs_agentes` | qué asistente es qué tipo de llamada, si entra al lote y si está activo | 11 |
+| `elevenlabs_mapeos_campo` | columna destino ← ruta del JSON (con cadenas de rutas), transformación, valor por defecto | 51 |
+| `elevenlabs_mapeos_regla` | «si ⟨ruta⟩ cumple ⟨condición⟩ → ⟨columna⟩ = ⟨valor⟩», con prioridad | 20 |
+| `elevenlabs_opciones` | política del módulo (`estados_a_importar = done,failed`) | 1 |
+
+**No trae** llamadas, lotes, `tmp_lotes`, `tmp_lotes_det`, transcripciones, mensajes, scoring ni
+nada con datos personales. Tampoco crea el módulo en sí (eso es código).
+
+**Cómo se usa**
+
+```
+mysql -u USUARIO -p TU_BASE < configuracion_elevenlabs.sql
+```
+
+Cada corrida hace `DROP TABLE IF EXISTS` + `CREATE TABLE` de esas cuatro tablas y vuelve a insertar
+las filas, así que **correrlo dos veces deja el mismo resultado** y no duplica nada.
+
+**Qué comprueba al final**
+
+1. Los conteos por tabla (tienen que coincidir con el encabezado del archivo).
+2. Dos consultas comentadas que tienen que devolver **cero filas**: si aparecen `tipo_llamada_id` o
+   `razon_finalizacion` que **esa base no tiene**, esas reglas quedarían inertes sin avisar.
+   Van comentadas porque usan tablas (`tipos_llamada`, `razones_finalizacion`) que el archivo no trae.
+
+**Anexo opcional (comentado): permisos.** Los tres permisos del módulo
+(`ver eleven labs`, `escuchar audio eleven labs`, `importar eleven labs`) y su asignación a los roles
+`admin` y `editor`. Van comentados porque tocan tablas compartidas con el resto de la app
+(`permissions`, `role_has_permissions`). Son idempotentes y asignan por **nombre** de rol, no por id.
+Sin ellos la pantalla no sale en el menú y las rutas responden 403.
+
+**Qué NO alcanza con este archivo.** La configuración sola queda inerte: además hay que tener el
+código del módulo. El orden completo para una base nueva es:
+
+| Pieza | Dónde |
+|---|---|
+| Columnas `llamadas.el_id` / `llamadas.id_plataforma` (y `vapi_id` a 64) | migración `2026_11_19_140000_add_el_id_and_id_plataforma_to_llamadas` |
+| Las 4 tablas de configuración | este mismo SQL (o las migraciones que lista el encabezado) |
+| Código: controlador, rutas, vista, cliente de la API | `app/ElevenLabs/`, `ElevenLabsController`, `resources/views/elevenlabs/`, `routes/web.php` |
+| Menú del panel | `resources/views/layouts/app.blade.php` |
+| `ELEVENLABS_API_KEY` en `.env` | nunca en el repo |
+
+**Cómo se verificó este archivo** (no se entrega sin probarlo):
+
+| prueba | resultado |
+|---|---|
+| cargarlo en una base **vacía** con el cliente `mysql` | exit 0 |
+| cargarlo **dos veces seguidas** en la misma base | exit 0 las dos veces, mismos conteos |
+| comparar fila por fila con la base de origen (MD5 de todas las filas, columnas ordenadas) | **idéntico** en las 4 tablas |
+| acentos y `«»` dentro del archivo | UTF-8 válido, valor idéntico al de la base |
+| bloque opcional de permisos corrido dos veces | idempotente: 3 permisos y 6 asignaciones antes y después |
+| claves foráneas hacia estas 4 tablas | 0 (se puede recrear sin romper nada) |

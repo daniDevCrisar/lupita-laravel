@@ -33,13 +33,14 @@ class DBLocales
      */
     public static function listar(): array
     {
+        // OJO: el orden importa. `select()` fija las columnas y `selectSub()` agrega la
+        // subconsulta; si se pasan columnas a `get()` despues de un selectSub, Laravel
+        // las ignora y la consulta devuelve solo la subconsulta.
         return DB::table('locales as l')
             ->leftJoin('ubigeo_distritos as d', 'd.ubigeo', '=', 'l.distrito_ubigeo')
             ->leftJoin('ubigeo_provincias as p', 'p.id', '=', 'd.provincia_id')
             ->leftJoin('ubigeo_departamentos as dep', 'dep.id', '=', 'd.departamento_id')
-            ->orderBy('l.cliente_id')
-            ->orderBy('l.nombre')
-            ->get([
+            ->select([
                 'l.id',
                 'l.cliente_id',
                 'l.nombre',
@@ -55,7 +56,83 @@ class DBLocales
                 'p.provincia',
                 'dep.departamento',
             ])
+            // cuantas rutas usan este local: la vista lo necesita para saber si se
+            // puede borrar (un local usado por una ruta no se borra nunca)
+            ->selectSub(
+                DB::table('rutas')
+                    ->selectRaw('COUNT(*)')
+                    ->whereRaw('rutas.origen_id = l.id OR rutas.destino_id = l.id'),
+                'rutas_count'
+            )
+            ->orderBy('l.cliente_id')
+            ->orderBy('l.nombre')
+            ->get()
             ->all();
+    }
+
+    /**
+     * Que tiene vinculado un local: si algo de esto es > 0, no se puede borrar.
+     *
+     * Las referencias no cuentan aparte porque cuelgan de una ruta: si no hay rutas,
+     * tampoco hay referencias del local.
+     *
+     * @return array{rutas: int, rutas_lista: array<int, string>, promedios: int}
+     */
+    public static function vinculos(string $id): array
+    {
+        $rutas = DB::table('rutas')
+            ->where('origen_id', $id)
+            ->orWhere('destino_id', $id)
+            ->pluck('id')
+            ->all();
+
+        $promedios = DB::table('tiempos_ruta_promedio')
+            ->where('origen_id', $id)
+            ->orWhere('destino_id', $id)
+            ->count();
+
+        return [
+            'rutas'        => count($rutas),
+            'rutas_lista'  => array_map('strval', $rutas),
+            'promedios'    => $promedios,
+        ];
+    }
+
+    /**
+     * Borra un local SOLO si no tiene nada vinculado.
+     *
+     * Se revalida adentro de la transaccion: entre que la pantalla dibujo el boton y
+     * el POST, alguien pudo generar una ruta con ese local.
+     *
+     * @return array{ok: bool, error: ?string}
+     */
+    public static function eliminar(string $id): array
+    {
+        return DB::transaction(function () use ($id) {
+            $local = DB::table('locales')->where('id', $id)->first(['id', 'nombre']);
+
+            if ($local === null) {
+                return ['ok' => false, 'error' => 'El local no existe.'];
+            }
+
+            $vinculos = self::vinculos($id);
+
+            if ($vinculos['rutas'] > 0) {
+                return ['ok' => false, 'error' => 'No se borró: el local aparece en '
+                    . $vinculos['rutas'] . ' ruta(s) (' . implode(', ', array_slice($vinculos['rutas_lista'], 0, 5))
+                    . (count($vinculos['rutas_lista']) > 5 ? '…' : '')
+                    . '). Desactivalo si no lo querés usar, o fusionalo con el local correcto.'];
+            }
+
+            if ($vinculos['promedios'] > 0) {
+                return ['ok' => false, 'error' => 'No se borró: hay ' . $vinculos['promedios']
+                    . ' promedio(s) compilados que lo referencian.'];
+            }
+
+            DB::table('locales')->where('id', $id)->delete();
+
+            return ['ok' => true, 'error' => null];
+        });
     }
 
     /**

@@ -171,6 +171,15 @@
                             </a>
                         </li>
                         <li>
+                            <a class="dropdown-item" href="{{ route('lupita.ubicaciones.clientes') }}">
+                                <i class="bi bi-person-vcard"></i> Clientes
+                            </a>
+                        </li>                        <li>
+                            <a class="dropdown-item" href="{{ route('lupita.ubicaciones.fusion') }}">
+                                <i class="bi bi-arrow-left-right"></i> Fusionar locales
+                            </a>
+                        </li>
+                        <li>
                             <a class="dropdown-item" href="{{ route('lupita.ubicaciones.maps') }}">
                                 <i class="bi bi-map"></i> Desde Google Maps
                             </a>

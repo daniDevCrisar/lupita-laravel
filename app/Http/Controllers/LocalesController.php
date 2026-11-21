@@ -24,11 +24,16 @@ class LocalesController extends Controller
     /**
      * Listado de locales con cliente y ubicacion resueltos.
      */
-    public function index()
+    public function index(Request $request)
     {
+        // `?cliente=ID` llega desde la pantalla de Clientes ("ver sus locales")
+        $valor = $request->query('cliente', '');
+        $cliente_filtro = is_string($valor) ? mb_substr(trim($valor), 0, 50) : '';
+
         return view('lupita.locales.index', [
             'locales'  => DBLocales::listar(),
             'clientes' => DBLocales::clientes(),
+            'cliente_filtro' => $cliente_filtro,
         ]);
     }
 
@@ -145,6 +150,28 @@ class LocalesController extends Controller
         return redirect()
             ->route('lupita.locales')
             ->with('exito', 'Local "' . $datos['nombre'] . '" actualizado.');
+    }
+
+    /**
+     * Borra un local que no tenga nada vinculado (sin rutas ni promedios compilados).
+     *
+     * Un local con rutas NO se borra: se desactiva o se fusiona. La comprobacion se
+     * repite dentro de DBLocales::eliminar(), porque entre que se dibujo el boton y
+     * este POST pudo aparecer una ruta nueva.
+     */
+    public function eliminar(string $id)
+    {
+        $resultado = DBLocales::eliminar($id);
+
+        if (!$resultado['ok']) {
+            return redirect()
+                ->route('lupita.locales')
+                ->with('error', $resultado['error']);
+        }
+
+        return redirect()
+            ->route('lupita.locales')
+            ->with('exito', 'Local "' . $id . '" eliminado (no tenía nada vinculado).');
     }
 
     /**
