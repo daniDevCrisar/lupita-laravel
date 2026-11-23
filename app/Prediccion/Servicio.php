@@ -258,7 +258,10 @@ class Servicio
                 // falta al camión (ruta → placa → día y hora), desde la hora a la
                 // que el camión queda libre
                 fn (string $ruta): ?object => self::viaje_ruta($ruta, $etapasPorRuta, $salidaRegreso,
-                    $placa, $desde, $ahora, $p))
+                    $placa, $desde, $ahora, $p),
+                // con `$p` el escalón de coordenadas y el factor de camión vacío
+                // respetan lo que esté configurado (y lo que pisa la ablación)
+                $p)
             : null;
         $traslado = self::limitar_traslado($traslado, $p);
 
@@ -645,6 +648,13 @@ class Servicio
             // qué ruta se usó para el regreso (auditoría: el traslado acepta la
             // ruta de los dos locales en cualquier sentido)
             'traslado_ruta' => $traslado->ruta ?? null,
+            // el traslado siempre es la vuelta SIN carga: si la ruta que se usó es
+            // la de ida (sale de la planta), se corrige con `vacio_factor`
+            'traslado_sentido' => (string) ($traslado->sentido ?? 'desconocido'),
+            'traslado_factor_vacio' => (float) ($traslado->factor_vacio ?? 1.0),
+            // sin ningún promedio, el traslado sale de las coordenadas de los locales
+            'traslado_km' => $traslado->km ?? null,
+            'traslado_ajuste' => $traslado->ajuste ?? null,
         ];
 
         // De dónde salió la posición del camión y, sobre todo, SI ENTRÓ en el
@@ -736,6 +746,21 @@ class Servicio
             $resultado->supuestos[] = 'traslado de regreso por día y hora: el compilado de esa franja ('
                 . Tiempo::hhmm((int) $trasladoHorario->horario) . ', ' . $trasladoHorario->viajes . ' viajes)'
                 . ' dejó el traslado en ' . Tiempo::hhmm((int) $trasladoHorario->min);
+        }
+
+        // sin ningún promedio para ese par, el traslado sale de las coordenadas
+        if (is_object($traslado) && (string) ($traslado->fuente ?? '') === 'coordenadas') {
+            $resultado->supuestos[] = 'traslado de regreso sin promedios: ' . $traslado->km
+                . ' km en línea recta entre los dos locales × el ajuste medido con las rutas que sí tienen '
+                . 'promedio (' . (string) ($traslado->ajuste ?? 'global') . ')';
+        }
+
+        // la vuelta a cargar va SIN carga: si el promedio usado era el de ida, se corrigió
+        if (is_object($traslado) && (string) ($traslado->sentido ?? '') === 'cargado'
+            && (float) ($traslado->factor_vacio ?? 1) < 1) {
+            $resultado->supuestos[] = 'el regreso va sin carga: el promedio de ida se corrigió ×'
+                . number_format((float) $traslado->factor_vacio, 2, ',', '.')
+                . ' (un camión vacío tarda menos)';
         }
 
         if ($anclaDeclarada) {
@@ -1428,7 +1453,8 @@ class Servicio
                     // ruta → placa → día y hora, desde el ancla (ahí queda libre)
                     false, $par->ancla instanceof Carbon ? $par->ancla : null,
                     fn (string $ruta): ?object => self::viaje_ruta($ruta, $etapas, $par->ancla, $par->placa,
-                        $desde, $hasta, $p))
+                        $desde, $hasta, $p),
+                    $p)
                 : null;
             $traslado = self::limitar_traslado($traslado, $p);
 

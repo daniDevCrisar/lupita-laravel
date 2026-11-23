@@ -63,6 +63,12 @@ class DBPrediccion
     /** @var array<string, array<int, float>>|null factor del viaje por día, por ruta */
     private static ?array $factoresDia = null;
 
+    /** @var array<string, object|null> coordenadas de locales ya leídas */
+    private static array $coordsLocales = [];
+
+    /** @var array{global: ?array, pares: array<string, array>}|null ajuste km -> minutos */
+    private static ?array $calibracionDistancia = null;
+
     /** Expresión SQL del último hito con fecha: 1970-01-01 si no hay ninguno. */
     public static function ultimo_hito_sql(string $alias = 'r'): string
     {
@@ -885,21 +891,21 @@ class DBPrediccion
      *   1. la ruta medida entre esos dos locales (en cualquier sentido);
      *   2. el mismo par de ubigeos;
      *   3. la ruta de la propia referencia (el regreso se parece a la ida);
-     *   4. Geoapify: tiempo de manejo real entre los dos ubigeos (cuando no hay
-     *      promedio medido, o cuando el operador declaró dónde está el camión);
-     *   5. la mediana de las rutas con ese par de departamentos;
-     *   6. el valor por defecto de la configuración.
+     *   4. las COORDENADAS de los dos extremos (`locales.lat/lng`): distancia recta
+     *      por el ajuste medido con las rutas que sí tienen promedio;
+     *   5. Geoapify: tiempo de manejo real entre los dos ubigeos;
+     *   6. la mediana de las rutas con ese par de departamentos;
+     *   7. el valor por defecto de la configuración.
      *
      * Para los escalones 1 a 3 el tiempo de la ruta lo resuelve `$viaje`: es el
-     * MISMO cálculo que el tramo que le falta al camión (`Servicio::viaje_ruta()`),
-     * porque los promedios de ida y vuelta son casi los mismos y la incertidumbre
-     * está en lo que el conductor descansa, no en el tránsito. Sin `$viaje` (otros
-     * usos del método) se usa sólo lo medido de la ruta, sin mezclas.
+     * MISMO cálculo que el tramo que le falta al camión (`Servicio::viaje_ruta()`).
+     * Además, si la ruta que se usó va en el sentido CARGADO (sale de la planta), el
+     * promedio sobreestima la vuelta vacía y se corrige con `vacio_factor`. El
+     * escalón de coordenadas va ANTES de Geoapify a propósito: no gasta cuota.
      *
-     * Todas las respuestas traen `min` (minutos), `fuente`, `ruta` y `texto`
-     * (legible: "PLANTA CARAL (Supe, Barranca, Lima) → PLANTA CHICLAYO (...)").
-     * Geoapify agrega `km`. Con `$viaje`, `viaje` trae las piezas de la mezcla
-     * (lo medido de la ruta, los viajes de la placa y la celda día/hora).
+     * Todas las respuestas traen `min` (minutos), `fuente`, `ruta`, `texto` y
+     * `sentido` (`vacio` | `cargado` | `desconocido`). Geoapify y coordenadas
+     * agregan `km`. Con `$viaje`, `viaje` trae las piezas de la mezcla.
      *
      * @param  array<string, array<string, int|null>>  $etapas  salida de etapas_por_ruta()
      * @param  callable(string): ?object|null  $viaje  resolvedor de `Servicio::viaje_ruta()`
@@ -907,11 +913,16 @@ class DBPrediccion
     public static function traslado(?string $plantaCarga, ?string $desdePlanta, ?string $desdeUbigeo,
                                     ?string $plantaUbigeo, array $etapas, ?string $rutaPropia = null,
                                     ?int $defectoMin = null, bool $posicionDeclarada = false,
-                                    ?Carbon $salida = null, ?callable $viaje = null): ?object
+                                    ?Carbon $salida = null, ?callable $viaje = null,
+                                    ?object $parametros = null): ?object
     {
         if ($plantaCarga === null || $plantaCarga === '') {
             return null;
         }
+
+        $p = $parametros ?? \App\Prediccion\Parametros::cargar();
+        $factorVacio = (float) ($p->vacio_factor ?? 1);
+        $factorVacio = $factorVacio > 0 && $factorVacio <= 1 ? $factorVacio : 1.0;
 
         $desdeTexto = self::texto_ubicacion($desdePlanta, $desdeUbigeo);
         $hastaTexto = self::texto_ubicacion($plantaCarga, $plantaUbigeo);
@@ -920,7 +931,7 @@ class DBPrediccion
 
         if ($desdePlanta === $plantaCarga || ($desdeUbigeo !== null && $desdeUbigeo === $plantaUbigeo && $desdeUbigeo !== '')) {
             return (object) ['min' => 0, 'fuente' => 'ya_esta_en_planta', 'ruta' => null, 'texto' => $texto,
-                             'km' => null, 'viaje' => null];
+                             'km' => null, 'viaje' => null, 'sentido' => 'vacio', 'factor_vacio' => 1.0];
         }
 
         $rutas = self::rutas();
@@ -947,6 +958,28 @@ class DBPrediccion
             return max(0, (int) ($estimado->min ?? 0));
         };
 
+        // Respuesta de un tramo medido: mira el SENTIDO de la ruta y, si es el
+        // cargado, corrige con el factor de camión vacío. La vuelta a la planta se
+        // hace sin carga: usar el promedio de la ida la estima ~17 % de más.
+        $medido = function (string $id, string $fuente, int $min, ?object $viaje) use (
+            $rutas, $plantaCarga, $plantaUbigeo, $desdePlanta, $desdeUbigeo, $texto, $factorVacio): object
+        {
+            $sentido = self::sentido_ruta($rutas[$id] ?? null, $plantaCarga, $plantaUbigeo,
+                $desdePlanta, $desdeUbigeo);
+            $factor = $sentido === 'cargado' ? $factorVacio : 1.0;
+
+            return (object) [
+                'min' => max(1, (int) round($min * $factor)),
+                'fuente' => $fuente,
+                'ruta' => $id,
+                'texto' => $texto,
+                'km' => null,
+                'viaje' => $viaje,
+                'sentido' => $sentido,
+                'factor_vacio' => $factor,
+            ];
+        };
+
         // 1..3: lo medido (ruta entre los dos locales, mismo par de ubigeos, la ruta
         // de la propia referencia). Geoapify NO se llama si hay promedio: el dato de
         // la flota siempre manda.
@@ -956,8 +989,7 @@ class DBPrediccion
             if ($mismoLocal) {
                 $min = $minutos((string) $id);
                 if ($min !== null) {
-                    return (object) ['min' => $min, 'fuente' => 'ruta_medida', 'ruta' => (string) $id,
-                                     'texto' => $texto, 'km' => null, 'viaje' => $ultimoViaje];
+                    return $medido((string) $id, 'ruta_medida', $min, $ultimoViaje);
                 }
             }
         }
@@ -969,8 +1001,7 @@ class DBPrediccion
                 if ($mismoUbigeo) {
                     $min = $minutos((string) $id);
                     if ($min !== null) {
-                        return (object) ['min' => $min, 'fuente' => 'mismo_ubigeo', 'ruta' => (string) $id,
-                                         'texto' => $texto, 'km' => null, 'viaje' => $ultimoViaje];
+                        return $medido((string) $id, 'mismo_ubigeo', $min, $ultimoViaje);
                     }
                 }
             }
@@ -979,12 +1010,23 @@ class DBPrediccion
         if ($rutaPropia !== null && !$posicionDeclarada) {
             $min = $minutos($rutaPropia);
             if ($min !== null) {
-                return (object) ['min' => $min, 'fuente' => 'ruta_de_la_ref', 'ruta' => $rutaPropia,
-                                 'texto' => $texto, 'km' => null, 'viaje' => $ultimoViaje];
+                return $medido($rutaPropia, 'ruta_de_la_ref', $min, $ultimoViaje);
             }
         }
 
-        // 4: Geoapify. SÓLO acá: no hay ningún promedio compilado para ese par.
+        // 4: COORDENADAS. Sólo cuando no hay ningún promedio para ese par: la
+        // distancia recta entre los dos locales por el ajuste medido con las rutas
+        // que sí tienen promedio. Antes que Geoapify: no gasta cuota.
+        if ((int) ($p->coords_activo ?? 1) === 1) {
+            $porCoordenadas = self::traslado_por_coordenadas($plantaCarga, $plantaUbigeo,
+                $desdePlanta, $desdeUbigeo, $p, $texto);
+
+            if ($porCoordenadas !== null) {
+                return $porCoordenadas;
+            }
+        }
+
+        // 5: Geoapify. SÓLO acá: no hay promedio ni coordenadas para ese par.
         // `$salida` es la hora a la que el camión sale de verdad: si cae en hora
         // pico el tiempo se pide con tráfico (ver App\Prediccion\HoraPico).
         $geo = \App\Prediccion\Geoapify::ruta($desdeUbigeo, $plantaUbigeo, $salida);
@@ -997,10 +1039,12 @@ class DBPrediccion
                 'km' => $geo->km,
                 'min_medido' => null,
                 'viaje' => null,
+                'sentido' => 'vacio',
+                'factor_vacio' => 1.0,
             ];
         }
 
-        // 5: mediana por par de departamentos
+        // 6: mediana por par de departamentos
         $depOrigen = strlen((string) $plantaUbigeo) >= 2 ? substr((string) $plantaUbigeo, 0, 2) : null;
         $depDestino = strlen((string) $desdeUbigeo) >= 2 ? substr((string) $desdeUbigeo, 0, 2) : null;
         if ($depOrigen !== null && $depDestino !== null) {
@@ -1023,11 +1067,13 @@ class DBPrediccion
                     'texto' => $texto,
                     'km' => null,
                     'viaje' => null,
+                    'sentido' => 'vacio',
+                    'factor_vacio' => 1.0,
                 ];
             }
         }
 
-        // 6: defecto
+        // 7: defecto
         return (object) [
             'min' => max(0, (int) ($defectoMin ?? 240)),
             'fuente' => 'defecto',
@@ -1035,6 +1081,337 @@ class DBPrediccion
             'texto' => $texto,
             'km' => null,
             'viaje' => null,
+            'sentido' => 'desconocido',
+            'factor_vacio' => 1.0,
+        ];
+    }
+
+    /**
+     * Sentido de una ruta respecto de la planta de carga.
+     *
+     *   `vacio`    la ruta TERMINA en la planta: es el regreso del camión sin carga
+     *   `cargado`  la ruta SALE de la planta: es la ida con carga
+     *   `desconocido` no se puede decidir (ruta de otro par, sin locales)
+     *
+     * Importa para el factor de camión vacío: el traslado siempre es la vuelta a
+     * cargar, así que si la única ruta compilada del par es la de ida, su promedio
+     * sobreestima el regreso.
+     */
+    private static function sentido_ruta(?object $ruta, ?string $plantaLocal, ?string $plantaUbigeo,
+                                         ?string $desdeLocal, ?string $desdeUbigeo): string
+    {
+        if ($ruta === null) {
+            return 'desconocido';
+        }
+
+        $plantaLocal = trim((string) $plantaLocal);
+        $desdeLocal = trim((string) $desdeLocal);
+        $plantaUbigeo = trim((string) $plantaUbigeo);
+        $desdeUbigeo = trim((string) $desdeUbigeo);
+
+        $origen = trim((string) ($ruta->origen_id ?? ''));
+        $destino = trim((string) ($ruta->destino_id ?? ''));
+        $origenUbigeo = trim((string) ($ruta->ubigeo_origen ?? ''));
+        $destinoUbigeo = trim((string) ($ruta->ubigeo_destino ?? ''));
+
+        foreach ([[$plantaLocal, $destino], [$plantaUbigeo, $destinoUbigeo]] as [$planta, $llega]) {
+            if ($planta !== '' && $llega === $planta) {
+                return 'vacio';
+            }
+        }
+
+        foreach ([[$plantaLocal, $origen], [$plantaUbigeo, $origenUbigeo]] as [$planta, $sale]) {
+            if ($planta !== '' && $sale === $planta) {
+                return 'cargado';
+            }
+        }
+
+        // una ruta del par de ubigeos en el sentido del regreso también cuenta
+        if ($desdeUbigeo !== '' && $origenUbigeo === $desdeUbigeo && $destinoUbigeo === $plantaUbigeo) {
+            return 'vacio';
+        }
+
+        return 'desconocido';
+    }
+
+    /**
+     * Traslado estimado con las COORDENADAS de los dos extremos (escalón 4).
+     *
+     * Sólo cuando no hay ningún promedio compilado para el par. Distancia recta
+     * (haversine) entre la posición del camión y la planta, por el ajuste
+     * `minutos = base + pendiente × km` medido con las rutas que sí tienen promedio
+     * y coordenadas en los dos extremos (`calibracion_distancias()`).
+     *
+     * Devuelve null si falta alguna coordenada o si el resultado no es creíble.
+     */
+    private static function traslado_por_coordenadas(string $plantaCarga, ?string $plantaUbigeo,
+                                                     ?string $desdePlanta, ?string $desdeUbigeo,
+                                                     object $p, string $texto): ?object
+    {
+        $destino = self::coord_ubicacion($plantaCarga, $plantaUbigeo);
+        $origen = self::coord_ubicacion($desdePlanta, $desdeUbigeo);
+
+        if ($origen === null || $destino === null) {
+            return null;
+        }
+
+        $km = self::distancia_km($origen, $destino);
+        if ($km === null || $km <= 0.5) {
+            return null;
+        }
+
+        $ajuste = self::ajuste_distancia($origen, $destino, $p);
+        $minutos = $ajuste['base'] + $ajuste['pendiente'] * $km;
+
+        // cordura: ni más rápido ni más lento que estos km/h
+        $velMin = max(1, (int) ($p->coords_km_h_min ?? 8));
+        $velMax = max($velMin + 1, (int) ($p->coords_km_h_max ?? 90));
+        $minutos = max($minutos, $km / $velMax * 60);
+        $minutos = min($minutos, $km / $velMin * 60);
+
+        return (object) [
+            'min' => max(1, (int) round($minutos)),
+            'fuente' => 'coordenadas',
+            'ruta' => null,
+            'texto' => $texto,
+            'km' => round($km, 1),
+            'min_medido' => null,
+            'viaje' => null,
+            'sentido' => 'vacio',
+            'factor_vacio' => 1.0,
+            'ajuste' => $ajuste['fuente'],
+            'ajuste_n' => $ajuste['n'],
+        ];
+    }
+
+    /** Coordenadas de un extremo: local propio, ubigeo del local o el ubigeo que venga. */
+    public static function coord_ubicacion(?string $local, ?string $ubigeo = null): ?object
+    {
+        $local = trim((string) $local);
+        $ubigeo = trim((string) $ubigeo);
+
+        // el id de la ruta puede ser directamente un ubigeo (destinos 200101, 040101…)
+        if (preg_match('/^\d{6}$/', $local) === 1) {
+            return self::coord_de_ubigeo($local);
+        }
+
+        $coords = self::coord_local($local);
+        if ($coords !== null) {
+            return $coords;
+        }
+
+        return $ubigeo !== '' ? self::coord_de_ubigeo($ubigeo) : null;
+    }
+
+    /**
+     * Coordenadas del centroide de un ubigeo, SÓLO de la tabla `geo_coordenadas`.
+     *
+     * Sin geocodificar: el escalón de coordenadas no puede gastar cuota de Geoapify
+     * (justamente está antes para no gastarla).
+     */
+    private static function coord_de_ubigeo(string $ubigeo): ?object
+    {
+        $coord = \App\Prediccion\Geoapify::coord_ubigeo($ubigeo, false);
+        if ($coord === null) {
+            return null;
+        }
+
+        return (object) [
+            'lat' => (float) $coord->lat,
+            'lng' => (float) $coord->lng,
+            'texto' => (string) $coord->texto,
+            'ubigeo' => $ubigeo,
+        ];
+    }
+
+    /** Coordenadas de un local: `locales.lat/lng` o, sin ellas, el centroide de su distrito. */
+    public static function coord_local(?string $id): ?object
+    {
+        $id = trim((string) $id);
+        if ($id === '') {
+            return null;
+        }
+
+        if (array_key_exists($id, self::$coordsLocales)) {
+            return self::$coordsLocales[$id];
+        }
+
+        try {
+            $fila = DB::table('locales')->where('id', $id)
+                ->first(['lat', 'lng', 'distrito_ubigeo', 'nombre']);
+        } catch (\Throwable $e) {
+            return self::$coordsLocales[$id] = null;
+        }
+
+        if ($fila === null) {
+            return self::$coordsLocales[$id] = null;
+        }
+
+        $ubigeo = (string) ($fila->distrito_ubigeo ?? '');
+
+        if ($fila->lat !== null && $fila->lng !== null) {
+            return self::$coordsLocales[$id] = (object) [
+                'lat' => (float) $fila->lat,
+                'lng' => (float) $fila->lng,
+                'texto' => (string) $fila->nombre,
+                'ubigeo' => $ubigeo,
+            ];
+        }
+
+        return self::$coordsLocales[$id] = $ubigeo !== '' ? self::coord_de_ubigeo($ubigeo) : null;
+    }
+
+    /** Distancia RECTA entre dos puntos, en km (haversine). */
+    public static function distancia_km(?object $a, ?object $b): ?float
+    {
+        if ($a === null || $b === null || !isset($a->lat, $a->lng, $b->lat, $b->lng)) {
+            return null;
+        }
+
+        $radio = 6371.0;
+        $dLat = deg2rad((float) $b->lat - (float) $a->lat);
+        $dLng = deg2rad((float) $b->lng - (float) $a->lng);
+        $h = sin($dLat / 2) ** 2
+            + cos(deg2rad((float) $a->lat)) * cos(deg2rad((float) $b->lat)) * sin($dLng / 2) ** 2;
+
+        return 2 * $radio * atan2(sqrt($h), sqrt(1 - $h));
+    }
+
+    /**
+     * Ajuste distancia → minutos, por par de departamentos y global.
+     *
+     * Se recalcula solo con las rutas compiladas que tienen coordenadas en los dos
+     * extremos: `minutos = base + pendiente × km` por mínimos cuadrados. Para la
+     * selva no alcanza un ajuste global (Tarapoto tarda 1,8× lo que predice la
+     * distancia), así que cuando ese par de departamentos tiene muestra propia se
+     * usa el suyo.
+     *
+     * @return array{global: ?array{base: float, pendiente: float, n: int},
+     *               pares: array<string, array{base: float, pendiente: float, n: int}>}
+     */
+    public static function calibracion_distancias(): array
+    {
+        if (self::$calibracionDistancia !== null) {
+            return self::$calibracionDistancia;
+        }
+
+        $vacio = ['global' => null, 'pares' => []];
+
+        try {
+            $filas = DB::select("
+                SELECT p.prom_min, p.mediana_min,
+                       o.lat AS olat, o.lng AS olng, o.distrito_ubigeo AS oubigeo,
+                       d.lat AS dlat, d.lng AS dlng, d.distrito_ubigeo AS dubigeo
+                FROM tiempos_ruta_promedio p
+                JOIN rutas r ON r.id = p.ruta_id
+                JOIN locales o ON o.id = r.origen_id
+                JOIN locales d ON d.id = r.destino_id
+                WHERE p.viajes >= 3 AND p.prom_min > 0
+                  AND o.lat IS NOT NULL AND o.lng IS NOT NULL
+                  AND d.lat IS NOT NULL AND d.lng IS NOT NULL");
+        } catch (\Throwable $e) {
+            return self::$calibracionDistancia = $vacio;   // tablas sin crear todavía
+        }
+
+        $global = [];
+        $pares = [];
+        foreach ($filas as $fila) {
+            $km = self::distancia_km(
+                (object) ['lat' => (float) $fila->olat, 'lng' => (float) $fila->olng],
+                (object) ['lat' => (float) $fila->dlat, 'lng' => (float) $fila->dlng]);
+            $minutos = (float) ($fila->mediana_min ?? $fila->prom_min);
+
+            if ($km === null || $km < 1 || $minutos <= 0) {
+                continue;
+            }
+
+            $global[] = [$km, $minutos];
+
+            $par = substr((string) $fila->oubigeo, 0, 2) . '|' . substr((string) $fila->dubigeo, 0, 2);
+            if ($par !== '|') {
+                $pares[$par][] = [$km, $minutos];
+            }
+        }
+
+        $ajustar = static function (array $puntos): ?array {
+            $n = count($puntos);
+
+            // Con pocos puntos la recta se ajusta a mano y da barbaridades: medido
+            // en los datos reales, un par de departamentos con n = 3 quedó en
+            // "base -1.283 + 7,96 × km". Por eso el mínimo es 5.
+            if ($n < 5) {
+                return null;
+            }
+
+            $sx = $sy = $sxx = $sxy = 0.0;
+            foreach ($puntos as [$km, $minutos]) {
+                $sx += $km;
+                $sy += $minutos;
+                $sxx += $km * $km;
+                $sxy += $km * $minutos;
+            }
+
+            $denominador = $n * $sxx - $sx ** 2;
+            if (abs($denominador) < 1e-9) {
+                return null;
+            }
+
+            $pendiente = ($n * $sxy - $sx * $sy) / $denominador;
+            $base = ($sy - $pendiente * $sx) / $n;
+
+            if ($pendiente <= 0 || $base < 0) {
+                return null;
+            }
+
+            // cordura: la pendiente tiene que implicar una velocidad de camión
+            // creíble sobre la distancia RECTA (la carretera es más larga, así que
+            // por debajo de 5 km/h o por encima de 45 km/h ya no es un ajuste
+            // de este negocio)
+            $kmH = 60 / $pendiente;
+            if ($kmH < 5 || $kmH > 45) {
+                return null;
+            }
+
+            return ['base' => round($base, 2), 'pendiente' => round($pendiente, 4), 'n' => $n];
+        };
+
+        $salida = ['global' => $ajustar($global), 'pares' => []];
+        foreach ($pares as $par => $puntos) {
+            $ajuste = $ajustar($puntos);
+            if ($ajuste !== null) {
+                $salida['pares'][$par] = $ajuste;
+            }
+        }
+
+        return self::$calibracionDistancia = $salida;
+    }
+
+    /**
+     * Qué ajuste usar para este par: el de su par de departamentos, el global o el
+     * de la configuración (`coords_base_min` / `coords_min_km`).
+     *
+     * @return array{base: float, pendiente: float, n: int, fuente: string}
+     */
+    private static function ajuste_distancia(?object $origen, ?object $destino, object $p): array
+    {
+        $calibracion = self::calibracion_distancias();
+
+        $par = substr((string) ($origen->ubigeo ?? ''), 0, 2) . '|'
+            . substr((string) ($destino->ubigeo ?? ''), 0, 2);
+
+        if ($par !== '|' && isset($calibracion['pares'][$par])) {
+            return $calibracion['pares'][$par] + ['fuente' => 'par'];
+        }
+
+        if ($calibracion['global'] !== null) {
+            return $calibracion['global'] + ['fuente' => 'global'];
+        }
+
+        return [
+            'base' => (float) ($p->coords_base_min ?? 49),
+            'pendiente' => (float) ($p->coords_min_km ?? 4.08),
+            'n' => 0,
+            'fuente' => 'config',
         ];
     }
 

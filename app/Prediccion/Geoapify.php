@@ -242,9 +242,13 @@ final class Geoapify
     /**
      * Coordenadas del centro del distrito, con su texto legible.
      *
+     * Con `$geocodificar = false` sólo mira la tabla `geo_coordenadas`: lo usa el
+     * escalón de coordenadas del traslado, que está ANTES de Geoapify justamente
+     * para no gastar cuota (geocodificar un ubigeo es una llamada al API).
+     *
      * @return object{lat: float, lng: float, texto: string}|null
      */
-    public static function coord_ubigeo(?string $ubigeo): ?object
+    public static function coord_ubigeo(?string $ubigeo, bool $geocodificar = true): ?object
     {
         $ubigeo = trim((string) $ubigeo);
 
@@ -271,7 +275,13 @@ final class Geoapify
             ];
         }
 
-        // 2) geocodificar por nombre del distrito
+        // 2) geocodificar por nombre del distrito (gasta cuota: el que llama decide).
+        //    OJO: sin geocodificar NO se cachea el null, porque otro llamador de la
+        //    misma predicción (el ruteo) sí puede geocodificar y necesita el valor.
+        if (!$geocodificar) {
+            return null;
+        }
+
         return self::$coords[$ubigeo] = self::geocodificar($ubigeo);
     }
 

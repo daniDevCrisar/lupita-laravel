@@ -39,6 +39,15 @@ class TrasladoConHorarioTest extends TestCase
         );
     }
 
+    /** Parámetros del motor con el factor de camión vacío que pida el test. */
+    private function parametros(float $vacioFactor = 1.0): object
+    {
+        return (object) array_merge((array) Parametros::cargar(), [
+            'vacio_factor' => $vacioFactor,
+            'coords_activo' => 0,      // los tests de ruta no dependen de las coordenadas
+        ]);
+    }
+
     public function test_el_traslado_usa_el_mismo_resolvedor_que_el_viaje(): void
     {
         $ruta = $this->rutaCualquiera();
@@ -60,13 +69,58 @@ class TrasladoConHorarioTest extends TestCase
                 $pedidas[] = $pedida;
 
                 return $estimado;
-            });
+            },
+            $this->parametros());
 
         $this->assertNotNull($traslado);
         $this->assertSame('ruta_medida', $traslado->fuente);
         $this->assertSame(300, (int) $traslado->min, 'el minuto sale del resolvedor, no de la base');
         $this->assertSame($estimado, $traslado->viaje, 'y las piezas viajan en la respuesta');
         $this->assertContains((string) $ruta->id, $pedidas, 'el resolvedor recibe la ruta, no los minutos');
+    }
+
+    /**
+     * El traslado es SIEMPRE la vuelta sin carga. Si la única ruta medida del par
+     * es la de ida (sale de la planta), su promedio sobreestima el regreso y se
+     * corrige con `vacio_factor`; si la ruta ya es el sentido del regreso, no se toca.
+     */
+    public function test_el_factor_de_camion_vacio_corrige_solo_el_sentido_cargado(): void
+    {
+        $ruta = $this->rutaCualquiera();
+        if ($ruta === null) {
+            $this->markTestSkipped('el catálogo de rutas está vacío');
+        }
+
+        $estimado = (object) [
+            'min' => 300, 'base' => 350, 'tras_placa' => 300,
+            'placa' => null, 'placa_n' => 0,
+            'celda' => null, 'celda_viajes' => 0, 'celda_dia' => null, 'celda_hora' => null,
+        ];
+        $resolver = fn (string $pedida): object => $estimado;
+
+        $origen = (string) $ruta->origen_id;
+        $destino = (string) $ruta->destino_id;
+
+        // la planta es el ORIGEN de la ruta medida: el regreso va al revés, sin carga
+        $cargado = DBPrediccion::traslado($origen, $destino, null, null, [], null, 240, false, null,
+            $resolver, $this->parametros(0.83));
+
+        $this->assertSame('cargado', $cargado->sentido);
+        $this->assertSame(249, (int) $cargado->min, '300 × 0,83: el promedio de ida sobreestima la vuelta');
+        $this->assertEqualsWithDelta(0.83, (float) $cargado->factor_vacio, 1e-6);
+
+        // con el factor apagado queda como antes
+        $sinFactor = DBPrediccion::traslado($origen, $destino, null, null, [], null, 240, false, null,
+            $resolver, $this->parametros(1.0));
+        $this->assertSame(300, (int) $sinFactor->min);
+
+        // la planta es el DESTINO de la ruta medida: esa ruta ya es la vuelta vacía
+        $vacio = DBPrediccion::traslado($destino, $origen, null, null, [], null, 240, false, null,
+            $resolver, $this->parametros(0.83));
+
+        $this->assertSame('vacio', $vacio->sentido);
+        $this->assertSame(300, (int) $vacio->min, 'el sentido vacío no se corrige');
+        $this->assertEqualsWithDelta(1.0, (float) $vacio->factor_vacio, 1e-6);
     }
 
     public function test_sin_resolvedor_el_traslado_sigue_usando_lo_medido_de_la_ruta(): void
@@ -81,7 +135,7 @@ class TrasladoConHorarioTest extends TestCase
         }
 
         $traslado = DBPrediccion::traslado((string) $ruta->origen_id, (string) $ruta->destino_id,
-            null, null, [], null, 240);
+            null, null, [], null, 240, false, null, null, $this->parametros());
 
         $this->assertNotNull($traslado);
         $this->assertSame('ruta_medida', $traslado->fuente);
@@ -207,5 +261,100 @@ class TrasladoConHorarioTest extends TestCase
             $paso = collect($r->json('pasos'))->firstWhere('concepto', 'traslado');
             $this->assertStringContainsString('franja', (string) $paso['detalle']);
         }
+    }
+
+    //------------------- coordenadas (sin promedios) -------------------
+
+    public function test_la_distancia_es_haversine(): void
+    {
+        $a = (object) ['lat' => 0.0, 'lng' => 0.0];
+        $b = (object) ['lat' => 0.0, 'lng' => 1.0];
+
+        $this->assertEqualsWithDelta(111.19, (float) DBPrediccion::distancia_km($a, $b), 0.5);
+        $this->assertEqualsWithDelta(0.0, (float) DBPrediccion::distancia_km($a, $a), 0.001);
+        $this->assertNull(DBPrediccion::distancia_km($a, null));
+    }
+
+    public function test_el_ajuste_de_distancia_sale_de_las_rutas_con_promedio(): void
+    {
+        $calibracion = DBPrediccion::calibracion_distancias();
+
+        if ($calibracion['global'] === null) {
+            $this->markTestSkipped('no hay rutas con promedio y coordenadas en los dos extremos');
+        }
+
+        $this->assertGreaterThanOrEqual(3, $calibracion['global']['n']);
+        $this->assertGreaterThan(0, $calibracion['global']['pendiente'],
+            'más kilómetros tienen que ser más minutos');
+        $this->assertGreaterThanOrEqual(0, $calibracion['global']['base']);
+    }
+
+    public function test_sin_promedios_el_traslado_sale_de_las_coordenadas(): void
+    {
+        // dos locales con coordenadas y SIN ninguna ruta que los una (ni ida ni vuelta)
+        $par = DB::selectOne(
+            "SELECT a.id AS a_id, b.id AS b_id
+             FROM locales a
+             JOIN locales b ON b.id > a.id
+             WHERE a.lat IS NOT NULL AND a.lng IS NOT NULL
+               AND b.lat IS NOT NULL AND b.lng IS NOT NULL
+               AND NOT EXISTS (
+                    SELECT 1 FROM rutas r
+                    WHERE (r.origen_id = a.id AND r.destino_id = b.id)
+                       OR (r.origen_id = b.id AND r.destino_id = a.id))
+             LIMIT 1"
+        );
+
+        if ($par === null) {
+            $this->markTestSkipped('no hay dos locales con coordenadas y sin ruta entre ellos');
+        }
+
+        $traslado = DBPrediccion::traslado((string) $par->a_id, (string) $par->b_id, null, null,
+            [], null, 240, false, null, null, $this->parametrosConCoordenadas());
+
+        $this->assertNotNull($traslado);
+        $this->assertSame('coordenadas', $traslado->fuente, 'sin promedios manda la distancia');
+        $this->assertGreaterThan(0, (float) $traslado->km);
+        $this->assertGreaterThan(0, (int) $traslado->min);
+        $this->assertContains($traslado->ajuste, ['par', 'global', 'config']);
+        $this->assertSame('vacio', $traslado->sentido);
+    }
+
+    public function test_las_coordenadas_no_inventan_puntos(): void
+    {
+        $this->assertNull(DBPrediccion::coord_local('LOC_QUE_NO_EXISTE_ZZ'));
+        $this->assertNull(DBPrediccion::coord_ubicacion(null, null));
+        $this->assertNull(DBPrediccion::coord_ubicacion('', 'no-es-ubigeo'));
+    }
+
+    public function test_el_factor_de_camion_vacio_es_configurable_y_viene_de_fabrica(): void
+    {
+        $this->assertEqualsWithDelta(0.83, (float) Parametros::por_defecto()->vacio_factor, 1e-6);
+        $this->assertSame('0,83', Parametros::texto('vacio_factor', 0.83));
+    }
+
+    public function test_los_ajustes_por_par_de_departamentos_son_creibles(): void
+    {
+        $calibracion = DBPrediccion::calibracion_distancias();
+
+        foreach ($calibracion['pares'] as $par => $ajuste) {
+            // con 5 puntos o menos la recta se ajusta a mano: en los datos reales
+            // había pares con base -1.283 y 7,96 min/km (n = 3)
+            $this->assertGreaterThanOrEqual(5, $ajuste['n'], 'par ' . $par . ': muestra insuficiente');
+            $this->assertGreaterThanOrEqual(0, $ajuste['base'], 'par ' . $par . ': base negativa');
+
+            $kmH = 60 / $ajuste['pendiente'];
+            $this->assertGreaterThanOrEqual(5, $kmH, 'par ' . $par . ': demasiado lento para ser camión');
+            $this->assertLessThanOrEqual(45, $kmH, 'par ' . $par . ': demasiado rápido para ser camión');
+        }
+    }
+
+    /** Parámetros con el escalón de coordenadas prendido. */
+    private function parametrosConCoordenadas(): object
+    {
+        return (object) array_merge((array) Parametros::cargar(), [
+            'coords_activo' => 1,
+            'vacio_factor' => 1.0,
+        ]);
     }
 }

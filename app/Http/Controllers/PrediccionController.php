@@ -971,6 +971,11 @@ class PrediccionController extends Controller
                 ['clave' => 'ventana_residuos', 'valor' => (int) ($enUso->ventana_residuos ?? 0),
                  'texto' => 'La ventana rápido/tardado sale de los residuos medidos, no del p25-p75 del hueco'],
             ],
+            // camión vacío + escalón de coordenadas: se muestran en su propia tarjeta
+            'vacio_coords' => Parametros::en_uso([
+                'vacio_factor', 'coords_activo', 'coords_base_min', 'coords_min_km',
+                'coords_km_h_min', 'coords_km_h_max',
+            ]),
         ]));
     }
 

@@ -416,6 +416,42 @@ class MotorPresentaTest extends TestCase
         $this->assertContains('ancla_vieja', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
     }
 
+    /**
+     * La predicción quedó atrasada (la normal se recorta a `ahora`) y el piso físico
+     * cae después: el rápido respeta la física y termina DESPUÉS de la normal. No se
+     * recorta contra la normal —eso reviviría el bug del rápido = ahora con el camión
+     * a mitad de viaje— pero se avisa `banda_invertida`.
+     */
+    public function test_la_banda_queda_invertida_si_el_piso_fisico_cae_despues_de_la_normal(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'ahora' => Carbon::parse('2026-11-14 10:00'),
+            'ancla' => (object) ['hito' => 'fin_descargue', 'cerrada' => true,
+                                 'fecha' => Carbon::parse('2026-11-14 09:00')],
+            'calibrador' => (object) ['gap_min' => 30, 'p25_min' => 20, 'p75_min' => 60,
+                                      'base_min' => 30, 'residual_min' => 0, 'n' => 6, 'nivel' => 'medido'],
+            'traslado' => (object) ['min' => 180, 'fuente' => 'ruta_medida'],
+            'ventana_residuos' => (object) ['adelanto' => 200, 'atraso' => 200, 'cobertura' => 0.7],
+            'parametros' => $this->parametros([
+                'sesgo_clase_activo' => 1,
+                'sesgo_clase_medido_corto' => -120,
+            ]),
+        ]));
+
+        $advertencias = array_map(fn ($a) => explode(':', $a)[0], $r->advertencias);
+
+        // 09:00 + hueco 30' cae antes del corte: la normal se recorta a las 10:00
+        $this->assertTrue($r->atrasado);
+        $this->assertSame('2026-11-14 10:00', $r->presenta->format('Y-m-d H:i'));
+
+        // la cuarta fecha (10:00 + 120' por el sesgo) corre el rápido hacia adelante
+        $this->assertSame('2026-11-14 12:00', $r->presenta_rapido->format('Y-m-d H:i'));
+
+        // y la banda invertida se avisa en vez de publicar un rápido imposible
+        $this->assertContains('banda_invertida', $advertencias);
+        $this->assertGreaterThan($r->presenta->getTimestamp(), $r->presenta_rapido->getTimestamp());
+    }
+
     public function test_el_desglose_suma_exactamente_lo_que_hay_hasta_presenta(): void
     {
         // con ancla cerrada, la hora sale de ancla + hueco + desplazamiento:

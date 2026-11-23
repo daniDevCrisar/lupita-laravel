@@ -314,8 +314,20 @@ class SesgoCuartaFechaTest extends TestCase
         $this->assertSame(0, $porClave['normal']['delta_normal_min']);
         $this->assertStringContainsString('los pasos', $porClave['normal']['construccion']);
 
-        // el rápido va antes y el tardado después: el signo del delta lo dice
-        $this->assertLessThanOrEqual(0, $porClave['rapido']['delta_normal_min']);
+        // el rápido va antes y el tardado después: el signo del delta lo dice. La
+        // excepción es la banda invertida: la predicción quedó atrasada (la normal se
+        // recorta a `ahora`) y el rápido, que respeta el piso físico y la cuarta
+        // fecha, cae después. El motor lo avisa en vez de publicar un rápido falso.
+        $advertencias = array_map(fn ($a) => explode(':', (string) $a)[0], (array) $respuesta->json('advertencias'));
+
+        if (in_array('banda_invertida', $advertencias, true)) {
+            $this->assertContains('atrasado', $advertencias);
+            $this->assertGreaterThan(0, $porClave['rapido']['delta_normal_min'],
+                'con la banda invertida el rápido queda después de la normal y se avisa');
+        } else {
+            $this->assertLessThanOrEqual(0, $porClave['rapido']['delta_normal_min']);
+        }
+
         $this->assertGreaterThanOrEqual(0, $porClave['tardado']['delta_normal_min']);
     }
 }

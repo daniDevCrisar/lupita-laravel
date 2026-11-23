@@ -19,7 +19,7 @@ final class Parametros
     /**
      * Claves que se castean a float (el resto a int).
      */
-    private const FLOTANTES = ['spread_cadena', 'ventana_cobertura'];
+    private const FLOTANTES = ['spread_cadena', 'ventana_cobertura', 'vacio_factor', 'coords_min_km'];
 
     /** Prefijo de las claves cuya corrección sí puede ser negativa. */
     private const SESGO = 'sesgo_clase_';
@@ -30,12 +30,11 @@ final class Parametros
     /** Claves que son interruptores: se leen sí / no, no como número. */
     private const INTERRUPTORES = [
         'sesgo_clase_activo', 'ventana_residuos', 'horario_activo', 'dia_activo',
-        'feriado_activo', 'cola_activa', 'descontar_transcurrido',
+        'feriado_activo', 'cola_activa', 'descontar_transcurrido', 'coords_activo',
     ];
 
     /** Claves que se eligen por número: la etiqueta dice qué significa cada uno. */
-    private const MODOS = [
-        'dia_modo' => [
+    private const MODOS = [        'dia_modo' => [
             0 => 'apagado',
             1 => 'flota (prior lunes)',
             2 => 'sólo placa con muestra',

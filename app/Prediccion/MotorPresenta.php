@@ -393,6 +393,20 @@ final class MotorPresenta
                 $rapido = $centro->copy();
             }
 
+            // Cuando la predicción quedó atrasada (la normal es `ahora`) y el piso
+            // físico o la cuarta fecha corren el rápido hacia adelante, el rápido
+            // termina DESPUÉS de la normal: la banda queda invertida. No se recorta
+            // contra la normal porque volvería el bug de "se presenta en 0:00" con el
+            // camión a mitad de viaje; se avisa y el consumidor decide.
+            if ($rapido->greaterThan($t)) {
+                $salida->advertencias[] = 'banda_invertida: la predicción quedó atrasada, así que el rápido ('
+                    . Tiempo::hhmm((int) round(($rapido->getTimestamp() - $ahora->getTimestamp()) / 60))
+                    . ' desde el corte) cae después de la hora publicada ('
+                    . Tiempo::hhmm((int) round(($t->getTimestamp() - $ahora->getTimestamp()) / 60))
+                    . '): la banda rápida–tardada no contiene a la normal. No se recorta el rápido contra ella'
+                    . ' para no publicar una hora físicamente imposible';
+            }
+
             if ($rapidoAcotado) {
                 $salida->advertencias[] = 'banda_acotada: la banda medida se salía de lo físicamente'
                     . ' posible; el rápido se acotó a ' . Tiempo::hhmm((int) round(
@@ -774,6 +788,7 @@ final class MotorPresenta
             trim((string) ($traslado->texto ?? 'tramo estimado'))
             . (isset($traslado->km) && $traslado->km !== null ? ' · ' . $traslado->km . ' km' : '')
             . ' · fuente: ' . (string) ($traslado->fuente ?? 'sin dato')
+            . self::sentido_tramo($traslado)
             . self::mezcla_tramo($traslado->viaje ?? null),
             (int) ($trasladoMin ?? 0));
 
@@ -1080,6 +1095,37 @@ final class MotorPresenta
             'presenta_tardado' => null,
             'presentaciones' => [],
         ];
+    }
+
+    /**
+     * De dónde salió el tiempo del traslado cuando no es una ruta medida:
+     * " · distancia recta 362 km (ajuste global, 46 rutas)" o el aviso del factor
+     * de camión vacío " · vuelta vacía: promedio de ida ×0,83".
+     *
+     * El traslado siempre es la vuelta SIN carga: si la única ruta medida del par
+     * es la de ida, su promedio sobreestima el regreso y se corrige.
+     */
+    private static function sentido_tramo(?object $traslado): string
+    {
+        if ($traslado === null) {
+            return '';
+        }
+
+        $partes = [];
+
+        if ((string) ($traslado->fuente ?? '') === 'coordenadas') {
+            $partes[] = 'distancia recta' . ($traslado->km !== null ? ' ' . $traslado->km . ' km' : '')
+                . (($traslado->ajuste ?? null) !== null
+                    ? ' (ajuste ' . $traslado->ajuste . ($traslado->ajuste_n ? ', ' . (int) $traslado->ajuste_n . ' rutas' : '') . ')'
+                    : '');
+        }
+
+        if ((string) ($traslado->sentido ?? '') === 'cargado' && (float) ($traslado->factor_vacio ?? 1) < 1) {
+            $partes[] = 'vuelta vacía: promedio de ida ×'
+                . number_format((float) $traslado->factor_vacio, 2, ',', '.');
+        }
+
+        return $partes === [] ? '' : ' · ' . implode(' · ', $partes);
     }
 
     /**

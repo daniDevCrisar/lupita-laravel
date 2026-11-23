@@ -370,6 +370,43 @@
         </div>
     </div>
 
+    {{-- ============ CAMIÓN VACÍO + COORDENADAS ============ --}}
+    <div class="card mb-3 border-info">
+        <div class="card-header bg-info text-dark">
+            <strong>Camión vacío y coordenadas</strong>
+            <span class="small">— el regreso a cargar va sin carga, y sin promedios manda la distancia</span>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-2">
+                El <strong>traslado de regreso a la planta</strong> se hace <strong>sin carga</strong>, y un camión
+                vacío tarda menos: medido el 19/11/2026 comparando los dos sentidos de los pares con ambos compilados,
+                la vuelta tarda <strong>0,83</strong> de la ida (mediana, 5 de 6 pares). El factor se aplica
+                <em>sólo</em> cuando la única ruta medida del par es la de <strong>ida</strong> (sale de la planta);
+                si la ruta ya es la del regreso vacío, no se toca. El viaje que le falta al camión NUNCA se corrige:
+                ese tramo va cargado.
+            </p>
+            <p class="small text-muted mb-2">
+                Cuando no hay <strong>ningún</strong> promedio para el par (ni de la ruta, ni de la referencia, ni de
+                los ubigeos), el traslado sale de las <strong>coordenadas de los locales</strong>
+                (<code>locales.lat/lng</code>, o el centroide del ubigeo): distancia recta × el ajuste
+                <code>minutos = base + pendiente × km</code> que se recalcula solo con las rutas que sí tienen
+                promedio. Va <strong>antes</strong> de Geoapify a propósito: no gasta cuota.
+            </p>
+
+            @include('lupita.partials.prediccion_valores_en_uso', [
+                'filas' => $vacio_coords ?? [],
+                'titulo' => 'En uso ahora',
+            ])
+
+            <div class="text-muted mt-2" style="font-size:.7rem">
+                <code>vacio_factor</code> = 1 apaga la corrección (queda como antes).
+                <code>coords_activo</code> = 0 apaga el escalón de distancia.
+                Los cuatro números de <code>coords_*</code> se usan sólo cuando todavía no hay ninguna ruta con
+                promedio y coordenadas con la que recalcular el ajuste.
+            </div>
+        </div>
+    </div>
+
     {{-- ============ EDITABLES + CALIBRACIÓN (partial compartido) ============ --}}
     @include('lupita.partials.prediccion_parametros')
 
@@ -513,7 +550,7 @@
             ],
             'traslado_defecto_min' => [
                 'nombre' => 'Traslado por defecto',
-                'que_es' => 'El último escalón del TRASLADO DE VUELTA (dónde está el camión → la planta donde tiene que cargar). La jerarquía de RESOLUCIÓN de la ruta es: (1) la ruta medida entre esos dos locales; (2) el mismo par de ubigeos; (3) la ruta de la propia referencia, porque el regreso se parece a la ida; (4) Geoapify, si hay key y no se agotó; (5) la mediana de las rutas con ese par de departamentos; (6) este valor. Dentro de los tres primeros escalones el TIEMPO de la ruta se calcula igual que el tramo que le falta al camión: lo medido de la ruta, mezclado con lo que esa placa tarda en la misma ruta (cruce_pares_k) y mezclado con el compilado POR DÍA Y HORA de esa ruta (horario_activo), todo con peso n/(n+k).',
+                'que_es' => 'El último escalón del TRASLADO DE VUELTA (dónde está el camión → la planta donde tiene que cargar). La jerarquía de RESOLUCIÓN es: (1) la ruta medida entre esos dos locales; (2) el mismo par de ubigeos; (3) la ruta de la propia referencia, porque el regreso se parece a la ida; (4) las coordenadas de los dos locales, cuando no hay ningún promedio; (5) Geoapify, si hay key y no se agotó; (6) la mediana de las rutas con ese par de departamentos; (7) este valor. Dentro de los tres primeros escalones el TIEMPO de la ruta se calcula igual que el tramo que le falta al camión: lo medido de la ruta, mezclado con lo que esa placa tarda en la misma ruta (cruce_pares_k) y mezclado con el compilado POR DÍA Y HORA de esa ruta (horario_activo), todo con peso n/(n+k). Si la ruta que se usó es la de ida (sale de la planta), se corrige con vacio_factor porque la vuelta va vacía.',
                 'mueve' => 'El hueco cuando la evidencia es «cadena» (ahí hueco = traslado + tiempo muerto) y sirve de referencia cuando el hueco medido es menor: si el medido queda por debajo, se avisa hueco_menor_que_traslado pero se respeta el medido. Cuando se usa este valor, el traslado queda con fuente «defecto» y la confianza baja 20 puntos.',
                 'subir' => 'Predicciones más tarde cuando falta el dato.',
                 'bajar' => 'Predicciones más temprano, con el riesgo de publicar una hora imposible.',

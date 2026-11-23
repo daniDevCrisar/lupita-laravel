@@ -2652,6 +2652,70 @@ evidencia. Hay tres niveles.
                      las claves nuevas) y un caso en MotorPresentaTest para el texto
                      del paso.
 
+  1.42 19/11/2026  - CAMION VACIO Y COORDENADAS EN EL TRASLADO. Dos cosas que
+                     faltaban en el regreso a la planta de carga.
+
+                     (a) FACTOR DE CAMION VACIO. El traslado es SIEMPRE la vuelta
+                     sin carga, y un camion vacio tarda menos. Medido comparando los
+                     dos sentidos de los pares con ambos compilados y con el sentido
+                     identificable (el cargado SALE de la planta): vacio/cargado =
+                     0,832 de mediana (p25 0,81 · p75 0,85 · 5 de 6 pares).
+                     Ejemplos: CARAL->BABEL AMAZON 277' vs 185', CARAL->SMI 247' vs
+                     199', CARAL->HUACHIPA 269' vs 246'.
+                     Se aplica SOLO al traslado y SOLO cuando la ruta que se uso va
+                     en el sentido CARGADO (sus compilados midieron la ida desde la
+                     planta); si la ruta ya es la del regreso vacio, no se toca. El
+                     tramo que le falta al camion NUNCA se corrige: ese va cargado.
+                     Clave nueva `vacio_factor` (float, 0,83 de fabrica; 1 = apagado)
+                     y campos nuevos en `historia`: `traslado_sentido`
+                     (vacio|cargado|desconocido) y `traslado_factor_vacio`.
+
+                     (b) ESCALON DE COORDENADAS. `locales` tiene `lat`/`lng`
+                     (decimal(9,6)); con ellas, cuando NO hay ningun promedio para el
+                     par, el traslado sale de la distancia RECTA entre los dos
+                     extremos por el ajuste `minutos = base + pendiente x km`, que se
+                     RECALCULA solo con las rutas compiladas que tienen coordenadas en
+                     los dos extremos (`DBPrediccion::calibracion_distancias()`), por
+                     par de departamentos cuando hay muestra y global si no.
+                     Medido el 19/11/2026 con 46 rutas: min = 60 + 4,15 x km.
+                     El escalon va ANTES de Geoapify (no gasta cuota) y usa
+                     `geo_coordenadas` para los extremos que son ubigeo, SIN
+                     geocodificar: `Geoapify::coord_ubigeo($u, false)`.
+                     Claves nuevas: `coords_activo`, `coords_base_min`,
+                     `coords_min_km`, `coords_km_h_min`, `coords_km_h_max` (cordura en
+                     km/h). Campos nuevos en `historia`: `traslado_km`,
+                     `traslado_ajuste` (par|global|config).
+                     CORRIDAD DEL AJUSTE: minimo 5 puntos, base >= 0 y pendiente que
+                     implique entre 5 y 45 km/h. Sin eso, un par con n = 3 daba
+                     "base -1.283 + 7,96 x km" (medido).
+
+                     MEDIDO en local (297 refs de octubre, traslado componente):
+                       fuente: ruta_medida 239 · ya_esta_en_planta 51 ·
+                               mismo_ubigeo 5 · ruta_de_la_ref 2
+                       sentido: cargado 169 (57 %) · vacio 128
+                       el factor se aplico en 169 (57 %) y le quito al traslado
+                       una mediana de 48 min (p90 198)
+                       de esas, 14 son evidencia cadena (donde la hora publicada ES
+                       traslado + muerto): la hora se corre 131 min de mediana hacia
+                       atras. En el resto solo cambia el reparto hueco/tiempo muerto.
+
+                     (c) HALLAZGO: BANDA INVERTIDA. Con la prediccion atrasada (la
+                     normal se recorta a `ahora`) y el piso fisico o la cuarta fecha
+                     corriendo el rapido hacia adelante, el rapido puede caer DESPUES
+                     de la normal: la banda queda invertida. No se recorta el rapido
+                     contra la normal (volveria el bug del rapido = ahora con el
+                     camion a mitad de viaje) y se avisa `banda_invertida`.
+                     (d) HALLAZGO: `Geoapify::coord_ubigeo($u, false)` cacheaba el
+                     null y despues el ruteo de la misma prediccion se quedaba sin
+                     coordenadas. Ahora, sin geocodificar, no se cachea.
+
+                     Tests: TrasladoConHorarioTest (factor vacio solo en el sentido
+                     cargado, apagado con 1, la distancia es haversine, el ajuste sale
+                     de las rutas con promedio, sin promedios manda la distancia, los
+                     ajustes por par son creibles), MotorPresentaTest (banda invertida)
+                     y SesgoCuartaFechaTest (acepta la banda invertida cuando el motor
+                     la avisa).
+
 ================================================================================
  FIN
 ================================================================================

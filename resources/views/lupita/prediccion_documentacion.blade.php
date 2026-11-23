@@ -313,9 +313,12 @@ JSON;
                         <li><strong>traslado_regreso</strong>: el viaje de vuelta hasta la planta de carga. El
                             tiempo de esa ruta se calcula <strong>igual que el tramo que le falta al camión</strong>:
                             lo medido de la ruta, mezclado con lo que esa placa tarda en ella y con el compilado
-                            por día y hora de salida (los promedios de ida y vuelta son casi iguales; la
-                            incertidumbre está en el descanso). Si no hay ruta, la mediana por departamentos y por
-                            último el manejo real de Geoapify.</li>
+                            por día y hora de salida. La vuelta va <strong>sin carga</strong>, así que si la única
+                            ruta medida del par es la de ida su promedio se corrige con
+                            <code>vacio_factor</code> (medido: 0,83). Sin ningún promedio para el par, el traslado
+                            sale de las <strong>coordenadas de los locales</strong> (distancia recta × el ajuste
+                            <code>base + pendiente × km</code>), y sólo después la mediana por departamentos y el
+                            manejo real de Geoapify.</li>
                         <li><strong>tiempo_muerto</strong>: <code>hueco − traslado</code>. Es exactamente lo que el
                             camión estuvo parado: <em>descanso, dormir, almuerzo, cola</em>.</li>
                     </ul>
@@ -409,6 +412,10 @@ JSON;
                             (el camión todavía tiene que quedar libre y volver): se acotó al piso.</li>
                         <li><code>sesgo_acotado</code> — la corrección por clase mandaba la cuarta fecha antes del
                             piso físico: se acotó.</li>
+                        <li><code>banda_invertida</code> — la predicción quedó atrasada (la normal se recortó a
+                            <code>ahora</code>) y el rápido, que respeta el piso físico, cae después: la banda
+                            rápida–tardada no contiene a la normal. Se avisa en vez de recortar el rápido contra ella
+                            (eso publicaría una hora físicamente imposible).</li>
                     </ul>
                 </div>
             </div>
@@ -531,8 +538,12 @@ php artisan prediccion:calibrar --aplicar   # guarda en prediccion_config</pre>
                 <code>prom_fuera_carga_min</code> + <code>prom_dentro_carga_min</code>. El
                 <em>tiempo muerto/descanso</em> es el único que no existe en esas APIs: sale de los pares de la
                 placa/chofer. Todo queda en <code>historia.viaje_cruce</code>, <code>historia.viaje_horario</code>,
-                <code>historia.traslado_cruce</code>, <code>historia.traslado_horario</code> y
-                <code>historia.traslado_fuente</code>.
+                <code>historia.traslado_cruce</code>, <code>historia.traslado_horario</code>,
+                <code>historia.traslado_sentido</code> (<code>vacio</code>/<code>cargado</code>),
+                <code>historia.traslado_factor_vacio</code> y <code>historia.traslado_fuente</code>. Cuando el
+                traslado sale de las coordenadas, <code>historia.traslado_km</code> y
+                <code>historia.traslado_ajuste</code> dicen la distancia recta y qué ajuste se usó
+                (<code>par</code> de departamentos, <code>global</code> o <code>config</code>).
             </p>
             </div>
         </div>

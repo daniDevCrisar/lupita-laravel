@@ -211,6 +211,36 @@ return [
     'frescura_horizonte_h' => 24,
     'edad_ancla_max_h' => 72,
 
+    // CAMIÓN VACÍO: el traslado de regreso a la planta de carga se hace SIN carga,
+    // y un camión vacío tarda menos. Medido el 19/11/2026 comparando los dos
+    // sentidos de los pares con ambos compilados y con el sentido identificable
+    // (el cargado SALE de la planta): vacío/cargado = 0,832 de mediana
+    // (p25 0,81 · p75 0,85 · 5 de 6 pares). Ejemplos: CARAL→BABEL AMAZON 277' vs
+    // 185' (0,67), CARAL→SMI 247' vs 199' (0,81), CARAL→HUACHIPA 269' vs 246' (0,91).
+    //
+    // Se aplica SÓLO al traslado y sólo cuando la ruta que se usó va en el sentido
+    // CARGADO (sus compilados midieron la ida desde la planta): ese promedio
+    // sobreestima la vuelta vacía. Si la ruta ya es la del sentido vacío, no se
+    // toca. 1.0 = apagado (comportamiento anterior).
+    'vacio_factor' => 0.83,
+
+    // SIN PROMEDIOS, CON COORDENADAS: `locales.lat/lng` (y el centroide del ubigeo
+    // como respaldo) dan la distancia RECTA entre la posición del camión y la
+    // planta. Con las rutas que sí tienen promedio compilado y coordenadas en los
+    // dos extremos se ajusta `minutos = base + pendiente × km` (medido el
+    // 19/11/2026 con 46 rutas: 49 + 4,08 × km, R² 0,79). El ajuste se recalcula
+    // solo, por par de departamentos cuando hay muestra; estos números son el
+    // respaldo cuando no hay ninguna ruta con coordenadas.
+    //
+    // Va ANTES de Geoapify a propósito: no gasta cuota. Sólo se usa cuando no hay
+    // ningún promedio (ni de la ruta, ni de la referencia, ni de los ubigeos).
+    'coords_activo' => 1,
+    'coords_base_min' => 49,
+    'coords_min_km' => 4.08,
+    // cordura: el resultado no puede implicar menos de estas horas de viaje
+    'coords_km_h_min' => 8,
+    'coords_km_h_max' => 90,
+
     // Topes heredados del módulo de tiempos.
     'tope_hueco_min' => 10080,
     'tope_etapa_min' => 2880,
