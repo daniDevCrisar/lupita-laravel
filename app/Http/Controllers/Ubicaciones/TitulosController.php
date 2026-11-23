@@ -44,6 +44,9 @@ class TitulosController extends Controller
             'sp_disponible'  => \App\Database\DBReprocesar::spDisponible(),
             // llega desde "Ver títulos" del ranking de palabras
             'fragmento'      => (function ($v) { return is_string($v) ? mb_substr(trim($v), 0, 120) : ''; })($request->query('fragmento', '')),
+            // un local con un "|" de mas matchea cualquier titulo: la prediccion de la
+            // columna "Ruta que quedaría" sale rarisima y hay que avisarlo arriba
+            'peligrosas'     => \App\Database\DBLocales::palabrasClavePeligrosas(),
         ]);
     }
 }

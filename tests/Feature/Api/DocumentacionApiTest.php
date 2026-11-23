@@ -37,17 +37,19 @@ class DocumentacionApiTest extends TestCase
 
         // el texto de la sección y la tabla de campos, al día
         $this->assertStringContainsString('Las cinco fechas', $html);
-        $this->assertStringContainsString('Más probable (4.ª)', $html);
-        $this->assertStringContainsString('Consenso (5.ª)', $html);
+        $this->assertStringContainsString('Base ajustada (4.ª)', $html);
+        $this->assertStringContainsString('Consenso', $html);
         $this->assertStringContainsString('presenta_consenso', $html);
         $this->assertStringNotContainsString('las tres fechas', $html, 'quedó texto viejo de tres fechas');
+        $this->assertStringNotContainsString('Más probable', $html, 'la cuarta fecha se llama base ajustada');
     }
 
     /**
-     * El orden medido (consenso > normal > más probable > rápido > tardado) tiene
-     * que estar en el texto: es lo único que le dice al integrador cuál mostrar.
+     * El orden de PRIORIDAD POR PRECISIÓN (rápido > consenso > normal > base
+     * ajustada > tardado) tiene que estar en el texto: es lo que le dice al
+     * integrador cuál mostrar.
      */
-    public function test_la_documentacion_publica_el_orden_medido_de_las_fechas(): void
+    public function test_la_documentacion_publica_el_orden_de_prioridad_de_las_fechas(): void
     {
         $this->withoutMiddleware();
         $usuario = User::query()->first();
@@ -57,11 +59,11 @@ class DocumentacionApiTest extends TestCase
 
         $html = (string) $this->get(route('lupita.prediccion.documentacion'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Cuál usar, de más a menos probable', $html);
+        $this->assertStringContainsString('en orden de prioridad por precisión', $html);
         $this->assertStringContainsString('3.085 presentaciones reales', $html);
 
-        // el orden de los badges: 1 consenso, 2 normal, 3 más probable, 4 rápido, 5 tardado
-        $orden = ['1. Consenso', '2. Normal', '3. Más probable', '4. Rápido', '5. Tardado'];
+        // el orden de los badges
+        $orden = ['1. Rápido', '2. Consenso', '3. Normal', '4. Base ajustada', '5. Tardado'];
         $posiciones = array_map(fn ($texto) => strpos($html, $texto), $orden);
 
         foreach ($posiciones as $i => $posicion) {
@@ -89,8 +91,8 @@ class DocumentacionApiTest extends TestCase
 
         $html = (string) file_get_contents($ruta);
         $this->assertStringContainsString('Cómo mostrar las fechas cuando se predice', $html);
-        // las cinco, en el orden medido
-        $orden = ['consenso', 'normal', 'más probable', 'rápido', 'tardado'];
+        // las cinco, en el orden de prioridad (la cuarta se llama base ajustada)
+        $orden = ['rápido', 'consenso', 'normal', 'base ajustada', 'tardado'];
         $posiciones = array_map(fn ($texto) => stripos($html, '· ' . $texto), $orden);
 
         $encontrados = array_filter($posiciones, fn ($p) => $p !== false);

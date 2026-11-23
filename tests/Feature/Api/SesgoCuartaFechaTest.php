@@ -191,15 +191,17 @@ class SesgoCuartaFechaTest extends TestCase
 
         $filtros = ['fecha_inicio' => '2026-10-20', 'fecha_fin' => '2026-11-10', 'limite' => '40'];
 
-        // apagado: la columna existe y dice que es igual a la normal
+        // apagado: la columna existe y dice que es igual a la normal (la cuarta
+        // fecha se publica como "base ajustada")
         Parametros::guardar(['sesgo_clase_activo' => 0]);
         $this->olvidarParametros();
         $apagado = (string) \App\Http\Controllers\PrediccionController::aciertos(
             Request::create('/x', 'GET', $filtros))->render();
 
-        $this->assertStringContainsString('Más probable', $apagado);
+        $this->assertStringContainsString('Base ajustada', $apagado);
         $this->assertStringContainsString('4.ª fecha', $apagado);
         $this->assertStringContainsString('igual a la normal', $apagado);
+        $this->assertStringNotContainsString('Más probable', $apagado, 'la cuarta se renombró');
 
         // encendido con un sesgo grande: la fila muestra la corrección y su error
         $this->aplicarSesgos(array_fill_keys(array_keys(Sesgo::claves()), 240));

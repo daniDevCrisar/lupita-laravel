@@ -59,13 +59,20 @@ class PalabrasController extends Controller
             'texto.required' => 'Falta el texto del candidato.',
         ]);
 
-        DBUbicaciones::descartar(
+        $ok = DBUbicaciones::descartar(
             'palabra',
             $datos['clave'],
             $datos['texto'],
             $datos['motivo'] ?? null,
             auth()->id() !== null ? (int) auth()->id() : null
         );
+
+        if (!$ok) {
+            return redirect()
+                ->route('lupita.ubicaciones.palabras')
+                ->with('error', 'No se pudo descartar: falta la tabla ubicaciones_descartes. '
+                    . 'Creala con el SQL de sql/ubicaciones.sql.');
+        }
 
         return redirect()
             ->route('lupita.ubicaciones.palabras')
@@ -83,11 +90,13 @@ class PalabrasController extends Controller
             'clave.regex' => 'La clave del candidato no es válida.',
         ]);
 
-        DBUbicaciones::restaurar('palabra', $datos['clave']);
+        $ok = DBUbicaciones::restaurar('palabra', $datos['clave']);
 
         return redirect()
             ->route('lupita.ubicaciones.palabras')
-            ->with('exito', 'Candidato restaurado.');
+            ->with($ok ? 'exito' : 'error', $ok
+                ? 'Candidato restaurado.'
+                : 'No se pudo restaurar: falta la tabla ubicaciones_descartes.');
     }
 
     /**

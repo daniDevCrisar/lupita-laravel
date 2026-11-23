@@ -107,22 +107,26 @@ class DBUbicaciones
     }
 
     /**
-     * Analizador armado con el catalogo de la base (memoizado por request).
+     * Analizador armado con el catalogo de la base.
+     *
+     * NO se memoiza a proposito: un static sobrevive a la request en procesos de larga
+     * vida (workers, Octane, y la propia suite de tests, donde un catalogo de prueba
+     * quedaba pegado al test siguiente). El catalogo son dos consultas chicas y cada
+     * controller lo pide una sola vez.
      */
     public static function analizador(): AnalizadorTitulos
     {
-        static $analizador = null;
+        $catalogos = self::catalogos();
 
-        if ($analizador === null) {
-            $catalogos = self::catalogos();
-            $analizador = new AnalizadorTitulos($catalogos['locales'], $catalogos['distritos']);
-        }
-
-        return $analizador;
+        return new AnalizadorTitulos($catalogos['locales'], $catalogos['distritos']);
     }
 
     /**
      * Descartados de un tipo, indexados por clave.
+     *
+     * Si la tabla no existe todavia (una base nueva, o alguien la borro), devuelve una
+     * lista vacia en vez de reventar la pantalla: igual que hace `DBGeoapify` con su
+     * contador. Descartar candidatos es una comodidad, no un requisito para diagnosticar.
      *
      * @return array<string, array{texto: string, motivo: ?string}>
      */
@@ -130,7 +134,13 @@ class DBUbicaciones
     {
         $salida = [];
 
-        foreach (DB::table('ubicaciones_descartes')->where('tipo', $tipo)->get(['id', 'clave', 'motivo']) as $fila) {
+        try {
+            $filas = DB::table('ubicaciones_descartes')->where('tipo', $tipo)->get(['id', 'clave', 'motivo']);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        foreach ($filas as $fila) {
             $salida[(string) $fila->id] = [
                 'texto'  => (string) $fila->clave,
                 'motivo' => $fila->motivo !== null ? (string) $fila->motivo : null,
@@ -142,6 +152,9 @@ class DBUbicaciones
 
     /**
      * Descarta un candidato (idempotente: descartar dos veces no duplica).
+     *
+     * Devuelve false si no se pudo guardar (por ejemplo, si la tabla no existe), para
+     * que el controlador avise en vez de tirar un 500.
      */
     public static function descartar(
         string $tipo,
@@ -149,25 +162,37 @@ class DBUbicaciones
         string $texto,
         ?string $motivo = null,
         ?int $usuarioId = null
-    ): void {
-        DB::table('ubicaciones_descartes')->updateOrInsert(
-            ['id' => $clave],
-            [
-                'tipo'       => $tipo,
-                'clave'      => mb_substr($texto, 0, 500),
-                'motivo'     => $motivo,
-                'usuario_id' => $usuarioId,
-                'created_at' => now(),
-            ]
-        );
+    ): bool {
+        try {
+            DB::table('ubicaciones_descartes')->updateOrInsert(
+                ['id' => $clave],
+                [
+                    'tipo'       => $tipo,
+                    'clave'      => mb_substr($texto, 0, 500),
+                    'motivo'     => $motivo,
+                    'usuario_id' => $usuarioId,
+                    'created_at' => now(),
+                ]
+            );
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
      * Vuelve a mostrar un candidato descartado.
      */
-    public static function restaurar(string $tipo, string $clave): void
+    public static function restaurar(string $tipo, string $clave): bool
     {
-        DB::table('ubicaciones_descartes')->where('tipo', $tipo)->where('id', $clave)->delete();
+        try {
+            DB::table('ubicaciones_descartes')->where('tipo', $tipo)->where('id', $clave)->delete();
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

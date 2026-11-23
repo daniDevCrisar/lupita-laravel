@@ -133,7 +133,7 @@
     <h1>Cómo mostrar las fechas cuando se predice</h1>
     <p class="sub">
         Ejemplo estático (mockup) con el viaje <code>1182661</code>, corte 11/11 09:00.
-        Todas las fechas salen del motor: rápido, normal, tardado, más probable y consenso.
+        Todas las fechas salen del motor: rápido, consenso, normal, base ajustada y tardado.
     </p>
 
     <!-- ======================= PROBLEMA ======================= -->
@@ -142,15 +142,15 @@
         <div class="etiqueta-chica">se presentaría entre</div>
         <div class="chips">
             <div class="chip">Rápido <b>14/11 · 21:33</b><small>en 60:33</small></div>
-            <div class="chip">Normal <b>15/11 · 09:27</b><small>en 96:27</small></div>
-            <div class="chip">Tardado <b>16/11 · 18:44</b><small>en 129:44</small></div>
-            <div class="chip">Más probable <b>15/11 · 12:41</b><small>en 99:41</small></div>
             <div class="chip">Consenso <b>15/11 · 06:34</b><small>en 93:34</small></div>
+            <div class="chip">Normal <b>15/11 · 09:27</b><small>en 96:27</small></div>
+            <div class="chip">Base ajustada <b>15/11 · 12:41</b><small>en 99:41</small></div>
+            <div class="chip">Tardado <b>16/11 · 18:44</b><small>en 129:44</small></div>
         </div>
         <p class="nota">
             El monitorista tiene que <b>elegir una</b> y no hay nada que le diga cuál.
-            La que más acierta (consenso) y la de menor error (más probable) no son la misma,
-            y las dos extremas parecen igual de válidas que el resto.
+            La que más acierta dentro del margen (consenso) y la de menor error (base ajustada) no son la
+            misma, y las dos extremas parecen igual de válidas que el resto.
         </p>
     </div>
 
@@ -174,8 +174,8 @@
                     </div>
                 </div>
                 <div class="esperada">
-                    hora esperada (sin sesgo): <b>15/11 · 12:41</b><br>
-                    <span style="color:var(--tenue)">más probable · mediana del error −16 min · MAE 19 h 51</span>
+                    base ajustada (la más centrada): <b>15/11 · 12:41</b><br>
+                    <span style="color:var(--tenue)">mediana del error −16 min · MAE 19 h 51</span>
                 </div>
             </div>
 
@@ -219,32 +219,32 @@
                     <tbody>
                     <tr class="elegida">
                         <td><span class="orden">1</span></td>
-                        <td><b>15/11 06:34</b> · consenso</td>
-                        <td>prometer una hora con margen (la que más acierta)</td>
-                        <td class="num">37 %</td><td class="num">34 %</td><td class="num">31 %</td><td class="num">20 h 10</td>
+                        <td><b>14/11 21:33</b> · rápido</td>
+                        <td>el que más veces entra en el margen (borde optimista de la banda)</td>
+                        <td class="num">14 %</td><td class="num">11 %</td><td class="num">12 %</td><td class="num">23 h 45</td>
                     </tr>
                     <tr>
                         <td><span class="orden">2</span></td>
+                        <td>15/11 06:34 · consenso</td>
+                        <td>prometer una hora con margen (la que mejor promedia el acierto)</td>
+                        <td class="num">37 %</td><td class="num">34 %</td><td class="num">31 %</td><td class="num">20 h 10</td>
+                    </tr>
+                    <tr>
+                        <td><span class="orden">3</span></td>
                         <td>15/11 09:27 · normal</td>
                         <td>la de siempre; la que se guarda y se compara</td>
                         <td class="num">26 %</td><td class="num">27 %</td><td class="num">27 %</td><td class="num">22 h 06</td>
                     </tr>
                     <tr>
-                        <td><span class="orden">3</span></td>
-                        <td>15/11 12:41 · más probable</td>
+                        <td><span class="orden">4</span></td>
+                        <td>15/11 12:41 · base ajustada</td>
                         <td>planificar carga: la más centrada y de menor error</td>
                         <td class="num">21 %</td><td class="num">24 %</td><td class="num">24 %</td><td class="num">19 h 51</td>
                     </tr>
                     <tr>
-                        <td><span class="orden">4</span></td>
-                        <td>14/11 21:33 · rápido</td>
-                        <td>borde optimista de la banda (no es una hora)</td>
-                        <td class="num">14 %</td><td class="num">11 %</td><td class="num">12 %</td><td class="num">23 h 45</td>
-                    </tr>
-                    <tr>
                         <td><span class="orden">5</span></td>
                         <td>16/11 18:44 · tardado</td>
-                        <td>borde tardío: techo para el cliente, no una promesa</td>
+                        <td>techo de la banda: no se promete con esto</td>
                         <td class="num">2 %</td><td class="num">4 %</td><td class="num">6 %</td><td class="num">32 h 07</td>
                     </tr>
                     </tbody>
@@ -265,10 +265,10 @@
         <div class="panel mal">
             <div class="cabeza-comparacion mal">✗ como está hoy</div>
             <div class="chips">
-                <div class="chip">Normal <b>15/11 · 09:27</b></div>
-                <div class="chip">Consenso <b>15/11 · 06:34</b></div>
-                <div class="chip">Más probable <b>15/11 · 12:41</b></div>
                 <div class="chip">Rápido <b>14/11 · 21:33</b></div>
+                <div class="chip">Consenso <b>15/11 · 06:34</b></div>
+                <div class="chip">Normal <b>15/11 · 09:27</b></div>
+                <div class="chip">Base ajustada <b>15/11 · 12:41</b></div>
                 <div class="chip">Tardado <b>16/11 · 18:44</b></div>
             </div>
             <p class="nota">Cinco datos, ninguna jerarquía: la decisión queda en el operador.</p>
@@ -280,7 +280,7 @@
                 consenso · dentro de ±1 h el 34 % · entre 14/11 21:33 y 16/11 18:44 (69 %)
             </div>
             <div style="font-size:.84rem; color:var(--tenue); margin-top:8px">
-                hora esperada sin sesgo: <b style="color:var(--texto)">15/11 · 12:41</b> (más probable)
+                base ajustada: <b style="color:var(--texto)">15/11 · 12:41</b> (la más centrada)
             </div>
             <p class="nota">Un número grande, la incertidumbre alrededor y el detalle a un clic.</p>
         </div>
@@ -290,15 +290,17 @@
     <h2>Reglas para cualquier pantalla que muestre la predicción</h2>
     <div class="panel">
         <ul class="reglas">
+            <li><b>Prioridad por precisión</b>: rápido → consenso → normal → base ajustada → tardado.
+                Es el orden en que se leen y se comparan.</li>
             <li><b>Una sola hora grande</b>: el <b>consenso</b>. Es la que más veces cae dentro del margen
                 (37 % a ±30 min, 31 % a ±3 h).</li>
             <li><b>Una banda</b>, no dos fechas sueltas: rápido → tardado con su cobertura. Ahí vive la
                 incertidumbre y es lo que se promete al cliente.</li>
-            <li><b>La hora esperada</b> (más probable) como número chico al lado: es la de menor error promedio
+            <li><b>La base ajustada</b> como número chico al lado: es la de menor error promedio
                 y la única con la mediana centrada (en este viaje, 12:41 contra 06:34 del consenso).</li>
             <li><b>Nunca</b> ofrecer el rápido y el tardado como si fueran horas elegibles: son los bordes.</li>
-            <li><b>El detalle, colapsado</b>: las cinco en el orden medido (consenso &gt; normal &gt; más probable
-                &gt; rápido &gt; tardado) con su % y su MAE, para quien quiera auditarlo.</li>
+            <li><b>El detalle, colapsado</b>: las cinco en el orden de prioridad (rápido &gt; consenso &gt; normal
+                &gt; base ajustada &gt; tardado) con su % y su MAE, para quien quiera auditarlo.</li>
             <li><b>La confianza y la evidencia</b> siempre visibles: con confianza &lt; 30 % no se compromete
                 una hora, se avisa.</li>
         </ul>

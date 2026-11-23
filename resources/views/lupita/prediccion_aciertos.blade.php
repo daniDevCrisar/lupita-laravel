@@ -304,9 +304,10 @@
                     <th>Placa</th>
                     <th>Ancla<br><span class="fw-normal small">fin de descargue</span></th>
                     <th class="text-success">Rápido</th>
+                    <th class="text-secondary">Consenso</th>
                     <th class="text-primary">Predicho</th>
+                    <th class="text-info">Base ajustada<br><span class="fw-normal small">4.ª fecha</span></th>
                     <th class="text-warning">Tardado</th>
-                    <th class="text-info">Más probable<br><span class="fw-normal small">4.ª fecha</span></th>
                     <th class="text-success">Real<br><span class="fw-normal small">presenta_para_carga</span></th>
                     <th class="text-end">Error</th>
                     <th>Calibra<br><span class="fw-normal small">con</span></th>
@@ -346,14 +347,20 @@
                         <td class="small text-success text-nowrap">
                             {{ ($fila->rapido ?? null) ? $fila->rapido->format('d/m H:i') : '—' }}
                         </td>
+                        {{-- 5.ª fecha: el promedio de rápida, normal y base ajustada --}}
+                        <td class="small text-secondary text-nowrap">
+                            {{ ($fila->consenso ?? null) ? $fila->consenso->format('d/m H:i') : '—' }}
+                            @if(($fila->error_consenso_min ?? null) !== null)
+                                <span class="badge bg-{{ $colorError($fila->error_consenso_min) }}">
+                                    {{ $signo($fila->error_consenso_min) }}
+                                </span>
+                            @endif
+                        </td>
                         <td class="small text-primary fw-bold text-nowrap">
                             {{ $fila->predicho ? $fila->predicho->format('d/m H:i') : '—' }}
                             @if($fila->dentro)
                                 <div class="text-muted fw-normal" style="font-size:.65rem">dentro de rápido–tardado</div>
                             @endif
-                        </td>
-                        <td class="small text-warning text-nowrap">
-                            {{ ($fila->tardado ?? null) ? $fila->tardado->format('d/m H:i') : '—' }}
                         </td>
                         {{-- 4.ª fecha: la normal corregida por el sesgo medido de su clase --}}
                         <td class="small text-info text-nowrap">
@@ -377,6 +384,9 @@
                                     </span>
                                 @endif
                             @endif
+                        </td>
+                        <td class="small text-warning text-nowrap">
+                            {{ ($fila->tardado ?? null) ? $fila->tardado->format('d/m H:i') : '—' }}
                         </td>
                         <td class="small text-success fw-bold text-nowrap">
                             {{ $fila->real->format('d/m/Y H:i') }}

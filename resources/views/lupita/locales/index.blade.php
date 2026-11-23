@@ -25,6 +25,8 @@
         </div>
     </div>
 
+    @include('lupita.ubicaciones.partials.claves-peligrosas', ['peligrosas' => $peligrosas ?? []])
+
     @if(session('exito'))
         <div class="alert alert-success mt-3">{{ session('exito') }}</div>
     @endif

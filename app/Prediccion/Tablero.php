@@ -37,8 +37,11 @@ final class Tablero
     /** Estratos de la confianza declarada por el motor (0..100). */
     public const TRAMOS_CONFIANZA = [[0, 20], [21, 40], [41, 70], [71, 95], [96, 100]];
 
-    /** Las fechas que publica el motor, en el orden en que se muestran. */
-    public const FECHAS = ['rapido', 'normal', 'tardado', 'probable', 'consenso'];
+    /**
+     * Las fechas que publica el motor, EN EL ORDEN DE PRIORIDAD POR PRECISIÓN:
+     * rápido, consenso, normal, base ajustada (clave `probable`), tardado.
+     */
+    public const FECHAS = ['rapido', 'consenso', 'normal', 'probable', 'tardado'];
 
     /**
      * Estratos del horizonte: cuánto tiempo ANTES del hecho se dijo la hora.
@@ -257,8 +260,11 @@ final class Tablero
     }
 
     /**
-     * Catálogo de las cuatro fechas publicadas: etiqueta, campo con el error y
-     * una línea que dice qué es cada una.
+     * Catálogo de las cinco fechas publicadas: etiqueta, campo con el error y una
+     * línea que dice qué es cada una. El orden es el de PRIORIDAD POR PRECISIÓN.
+     *
+     * OJO: la clave en la base y en el JSON sigue siendo `probable`; lo que cambió
+     * es lo que se muestra: **base ajustada**.
      *
      * @return array<string, array{etiqueta: string, campo: string, texto: string}>
      */
@@ -267,14 +273,14 @@ final class Tablero
         return [
             'rapido' => ['etiqueta' => 'Rápido', 'campo' => 'error_rapido_min',
                          'texto' => 'el extremo temprano de la banda'],
+            'consenso' => ['etiqueta' => 'Consenso', 'campo' => 'error_consenso_min',
+                           'texto' => 'el promedio de la rápida, la normal y la base ajustada'],
             'normal' => ['etiqueta' => 'Normal', 'campo' => 'error_min',
                          'texto' => 'la hora publicada por el motor'],
+            'probable' => ['etiqueta' => 'Base ajustada', 'campo' => 'error_probable_min',
+                           'texto' => 'la normal corregida por el sesgo de su clase'],
             'tardado' => ['etiqueta' => 'Tardado', 'campo' => 'error_tardado_min',
                           'texto' => 'el extremo tardío de la banda'],
-            'probable' => ['etiqueta' => 'Más probable', 'campo' => 'error_probable_min',
-                           'texto' => 'la normal corregida por el sesgo de su clase'],
-            'consenso' => ['etiqueta' => 'Consenso', 'campo' => 'error_consenso_min',
-                           'texto' => 'el promedio de la rápida, la normal y la más probable'],
         ];
     }
 

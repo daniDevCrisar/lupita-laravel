@@ -297,10 +297,13 @@ CUAL FECHA USAR (MEDIDO, 3.085 PRESENTACIONES REALES)
                    `delta_normal_min` = minutos entre esa fecha y la normal
                    (negativo = antes). `construccion` = de donde sale ESA fecha,
                    en una linea: "normal − 9:45 · banda medida (cubre 70 %)",
-                   "promedio de rapido (60:33), normal (96:27) y mas probable
+                   "promedio de rapido (60:33), normal (96:27) y base ajustada
                    (99:41) desde el corte = 93:34 · normal − 2:53". Asi cada una
                    de las cinco se puede auditar, no solo la normal (los `pasos`
                    de abajo siguen explicando la normal).
+                   ORDEN: desde la 1.43 el array va en el orden de PRIORIDAD POR
+                   PRECISION: rapido, consenso, normal, probable (etiqueta "Base
+                   ajustada"), tardado.
   inicio_carga     presenta + espera en planta (null si no hay presenta).
   espera_min       espera en planta usada, en minutos.
   espera_hhmm      la misma espera en h:mm (ver seccion 8).
@@ -2383,7 +2386,7 @@ evidencia. Hay tres niveles.
                                              probable  "normal + 0:19 (sesgo de la
                                                         clase parcial|corto: 19 min)"
                                              consenso  "promedio de rapido (60:33),
-                                                        normal (96:27) y mas probable
+                                                        normal (96:27) y base ajustada
                                                         (99:41) desde el corte =
                                                         93:34 · normal − 2:53"
                      Los `pasos` NO cambian: siguen siendo la linea de tiempo de la
@@ -2715,6 +2718,31 @@ evidencia. Hay tres niveles.
                      ajustes por par son creibles), MotorPresentaTest (banda invertida)
                      y SesgoCuartaFechaTest (acepta la banda invertida cuando el motor
                      la avisa).
+
+  1.43 19/11/2026  - LA CUARTA FECHA SE LLAMA "BASE AJUSTADA" Y HAY ORDEN DE
+                     PRIORIDAD. Dos cambios de nombre/orden, ninguno toca el calculo.
+
+                     (a) La fecha `probable` (columna `presenta_probable`) se publica
+                     como **Base ajustada** en todos lados: API, calculadora, tablas
+                     de aciertos y guardadas, documentacion y parametros. La CLAVE
+                     sigue siendo `probable` (`error_probable_min`, `resumen_probable`,
+                     `presenta_probable`): no cambia nada de lo guardado ni lo que
+                     consumen los integradores.
+                     (b) El orden de las cinco fechas pasa a ser de PRIORIDAD POR
+                     PRECISION, definido por el negocio:
+                        1 rapido · 2 consenso · 3 normal · 4 probable (base
+                        ajustada) · 5 tardado
+                     `Tablero::FECHAS`, `Tablero::catalogo_fechas()`,
+                     `Aciertos::FECHAS` y `MotorPresenta::presentaciones()` usan ese
+                     orden, asi que lo siguen: las columnas de la tabla de las cinco
+                     fechas, la tabla de KPI por tolerancia, los checks de que fechas
+                     comparar, la carrera de "mas cerca" (los empates los gana la
+                     primera del orden), el array `presentaciones` del API y las
+                     tarjetas de la calculadora.
+                     OJO: el orden de PUBLICACION no es el de MAE medido ni el de
+                     porcentaje dentro del margen; la documentacion lo aclara en el
+                     punto 2 (en MAE la base ajustada sigue siendo la mejor y el
+                     consenso el que mas veces entra en el margen).
 
 ================================================================================
  FIN

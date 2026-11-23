@@ -71,6 +71,41 @@ class DBLocales
     }
 
     /**
+     * Locales cuya `palabra_clave` tiene una variante VACIA (un `|` de mas).
+     *
+     * POR QUE ES GRAVE: el SP arma el patron `\b(<palabra_clave>)\b`. Si la clave
+     * termina en `|` (o tiene `||`), el patron queda con una alternancia vacia:
+     * `\b(SALEM PIURA|ALMACEN PIURA|)\b`, y eso **matchea cualquier texto**. Verificado
+     * contra MySQL: `'CUALQUIER COSA' REGEXP '\b(A|B|)\b'` devuelve 1. Ese local se
+     * vuelve un comodin que se lleva todas las refs que no matchearon antes (gana el
+     * primero del alfabeto) y contamina rutas en silencio.
+     *
+     * @return array<int, array{id: string, palabra_clave: string, vacias: int}>
+     */
+    public static function palabrasClavePeligrosas(): array
+    {
+        $salida = [];
+
+        foreach (DB::table('locales')->orderBy('id')->get(['id', 'palabra_clave']) as $local) {
+            $clave = (string) ($local->palabra_clave ?? '');
+            $vacias = count(array_filter(
+                explode('|', $clave),
+                fn (string $variante) => trim($variante) === ''
+            ));
+
+            if ($vacias > 0) {
+                $salida[] = [
+                    'id'            => (string) $local->id,
+                    'palabra_clave' => $clave,
+                    'vacias'        => $vacias,
+                ];
+            }
+        }
+
+        return $salida;
+    }
+
+    /**
      * Que tiene vinculado un local: si algo de esto es > 0, no se puede borrar.
      *
      * Las referencias no cuentan aparte porque cuelgan de una ruta: si no hay rutas,

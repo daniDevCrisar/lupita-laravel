@@ -274,14 +274,16 @@ class TableroTest extends TestCase
             $this->filaFechas(null, 60, null, null), // sólo la normal
         ];
 
-        // las cuatro de siempre (el consenso es una quinta, va aparte)
+        // las cuatro de siempre (el consenso es una quinta, va aparte).
+        // La selección se normaliza al orden de prioridad: rápido, (consenso),
+        // normal, base ajustada, tardado.
         $t = Tablero::fechas($filas, 180, ['rapido', 'normal', 'tardado', 'probable']);
 
         // sólo la primera fila tiene las cuatro: el n es el mismo para todas
         $this->assertSame(1, $t['n']);
         $this->assertSame(2, $t['incompletas']);
         $this->assertSame(3, $t['total']);
-        $this->assertSame(['rapido', 'normal', 'tardado', 'probable'], $t['seleccion']);
+        $this->assertSame(['rapido', 'normal', 'probable', 'tardado'], $t['seleccion']);
         $this->assertSame([1, 1, 1, 1], array_column($t['filas'], 'n'),
             'cada fecha se mide sobre las MISMAS filas, no sobre las que le tocan');
 
@@ -503,7 +505,8 @@ class TableroTest extends TestCase
         $this->assertSame('Por evidencia', $t['titulo']);
         $this->assertNull($t['nota'], 'sólo el horizonte necesita aclarar de dónde sale');
         $this->assertSame(180, $t['tolerancia']);
-        $this->assertSame(['Rápido', 'Normal', 'Tardado', 'Más probable', 'Consenso'],
+        // orden de prioridad por precisión, con la cuarta renombrada
+        $this->assertSame(['Rápido', 'Consenso', 'Normal', 'Base ajustada', 'Tardado'],
             array_column($t['fechas'], 'etiqueta'));
 
         // orden del catálogo (medido, parcial, cadena) y sólo los que aparecen
@@ -512,13 +515,13 @@ class TableroTest extends TestCase
 
         [$medido, $cadena] = $t['filas'];
 
-        // el MAE de cada fecha DENTRO del tramo
-        $this->assertSame([45, 450, 800, 80, 145], array_column($medido['celdas'], 'mae'));
+        // el MAE de cada fecha DENTRO del tramo (rápido, consenso, normal, base ajustada, tardado)
+        $this->assertSame([45, 145, 450, 80, 800], array_column($medido['celdas'], 'mae'));
         // y el acierto en la tolerancia pedida
-        $this->assertSame([100, 0, 0, 100, 50], array_column($medido['celdas'], 'pct'));
+        $this->assertSame([100, 50, 0, 100, 0], array_column($medido['celdas'], 'pct'));
 
         $this->assertSame(0, $medido['mejor'], 'dentro de medido, el rápido es el más fino');
-        $this->assertSame(1, $cadena['mejor'], 'dentro de cadena la única que se salva es la normal');
+        $this->assertSame(2, $cadena['mejor'], 'dentro de cadena la única que se salva es la normal');
 
         // carrera de "más cerca" por tramo: 30 vs 40 (empate a 50 %, gana el primero publicado)
         $this->assertSame('rapido', $medido['gana']);
@@ -535,7 +538,8 @@ class TableroTest extends TestCase
         $t = Tablero::fechas_por([$completa, $sinConsenso], 'evidencia', 180);
 
         $this->assertSame(1, $t['filas'][0]['n'], 'la incompleta no compite con las cinco');
-        $this->assertSame([30, 60, 90, 120, 150], array_column($t['filas'][0]['celdas'], 'mae'));
+        // rápido, consenso, normal, base ajustada, tardado
+        $this->assertSame([30, 150, 60, 120, 90], array_column($t['filas'][0]['celdas'], 'mae'));
 
         // y si se piden sólo cuatro, la misma fila sí entra: no se pierde nada
         $cuatro = Tablero::fechas_por([$completa, $sinConsenso], 'evidencia', 180,
@@ -587,9 +591,10 @@ class TableroTest extends TestCase
         $this->assertSame([1, 1, 1, 1], array_column($t['filas'], 'n'),
             'un tramo por cada banda de confianza, sin mezclar');
 
-        // en los cuatro tramos la normal (60) es la más fina de la fila
+        // en los cuatro tramos la normal (60) es la más fina de la fila; en la
+        // celda de celdas ocupa la tercera posición (rápido, consenso, normal…)
         foreach ($t['filas'] as $fila) {
-            $this->assertSame(1, $fila['mejor']);
+            $this->assertSame(2, $fila['mejor']);
             $this->assertSame('normal', $fila['gana']);
         }
     }

@@ -54,35 +54,38 @@
         </div>
         <div class="card-body">
             @php
-                $tres = $r->presentaciones ?? [];
-                $coloresTres = ['rapido' => 'success', 'normal' => 'primary', 'tardado' => 'warning'];
+                $fechas = $r->presentaciones ?? [];
+                // color por fecha, en el orden de prioridad: rápido, consenso, normal,
+                // base ajustada (clave `probable`), tardado
+                $coloresFechas = ['rapido' => 'success', 'consenso' => 'secondary', 'normal' => 'primary',
+                                  'probable' => 'info', 'tardado' => 'warning'];
             @endphp
 
             <div class="row g-2 mb-3">
-                @foreach($tres as $p3)
-                    <div class="col-md-3">
-                        <div class="card h-100 border-{{ $coloresTres[$p3['clave']] ?? 'secondary' }}
-                                    {{ $p3['clave'] === 'normal' ? 'shadow-sm' : '' }}">
+                @foreach($fechas as $fecha)
+                    <div class="col-md-2">
+                        <div class="card h-100 border-{{ $coloresFechas[$fecha['clave']] ?? 'secondary' }}
+                                    {{ $fecha['clave'] === 'normal' ? 'shadow-sm' : '' }}">
                             <div class="card-body py-2">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold text-{{ $coloresTres[$p3['clave']] ?? 'secondary' }}">
-                                        {{ $p3['etiqueta'] }}
+                                    <span class="fw-bold text-{{ $coloresFechas[$fecha['clave']] ?? 'secondary' }}">
+                                        {{ $fecha['etiqueta'] }}
                                     </span>
-                                    <span class="badge bg-light text-dark">en {{ $p3['desde_ahora'] }}</span>
+                                    <span class="badge bg-light text-dark">en {{ $fecha['desde_ahora'] }}</span>
                                 </div>
-                                <div class="fs-3 fw-bold text-nowrap">
-                                    {{ \Carbon\Carbon::parse($p3['fecha'])->format('d/m H:i') }}
+                                <div class="fs-4 fw-bold text-nowrap">
+                                    {{ \Carbon\Carbon::parse($fecha['fecha'])->format('d/m H:i') }}
                                 </div>
-                                <div class="text-muted" style="font-size:.7rem">{{ $p3['descripcion'] }}</div>
+                                <div class="text-muted" style="font-size:.7rem">{{ $fecha['descripcion'] }}</div>
                             </div>
                         </div>
                     </div>
                 @endforeach
-                <div class="col-md-3">
-                    <div class="card h-100 border-info">
+                <div class="col-md-2">
+                    <div class="card h-100 border-dark">
                         <div class="card-body py-2">
-                            <div class="fw-bold text-info">Inicio de carga</div>
-                            <div class="fs-3 fw-bold text-nowrap">
+                            <div class="fw-bold text-dark">Inicio de carga</div>
+                            <div class="fs-4 fw-bold text-nowrap">
                                 {{ $r->inicio_carga ? $r->inicio_carga->format('d/m H:i') : '—' }}
                             </div>
                             <div class="text-muted" style="font-size:.7rem">

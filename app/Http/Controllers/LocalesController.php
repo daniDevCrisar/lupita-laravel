@@ -31,9 +31,10 @@ class LocalesController extends Controller
         $cliente_filtro = is_string($valor) ? mb_substr(trim($valor), 0, 50) : '';
 
         return view('lupita.locales.index', [
-            'locales'  => DBLocales::listar(),
-            'clientes' => DBLocales::clientes(),
+            'locales'        => DBLocales::listar(),
+            'clientes'       => DBLocales::clientes(),
             'cliente_filtro' => $cliente_filtro,
+            'peligrosas'     => DBLocales::palabrasClavePeligrosas(),
         ]);
     }
 
@@ -180,11 +181,15 @@ class LocalesController extends Controller
      */
     private function normalizar(Request $request): void
     {
+        // palabra clave: se limpian los espacios de cada variante. Las variantes VACIAS
+        // se dejan como estan para que la validacion las rechace (ver reglas()).
+        $palabra_clave = implode('|', array_map('trim', explode('|', (string) $request->input('palabra_clave'))));
+
         $request->merge([
             'id'              => strtoupper(trim((string) $request->input('id'))),
             'cliente_id'      => trim((string) $request->input('cliente_id')),
             'nombre'          => trim((string) $request->input('nombre')),
-            'palabra_clave'   => trim((string) $request->input('palabra_clave')),
+            'palabra_clave'   => $palabra_clave,
             'distrito_ubigeo' => trim((string) $request->input('distrito_ubigeo')),
             // coordenadas: se aceptan con coma decimal ("-11,1063") porque asi se
             // copian de Google Maps en es-CL/ES
@@ -204,7 +209,22 @@ class LocalesController extends Controller
         $reglas = [
             'cliente_id'      => ['required', 'string', 'max:50', Rule::exists('clientes', 'id')],
             'nombre'          => ['required', 'string', 'max:100'],
-            'palabra_clave'   => ['required', 'string', 'max:100'],
+            'palabra_clave'   => [
+                'required', 'string', 'max:100',
+                // Una variante vacia (un "|" de mas) hace que el patron del SP se vuelva
+                // `\b(A|B|)\b`, que matchea CUALQUIER titulo. Es la causa de que un local
+                // se lleve todas las refs que no resolvieron. Se bloquea en el alta.
+                function (string $atributo, $valor, \Closure $fallar) {
+                    foreach (explode('|', (string) $valor) as $variante) {
+                        if (trim($variante) === '') {
+                            $fallar('La palabra clave tiene un «|» de más: las variantes no pueden quedar '
+                                . 'vacías, porque ese local pasaría a coincidir con cualquier título.');
+
+                            return;
+                        }
+                    }
+                },
+            ],
             'distrito_ubigeo' => ['nullable', 'string', 'size:6', Rule::exists('ubigeo_distritos', 'ubigeo')],
             // o las dos coordenadas o ninguna (required_with en cada lado)
             'lat'             => ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'],

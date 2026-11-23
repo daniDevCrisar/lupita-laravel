@@ -493,7 +493,8 @@
                                     <input class="form-check-input" type="checkbox" name="sesgo_clase_activo" value="1"
                                            id="sesgo_clase_activo" @checked((int) ($p->sesgo_clase_activo ?? 0) === 1)>
                                     <label class="form-check-label small" for="sesgo_clase_activo">
-                                        Usar la cuarta fecha (<code>presenta_probable</code>)
+                                        Usar la cuarta fecha (<code>presenta_probable</code>, se publica como
+                                        <strong>base ajustada</strong>)
                                     </label>
                                 </div>
                                 <div class="text-muted" style="font-size:.7rem; max-width:60ch">
@@ -501,7 +502,7 @@
                                     apagado, la cuarta fecha repite la normal y no cambia nada más — la normal,
                                     la rápida y la tardada se publican igual. Desactivarlo no “usa mejor la
                                     normal”: sólo deja de publicar la hora corregida. Se elige con los números:
-                                    si en <em>aciertos</em> la probable empeora el MAE, dejalo apagado; si lo
+                                    si en <em>aciertos</em> la base ajustada empeora el MAE, dejalo apagado; si lo
                                     mejora, prendelo. Con esto prendido la <strong>ventana</strong> también se
                                     mide contra la cuarta fecha, así que después de cambiarlo volvé a medirla.
                                 </div>

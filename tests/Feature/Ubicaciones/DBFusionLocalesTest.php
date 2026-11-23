@@ -52,13 +52,15 @@ class DBFusionLocalesTest extends TestCase
         $this->local('ZFUS_C', 'UNACLAVE');
         $this->local('ZFUS_D', 'OTRA DISTINTA');
 
-        foreach (DBFusionLocales::pares() as $p) {
-            $ids = [$p['a']['id'], $p['b']['id']];
-            $this->assertFalse(
-                in_array('ZFUS_C', $ids, true) && in_array('ZFUS_D', $ids, true),
-                'emparejo dos locales que no comparten nada'
-            );
-        }
+        // sin aserciones dentro de un foreach: si el catalogo no tiene pares, el bucle
+        // no corria y PHPUnit marcaba el test como "risky"
+        $emparejados = collect(DBFusionLocales::pares())->contains(function (array $par) {
+            $ids = [$par['a']['id'], $par['b']['id']];
+
+            return in_array('ZFUS_C', $ids, true) && in_array('ZFUS_D', $ids, true);
+        });
+
+        $this->assertFalse($emparejados, 'emparejo dos locales que no comparten nada');
     }
 
     public function test_el_plan_dice_que_va_a_pasar_sin_tocar_nada(): void

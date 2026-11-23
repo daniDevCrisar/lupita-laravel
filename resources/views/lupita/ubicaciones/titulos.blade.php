@@ -38,6 +38,8 @@
         </div>
     </div>
 
+    @include('lupita.ubicaciones.partials.claves-peligrosas', ['peligrosas' => $peligrosas ?? []])
+
     @if(!$sp_disponible)
         <div class="alert alert-warning mt-3 mb-0">
             <b><i class="bi bi-exclamation-triangle"></i> El procedimiento no está instalado.</b>
@@ -145,7 +147,8 @@
                                             <input type="hidden" name="refs[]" value="{{ $ref }}">
                                         @endforeach
                                         <button class="btn btn-outline-warning btn-sm"
-                                                @if(!$sp_disponible)
+
+    @if(!$sp_disponible)
                                                     disabled title="Instalá sp_actualizar_ruta_id para usarlo"
                                                 @else
                                                     title="Llamar al procedimiento sobre estas {{ $fila['refs'] }} refs"
@@ -199,7 +202,8 @@
                                         @endforeach
                                     @endforeach
                                     <button class="btn btn-warning btn-sm"
-                                            @if(!$sp_disponible) disabled @endif>
+
+    @if(!$sp_disponible) disabled @endif>
                                         <i class="bi bi-signpost-split"></i>
                                         Reprocesar las {{ $ya_resolverian }} refs que ya resolverían
                                     </button>

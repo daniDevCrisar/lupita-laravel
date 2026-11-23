@@ -660,6 +660,18 @@ final class MotorPresenta
                 'construccion' => $construccionRapido,
             ],
             [
+                'clave' => 'consenso',
+                'etiqueta' => 'Consenso',
+                'descripcion' => 'el promedio de la rápida, la normal y la base ajustada:'
+                    . ' acierta más por tolerancia, pero casi nunca es la más cercana',
+                'fecha' => $centro->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($centro),
+                'delta_normal_min' => $delta($centro),
+                'construccion' => 'promedio de rápido (' . $desde($rapido) . '), normal (' . $desde($normal)
+                    . ') y base ajustada (' . $desde($probable) . ') desde el corte = '
+                    . $desde($centro) . ' · normal ' . self::delta_texto($delta($centro)),
+            ],
+            [
                 'clave' => 'normal',
                 'etiqueta' => 'Normal',
                 'descripcion' => 'la estimación central, la que se usa para planificar',
@@ -669,18 +681,8 @@ final class MotorPresenta
                 'construccion' => 'la suma de los pasos de abajo (ancla + traslado + descansos + esperas)',
             ],
             [
-                'clave' => 'tardado',
-                'etiqueta' => 'Tardado',
-                'descripcion' => 'si se le cruza un descanso largo, una cola o un viaje que se estira'
-                    . ($fuente === 'residuos' ? ' (' . $nivel . ')' : ''),
-                'fecha' => $tardado->format('Y-m-d H:i:s'),
-                'desde_ahora' => $desde($tardado),
-                'delta_normal_min' => $delta($tardado),
-                'construccion' => 'normal ' . self::delta_texto($delta($tardado)) . ' · ' . $banda,
-            ],
-            [
                 'clave' => 'probable',
-                'etiqueta' => 'Más probable',
+                'etiqueta' => 'Base ajustada',
                 'descripcion' => $corregida
                     ? 'la hora publicada corregida con el sesgo medido de este tipo de caso'
                     : 'igual a la normal: el sesgo por clase todavía no está medido',
@@ -693,16 +695,14 @@ final class MotorPresenta
                     : 'igual a la normal: el sesgo por clase todavía no está medido',
             ],
             [
-                'clave' => 'consenso',
-                'etiqueta' => 'Consenso',
-                'descripcion' => 'el promedio de la rápida, la normal y la más probable:'
-                    . ' acierta más por tolerancia, pero casi nunca es la más cercana',
-                'fecha' => $centro->format('Y-m-d H:i:s'),
-                'desde_ahora' => $desde($centro),
-                'delta_normal_min' => $delta($centro),
-                'construccion' => 'promedio de rápido (' . $desde($rapido) . '), normal (' . $desde($normal)
-                    . ') y más probable (' . $desde($probable) . ') desde el corte = '
-                    . $desde($centro) . ' · normal ' . self::delta_texto($delta($centro)),
+                'clave' => 'tardado',
+                'etiqueta' => 'Tardado',
+                'descripcion' => 'si se le cruza un descanso largo, una cola o un viaje que se estira'
+                    . ($fuente === 'residuos' ? ' (' . $nivel . ')' : ''),
+                'fecha' => $tardado->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($tardado),
+                'delta_normal_min' => $delta($tardado),
+                'construccion' => 'normal ' . self::delta_texto($delta($tardado)) . ' · ' . $banda,
             ],
         ];
     }

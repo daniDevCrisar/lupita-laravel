@@ -430,7 +430,7 @@
                                 El error es <code>fecha − real</code>. La columna <strong>Más cerca</strong> cuenta cuántas
                                 veces esa fecha quedó más cerca que las otras elegidas: ganar en promedio (MAE) y ganar en
                                 cantidad de veces no es lo mismo — el tardado se lleva los casos de error enorme, la
-                                probable los normales.
+                                base ajustada los normales.
                                 @if($cuatro['promediado'] ?? false)
                                     <br><strong>Promedio</strong> es la hora promedio de las fechas tildadas en cada fila
                                     (promediar las horas es lo mismo que promediar sus errores) y compite en la misma

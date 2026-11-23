@@ -689,13 +689,18 @@ class MotorPresentaTest extends TestCase
         $this->assertSame('2026-11-14 13:40', $r->presenta_consenso->format('Y-m-d H:i'));
 
         $this->assertCount(5, $r->presentaciones);
-        $this->assertSame(['rapido', 'normal', 'tardado', 'probable', 'consenso'],
+        // orden de PRIORIDAD POR PRECISIÓN: rápido, consenso, normal, base ajustada, tardado
+        $this->assertSame(['rapido', 'consenso', 'normal', 'probable', 'tardado'],
             array_column($r->presentaciones, 'clave'));
+        // y la cuarta se publica como "base ajustada", no como "más probable"
+        $this->assertSame('Base ajustada', $r->presentaciones[3]['etiqueta']);
+        $this->assertSame('Rápido', $r->presentaciones[0]['etiqueta']);
+        $this->assertSame('Consenso', $r->presentaciones[1]['etiqueta']);
         $this->assertSame('3:00', $r->presentaciones[0]['desde_ahora']);   // ahora 10:00 -> 13:00
-        $this->assertSame('4:00', $r->presentaciones[1]['desde_ahora']);
-        $this->assertSame('6:00', $r->presentaciones[2]['desde_ahora']);
-        $this->assertSame('4:00', $r->presentaciones[3]['desde_ahora']);
-        $this->assertSame('3:40', $r->presentaciones[4]['desde_ahora']);
+        $this->assertSame('3:40', $r->presentaciones[1]['desde_ahora']);   // consenso
+        $this->assertSame('4:00', $r->presentaciones[2]['desde_ahora']);   // normal
+        $this->assertSame('4:00', $r->presentaciones[3]['desde_ahora']);   // base ajustada
+        $this->assertSame('6:00', $r->presentaciones[4]['desde_ahora']);   // tardado
 
         // y cada fecha viaja con SU construcción, no sólo la normal
         $porClave = array_column($r->presentaciones, null, 'clave');
