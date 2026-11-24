@@ -20,7 +20,8 @@ php artisan tinker
 $user = User::find(2);
 $user->assignRole('editor');
 -------------
-
+composer require laravel/boost --dev
+//dependencias de ia
 
 
 php artisan cache:clear

@@ -132,6 +132,41 @@ class ClavePeligrosaTest extends TestCase
         );
     }
 
+    public function test_el_formulario_de_edicion_avisa_si_la_clave_guardada_esta_mal(): void
+    {
+        // un local que YA quedo mal guardado: al abrir el form el aviso tiene que estar
+        // visible sin depender de que el usuario apriete guardar
+        $this->local('ZPEL_FORM', 'UNACLAVE|', 'CLI_AJEPER');
+
+        $html = $this->actingAs($this->usuario())
+            ->get(route('lupita.locales.editar', 'ZPEL_FORM'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Hay un «|» de más', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/class="[^"]*d-none[^"]*"\s+id="aviso-palabra-clave"/',
+            $html,
+            'el aviso de variante vacia se renderizo oculto'
+        );
+    }
+
+    public function test_el_formulario_de_edicion_no_avisa_si_la_clave_esta_bien(): void
+    {
+        $this->local('ZPEL_FORM2', 'UNACLAVE|OTRA', 'CLI_AJEPER');
+
+        $html = $this->actingAs($this->usuario())
+            ->get(route('lupita.locales.editar', 'ZPEL_FORM2'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/class="[^"]*d-none[^"]*"\s+id="aviso-palabra-clave"/',
+            $html,
+            'el aviso deberia venir oculto cuando la clave esta bien'
+        );
+    }
+
     public function test_el_listado_de_locales_avisa_de_la_clave_peligrosa(): void
     {
         $this->local('ZPEL_AVISO', 'ZPELAVISO|');

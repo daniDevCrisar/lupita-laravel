@@ -40,6 +40,30 @@
 
     @include('lupita.ubicaciones.partials.claves-peligrosas', ['peligrosas' => $peligrosas ?? []])
 
+    {{-- Sin estos avisos, cuando el reproceso fallaba (SP ausente, ref rara, sesion
+         vencida) la pantalla no decia NADA y parecia que el boton no funcionaba. --}}
+    @if(session('exito'))
+        <div class="alert alert-success mt-3 mb-0">{{ session('exito') }}</div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger mt-3 mb-0">
+            <b><i class="bi bi-exclamation-octagon"></i> No se procesó nada.</b>
+            <span class="d-block mt-1">{{ session('error') }}</span>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger mt-3 mb-0">
+            <b><i class="bi bi-exclamation-octagon"></i> Revisá lo enviado:</b>
+            <ul class="mb-0 ps-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @if(!$sp_disponible)
         <div class="alert alert-warning mt-3 mb-0">
             <b><i class="bi bi-exclamation-triangle"></i> El procedimiento no está instalado.</b>

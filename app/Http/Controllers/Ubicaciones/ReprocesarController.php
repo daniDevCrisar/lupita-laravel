@@ -24,6 +24,9 @@ use Illuminate\Http\Request;
  */
 class ReprocesarController extends Controller
 {
+    /** Refs por request: un lote tiene que entrar comodo en el timeout de cualquier proxy. */
+    public const POR_LOTE = 50;
+
     /**
      * GET /lupita/ubicaciones/reprocesar/estado
      */
@@ -41,18 +44,15 @@ class ReprocesarController extends Controller
 
     /**
      * POST /lupita/ubicaciones/reprocesar
+     *
+     * Procesa en LOTES de POR_LOTE refs por request. El motivo no es la velocidad (77
+     * ms por lote de 10): es que un solo request con cientos de CALL puede pasarse del
+     * timeout del proxy (nginx corta a los 30-60 s) y entonces el usuario no ve nada y
+     * cree que el boton no funciona. Con lotes, cada request es corto y el reporte
+     * encadena el siguiente (`continuar=1`), acumulando el resultado en la sesion.
      */
     public function procesar(Request $request)
     {
-        $datos = $request->validate([
-            'refs'   => ['required', 'array', 'max:700'],
-            'refs.*' => ['string', 'regex:/^[A-Z0-9\-]{3,10}$/'],
-        ], [
-            'refs.required' => 'No se eligió ninguna referencia.',
-            'refs.max'      => 'Como máximo se procesan 700 referencias por vez.',
-            'refs.*.regex'  => 'La referencia tiene caracteres que no corresponden.',
-        ]);
-
         if (!DBReprocesar::spDisponible()) {
             return redirect()
                 ->route('lupita.ubicaciones.titulos')
@@ -60,54 +60,66 @@ class ReprocesarController extends Controller
                     . 'Ejecutá el bloque activo (V3) de sql/rutas.sql, líneas 243-400, y volvé a intentar.');
         }
 
-        // GUARDIA DEL (ACEITE): LOC_AJEPER_GRUPO_PACIFIC_OIL declara la palabra clave
-        // "(ACEITE)", que es un producto y no un cliente. Cuando se corrio el reproceso
-        // de verdad, 23 refs de "RECOJO ACEITE GRUPO PATRONA / ALDEBSA / SUPERALIMENTOS"
-        // quedaron con la ruta equivocada. Hasta que se limpie esa palabra clave, esas
-        // refs no se procesan salvo confirmacion explicita.
-        $aceite = $this->refsConAceite($datos['refs']);
-        if ($aceite !== [] && (string) $request->input('confirmar_aceite') !== '1') {
-            return redirect()
-                ->route('lupita.ubicaciones.titulos')
-                ->with('error', 'No se procesó nada: ' . count($aceite) . ' refs mencionan ACEITE '
-                    . '(' . implode(', ', array_slice($aceite, 0, 8)) . (count($aceite) > 8 ? '…' : '') . '). '
-                    . 'La palabra clave "(ACEITE)" de LOC_AJEPER_GRUPO_PACIFIC_OIL las manda a la ruta '
-                    . 'equivocada. Limpiá esa palabra clave en el local, o volvé a enviar con la '
-                    . 'confirmación explícita.');
+        $continuar = $request->boolean('continuar');
+
+        if ($continuar) {
+            $acumulado = session('reproceso');
+
+            if (!is_array($acumulado) || ($acumulado['pendientes'] ?? []) === []) {
+                return redirect()
+                    ->route('lupita.ubicaciones.titulos')
+                    ->with('error', 'Se perdió el estado del reproceso en curso (la sesión expiró). '
+                        . 'Volvé a apretar el botón desde el listado.');
+            }
+        } else {
+            $datos = $request->validate([
+                'refs'   => ['required', 'array', 'max:2000'],
+                'refs.*' => ['string', 'regex:/^[A-Z0-9\-]{3,10}$/'],
+            ], [
+                'refs.required' => 'No se eligió ninguna referencia.',
+                'refs.max'      => 'Como máximo se procesan 2000 referencias por vez.',
+                'refs.*.regex'  => 'La referencia tiene caracteres que no corresponden.',
+            ]);
+
+            // Las refs van DERECHO al procedimiento: el SP es el que decide la ruta.
+            // Aca no se filtra ni se bloquea nada por el contenido del titulo (el aviso
+            // de palabras clave raras vive en el catalogo, no en este boton).
+
+            $acumulado = [
+                'total'       => count($datos['refs']),
+                'pendientes'  => array_values($datos['refs']),
+                'ok'          => 0,
+                'error'       => 0,
+                'omitidas'    => [],
+                'filas'       => [],
+            ];
         }
 
-        // 691 llamadas a ~7 ms son ~5 s: no hace falta trocear, pero el limite
-        // por defecto de PHP (30 s) es corto si la base esta lenta
-        set_time_limit(300);
+        // la base puede estar lenta: el lote es chico, pero no se corta por el limite global
+        set_time_limit(120);
 
-        $reporte = DBReprocesar::procesar($datos['refs']);
+        $lote = array_splice($acumulado['pendientes'], 0, self::POR_LOTE);
+        $reporte = DBReprocesar::procesar($lote);
+
+        $acumulado['ok'] += $reporte['ok'];
+        $acumulado['error'] += $reporte['error'];
+        $acumulado['omitidas'] = array_merge($acumulado['omitidas'], $reporte['omitidas']);
+        $acumulado['filas'] = array_merge($acumulado['filas'], $reporte['filas']);
+
+        $quedan = count($acumulado['pendientes']);
+
+        session($quedan > 0 ? ['reproceso' => $acumulado] : ['reproceso' => null]);
 
         return view('lupita.ubicaciones.reporte', [
-            'reporte'       => $reporte,
+            'reporte' => [
+                'total'    => $acumulado['total'],
+                'ok'       => $acumulado['ok'],
+                'error'    => $acumulado['error'],
+                'omitidas' => $acumulado['omitidas'],
+                'filas'    => $acumulado['filas'],
+            ],
+            'quedan'        => $quedan,
             'sp_disponible' => true,
         ]);
-    }
-
-    /**
-     * Refs cuya ref o titulo mencionan ACEITE (el caso que manda a la ruta equivocada).
-     *
-     * @param array<int, string> $refs
-     *
-     * @return array<int, string>
-     */
-    private function refsConAceite(array $refs): array
-    {
-        $salida = [];
-
-        foreach (array_chunk($refs, 500) as $lote) {
-            foreach (\Illuminate\Support\Facades\DB::table('referencias')
-                ->whereIn('ref', $lote)
-                ->where('titulo_viaje', 'like', '%ACEITE%')
-                ->pluck('ref') as $ref) {
-                $salida[] = (string) $ref;
-            }
-        }
-
-        return $salida;
     }
 }

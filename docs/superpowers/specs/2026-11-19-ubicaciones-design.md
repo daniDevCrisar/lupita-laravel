@@ -365,19 +365,20 @@ Rutas:
 
 **Como se procesa el lote** (no bloquea y no aborta):
 
-- **Un solo request**, con `set_time_limit(300)` y un tope de 700 refs. Medido en esta base:
-  **6,85 ms por `CALL`**, así que las ~82 refs del caso real tardaron **0,52 s**. Trocear en lotes
-  de 50 sólo agregaría complejidad y un bucle de JS.
+- **En lotes de 50 por request** (medido: ~7 ms por `CALL`, así que 269 refs son ~2 s en 6
+  requests). No es por velocidad: es para que ningún proxy corte la request a los 30-60 s y el
+  usuario vea una página muerta sin saber qué pasó. El reporte encadena el lote siguiente
+  (`continuar=1`) y el estado vive en la sesión.
 - Cada ref va en su propio `try/catch`. Un error del SP **no corta el lote**: se anota el mensaje y
   se sigue.
-- Se **omiten** las refs que ya tienen `ruta_id` (el SP incrementa `veces_usada` en cada llamada).
+- Las refs van **derecho al SP**: el botón no filtra ni bloquea por el contenido del título. Si una
+  palabra clave manda un viaje a la ruta equivocada, eso se arregla en el **catálogo** (el aviso de
+  variantes vacías y el clasificador de `ACEITE` viven ahí), no en el botón. Lo único que se salta
+  son las refs que **ya tienen `ruta_id`**, para no inflar `veces_usada`.
 - Antes de escribir: **confirmación** con el preview (cuántas resolverían y cuántas no, según el
-  analizador) y dos avisos obligatorios:
-  - si entre las seleccionadas hay títulos con `ACEITE`, avisar que hoy caerían en
-    `LOC_AJEPER_GRUPO_PACIFIC_OIL` por la palabra clave `(ACEITE)` (ver §3bis);
-  - recordar que el SP incrementa `veces_usada`.
+  analizador) y el recordatorio de que el SP incrementa `veces_usada`.
 - Reporte final en pantalla: `ref · resultado (ok/error) · ruta_id obtenido · mensaje del SP`, con
-  totales. Se puede **exportar a CSV**.
+  totales y cuántas quedan. Se puede **exportar a CSV**.
 
 **Lo que pasó cuando se corrió de verdad** (82 refs del bloque "ya resolverían", 2026-11-19):
 
@@ -390,10 +391,15 @@ Rutas:
 Y los dos avisos resultaron ser proféticos:
 
 1. **23 de las 78 quedaron con la ruta equivocada.** Todas `RECOJO ACEITE GRUPO PATRONA` /
-   `ALDEBSA` / `SUPERALIMENTOS` cayeron en `RUT_AJEPER_GRUPO_PACIFIC_OIL-HUACHIPA` por el
-   `(ACEITE)` de §3bis. El aviso existía; el botón lo mostró tarde. **Consecuencia de diseño:
-   el aviso tiene que bloquear la selección de esas refs por defecto** (checkbox explícito), no
-   sólo advertir.
+   `ALDEBSA` / `SUPERALIMENTOS` cayeron en `RUT_AJEPER_GRUPO_PACIFIC_OIL-HUACHIPA` por la palabra
+   clave `ACEITE` de §3bis.
+
+   Se probó primero un botón que **bloqueaba** esas refs. **Se sacó**: el botón de reprocesar manda
+   las refs derecho al SP y no opina sobre el título. La decisión final es que el problema se
+   corrige **en el catálogo** — sacarle `ACEITE` a esa palabra clave, que es un producto y no un
+   cliente — y que las pantallas lo avisen ahí: el clasificador marca `ACEITE` como `generica` y la
+   edición del local rechaza/vigila variantes vacías. Un botón que adivina qué refs "no conviene"
+   procesar esconde el problema en vez de resolverlo.
 2. **4 refs revientan el SP**: los títulos que empiezan con `*`
    (`*ENVIO PT CARAL - INVERSIONES BEINMA (HUANTA) ECO`) dejan `*ENVIO PT CARAL` como texto
    limpio, el SP lo mete crudo en el `REGEXP` y MySQL responde

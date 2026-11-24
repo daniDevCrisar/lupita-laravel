@@ -319,6 +319,9 @@ BEGIN
     SET v_destino_limpio = REPLACE(v_destino_limpio, '(', ' ');
     SET v_destino_limpio = REPLACE(v_destino_limpio, ')', ' ');
 
+    SET v_origen_limpio  = REGEXP_REPLACE(v_origen_limpio,  '\\[|\\]|\\(|\\)|\\*|\\+|\\?|\\^|\\$|\\\\|-', ' ');
+    SET v_destino_limpio = REGEXP_REPLACE(v_destino_limpio, '\\[|\\]|\\(|\\)|\\*|\\+|\\?|\\^|\\$|\\\\|-', ' ');
+
     -- Eliminar fechas sueltas al final (ej. "-18/04/2026")
     SET v_destino_limpio = REGEXP_REPLACE(v_destino_limpio, '-\\d{2}/\\d{2}/\\d{4}$', '');
     SET v_destino_limpio = TRIM(v_destino_limpio);

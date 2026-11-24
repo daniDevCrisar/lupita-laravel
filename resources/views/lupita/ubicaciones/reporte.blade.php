@@ -27,11 +27,35 @@
                         <span><b class="text-success">{{ $reporte['ok'] }}</b> resueltas</span>
                         <span><b class="text-danger">{{ $reporte['error'] }}</b> con error</span>
                         <span><b class="text-secondary">{{ count($reporte['omitidas']) }}</b> omitidas (ya tenían ruta)</span>
+                        @if(($quedan ?? 0) > 0)
+                            <span><b class="text-info">{{ $quedan }}</b> pendientes</span>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    @if(($quedan ?? 0) > 0)
+        {{-- Se procesa por lotes: este formulario encadena el siguiente sin volver a
+             mandar todas las refs (quedan en la sesion). Si el JS no corre, el boton
+             "Continuar" hace lo mismo a mano. --}}
+        <div class="alert alert-info mt-3">
+            <b><i class="bi bi-arrow-repeat"></i> Quedan {{ $quedan }} refs.</b>
+            Se procesan de a {{ \App\Http\Controllers\Ubicaciones\ReprocesarController::POR_LOTE }}
+            por vez para que ningún proxy corte la request.
+            <form method="POST" action="{{ route('lupita.ubicaciones.reprocesar') }}" class="mt-2"
+                  id="form-continuar">
+                @csrf
+                <input type="hidden" name="continuar" value="1">
+                <button class="btn btn-warning btn-sm" type="submit">
+                    <i class="bi bi-arrow-repeat"></i> Continuar con las {{ $quedan }} que faltan
+                </button>
+            </form>
+        </div>
+
+
+    @endif
 
     @if(count($reporte['omitidas']) > 0)
         <div class="alert alert-secondary mt-3 mb-0">
@@ -86,4 +110,18 @@
         </div>
     </div>
 
+@endsection
+@section('scripts')
+    <script>
+        (function () {
+            'use strict';
+
+            // encadena el siguiente lote solo; si el JS falla, el boton "Continuar"
+            // del aviso hace lo mismo a mano
+            var form = document.getElementById('form-continuar');
+            if (form) {
+                form.submit();
+            }
+        })();
+    </script>
 @endsection

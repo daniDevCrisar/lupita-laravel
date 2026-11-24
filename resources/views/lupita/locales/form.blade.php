@@ -136,6 +136,26 @@
                             @error('palabra_clave')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+
+                            {{-- Aviso de variante vacia. Se ve al abrir un local que YA quedo mal
+                                 guardado, y en vivo mientras se escribe (ver el bloque de scripts).
+                                 Una alternativa vacia hace que el patron del SP sea `(A|B|)`, que
+                                 matchea cualquier titulo: el local se lleva todas las refs. --}}
+                            @php
+                                $variantesVacias = count(array_filter(
+                                    explode('|', (string) old('palabra_clave', $local->palabra_clave ?? '')),
+                                    fn (string $variante) => trim($variante) === ''
+                                ));
+                            @endphp
+                            <div class="alert alert-danger py-2 px-2 mt-2 mb-0 small {{ $variantesVacias > 0 ? '' : 'd-none' }}"
+                                 id="aviso-palabra-clave">
+                                <b><i class="bi bi-exclamation-octagon"></i> Hay un «|» de más.</b>
+                                <span id="texto-aviso-palabra-clave">
+                                    Esta palabra clave tiene una alternativa vacía, así que el local coincide
+                                    con <b>cualquier</b> título y se lleva todas las refs que no resolvieron.
+                                    Sacá el «|» que sobra (al principio, al final, o repetido).
+                                </span>
+                            </div>
                         </div>
 
                     </div>
@@ -319,6 +339,46 @@
     <script>
         (function () {
             'use strict';
+
+            // ---------------------------------------------------------------
+            // Palabra clave: aviso en vivo de variantes vacias ("|" de mas)
+            //
+            // Va PRIMERO y envuelto en try/catch: si esto fallara no puede llevarse
+            // puesta la cascada de ubigeo que viene abajo.
+            // ---------------------------------------------------------------
+            try {
+                (function () {
+                    var campo = document.getElementById('palabra_clave');
+                    var aviso = document.getElementById('aviso-palabra-clave');
+
+                    if (!campo || !aviso) {
+                        return;
+                    }
+
+                    function variantesVacias(valor) {
+                        return String(valor || '').split('|').filter(function (v) {
+                            return v.trim() === '';
+                        }).length;
+                    }
+
+                    function revisar() {
+                        var vacias = variantesVacias(campo.value);
+
+                        if (vacias > 0) {
+                            aviso.classList.remove('d-none');
+                            campo.classList.add('is-invalid');
+                        } else {
+                            aviso.classList.add('d-none');
+                            campo.classList.remove('is-invalid');
+                        }
+                    }
+
+                    campo.addEventListener('input', revisar);
+                    revisar();
+                })();
+            } catch (e) {
+                if (window.console) { console.warn('palabra_clave: no se pudo inicializar el aviso', e); }
+            }
 
             // Arbol departamento > provincia > distrito (solo los 6 dígitos del
             // distrito viajan al servidor en `distrito_ubigeo`).

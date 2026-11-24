@@ -111,20 +111,27 @@ class ReprocesarTest extends TestCase
             ->assertJsonStructure(['disponible', 'pendientes', 'ya_resolverian']);
     }
 
-    // [C-1 del review] el (ACEITE) de LOC_AJEPER_GRUPO_PACIFIC_OIL ya mando 23 refs
-    // a la ruta equivocada: el servidor tiene que bloquearlas, no solo avisar
-    public function test_bloquea_las_refs_de_aceite_sin_confirmacion_explicita(): void
+    /**
+     * El boton NO decide por el contenido del titulo: las refs van derecho al SP. Si la
+     * palabra clave de un local hace que el SP mande un viaje a la ruta equivocada, eso
+     * se arregla en el catalogo (o se ve en el reporte), no bloqueando el reproceso.
+     */
+    public function test_manda_las_refs_de_aceite_al_sp_sin_bloquearlas(): void
     {
+        config(['ubicaciones.sp_forzado' => true]);
+
         DB::table('referencias')->insert([
             ['ref' => 'ZACEITE', 'titulo_viaje' => 'RECOJO ACEITE GRUPO PATRONA - PTA HUACHIPA', 'ruta_id' => null],
         ]);
 
-        $this->actingAs($this->usuario())
-            ->post(route('lupita.ubicaciones.reprocesar'), ['refs' => ['ZACEITE']])
-            ->assertRedirect()
-            ->assertSessionHas('error');
+        $resp = $this->actingAs($this->usuario())
+            ->post(route('lupita.ubicaciones.reprocesar'), ['refs' => ['ZACEITE']]);
 
-        $this->assertDatabaseHas('referencias', ['ref' => 'ZACEITE', 'ruta_id' => null]);
+        // devuelve el reporte (no un redirect con error)
+        $resp->assertOk()->assertSee('Reporte de reproceso');
+
+        // y el SP hizo su trabajo: la ref ya no esta pendiente
+        $this->assertNotSame('', (string) DB::table('referencias')->where('ref', 'ZACEITE')->value('ruta_id'));
     }
 
     // [I-1 del review] dos POST simultaneos: se revalida la ref justo antes de llamar al SP
@@ -165,5 +172,84 @@ class ReprocesarTest extends TestCase
         $this->actingAs($this->usuario(null))
             ->post(route('lupita.ubicaciones.reprocesar'), ['refs' => ['ZR1']])
             ->assertForbidden();
+    }
+
+    /**
+     * Regresion: el boton "no hacia nada" porque la pantalla de titulos no mostraba ni
+     * el flash de error ni los errores de validacion.
+     */
+    public function test_la_pantalla_de_titulos_muestra_el_error_del_reproceso(): void
+    {
+        $this->actingAs($this->usuario())
+            ->withSession(['error' => 'El procedimiento no está instalado en esta base.'])
+            ->get(route('lupita.ubicaciones.titulos'))
+            ->assertOk()
+            ->assertSee('No se procesó nada')
+            ->assertSee('El procedimiento no está instalado en esta base.');
+    }
+
+    public function test_la_pantalla_de_titulos_muestra_los_errores_de_validacion(): void
+    {
+        $this->actingAs($this->usuario())
+            ->withSession(['errors' => new \Illuminate\Support\MessageBag([
+                'refs.0' => ['La referencia tiene caracteres que no corresponden.'],
+            ])])
+            ->get(route('lupita.ubicaciones.titulos'))
+            ->assertOk()
+            ->assertSee('Revisá lo enviado')
+            ->assertSee('La referencia tiene caracteres que no corresponden.');
+    }
+
+    public function test_procesa_y_devuelve_el_reporte(): void
+    {
+        $resp = $this->actingAs($this->usuario())
+            ->post(route('lupita.ubicaciones.reprocesar'), ['refs' => ['ZR1', 'ZR2', 'ZR3']]);
+
+        $resp->assertOk();
+        $resp->assertSee('Reporte de reproceso');
+        $resp->assertSee('refs elegidas');
+
+        // el lote tiene que entrar comodo en cualquier timeout de proxy
+        $this->assertSame(50, \App\Http\Controllers\Ubicaciones\ReprocesarController::POR_LOTE);
+    }
+
+    public function test_encadena_el_siguiente_lote_desde_la_sesion(): void
+    {
+        config(['ubicaciones.sp_forzado' => true]);
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+
+        DB::table('referencias')->insert([
+            ['ref' => 'ZCAD1', 'titulo_viaje' => 'ENVIO PT CARAL - BABEL MAXO', 'ruta_id' => null],
+            ['ref' => 'ZCAD2', 'titulo_viaje' => 'ENVIO PT CARAL - BABEL MAXO', 'ruta_id' => null],
+        ]);
+
+        // primer request: deja 2 pendientes en la sesion y muestra el aviso de continuar
+        $primero = $this->actingAs($this->usuario())
+            ->post(route('lupita.ubicaciones.reprocesar'), ['refs' => ['ZCAD1', 'ZCAD2']]);
+
+        $primero->assertOk();
+        $this->assertSame(0, $primero->viewData('quedan'), 'con 2 refs y lote de 50 no deberia quedar nada');
+
+        // y si se fuerza un lote de 1, el segundo request procesa el resto
+        $pendiente = ['pendientes' => ['ZCAD2'], 'total' => 2, 'ok' => 1, 'error' => 0,
+                      'omitidas' => [], 'filas' => [['ref' => 'ZCAD1', 'ok' => true, 'ruta_id' => 'RUT_X', 'mensaje' => null]]];
+
+        $segundo = $this->actingAs($this->usuario())
+            ->withSession(['reproceso' => $pendiente])
+            ->post(route('lupita.ubicaciones.reprocesar'), ['continuar' => 1]);
+
+        $segundo->assertOk();
+        $this->assertSame(0, $segundo->viewData('quedan'));
+        $this->assertSame(2, $segundo->viewData('reporte')['total']);
+    }
+
+    public function test_continuar_sin_estado_en_sesion_avisa(): void
+    {
+        config(['ubicaciones.sp_forzado' => true]);
+
+        $this->actingAs($this->usuario())
+            ->post(route('lupita.ubicaciones.reprocesar'), ['continuar' => 1])
+            ->assertRedirect(route('lupita.ubicaciones.titulos'))
+            ->assertSessionHas('error');
     }
 }
