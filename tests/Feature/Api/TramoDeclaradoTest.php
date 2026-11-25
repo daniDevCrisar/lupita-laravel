@@ -197,6 +197,39 @@ class TramoDeclaradoTest extends TestCase
         $this->assertSame('geoapify', $r->json('historia.traslado_fuente'));
     }
 
+    /**
+     * Si el pedido trae ubicación y NO trae ancla, el motor NO deduce el último
+     * viaje de la placa: arranca en la posición declarada. Caso real (ref 1195347):
+     * deducía un fin de descargue de 144,9 h y publicaba `presenta = ahora` con
+     * 137 h de "ajuste".
+     */
+    public function test_con_ubicacion_y_sin_ancla_no_se_deduce_el_ultimo_viaje(): void
+    {
+        $this->geoapify();
+
+        // la ref a predecir tiene un viaje deducible como ancla (REF_VIAJE, abierto),
+        // pero como se manda ubicación y no se manda `ancla`, no se usa
+        $r = $this->getJson('/api/prediccion/presenta?ref=' . self::REF_META
+            . '&ahora=' . urlencode(self::AHORA)
+            . '&ubicacion_texto=' . urlencode('PLANTA CHICLAYO'));
+
+        $r->assertOk()->assertJsonPath('success', true);
+        $this->assertSame('ubicacion_declarada', $r->json('ancla.hito'));
+        $this->assertSame('hacia_planta', $r->json('ubicacion.modo'));
+        $this->assertFalse((bool) $r->json('atrasado'), 'arranca en ahora: no puede estar atrasado');
+
+        $advertencias = array_map(fn ($a) => explode(':', (string) $a)[0], (array) $r->json('advertencias'));
+        $this->assertContains('ancla_declarada', $advertencias);
+        $this->assertStringContainsString('no trae ancla',
+            implode(' ', array_map(fn ($a) => (string) $a, (array) $r->json('advertencias'))));
+
+        // y con `ancla` explícita SÍ se usa el viaje (el comportamiento de siempre)
+        $conAncla = $this->predecir(self::REF_VIAJE, '&ubicacion_texto=' . urlencode('PLANTA CHICLAYO'));
+        $this->assertSame(self::REF_VIAJE, $conAncla->json('ancla.ref'));
+        $this->assertSame('inicio_ruta', $conAncla->json('ancla.hito'));
+        $this->assertSame('hacia_destino', $conAncla->json('ubicacion.modo'));
+    }
+
     public function test_sin_geoapify_la_ubicacion_declarada_no_rompe_la_prediccion(): void
     {
         // sin key (el servidor de producción hoy): el texto tiene que seguir

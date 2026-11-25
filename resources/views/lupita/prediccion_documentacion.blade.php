@@ -119,7 +119,10 @@ JSON;
                         <tbody>
                         <tr><td><code>ref</code></td><td>obligatorio, 3–10 caracteres</td></tr>
                         <tr><td><code>ahora</code></td><td>corte opcional (<code>YYYY-MM-DD HH:MM</code>); sirve para simular</td></tr>
-                        <tr><td><code>ancla</code></td><td>ref del viaje que se usa como punto de partida</td></tr>
+                        <tr><td><code>ancla</code></td><td>ref del viaje que se usa como punto de partida.
+                            <strong>Si no se manda</strong>: con <code>ubicacion</code> declarada el punto de
+                            partida es esa posición (ahora) y <em>no</em> se deduce el último viaje de la placa;
+                            sin ubicación, se deduce el último viaje.</td></tr>
                         <tr><td><code>ubicacion_tipo</code></td><td><code>auto</code> · <code>local</code> · <code>ubigeo</code> · <code>indeterminado</code></td></tr>
                         <tr><td><code>ubicacion_id</code></td><td>id del local (<code>LOC_CARAL</code>) o ubigeo de 6 dígitos (<code>140101</code>)</td></tr>
                         </tbody>
@@ -401,7 +404,9 @@ JSON;
                     <ul class="mb-0">
                         <li><code>ya_presento</code> — la ref ya tiene presentación, no hay nada que predecir.</li>
                         <li><code>atrasado</code> — el cálculo cae antes del corte (viene <code>presenta_crudo</code>).</li>
-                        <li><code>ancla_declarada</code> — no hay viaje en curso: se calculó desde la ubicación declarada.</li>
+                        <li><code>ancla_declarada</code> — no hay viaje en curso <em>o el pedido no trae ancla y sí
+                            una ubicación</em>: se calculó desde la ubicación declarada, sin buscar el último viaje
+                            de la placa.</li>
                         <li><code>ancla_no_encontrada</code> — la ref que mandaste en <code>ancla</code> no es un viaje de
                             esa placa anterior al corte (typo o fecha mal): no se predice desde otro lado.</li>
                         <li><code>ancla_vieja</code> — el último hito tiene más de 7 días: <code>sin_datos</code>.</li>

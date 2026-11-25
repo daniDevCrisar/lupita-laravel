@@ -142,30 +142,12 @@ class Servicio
         $candidatos = self::candidatos_viaje($placa, $ahora, 40);
         $candidatos = array_values(array_filter($candidatos, fn (stdClass $viaje) => $viaje->ref !== $ref));
 
-        $ancla = null;
-        $pedida = isset($opciones['ancla_ref']) ? (string) $opciones['ancla_ref'] : '';
-        foreach ($candidatos as $viaje) {
-            if ($pedida !== '' && $viaje->ref === $pedida) {
-                $ancla = $viaje;
-                break;
-            }
-        }
-        if ($ancla === null && $pedida === '' && $candidatos !== []) {
-            $ancla = $candidatos[0];
-        }
-
-        // se pidió un ancla concreta y no es un viaje de este camión antes del
-        // corte: mejor decirlo que predecir desde otro lado sin avisar
-        $anclaPedidaNoEncontrada = $pedida !== '' && $ancla === null;
-
-        // ($rutaRef ya quedó arriba: la ref sin ruta no llega hasta acá)
-        $plantaCarga = (string) ($fila->origen_id ?? '');
-        $etapasPorRuta = DBPrediccion::etapas_por_ruta($desde, $ahora);
-
-        // desde dónde vuelve el camión: su última posición conocida o lo que declare el usuario
-        $desdePlanta = $ancla !== null ? (string) ($ancla->destino_id ?? '') : '';
-        $desdeUbigeo = $ancla !== null ? (string) ($ancla->ubigeo_destino ?? '') : '';
-
+        // ---- qué posición declaró el usuario (si declaró alguna) -------------
+        // Se resuelve ANTES del ancla a propósito: si el pedido trae una ubicación y
+        // NO trae ancla, el camión está donde dice el operador y el cálculo arranca
+        // ahí. Deducir "el último viaje de la placa" usa un viaje que puede ser de
+        // días atrás (ref 1195347: ancla de 144,9 h) y la hora publicada termina
+        // siendo el propio corte, con 137 h de "ajuste".
         $ubicacionTipo = (string) ($opciones['ubicacion_tipo'] ?? 'auto');
         $ubicacionId = trim((string) ($opciones['ubicacion_id'] ?? ''));
         $coords = self::coords_declaradas($opciones['ubicacion_coords'] ?? null);
@@ -182,6 +164,42 @@ class Servicio
         } elseif ($ubicacionTipo === 'ubigeo' && $ubicacionId !== '') {
             $ubicacionUbigeo = $ubicacionId;
         }
+
+        // ---- ancla ----------------------------------------------------------
+        // El ancla es el último viaje del camión del que se sabe algo. Se usa:
+        //  - si el pedido la pide explícitamente (`ancla`), o
+        //  - si NO se declaró ninguna ubicación (el punto de partida se deduce de
+        //    los hitos del camión).
+        // CON UBICACIÓN DECLARADA Y SIN ANCLA NO SE BUSCA: el operador ya dijo dónde
+        // está el camión y deducir un viaje viejo inventa un punto de partida (y una
+        // hora recortada contra el corte).
+        $ancla = null;
+        $pedida = isset($opciones['ancla_ref']) ? (string) $opciones['ancla_ref'] : '';
+        foreach ($candidatos as $viaje) {
+            if ($pedida !== '' && $viaje->ref === $pedida) {
+                $ancla = $viaje;
+                break;
+            }
+        }
+        if ($ancla === null && $pedida === '' && !$ubicacionDeclarada && $candidatos !== []) {
+            $ancla = $candidatos[0];
+        }
+
+        // el pedido no trae ancla y sí ubicación: el ancla es la posición declarada
+        // (el motor la arma más abajo); se usa para explicarlo en las advertencias
+        $anclaPorUbicacion = $pedida === '' && $ubicacionDeclarada;
+
+        // se pidió un ancla concreta y no es un viaje de este camión antes del
+        // corte: mejor decirlo que predecir desde otro lado sin avisar
+        $anclaPedidaNoEncontrada = $pedida !== '' && $ancla === null;
+
+        // ($rutaRef ya quedó arriba: la ref sin ruta no llega hasta acá)
+        $plantaCarga = (string) ($fila->origen_id ?? '');
+        $etapasPorRuta = DBPrediccion::etapas_por_ruta($desde, $ahora);
+
+        // desde dónde vuelve el camión: su última posición conocida o lo que declare el usuario
+        $desdePlanta = $ancla !== null ? (string) ($ancla->destino_id ?? '') : '';
+        $desdeUbigeo = $ancla !== null ? (string) ($ancla->ubigeo_destino ?? '') : '';
 
         // ¿el ancla sirve? Si el camión no tiene viaje en curso (o su último hito
         // es más viejo que el tope del hueco) se arranca desde la ubicación
@@ -801,9 +819,13 @@ class Servicio
         }
 
         if ($anclaDeclarada) {
-            $resultado->advertencias[] = 'ancla_declarada: no hay un viaje en curso utilizable (o su último hito '
-                . 'es de hace más de ' . intdiv($topeAncla, 60) . ' h); el cálculo arranca ahora desde la ubicación '
-                . 'declarada y suma el traslado hasta la planta de carga';
+            $resultado->advertencias[] = $anclaPorUbicacion
+                ? 'ancla_declarada: el pedido no trae ancla y sí una ubicación declarada, así que el cálculo '
+                    . 'arranca en esa posición (ahora) y suma el traslado hasta la planta de carga; no se busca '
+                    . 'el último viaje de la placa'
+                : 'ancla_declarada: no hay un viaje en curso utilizable (o su último hito '
+                    . 'es de hace más de ' . intdiv($topeAncla, 60) . ' h); el cálculo arranca ahora desde la ubicación '
+                    . 'declarada y suma el traslado hasta la planta de carga';
         } elseif ($anclaPedidaNoEncontrada) {
             $resultado->advertencias[] = 'ancla_no_encontrada: la ref ' . $pedida . ' no es un viaje de la placa '
                 . $placa . ' anterior al corte; sin ancla no hay desde dónde contar';

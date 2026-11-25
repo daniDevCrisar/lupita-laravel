@@ -2791,6 +2791,33 @@ evidencia. Hay tres niveles.
                      las coordenadas; un ubigeo que Geoapify no encuentra corta con
                      error).
 
+  1.45 25/11/2026  - SIN ANCLA PEDIDA NO SE DEDUCE EL ANCLA (bug). Cuando el pedido
+                     traia una UBICACION y no traia `ancla`, el motor igual buscaba el
+                     ultimo viaje de la placa y lo usaba como ancla. Caso real (ref
+                     1195347): el ancla deducida era un fin de descargue de 144,9 h
+                     antes, asi que `tFin` quedaba en el pasado, la hora calculada caia
+                     antes del corte y el motor publicaba `presenta = ahora` con un
+                     paso `ajuste` de 137:52 y el rapido 5:59 DESPUES de la normal
+                     (`banda_invertida`). El operador habia declarado donde estaba el
+                     camion ("estadio municipal inkari") y ese dato no se usaba como
+                     punto de partida.
+
+                     REGLA: el ancla se deduce del ultimo viaje de la placa SOLO si el
+                     pedido no declara ubicacion. Con ubicacion declarada y sin
+                     `ancla`, el calculo arranca en esa posicion AHORA
+                     (`ancla.hito = ubicacion_declarada`, `ubicacion.modo = hacia_planta`)
+                     y el hueco es traslado + tiempo muerto. La advertencia
+                     `ancla_declarada` lo explica en esos terminos.
+
+                     Lo que NO cambia: si se manda `ancla`, se usa (y con viaje en
+                     curso la ubicacion acorta el tramo hasta el destino). Si no se
+                     manda ancla NI ubicacion, se sigue deduciendo el ultimo viaje.
+
+                     Tests: TramoDeclaradoTest::test_con_ubicacion_y_sin_ancla_no_se_deduce_el_ultimo_viaje
+                     (sin ancla la respuesta dice `ubicacion_declarada` y no queda
+                     atrasada; con ancla explicita sigue siendo `inicio_ruta` /
+                     `hacia_destino`).
+
 ================================================================================
  FIN
 ================================================================================
