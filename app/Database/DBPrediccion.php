@@ -35,6 +35,12 @@ class DBPrediccion
     /** Tope por etapa, en minutos (mismo valor que el módulo de tiempos). */
     public const TOPE_ETAPA = 2880;
 
+    /**
+     * Un tramo de hasta estas horas no lleva descanso adentro: se usa para calibrar
+     * el ajuste de distancia del tramo PARCIAL (manejo sin paradas).
+     */
+    public const TOPE_TRAMO_PARCIAL = 240;
+
     /** Cachés por request: catálogos que no cambian entre llamadas. */
     private static ?array $rutas = null;
 
@@ -1015,11 +1021,14 @@ class DBPrediccion
         }
 
         // 4: COORDENADAS. Sólo cuando no hay ningún promedio para ese par: la
-        // distancia recta entre los dos locales por el ajuste medido con las rutas
+        // distancia recta entre los dos extremos por el ajuste medido con las rutas
         // que sí tienen promedio. Antes que Geoapify: no gasta cuota.
+        // `$parcial = false` porque esto es el regreso COMPLETO (puede incluir el
+        // descanso del conductor); el tramo desde la ubicación declarada usa el
+        // ajuste de manejo sin paradas.
         if ((int) ($p->coords_activo ?? 1) === 1) {
-            $porCoordenadas = self::traslado_por_coordenadas($plantaCarga, $plantaUbigeo,
-                $desdePlanta, $desdeUbigeo, $p, $texto);
+            $porCoordenadas = self::tramo_por_coordenadas($desdePlanta, $desdeUbigeo,
+                $plantaCarga, $plantaUbigeo, $p, $texto, false);
 
             if ($porCoordenadas !== null) {
                 return $porCoordenadas;
@@ -1135,21 +1144,33 @@ class DBPrediccion
     }
 
     /**
-     * Traslado estimado con las COORDENADAS de los dos extremos (escalón 4).
+     * Estimación de un tramo con las COORDENADAS de los dos extremos.
      *
-     * Sólo cuando no hay ningún promedio compilado para el par. Distancia recta
-     * (haversine) entre la posición del camión y la planta, por el ajuste
-     * `minutos = base + pendiente × km` medido con las rutas que sí tienen promedio
-     * y coordenadas en los dos extremos (`calibracion_distancias()`).
+     * Distancia recta (haversine) entre los dos puntos por el ajuste
+     * `minutos = base + pendiente × km` que se recalcula con las rutas compiladas
+     * que tienen coordenadas (`calibracion_distancias()`).
      *
-     * Devuelve null si falta alguna coordenada o si el resultado no es creíble.
+     * DOS MODOS, porque son dos cosas distintas:
+     *  - `$parcial = false` (traslado de regreso): viaje COMPLETO, con descansos;
+     *  - `$parcial = true` (desde la ubicación declarada hasta el destino): es lo
+     *    que le falta al camión AHORA, o sea manejo casi sin paradas. Usar el ajuste
+     *    del viaje completo acá sumaba los descansos dos veces (el tiempo ya
+     *    transcurrido también los trae): daba 15:50 para un tramo de 6 h.
+     *
+     * En modo parcial el resultado se acota a `coords_parcial_km_h_min` (15 km/h en
+     * línea recta: por debajo no es un camión andando) y se avisa `tramo_lento`.
+     *
+     * Devuelve null si falta alguna coordenada.
      */
-    private static function traslado_por_coordenadas(string $plantaCarga, ?string $plantaUbigeo,
-                                                     ?string $desdePlanta, ?string $desdeUbigeo,
-                                                     object $p, string $texto): ?object
+    public static function tramo_por_coordenadas(?string $desdeLocal, ?string $desdeUbigeo,
+                                                 ?string $hastaLocal, ?string $hastaUbigeo,
+                                                 ?object $p = null, ?string $texto = null,
+                                                 bool $parcial = true): ?object
     {
-        $destino = self::coord_ubicacion($plantaCarga, $plantaUbigeo);
-        $origen = self::coord_ubicacion($desdePlanta, $desdeUbigeo);
+        $p = $p ?? \App\Prediccion\Parametros::cargar();
+
+        $origen = self::coord_ubicacion($desdeLocal, $desdeUbigeo);
+        $destino = self::coord_ubicacion($hastaLocal, $hastaUbigeo);
 
         if ($origen === null || $destino === null) {
             return null;
@@ -1160,20 +1181,32 @@ class DBPrediccion
             return null;
         }
 
-        $ajuste = self::ajuste_distancia($origen, $destino, $p);
+        $ajuste = self::ajuste_distancia($origen, $destino, $p, $parcial);
         $minutos = $ajuste['base'] + $ajuste['pendiente'] * $km;
 
         // cordura: ni más rápido ni más lento que estos km/h
-        $velMin = max(1, (int) ($p->coords_km_h_min ?? 8));
+        $velMin = $parcial
+            ? max(1, (int) ($p->coords_parcial_km_h_min ?? 15))
+            : max(1, (int) ($p->coords_km_h_min ?? 8));
         $velMax = max($velMin + 1, (int) ($p->coords_km_h_max ?? 90));
+
+        $aviso = null;
+        $topeLento = $km / $velMin * 60;
+        if ($minutos > $topeLento) {
+            $minutos = $topeLento;
+            $aviso = 'tramo_lento';
+        }
         $minutos = max($minutos, $km / $velMax * 60);
-        $minutos = min($minutos, $km / $velMin * 60);
+
+        $desdeTexto = $origen->texto ?? '';
+        $hastaTexto = $destino->texto ?? '';
 
         return (object) [
             'min' => max(1, (int) round($minutos)),
             'fuente' => 'coordenadas',
             'ruta' => null,
-            'texto' => $texto,
+            'texto' => $texto ?? (($desdeTexto !== '' ? $desdeTexto : 'el punto declarado')
+                . ' → ' . ($hastaTexto !== '' ? $hastaTexto : 'el destino')),
             'km' => round($km, 1),
             'min_medido' => null,
             'viaje' => null,
@@ -1181,6 +1214,8 @@ class DBPrediccion
             'factor_vacio' => 1.0,
             'ajuste' => $ajuste['fuente'],
             'ajuste_n' => $ajuste['n'],
+            'parcial' => $parcial,
+            'aviso' => $aviso,
         ];
     }
 
@@ -1204,14 +1239,17 @@ class DBPrediccion
     }
 
     /**
-     * Coordenadas del centroide de un ubigeo, SÓLO de la tabla `geo_coordenadas`.
+     * Coordenadas de un ubigeo: primero la tabla `geo_coordenadas` y, si no está,
+     * se GEOCODIFICA con Geoapify.
      *
-     * Sin geocodificar: el escalón de coordenadas no puede gastar cuota de Geoapify
-     * (justamente está antes para no gastarla).
+     * Es lo que pidió el negocio: "cuando no encontrás la lat/lng de un ubigeo lo
+     * buscás en Geoapify". Si tampoco lo encuentra ahí, devuelve null y el que llama
+     * decide (el tramo desde una ubicación declarada corta con error: sin punto no
+     * hay ni distancia ni ruteo).
      */
     private static function coord_de_ubigeo(string $ubigeo): ?object
     {
-        $coord = \App\Prediccion\Geoapify::coord_ubigeo($ubigeo, false);
+        $coord = \App\Prediccion\Geoapify::coord_ubigeo($ubigeo);
         if ($coord === null) {
             return null;
         }
@@ -1287,6 +1325,7 @@ class DBPrediccion
      * usa el suyo.
      *
      * @return array{global: ?array{base: float, pendiente: float, n: int},
+     *               parcial: ?array{base: float, pendiente: float, n: int},
      *               pares: array<string, array{base: float, pendiente: float, n: int}>}
      */
     public static function calibracion_distancias(): array
@@ -1295,7 +1334,7 @@ class DBPrediccion
             return self::$calibracionDistancia;
         }
 
-        $vacio = ['global' => null, 'pares' => []];
+        $vacio = ['global' => null, 'parcial' => null, 'pares' => []];
 
         try {
             $filas = DB::select("
@@ -1315,6 +1354,7 @@ class DBPrediccion
 
         $global = [];
         $pares = [];
+        $cortos = [];
         foreach ($filas as $fila) {
             $km = self::distancia_km(
                 (object) ['lat' => (float) $fila->olat, 'lng' => (float) $fila->olng],
@@ -1326,6 +1366,12 @@ class DBPrediccion
             }
 
             $global[] = [$km, $minutos];
+
+            // los viajes CORTOS son los que no llevan descanso adentro: con ellos se
+            // calibra el tramo parcial (lo que le falta al camión ahora)
+            if ($minutos <= self::TOPE_TRAMO_PARCIAL) {
+                $cortos[] = [$km, $minutos];
+            }
 
             $par = substr((string) $fila->oubigeo, 0, 2) . '|' . substr((string) $fila->dubigeo, 0, 2);
             if ($par !== '|') {
@@ -1375,7 +1421,7 @@ class DBPrediccion
             return ['base' => round($base, 2), 'pendiente' => round($pendiente, 4), 'n' => $n];
         };
 
-        $salida = ['global' => $ajustar($global), 'pares' => []];
+        $salida = ['global' => $ajustar($global), 'parcial' => $ajustar($cortos), 'pares' => []];
         foreach ($pares as $par => $puntos) {
             $ajuste = $ajustar($puntos);
             if ($ajuste !== null) {
@@ -1387,14 +1433,29 @@ class DBPrediccion
     }
 
     /**
-     * Qué ajuste usar para este par: el de su par de departamentos, el global o el
-     * de la configuración (`coords_base_min` / `coords_min_km`).
+     * Qué ajuste usar: el del par de departamentos (sólo para el viaje completo),
+     * el global, el parcial (manejo sin paradas) o el de la configuración.
      *
      * @return array{base: float, pendiente: float, n: int, fuente: string}
      */
-    private static function ajuste_distancia(?object $origen, ?object $destino, object $p): array
+    private static function ajuste_distancia(?object $origen, ?object $destino, object $p,
+                                             bool $parcial = false): array
     {
         $calibracion = self::calibracion_distancias();
+
+        if ($parcial) {
+            // OJO: el ajuste de viajes CORTOS sale de rutas urbanas (Babel/Lima) y
+            // su pendiente implica ~20 km/h en línea recta; extrapolarla a un tramo
+            // interprovincial lo infla al doble. El tramo parcial usa la velocidad
+            // de camión en carretera de la configuración (2 min por km recto ≈
+            // 30 km/h), que es lo que pidió el negocio: "son camiones".
+            return [
+                'base' => (float) ($p->coords_parcial_base_min ?? 10),
+                'pendiente' => (float) ($p->coords_parcial_min_km ?? 2.0),
+                'n' => 0,
+                'fuente' => 'config',
+            ];
+        }
 
         $par = substr((string) ($origen->ubigeo ?? ''), 0, 2) . '|'
             . substr((string) ($destino->ubigeo ?? ''), 0, 2);

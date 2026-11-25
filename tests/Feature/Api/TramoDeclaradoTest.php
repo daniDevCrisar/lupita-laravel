@@ -215,4 +215,52 @@ class TramoDeclaradoTest extends TestCase
         $this->assertContains($r->json('ubicacion.modo'), ['hacia_destino', 'no_usada']);
         Http::assertNothingSent();
     }
+
+    /**
+     * Sin ruteo, el tramo declarado sale de las COORDENADAS de los dos extremos con
+     * la velocidad de camión del tramo PARCIAL (manejo sin paradas), no con el
+     * ajuste del viaje completo (que incluye descansos y sumaba doble).
+     */
+    public function test_sin_ruteo_el_tramo_declarado_sale_de_las_coordenadas(): void
+    {
+        config(['geoapify.key' => '']);
+        Geoapify::olvidar();
+        Http::fake();
+
+        $r = $this->predecir(self::REF_VIAJE, '&ubicacion_texto=' . urlencode('PLANTA CHICLAYO'));
+
+        $r->assertOk()->assertJsonPath('success', true);
+        $this->assertSame('hacia_destino', $r->json('ubicacion.modo'));
+        $this->assertSame('LOC_CHICLAYO', $r->json('ubicacion.id'));
+        $this->assertSame('coordenadas', $r->json('ubicacion.tramo.fuente'));
+        $this->assertGreaterThan(0, (int) $r->json('ubicacion.tramo.min'));
+        $this->assertGreaterThan(0, (float) $r->json('ubicacion.tramo.km'));
+        // las coordenadas de los dos extremos están en el catálogo: no hubo llamadas
+        Http::assertNothingSent();
+    }
+
+    /**
+     * Un ubigeo que no está en `geo_coordenadas` y que Geoapify no puede resolver
+     * (sin key) no puede terminar en una hora inventada: la API corta con error.
+     */
+    public function test_un_ubigeo_que_geoapify_no_encuentra_corta_con_error(): void
+    {
+        config(['geoapify.key' => '']);
+        Geoapify::olvidar();
+        Http::fake();
+
+        // por texto libre: ni catálogo ni geocodificación
+        $porTexto = $this->predecir(self::REF_VIAJE, '&ubicacion_texto=999999');
+        $porTexto->assertStatus(422)->assertJsonPath('success', false);
+        $this->assertStringContainsString('No se pudo consultar el API de prediccion',
+            (string) $porTexto->json('error'));
+
+        // y declarando el ubigeo directo (sin pasar por el catálogo de texto) el
+        // corte lo hace el motor, no el request
+        $directo = $this->predecir(self::REF_VIAJE, '&ubicacion_tipo=ubigeo&ubicacion_id=999999');
+        $directo->assertStatus(422)->assertJsonPath('success', false);
+        $this->assertStringContainsString('No se pudo consultar el API de prediccion',
+            (string) $directo->json('error'));
+        $this->assertNull($directo->json('presenta'));
+    }
 }

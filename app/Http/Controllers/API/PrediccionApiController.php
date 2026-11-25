@@ -100,8 +100,10 @@ class PrediccionApiController extends Controller
         }
 
         if (($resolucion['encontrada'] ?? false) !== true) {
-            return [[], self::error('No se pudo ubicar "' . $texto . '": no está en el catálogo y no se pudo '
-                . 'geocodificar (sin key de Geoapify o sin resultado)', 422)];
+            // sin ubicación no hay tramo ni distancia: es la misma respuesta que
+            // cuando el ubigeo no se puede geolocalizar más adelante
+            return [[], self::error('No se pudo consultar el API de prediccion: no se pudo ubicar "'
+                . $texto . '" (no está en el catálogo y Geoapify no lo encontró o no hay key)', 422)];
         }
 
         $opciones = [
@@ -383,6 +385,13 @@ class PrediccionApiController extends Controller
         }
 
         if (!empty($resultado->error)) {
+            // la ubicación declarada no se pudo ubicar de ninguna forma: sin un punto
+            // no hay tramo ni distancia. Es un problema del pedido, no de la ref.
+            if ((string) $resultado->error === 'ubicacion_no_geolocalizable') {
+                return self::error('No se pudo consultar el API de prediccion: el ubigeo de la ubicación '
+                    . 'declarada no está en el catálogo y Geoapify no lo encontró', 422);
+            }
+
             // una ref sin ruta existe, pero no se puede predecir: sin planta de
             // carga no hay traslado que estimar. Se distingue de "no encontrada"
             // para que el consumidor sepa que no es un problema de su request.

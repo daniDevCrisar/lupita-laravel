@@ -388,9 +388,17 @@
             <p class="small text-muted mb-2">
                 Cuando no hay <strong>ningún</strong> promedio para el par (ni de la ruta, ni de la referencia, ni de
                 los ubigeos), el traslado sale de las <strong>coordenadas de los locales</strong>
-                (<code>locales.lat/lng</code>, o el centroide del ubigeo): distancia recta × el ajuste
-                <code>minutos = base + pendiente × km</code> que se recalcula solo con las rutas que sí tienen
-                promedio. Va <strong>antes</strong> de Geoapify a propósito: no gasta cuota.
+                (<code>locales.lat/lng</code>, o el centroide del ubigeo, que si falta se <strong>geocodifica con
+                Geoapify</strong>): distancia recta × el ajuste <code>minutos = base + pendiente × km</code> que se
+                recalcula solo con las rutas que sí tienen promedio. Va <strong>antes</strong> de Geoapify a propósito:
+                no gasta cuota de ruteo.
+            </p>
+            <p class="small text-muted mb-2">
+                El <strong>tramo desde la ubicación declarada</strong> (lo que le falta al camión hasta el destino de
+                su viaje) se estima distinto: es <strong>manejo sin paradas</strong>, a velocidad de camión
+                (<code>coords_parcial_*</code>). Usar el ajuste del viaje completo —que incluye descansos— contaba los
+                descansos dos veces y daba 15:50 para un tramo de 6 h. Si el resultado implica menos de
+                <code>coords_parcial_km_h_min</code> km/h en línea recta, se acota y se avisa <code>tramo_lento</code>.
             </p>
 
             @include('lupita.partials.prediccion_valores_en_uso', [
@@ -401,8 +409,9 @@
             <div class="text-muted mt-2" style="font-size:.7rem">
                 <code>vacio_factor</code> = 1 apaga la corrección (queda como antes).
                 <code>coords_activo</code> = 0 apaga el escalón de distancia.
-                Los cuatro números de <code>coords_*</code> se usan sólo cuando todavía no hay ninguna ruta con
-                promedio y coordenadas con la que recalcular el ajuste.
+                Los números de <code>coords_*</code> (viaje completo) y <code>coords_parcial_*</code> (manejo sin
+                paradas, a velocidad de camión) se usan sólo cuando todavía no hay rutas con promedio y coordenadas
+                con las que recalcular el ajuste.
             </div>
         </div>
     </div>

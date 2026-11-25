@@ -333,6 +333,63 @@ class TrasladoConHorarioTest extends TestCase
         $this->assertSame('0,83', Parametros::texto('vacio_factor', 0.83));
     }
 
+    /**
+     * El tramo que le falta al camión desde la ubicación declarada es manejo SIN
+     * paradas, no un viaje completo: usar el ajuste del viaje completo (que incluye
+     * descansos) sumaba los descansos dos veces. Caso real: VIRÚ → PLANTA CHICLAYO,
+     * 208 km en línea recta, daba 15:50 cuando el manejo son ~7 h.
+     */
+    public function test_el_tramo_parcial_usa_velocidad_de_camion_y_no_el_viaje_completo(): void
+    {
+        $p = $this->parametrosConCoordenadas();
+
+        $parcial = DBPrediccion::tramo_por_coordenadas(null, '131201', 'LOC_CHICLAYO', null,
+            $p, 'VIRU → PLANTA CHICLAYO', true);
+        $completo = DBPrediccion::tramo_por_coordenadas(null, '131201', 'LOC_CHICLAYO', null,
+            $p, 'VIRU → PLANTA CHICLAYO', false);
+
+        if ($parcial === null || $completo === null) {
+            $this->markTestSkipped('faltan las coordenadas de VIRÚ (131201) o de LOC_CHICLAYO');
+        }
+
+        $this->assertGreaterThan(0, (float) $parcial->km);
+        $this->assertLessThan((int) $completo->min, (int) $parcial->min,
+            'el tramo parcial no puede costar lo mismo que el viaje completo');
+
+        // el parcial sale de la velocidad de camión de la configuración
+        $this->assertSame('config', (string) $parcial->ajuste);
+        $esperado = round((float) $p->coords_parcial_base_min
+            + (float) $p->coords_parcial_min_km * (float) $parcial->km);
+        $this->assertEqualsWithDelta($esperado, (int) $parcial->min, 1);
+
+        // y el completo, del ajuste medido con las rutas
+        $this->assertContains((string) $completo->ajuste, ['par', 'global', 'config']);
+        $this->assertNull($parcial->aviso, 'a velocidad de camión no hay nada que acotar');
+    }
+
+    public function test_el_tramo_parcial_se_acota_a_15_km_h_y_avisa(): void
+    {
+        // con una pendiente absurda (10 min por km recto = 6 km/h) el motor tiene que
+        // recortar al piso de camión y avisar
+        $p = (object) array_merge((array) $this->parametrosConCoordenadas(), [
+            'coords_parcial_base_min' => 0,
+            'coords_parcial_min_km' => 10.0,
+            'coords_parcial_km_h_min' => 15,
+        ]);
+
+        $parcial = DBPrediccion::tramo_por_coordenadas(null, '131201', 'LOC_CHICLAYO', null,
+            $p, null, true);
+
+        if ($parcial === null) {
+            $this->markTestSkipped('faltan las coordenadas de VIRÚ (131201) o de LOC_CHICLAYO');
+        }
+
+        $this->assertSame('tramo_lento', (string) $parcial->aviso);
+
+        $tope = (int) ceil((float) $parcial->km / 15 * 60);
+        $this->assertEqualsWithDelta($tope, (int) $parcial->min, 1, 'se acota a 15 km/h en línea recta');
+    }
+
     public function test_los_ajustes_por_par_de_departamentos_son_creibles(): void
     {
         $calibracion = DBPrediccion::calibracion_distancias();

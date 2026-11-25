@@ -366,13 +366,46 @@ class Servicio
         // dónde está el camión ahora. Lo que viene después (descarga y vuelta al
         // destino) no depende de su posición y se sigue sumando.
         $tramoDeclarado = null;
+        $avisoTramo = null;
         if ($viajeEnCurso && $ubicacionDeclarada) {
             $tramoDeclarado = self::tramo_hacia_destino($coords, $ubicacionUbigeo, $ubicacionResueltaTexto,
-                $ancla, $etapasAncla, $rutaAncla !== '' ? $rutaAncla : null, $ahora);
+                $ancla, $etapasAncla, $rutaAncla !== '' ? $rutaAncla : null, $ahora, $p);
+
+            // la posición declarada no se pudo ubicar de ninguna forma: sin punto no
+            // hay tramo, ni distancia, ni ruteo. Se corta con error en vez de publicar
+            // una hora armada desde el ancla entera como si el camión no se hubiera
+            // movido.
+            if (is_object($tramoDeclarado) && isset($tramoDeclarado->error)) {
+                return (object) [
+                    'ref' => $ref,
+                    'error' => (string) $tramoDeclarado->error,
+                    'placa' => $placa,
+                    'ahora' => $ahora,
+                    'presenta' => null,
+                    'desglose' => [],
+                    'supuestos' => [],
+                    'advertencias' => [
+                        'ubicacion_no_geolocalizable: el ubigeo ' . (string) $tramoDeclarado->ubigeo
+                        . ' (' . (string) $tramoDeclarado->texto . ') no está en el catálogo de coordenadas y '
+                        . 'Geoapify no lo encontró. Sin un punto no se puede estimar el tramo que le falta al '
+                        . 'camión; no se predice.',
+                    ],
+                    'candidatos' => $candidatos,
+                    'historia' => null,
+                ];
+            }
 
             if ($tramoDeclarado !== null) {
                 $tramoDeclarado->resto_min = MotorPresenta::faltantes_sin_viaje(
                     (string) ($ancla->hito ?? ''), $etapasAncla) ?? 0;
+
+                // el tramo parcial se estima como manejo SIN paradas: si el ajuste de
+                // distancia implicaba menos de 15 km/h en línea recta, se recortó
+                if ((string) ($tramoDeclarado->aviso ?? '') === 'tramo_lento') {
+                    $avisoTramo = 'tramo_lento: el tramo desde la ubicación declarada hasta el '
+                        . 'destino implicaba menos de ' . (int) ($p->coords_parcial_km_h_min ?? 15)
+                        . ' km/h en línea recta; se acotó a esa velocidad';
+                }
             }
         }
 
@@ -761,6 +794,10 @@ class Servicio
             $resultado->supuestos[] = 'el regreso va sin carga: el promedio de ida se corrigió ×'
                 . number_format((float) $traslado->factor_vacio, 2, ',', '.')
                 . ' (un camión vacío tarda menos)';
+        }
+
+        if ($avisoTramo !== null) {
+            $resultado->advertencias[] = $avisoTramo;
         }
 
         if ($anclaDeclarada) {
@@ -1976,21 +2013,32 @@ class Servicio
      * hasta el DESTINO de ese viaje (el destino del ancla), en minutos.
      *
      * Es la respuesta a "el camión está en tal lado, ¿cuánto le falta para
-     * llegar?". Tres fuentes, de la más a la menos específica:
+     * llegar?". Cuatro fuentes, de la más a la menos específica:
      *  1. punto geocodificado (texto libre) -> ruteo real de Geoapify;
-     *  2. local/ubigeo del catálogo -> ruteo entre los dos ubigeos;
-     *  3. sin Geoapify -> lo medido entre esos dos ubigeos (compilados), y si
-     *     tampoco hay, NULL: mejor avisar que inventar el tramo.
+     *  2. local/ubigeo del catálogo -> ruteo real de Geoapify con las lat/lng de los
+     *     dos extremos (el ubigeo se busca en `geo_coordenadas` y, si no está, se
+     *     GEOCODIFICA con Geoapify);
+     *  3. sin ruteo -> distancia RECTA entre los dos puntos con el ajuste de viaje
+     *     PARCIAL (manejo sin paradas, velocidad de camión): usar el ajuste del
+     *     viaje completo contaba los descansos dos veces y daba 15:50 para un
+     *     tramo de 6 h. Se acota a 15 km/h en línea recta y se avisa `tramo_lento`;
+     *  4. lo medido entre esos dos ubigeos (compilados) y, si tampoco hay, NULL.
+     *
+     * Si la posición declarada no se puede ubicar de NINGUNA forma (ni catálogo, ni
+     * Geoapify, ni ruta medida), devuelve un objeto con `error`
+     * `ubicacion_no_geolocalizable` en vez de inventar el tramo.
      *
      * @param  array<string, array<string, int|null>>  $etapas  salida de etapas_por_ruta()
      */
     private static function tramo_hacia_destino(?object $coords, string $desdeUbigeo, string $desdeTexto,
                                                 ?object $ancla, array $etapas, ?string $rutaAncla,
-                                                ?Carbon $salida = null): ?object
+                                                ?Carbon $salida = null, ?object $p = null): ?object
     {
         if ($ancla === null) {
             return null;
         }
+
+        $p = $p ?? Parametros::cargar();
 
         $destinoLocal = (string) ($ancla->destino_id ?? '');
         $destinoUbigeo = (string) ($ancla->ubigeo_destino ?? '');
@@ -2006,13 +2054,14 @@ class Servicio
             $destinoUbigeo !== '' ? $destinoUbigeo : null);
         $desde = $desdeTexto !== '' ? $desdeTexto : 'la ubicación declarada';
 
-        $respuesta = function (int $min, $km, string $fuente) use ($desde, $destinoTexto): object {
+        $respuesta = function (int $min, $km, string $fuente, ?string $aviso = null) use ($desde, $destinoTexto): object {
             return (object) [
                 'min' => max(1, $min),
                 'km' => $km,
                 'desde' => $desde,
                 'hasta' => $destinoTexto !== '' ? $destinoTexto : 'el destino del viaje',
                 'fuente' => $fuente,
+                'aviso' => $aviso,
             ];
         };
 
@@ -2031,7 +2080,8 @@ class Servicio
             return null;
         }
 
-        // 2) local/ubigeo declarado: ruteo entre los dos ubigeos
+        // 2) local/ubigeo declarado: ruteo REAL con las lat/lng de los dos extremos
+        // (Geoapify ya resuelve el ubigeo a coordenadas, geocodificándolo si hace falta)
         if ($destinoUbigeo !== '') {
             $geo = Geoapify::ruta($desdeUbigeo, $destinoUbigeo, $salida);
             if ($geo !== null) {
@@ -2039,13 +2089,35 @@ class Servicio
             }
         }
 
-        // 3) sin Geoapify: lo medido para ese par (o su mediana por departamentos)
+        // 3) sin ruteo: distancia recta con el ajuste de tramo PARCIAL. Es lo que le
+        // falta al camión AHORA: manejo casi sin paradas, velocidad de camión.
+        $porCoordenadas = DBPrediccion::tramo_por_coordenadas(null, $desdeUbigeo,
+            $destinoLocal !== '' ? $destinoLocal : null,
+            $destinoUbigeo !== '' ? $destinoUbigeo : null,
+            $p, null, true);
+
+        if ($porCoordenadas !== null) {
+            return $respuesta((int) $porCoordenadas->min, $porCoordenadas->km ?? null, 'coordenadas',
+                $porCoordenadas->aviso ?? null);
+        }
+
+        // 4) lo medido para ese par (o su mediana por departamentos)
         $medido = DBPrediccion::traslado($destinoLocal !== '' ? $destinoLocal : null, null,
             $desdeUbigeo, $destinoUbigeo !== '' ? $destinoUbigeo : null, $etapas, $rutaAncla, null, true,
-            $salida);
+            $salida, null, $p);
 
         if ($medido !== null && (string) ($medido->fuente ?? '') !== 'defecto') {
             return $respuesta((int) $medido->min, $medido->km ?? null, (string) $medido->fuente);
+        }
+
+        // nada pudo ubicar la posición declarada: ni coordenadas, ni ruteo, ni una
+        // ruta medida para ese par. Es un problema del pedido, no una predicción rara.
+        if (DBPrediccion::coord_ubicacion(null, $desdeUbigeo) === null) {
+            return (object) [
+                'error' => 'ubicacion_no_geolocalizable',
+                'ubigeo' => $desdeUbigeo,
+                'texto' => $desde,
+            ];
         }
 
         return null;

@@ -19,7 +19,8 @@ final class Parametros
     /**
      * Claves que se castean a float (el resto a int).
      */
-    private const FLOTANTES = ['spread_cadena', 'ventana_cobertura', 'vacio_factor', 'coords_min_km'];
+    private const FLOTANTES = ['spread_cadena', 'ventana_cobertura', 'vacio_factor', 'coords_min_km',
+                               'coords_parcial_min_km'];
 
     /** Prefijo de las claves cuya corrección sí puede ser negativa. */
     private const SESGO = 'sesgo_clase_';

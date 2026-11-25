@@ -417,6 +417,9 @@ JSON;
                             <code>ahora</code>) y el rápido, que respeta el piso físico, cae después: la banda
                             rápida–tardada no contiene a la normal. Se avisa en vez de recortar el rápido contra ella
                             (eso publicaría una hora físicamente imposible).</li>
+                        <li><code>tramo_lento</code> — el tramo desde la ubicación declarada hasta el destino
+                            implicaba menos de 15 km/h en línea recta (no es un camión andando): se acotó a esa
+                            velocidad y se avisa.</li>
                     </ul>
                 </div>
             </div>
@@ -442,6 +445,9 @@ JSON;
                         <li><strong>422 · “Ubicación ambigua”</strong> — <code>ubicacion_texto</code> coincidió con varias
                             ubicaciones (<code>candidatos</code> con <code>{id, texto}</code>): repetir con
                             <code>ubicacion_id</code> o con el nombre más completo.</li>
+                        <li><strong>422 · “No se pudo consultar el API de prediccion”</strong> — la ubicación declarada
+                            no se pudo ubicar: no está en el catálogo y Geoapify no la encontró (o no hay key). Sin un
+                            punto no hay tramo ni distancia, así que no se devuelve una hora.</li>
                         <li><strong>500</strong> — falla del servidor: reintentar con espera.</li>
                     </ul>
                 </div>

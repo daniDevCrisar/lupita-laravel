@@ -2744,6 +2744,53 @@ evidencia. Hay tres niveles.
                      punto 2 (en MAE la base ajustada sigue siendo la mejor y el
                      consenso el que mas veces entra en el margen).
 
+  1.44 25/11/2026  - TRAMO PARCIAL, COORDENADAS DE UBIGEO Y CORTE POR UBIGEO QUE NO
+                     EXISTE. Tres cosas del camino "el operador declaró dónde está el
+                     camión y hay que estimar lo que le falta hasta el destino".
+
+                     (a) UBIGEO SIN COORDENADAS: se GEOCODIFICA. Antes
+                     `DBPrediccion::coord_de_ubigeo()` leia solo `geo_coordenadas` y
+                     devolvia null si el ubigeo no estaba (para no gastar cuota). Ahora
+                     cae a `Geoapify::coord_ubigeo()`, que geocodifica y GUARDA el punto
+                     en `geo_coordenadas`: la primera prediccion paga la llamada, las
+                     siguientes leen la tabla. El ruteo sigue usando lat/lng de los dos
+                     extremos (`waypoints`), asi que el tramo lo calcula Geoapify con
+                     puntos reales y no con codigos.
+
+                     (b) TRAMO PARCIAL = MANEJO SIN PARADAS. `Servicio::tramo_hacia_destino()`
+                     tiene un escalon nuevo: si Geoapify no rutea, la distancia recta se
+                     estima con `DBPrediccion::tramo_por_coordenadas(..., $parcial = true)`,
+                     que usa velocidad de CAMION (`coords_parcial_base_min` 10 +
+                     `coords_parcial_min_km` 2,0 por km recto, ~30 km/h) y NO el ajuste
+                     del viaje completo.
+                     Por que: el ajuste del viaje completo sale de `e4` (manejo CON
+                     descansos, ~14 km/h recta) y el tiempo ya transcurrido del camion
+                     tambien los incluye, asi que se contaban dos veces. Caso real
+                     (ref 1194797, VIRU -> PLANTA CHICLAYO, 208,1 km rectos): el motor
+                     publicaba presenta 26/11 05:30 con 15:50 de tramo; con la velocidad
+                     de camion son 7:06 y la presentacion cae 25/11 18:52, que es lo
+                     fisico (el compromiso era 25/11 10:30).
+                     El ajuste de viajes CORTOS se calcula igual
+                     (`calibracion_distancias()['parcial']`, rutas con mediana <= 4 h)
+                     pero NO se usa: es urbano (~20 km/h recta) y extrapolarlo a un
+                     tramo interprovincial lo infla al doble.
+
+                     (c) CORDURA Y CORTE. Si el tramo parcial implica menos de
+                     `coords_parcial_km_h_min` (15 km/h en linea recta) se acota a esa
+                     velocidad y se avisa `tramo_lento`. Y si la ubicacion declarada NO
+                     se puede ubicar de ninguna forma (ni catalogo, ni Geoapify, ni una
+                     ruta medida para ese par), la API corta con 422
+                     "No se pudo consultar el API de prediccion: ..." en vez de publicar
+                     una hora armada desde el ancla entera. Mismo mensaje cuando
+                     `ubicacion_texto` no se resuelve.
+
+                     Claves nuevas: `coords_parcial_base_min`, `coords_parcial_min_km`,
+                     `coords_parcial_km_h_min`. Tests: TrasladoConHorarioTest (el tramo
+                     parcial usa velocidad de camion y no el viaje completo; se acota a
+                     15 km/h y avisa) y TramoDeclaradoTest (sin ruteo el tramo sale de
+                     las coordenadas; un ubigeo que Geoapify no encuentra corta con
+                     error).
+
 ================================================================================
  FIN
 ================================================================================

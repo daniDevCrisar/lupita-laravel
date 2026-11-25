@@ -975,6 +975,8 @@ class PrediccionController extends Controller
             'vacio_coords' => Parametros::en_uso([
                 'vacio_factor', 'coords_activo', 'coords_base_min', 'coords_min_km',
                 'coords_km_h_min', 'coords_km_h_max',
+                // tramo desde la ubicación declarada: manejo sin paradas (camión)
+                'coords_parcial_base_min', 'coords_parcial_min_km', 'coords_parcial_km_h_min',
             ]),
         ]));
     }

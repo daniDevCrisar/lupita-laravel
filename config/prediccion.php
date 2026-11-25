@@ -241,6 +241,19 @@ return [
     'coords_km_h_min' => 8,
     'coords_km_h_max' => 90,
 
+    // TRAMO PARCIAL (ubicación declarada → destino del viaje): es lo que le falta al
+    // camión AHORA, o sea manejo casi sin paradas. NO sirve el ajuste del viaje
+    // completo (ese incluye descansos y da ~14 km/h en línea recta) porque el tiempo
+    // ya transcurrido también los incluye y se contarían dos veces. Un camión en
+    // carretera hace ~30 km/h sobre la distancia RECTA (≈50 km/h de ruta), o sea
+    // ~2 min por km recto. Estos números son el respaldo: con las rutas CORTAS
+    // compiladas que tengan coordenadas, el ajuste se recalcula solo.
+    'coords_parcial_base_min' => 10,
+    'coords_parcial_min_km' => 2.0,
+    // cordura: por debajo de 15 km/h en línea recta no es un camión andando: se
+    // recorta a ese piso y se avisa con `tramo_lento`
+    'coords_parcial_km_h_min' => 15,
+
     // Topes heredados del módulo de tiempos.
     'tope_hueco_min' => 10080,
     'tope_etapa_min' => 2880,
