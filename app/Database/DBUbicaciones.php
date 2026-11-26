@@ -40,6 +40,129 @@ class DBUbicaciones
     }
 
     /**
+     * Rutas cuyo `origen_id` o `destino_id` quedo con un UBIGEO en vez de un local.
+     *
+     * Pasa cuando el SP no encontro ningun local en ese momento y uso el distrito
+     * (`rutas.origen_id = '150132'`). Al dar de alta locales nuevos, esas rutas pueden
+     * pasar a apuntar al local, pero solo si se reprocesan las refs.
+     *
+     * @return array<int, array{id: string, origen_id: string, destino_id: string,
+     *                          origen_ubigeo: bool, destino_ubigeo: bool,
+     *                          veces_usada: int, refs: int}>
+     */
+    public static function rutasConUbigeo(): array
+    {
+        $rutas = DB::table('rutas')
+            ->orderBy('id')
+            ->get(['id', 'origen_id', 'destino_id', 'veces_usada']);
+
+        $salida = [];
+        $ids = [];
+
+        foreach ($rutas as $ruta) {
+            $origen_ubigeo = preg_match('/^\d{6}$/', (string) $ruta->origen_id) === 1;
+            $destino_ubigeo = preg_match('/^\d{6}$/', (string) $ruta->destino_id) === 1;
+
+            if (!$origen_ubigeo && !$destino_ubigeo) {
+                continue;
+            }
+
+            $ids[] = (string) $ruta->id;
+            $salida[(string) $ruta->id] = [
+                'id'            => (string) $ruta->id,
+                'origen_id'     => (string) $ruta->origen_id,
+                'destino_id'    => (string) $ruta->destino_id,
+                'origen_ubigeo' => $origen_ubigeo,
+                'destino_ubigeo' => $destino_ubigeo,
+                'veces_usada'   => (int) $ruta->veces_usada,
+                'refs'          => 0,
+            ];
+        }
+
+        // cuantas refs cuelgan de cada una (en lotes, puede haber cientos de rutas)
+        foreach (array_chunk($ids, 500) as $lote) {
+            foreach (DB::table('referencias')
+                ->whereIn('ruta_id', $lote)
+                ->selectRaw('ruta_id, COUNT(*) AS n')
+                ->groupBy('ruta_id')
+                ->get() as $fila) {
+                $clave = (string) $fila->ruta_id;
+                if (isset($salida[$clave])) {
+                    $salida[$clave]['refs'] = (int) $fila->n;
+                }
+            }
+        }
+
+        return array_values($salida);
+    }
+
+    /**
+     * Refs (con su titulo) que cuelgan de esas rutas.
+     *
+     * @param array<int, string> $rutas
+     *
+     * @return array<string, string> ref => titulo
+     */
+    public static function refsDeRutas(array $rutas): array
+    {
+        $salida = [];
+
+        foreach (array_chunk(array_values($rutas), 500) as $lote) {
+            foreach (DB::table('referencias')
+                ->whereIn('ruta_id', $lote)
+                ->whereNotNull('titulo_viaje')
+                ->where('titulo_viaje', '<>', '')
+                ->orderBy('ref')
+                ->get(['ref', 'titulo_viaje']) as $fila) {
+                $salida[(string) $fila->ref] = (string) $fila->titulo_viaje;
+            }
+        }
+
+        return $salida;
+    }
+
+    /**
+     * Cuantas refs de rutas con ubigeo mencionan alguna de esas palabras clave.
+     *
+     * Es el aviso barato que se muestra al guardar un local ("esto puede desbloquear N
+     * refs"), sin analizar 3.700 titulos en cada guardado.
+     *
+     * @param array<int, string> $palabras
+     */
+    public static function refsUbigeoQueMencionan(array $palabras): int
+    {
+        $palabras = array_values(array_filter(array_map(
+            fn ($p) => trim((string) $p),
+            $palabras
+        ), fn (string $p) => $p !== ''));
+
+        if ($palabras === []) {
+            return 0;
+        }
+
+        $rutas = array_map(fn (array $r) => $r['id'], self::rutasConUbigeo());
+        if ($rutas === []) {
+            return 0;
+        }
+
+        $total = 0;
+
+        foreach (array_chunk($rutas, 500) as $lote_rutas) {
+            $consulta = DB::table('referencias')->whereIn('ruta_id', $lote_rutas);
+
+            $consulta->where(function ($q) use ($palabras) {
+                foreach ($palabras as $palabra) {
+                    $q->orWhere('titulo_viaje', 'like', '%' . $palabra . '%');
+                }
+            });
+
+            $total += $consulta->count();
+        }
+
+        return $total;
+    }
+
+    /**
      * Subconjunto de $refs que YA tiene `ruta_id`.
      *
      * Sirve para que el boton de reprocesar no vuelva a llamar al SP sobre una

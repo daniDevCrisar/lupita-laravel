@@ -72,14 +72,36 @@ class ReprocesarController extends Controller
                         . 'Volvé a apretar el botón desde el listado.');
             }
         } else {
-            $datos = $request->validate([
-                'refs'   => ['required', 'array', 'max:2000'],
-                'refs.*' => ['string', 'regex:/^[A-Z0-9\-]{3,10}$/'],
-            ], [
-                'refs.required' => 'No se eligió ninguna referencia.',
-                'refs.max'      => 'Como máximo se procesan 2000 referencias por vez.',
-                'refs.*.regex'  => 'La referencia tiene caracteres que no corresponden.',
-            ]);
+            // `desde=ubigeo`: las refs que la pantalla "Rutas con ubigeo" detecto como
+            // mejorables. Se resuelven aca para no mandar 1.600 inputs ocultos.
+            $desde = (string) $request->input('desde', '');
+
+            if ($desde === 'ubigeo') {
+                $refs = array_keys(AnalisisTitulos::desdeBase()->refsConAmbosLadosLocal(
+                    DBUbicaciones::refsDeRutas(array_map(
+                        fn (array $r) => $r['id'],
+                        DBUbicaciones::rutasConUbigeo()
+                    ))
+                ));
+
+                if ($refs === []) {
+                    return redirect()
+                        ->route('lupita.ubicaciones.rutas_ubigeo')
+                        ->with('error', 'No hay refs de rutas con ubigeo que hoy resuelvan a un local. '
+                            . 'Al dar de alta más locales van a aparecer.');
+                }
+
+                $datos = ['refs' => $refs];
+            } else {
+                $datos = $request->validate([
+                    'refs'   => ['required', 'array', 'max:2000'],
+                    'refs.*' => ['string', 'regex:/^[A-Z0-9\-]{3,10}$/'],
+                ], [
+                    'refs.required' => 'No se eligió ninguna referencia.',
+                    'refs.max'      => 'Como máximo se procesan 2000 referencias por vez.',
+                    'refs.*.regex'  => 'La referencia tiene caracteres que no corresponden.',
+                ]);
+            }
 
             // Las refs van DERECHO al procedimiento: el SP es el que decide la ruta.
             // Aca no se filtra ni se bloquea nada por el contenido del titulo (el aviso
@@ -91,6 +113,7 @@ class ReprocesarController extends Controller
                 'ok'          => 0,
                 'error'       => 0,
                 'omitidas'    => [],
+                'omitir_con_ruta' => $desde !== 'ubigeo',
                 'filas'       => [],
             ];
         }
@@ -99,7 +122,7 @@ class ReprocesarController extends Controller
         set_time_limit(120);
 
         $lote = array_splice($acumulado['pendientes'], 0, self::POR_LOTE);
-        $reporte = DBReprocesar::procesar($lote);
+        $reporte = DBReprocesar::procesar($lote, null, $acumulado['omitir_con_ruta'] ?? true);
 
         $acumulado['ok'] += $reporte['ok'];
         $acumulado['error'] += $reporte['error'];

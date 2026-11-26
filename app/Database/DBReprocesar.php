@@ -60,17 +60,23 @@ class DBReprocesar
      *
      * `$llamar` se inyecta en los tests para no depender de que el SP exista.
      *
+     * `$omitir_con_ruta`: por defecto se saltan las refs que ya tienen `ruta_id`, para no
+     * inflar `veces_usada` si se aprieta dos veces. Hay que pasarlo en FALSE cuando el
+     * objetivo ES reprocesar refs ya resueltas: es el caso de las rutas que quedaron con
+     * un ubigeo en el id y ahora tienen local (ver RutasUbigeoController).
+     *
      * @param array<int, string>      $refs
      * @param callable|null           $llamar
+     * @param bool                    $omitir_con_ruta
      *
      * @return array{total: int, ok: int, error: int, omitidas: array<int, string>, filas: array<int, array>}
      */
-    public static function procesar(array $refs, ?callable $llamar = null): array
+    public static function procesar(array $refs, ?callable $llamar = null, bool $omitir_con_ruta = true): array
     {
         $llamar = $llamar ?? self::llamador();
 
         $refs = array_values(array_unique(array_map('strval', $refs)));
-        $con_ruta = DBUbicaciones::refsConRuta($refs);
+        $con_ruta = $omitir_con_ruta ? DBUbicaciones::refsConRuta($refs) : [];
 
         $omitidas = [];
         $a_procesar = [];
@@ -90,7 +96,7 @@ class DBReprocesar
             // se revalida justo antes de llamar: entre la comprobacion del lote y este
             // momento, otro proceso (u otro admin) pudo resolverla, y el SP suma en
             // `veces_usada` en cada llamada aunque el ruta_id salga igual
-            if (DBUbicaciones::refsConRuta([$ref]) !== []) {
+            if ($omitir_con_ruta && DBUbicaciones::refsConRuta([$ref]) !== []) {
                 $omitidas[] = $ref;
                 continue;
             }

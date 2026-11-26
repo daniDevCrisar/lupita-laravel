@@ -101,6 +101,45 @@ class AnalisisTitulos
      *   detalle_fragmentos: array<int, array<string, mixed>>
      * }
      */
+    /**
+     * De una lista ref => titulo, cuales resolverian HOY a local en AMBOS lados.
+     *
+     * Sirve para las rutas que quedaron con un ubigeo en el id: si ahora hay locales
+     * para los dos lados, reprocesar la ref la mejora (deja de usar el distrito).
+     *
+     * @param array<string, string> $refs_con_titulo
+     *
+     * @return array<string, string> ref => ruta_id que quedaria
+     */
+    public function refsConAmbosLadosLocal(array $refs_con_titulo): array
+    {
+        $salida = [];
+        $cache = [];
+
+        foreach ($refs_con_titulo as $ref => $titulo) {
+            $titulo = (string) $titulo;
+
+            // los titulos se repiten mucho (3.700 refs son ~1.000 titulos distintos):
+            // analizar el mismo texto una sola vez baja el calculo a la mitad o menos
+            if (!array_key_exists($titulo, $cache)) {
+                $cache[$titulo] = $this->analizador->analizar($titulo);
+            }
+
+            $analisis = $cache[$titulo];
+
+            if ($analisis['motivo'] !== AnalizadorTitulos::OK || !$analisis['ya_resolveria']) {
+                continue;
+            }
+
+            if (($analisis['origen_resuelto']['tipo'] ?? '') === 'local'
+                && ($analisis['destino_resuelto']['tipo'] ?? '') === 'local') {
+                $salida[(string) $ref] = (string) $analisis['ruta_id'];
+            }
+        }
+
+        return $salida;
+    }
+
     public function calcular(array $refs): array
     {
         $grupos = $this->agrupar($refs);

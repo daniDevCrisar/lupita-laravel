@@ -164,7 +164,11 @@
                                 <i class="bi bi-list-check"></i> Palabras repetidas
                             </a>
                         </li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('lupita.ubicaciones.rutas_ubigeo') }}">
+                                <i class="bi bi-signpost-2"></i> Rutas con ubigeo
+                            </a>
+                        </li>                        <li><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item" href="{{ route('lupita.locales') }}">
                                 <i class="bi bi-shop"></i> Locales

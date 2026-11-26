@@ -38,6 +38,7 @@ use App\Http\Controllers\Ubicaciones\FusionLocalesController;
 use App\Http\Controllers\Ubicaciones\MapsController;
 use App\Http\Controllers\Ubicaciones\PalabrasController as UbicacionesPalabrasController;
 use App\Http\Controllers\Ubicaciones\ReprocesarController;
+use App\Http\Controllers\Ubicaciones\RutasUbigeoController;
 use App\Http\Controllers\Ubicaciones\TitulosController;
 use App\Livewire\LogConductores\Bandeja as LogConductoresBandeja;
 use App\Livewire\LogConductores\Padre as LogConductoresPadre;
@@ -279,6 +280,9 @@ Route::middleware(['auth'])->group(function () {
             ->name('lupita.ubicaciones.clientes.editar')->middleware('role:admin');
         Route::post('/ubicaciones/clientes/{id}', [ClientesController::class, 'actualizar'])
             ->name('lupita.ubicaciones.clientes.actualizar')->middleware('role:admin');
+        //--- Rutas que quedaron con ubigeo en el id (el SP no encontró local) ---
+        Route::get('/ubicaciones/rutas-ubigeo', [RutasUbigeoController::class, 'index'])
+            ->name('lupita.ubicaciones.rutas_ubigeo')->middleware('role:admin');
         //--- Fusionar locales repetidos (simula antes de escribir) ---
         Route::get('/ubicaciones/fusion', [FusionLocalesController::class, 'index'])
             ->name('lupita.ubicaciones.fusion')->middleware('role:admin');

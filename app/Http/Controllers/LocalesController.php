@@ -125,7 +125,31 @@ class LocalesController extends Controller
 
         return redirect()
             ->route('lupita.locales')
-            ->with('exito', 'Local "' . $datos['nombre'] . '" creado (id ' . $datos['id'] . ').');
+            ->with('exito', 'Local "' . $datos['nombre'] . '" creado (id ' . $datos['id'] . ').'
+                . $this->avisoRefsConUbigeo($datos['palabra_clave']));
+    }
+
+    /**
+     * Aviso util despues de guardar un local: hay refs en rutas con UBIGEO cuyo titulo
+     * menciona su palabra clave, asi que reprocesarlas las va a mejorar.
+     *
+     * Se cuenta con un LIKE (barato) y no analizando los ~3.700 titulos en cada guardado.
+     */
+    private function avisoRefsConUbigeo(?string $palabra_clave): string
+    {
+        $palabras = array_filter(array_map(
+            fn (string $v) => trim(str_replace(['(', ')'], '', $v)),
+            explode('|', (string) $palabra_clave)
+        ), fn (string $v) => mb_strlen($v) >= 3);
+
+        $refs = \App\Database\DBUbicaciones::refsUbigeoQueMencionan(array_values($palabras));
+
+        if ($refs === 0) {
+            return '';
+        }
+
+        return ' Hay ' . $refs . ' ref(s) en rutas con ubigeo que mencionan su palabra clave: '
+            . 'reprocesalas desde "Rutas con ubigeo" para que el procedimiento encuentre el local.';
     }
 
     /**
