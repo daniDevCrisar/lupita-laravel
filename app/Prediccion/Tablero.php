@@ -41,7 +41,7 @@ final class Tablero
      * Las fechas que publica el motor, EN EL ORDEN DE PRIORIDAD POR PRECISIÓN:
      * rápido, consenso, normal, base ajustada (clave `probable`), tardado.
      */
-    public const FECHAS = ['rapido', 'consenso', 'normal', 'probable', 'tardado'];
+    public const FECHAS = ['rapido', 'consenso', 'normal', 'probable', 'tardado', 'perfecta'];
 
     /**
      * Estratos del horizonte: cuánto tiempo ANTES del hecho se dijo la hora.
@@ -260,8 +260,9 @@ final class Tablero
     }
 
     /**
-     * Catálogo de las cinco fechas publicadas: etiqueta, campo con el error y una
-     * línea que dice qué es cada una. El orden es el de PRIORIDAD POR PRECISIÓN.
+     * Catálogo de las seis fechas publicadas: etiqueta, campo con el error y una
+     * línea que dice qué es cada una. El orden es el de PRIORIDAD POR PRECISIÓN
+     * (la perfecta va al final hasta que la tabla de aciertos diga dónde rinde).
      *
      * OJO: la clave en la base y en el JSON sigue siendo `probable`; lo que cambió
      * es lo que se muestra: **base ajustada**.
@@ -281,6 +282,9 @@ final class Tablero
                            'texto' => 'la normal corregida por el sesgo de su clase'],
             'tardado' => ['etiqueta' => 'Tardado', 'campo' => 'error_tardado_min',
                           'texto' => 'el extremo tardío de la banda'],
+            'perfecta' => ['etiqueta' => 'Perfecta', 'campo' => 'error_perfecta_min',
+                           'texto' => 'si el viaje sale perfecto: p25 de la ruta, sin descanso, '
+                               . 'sin franjas inactivas y en vía libre'],
         ];
     }
 

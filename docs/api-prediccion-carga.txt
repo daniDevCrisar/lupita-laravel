@@ -2,7 +2,7 @@
  API DE PREDICCION DE CARGA
  Predice a que hora un camion se va a presentar para cargar
 ================================================================================
-Version       : 1.21
+Version       : 1.47
 Fecha         : 14/11/2026
 Base URL      : https://calls.pedrosotelo.fun
 Prefijo       : /api/prediccion
@@ -272,6 +272,13 @@ CAMPOS DE LA RESPUESTA
                    tolerancia (+-30m/+-1h/+-3h) y en el backtest de octubre
                    tambien gano "mas cerca" (26 % contra 19 %). Siempre queda
                    DENTRO de [rapido, tardado]. Ver 1.27 y 1.32.
+  presenta_perfecta
+                   la SEXTA fecha: NO es una banda. Se recalcula el viaje entero
+                   con el p25 de la ruta compilada (sin mezclar con la placa ni
+                   con el dia/hora), sin espera ni descanso del conductor, sin
+                   franjas inactivas y con el ruteo en via libre. Es un PISO
+                   optimista: la presentacion real cae despues de ella el 93 % de
+                   las veces; no reemplaza a la normal. Ver 1.47.
 
 CUAL FECHA USAR (MEDIDO, 3.085 PRESENTACIONES REALES)
   El orden, de mas a menos probable dentro del margen:
@@ -289,9 +296,9 @@ CUAL FECHA USAR (MEDIDO, 3.085 PRESENTACIONES REALES)
   PROBABLE; la banda rapido..tardado es la incertidumbre, no dos horas mas.
   Los dos primeros numeros se mueven con el sesgo: re-medirlo en produccion
   (boton "Medir y aplicar") y volver a comparar en /lupita/prediccion/guardadas.
-  presentaciones   las cinco fechas con etiqueta y `desde_ahora` en h:mm:
-                   [{clave: rapido|normal|tardado|probable|consenso, etiqueta,
-                     descripcion, fecha, desde_ahora, delta_normal_min,
+  presentaciones   las seis fechas con etiqueta y `desde_ahora` en h:mm:
+                   [{clave: rapido|consenso|normal|probable|tardado|perfecta,
+                     etiqueta, descripcion, fecha, desde_ahora, delta_normal_min,
                      construccion}]. El rapido nunca es menor que el traslado: el
                    camion no llega antes de lo que tarda el viaje.
                    `delta_normal_min` = minutos entre esa fecha y la normal
@@ -299,11 +306,18 @@ CUAL FECHA USAR (MEDIDO, 3.085 PRESENTACIONES REALES)
                    en una linea: "normal − 9:45 · banda medida (cubre 70 %)",
                    "promedio de rapido (60:33), normal (96:27) y base ajustada
                    (99:41) desde el corte = 93:34 · normal − 2:53". Asi cada una
-                   de las cinco se puede auditar, no solo la normal (los `pasos`
+                   de las seis se puede auditar, no solo la normal (los `pasos`
                    de abajo siguen explicando la normal).
                    ORDEN: desde la 1.43 el array va en el orden de PRIORIDAD POR
                    PRECISION: rapido, consenso, normal, probable (etiqueta "Base
-                   ajustada"), tardado.
+                   ajustada"), tardado. Desde la 1.47 se agrega `perfecta` AL
+                   FINAL (todavia no esta medida; es un piso optimista, no una
+                   hora para prometer).
+  presenta_perfecta
+                   la SEXTA fecha (ver 14, version 1.47): viaje y vuelta con el
+                   p25 de la ruta compilada, sin espera ni descanso del
+                   conductor, sin franjas inactivas y con el ruteo en via libre.
+                   null si no se pudo armar (sin piezas).
   inicio_carga     presenta + espera en planta (null si no hay presenta).
   espera_min       espera en planta usada, en minutos.
   espera_hhmm      la misma espera en h:mm (ver seccion 8).
@@ -2855,6 +2869,54 @@ evidencia. Hay tres niveles.
                      Tests: MotorPresentaTest::test_en_planta_se_presenta_ahora_y_solo_queda_la_espera,
                      TramoDeclaradoTest::test_si_la_unidad_esta_en_la_planta_no_hay_traslado_ni_espera_de_viaje
                      y TramoDeclaradoTest::test_un_local_sin_ruteo_igual_usa_sus_coordenadas.
+
+  1.47 27/11/2026  - SEXTA FECHA: `presenta_perfecta` (etiqueta "Perfecta"). NO es una
+                     banda alrededor de otra fecha: es la cadena entera armada como si el
+                     viaje saliera perfecto.
+                       1. el viaje y el traslado usan el p25 de la ruta compilada
+                          (`tiempos_ruta_promedio.p25_min`) y el p25 de cada etapa medida,
+                          SIN mezclar con la placa ni con la celda dia/hora (esas son
+                          medianas de otra distribucion: mezclarlas devuelve la fecha hacia
+                          la normal y se pierde el p25);
+                       2. NO se suma la espera ni el descanso del conductor
+                          (`tiempo_muerto`);
+                       3. NO se corren las franjas inactivas ni el factor del dia;
+                       4. el ruteo de Geoapify se pide SIN TRAFICO (`traffic = null`).
+                     La normal y el rapido NO cambian: la perfecta es una fecha mas, que se
+                     publica y se mide igual que las otras cinco.
+
+                     Medido el 27/11/2026 con el backtest de los ultimos 60 dias (333 filas,
+                     Geoapify apagado: mide el p25, no el trafico):
+                       normal    MAE  793  +-1h 17 %  +-3h 41 %  sesgo  -388
+                       base aj.  MAE  761  +-1h 11 %  +-3h 37 %  sesgo  -183
+                       consenso  MAE  737  +-1h 17 %  +-3h 48 %  sesgo  -445
+                       perfecta  MAE  986  +-1h 21 %  +-3h 43 %  sesgo  -973
+                     carrera ("mas cerca", 333 filas): rapido 27 % · base aj. 20 % ·
+                     consenso 18 % · tardado 13 % · perfecta 12 % · normal 11 %.
+                     La perfecta queda 225 min ANTES de la normal (mediana; p10 -1.841,
+                     p90 -78) y la presentacion real cae DESPUES de ella en 310 de 333 filas
+                     (93 %). O sea: es un PISO optimista — el mejor +-1h de las seis, pero
+                     con el peor MAE cuando se equivoca, porque se equivoca para el lado
+                     temprano. No reemplaza a la normal.
+
+                     - El p25 se calcula en el compilado de rutas, que ya descarta viajes
+                       raros con su tope: la perfecta hereda ese corte.
+                     - Costo: 0 llamadas extra a Geoapify cuando la ruta tiene promedio
+                       compilado; 1 cuando no lo tiene (via libre, ademas de la del trafico).
+                     - `presentaciones` ahora trae SEIS entradas, con `perfecta` al final del
+                       orden publicado (el orden es de prioridad por precision y esta
+                       todavia no esta medida).
+                     - Nueva advertencia `perfecta_tarde`: el escenario perfecto cayo DESPUES
+                       de la hora publicada (el hueco medido de la placa es mas corto que el
+                       p25 de la ruta). Se publica igual, no se recorta.
+                     - Se guarda en `desglose` (JSON), como la cuarta y el consenso: no hay
+                       ALTER TABLE en produccion.
+                     - Parametros nuevos (solo por import o config): `perfecta_activa` 1,
+                       `perfecta_cuantil` 0,25, `perfecta_sin_trafico` 1,
+                       `perfecta_sin_muerto` 1, `perfecta_sin_franjas` 1,
+                       `perfecta_sin_mezcla` 1.
+
+                     Tests: FechaPerfectaTest (10) y TableroTest actualizado a seis fechas.
 
 ================================================================================
  FIN

@@ -547,6 +547,13 @@ class DBPrediccion
                 $etapas[$clave] = $lista === []
                     ? null
                     : (int) round((float) \App\Prediccion\Estadistica::mediana($lista));
+
+                // el MISMO p25 por etapa: es la pieza de la fecha "perfecta" (lo
+                // que tarda el viaje cuando sale bien). Se calcula de las mismas
+                // referencias, así no hace falta otra consulta.
+                $etapas[$clave . '_p25'] = $lista === []
+                    ? null
+                    : (int) round((float) \App\Prediccion\Estadistica::cuantil($lista, 0.25));
             }
 
             $salida[$ruta] = $etapas;
@@ -572,6 +579,13 @@ class DBPrediccion
             }
 
             $salida[$ruta]['e4'] = (int) round((float) $viaje);
+
+            // p25 compilado del viaje: la ida de la fecha "perfecta". Se guarda
+            // aparte (`e4_p25`) para que la mediana siga mandando en la normal.
+            $p25Viaje = $fila->p25_min ?? null;
+            if ($p25Viaje !== null && (float) $p25Viaje > 0) {
+                $salida[$ruta]['e4_p25'] = (int) round((float) $p25Viaje);
+            }
 
             // p75 del viaje: es el techo que usa el motor cuando la mediana de la
             // etapa ya se consumió (el camión va con retraso, no "ya llegó").
@@ -920,7 +934,8 @@ class DBPrediccion
                                     ?string $plantaUbigeo, array $etapas, ?string $rutaPropia = null,
                                     ?int $defectoMin = null, bool $posicionDeclarada = false,
                                     ?Carbon $salida = null, ?callable $viaje = null,
-                                    ?object $parametros = null): ?object
+                                    ?object $parametros = null, string $cuantil = 'mediana',
+                                    bool $sinTrafico = false): ?object
     {
         if ($plantaCarga === null || $plantaCarga === '') {
             return null;
@@ -945,13 +960,13 @@ class DBPrediccion
 
         // el tiempo de la ruta lo resuelve el mismo cálculo que el tramo que le
         // falta al camión; `$ultimoViaje` guarda las piezas del que ganó
-        $minutos = function (?string $ruta) use ($etapas, $viaje, &$ultimoViaje): ?int {
+        $minutos = function (?string $ruta) use ($etapas, $viaje, $cuantil, &$ultimoViaje): ?int {
             if ($ruta === null || $ruta === '') {
                 return null;
             }
 
             if ($viaje === null) {
-                return self::viaje_ruta_base($ruta, $etapas);
+                return self::viaje_ruta_base($ruta, $etapas, $cuantil);
             }
 
             $estimado = $viaje($ruta);
@@ -968,7 +983,8 @@ class DBPrediccion
         // cargado, corrige con el factor de camión vacío. La vuelta a la planta se
         // hace sin carga: usar el promedio de la ida la estima ~17 % de más.
         $medido = function (string $id, string $fuente, int $min, ?object $viaje) use (
-            $rutas, $plantaCarga, $plantaUbigeo, $desdePlanta, $desdeUbigeo, $texto, $factorVacio): object
+            $rutas, $plantaCarga, $plantaUbigeo, $desdePlanta, $desdeUbigeo, $texto, $factorVacio,
+            $cuantil, $sinTrafico): object
         {
             $sentido = self::sentido_ruta($rutas[$id] ?? null, $plantaCarga, $plantaUbigeo,
                 $desdePlanta, $desdeUbigeo);
@@ -983,6 +999,8 @@ class DBPrediccion
                 'viaje' => $viaje,
                 'sentido' => $sentido,
                 'factor_vacio' => $factor,
+                'cuantil' => $cuantil,
+                'sin_trafico' => $sinTrafico,
             ];
         };
 
@@ -1038,7 +1056,8 @@ class DBPrediccion
         // 5: Geoapify. SÓLO acá: no hay promedio ni coordenadas para ese par.
         // `$salida` es la hora a la que el camión sale de verdad: si cae en hora
         // pico el tiempo se pide con tráfico (ver App\Prediccion\HoraPico).
-        $geo = \App\Prediccion\Geoapify::ruta($desdeUbigeo, $plantaUbigeo, $salida);
+        // `$sinTrafico` pide vía libre a propósito: es la fecha perfecta.
+        $geo = \App\Prediccion\Geoapify::ruta($desdeUbigeo, $plantaUbigeo, $salida, $sinTrafico);
         if ($geo !== null) {
             return (object) [
                 'min' => max(1, (int) $geo->min),
@@ -1050,6 +1069,8 @@ class DBPrediccion
                 'viaje' => null,
                 'sentido' => 'vacio',
                 'factor_vacio' => 1.0,
+                'cuantil' => $cuantil,
+                'sin_trafico' => $sinTrafico,
             ];
         }
 
@@ -1758,11 +1779,26 @@ class DBPrediccion
      *      después promedio y por último mediana.
      *
      * Devuelve null cuando esa ruta no tiene nada medido.
+     *
+     * `$cuantil` elige el percentil en vez de la mediana: `'p25'` (o `'p75'`) es
+     * la pieza de la fecha "perfecta" —el viaje cuando sale bien—. Primero mira el
+     * percentil de las etapas (que ya trae el compilado de la ruta) y, si no, el
+     * `p25_min`/`p75_min` de `tiempos_ruta_promedio`; sin ninguno de los dos cae a
+     * la mediana, porque una fecha con la mediana es mejor que ninguna.
      */
-    public static function viaje_ruta_base(?string $ruta, array $etapas): ?int
+    public static function viaje_ruta_base(?string $ruta, array $etapas, string $cuantil = 'mediana'): ?int
     {
         if ($ruta === null || $ruta === '') {
             return null;
+        }
+
+        $percentil = in_array($cuantil, ['p25', 'p75'], true) ? $cuantil : null;
+
+        if ($percentil !== null) {
+            $etapaPercentil = $etapas[$ruta]['e4_' . $percentil] ?? null;
+            if ($etapaPercentil !== null && (int) $etapaPercentil > 0) {
+                return (int) $etapaPercentil;
+            }
         }
 
         $e4 = $etapas[$ruta]['e4'] ?? null;
@@ -1773,6 +1809,13 @@ class DBPrediccion
         $fila = self::promedios_ruta()[$ruta] ?? null;
         if ($fila === null) {
             return null;
+        }
+
+        if ($percentil !== null) {
+            $compilado = $fila->{$percentil . '_min'} ?? null;
+            if ($compilado !== null && (float) $compilado > 0) {
+                return (int) round((float) $compilado);
+            }
         }
 
         foreach (['prom_fusion_min', 'prom_min', 'mediana_min'] as $columna) {

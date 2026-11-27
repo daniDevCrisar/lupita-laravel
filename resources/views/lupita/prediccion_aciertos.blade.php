@@ -196,20 +196,46 @@
                                 </div>
                             @endif
 
-                            {{-- carrera de las cinco: en muchos viajes gana la rápida o la tardada --}}
+                            {{-- carrera de las seis: en muchos viajes gana la rápida o la tardada --}}
                             @php $carrera = $b->carrera ?? null; @endphp
                             @if($carrera !== null && ($carrera->n ?? 0) > 0)
                                 <div class="mt-1">
-                                    <span class="text-muted">más cerca de las cinco ({{ $carrera->n }} filas):</span>
+                                    <span class="text-muted">más cerca de las seis ({{ $carrera->n }} filas):</span>
                                     <span class="badge bg-success">rápido {{ $carrera->pct_rapido ?? '—' }}% ({{ $carrera->rapido }})</span>
                                     <span class="badge bg-primary">normal {{ $carrera->pct_normal ?? '—' }}% ({{ $carrera->normal }})</span>
                                     <span class="badge bg-warning text-dark">tardado {{ $carrera->pct_tardado ?? '—' }}% ({{ $carrera->tardado }})</span>
                                     <span class="badge bg-info text-dark">probable {{ $carrera->pct_probable ?? '—' }}% ({{ $carrera->probable }})</span>
                                     <span class="badge bg-secondary">consenso {{ $carrera->pct_consenso ?? '—' }}% ({{ $carrera->consenso }})</span>
+                                    <span class="badge bg-danger">perfecta {{ $carrera->pct_perfecta ?? '—' }}% ({{ $carrera->perfecta }})</span>
                                 </div>
                             @endif
                         @endif
                     </div>
+
+                    {{-- SEXTA fecha: el escenario perfecto. Se muestra siempre, tenga el
+                         sesgo por clase prendido o apagado: es otra cuenta, no una banda. --}}
+                    @php $perfecta = $b->resumen_perfecta ?? null; @endphp
+                    @if(($perfecta->mae_min ?? null) !== null)
+                        <div class="border-top mt-2 pt-2 small">
+                            <span class="fw-semibold">Sexta fecha (<code>presenta_perfecta</code>):</span>
+                            MAE <strong class="text-danger">{{ $fmt($perfecta->mae_min) }}</strong>
+                            · ±1h <strong class="text-danger">{{ $perfecta->pct_60 ?? '—' }}%</strong>
+                            · ±3h <strong>{{ $perfecta->pct_180 ?? '—' }}%</strong>
+                            · ±6h <strong>{{ $perfecta->pct_360 ?? '—' }}%</strong>
+                            · sesgo <strong>{{ $signo($perfecta->sesgo_min ?? null) }}</strong>
+                            @if(($motor->mae_min ?? null) !== null)
+                                @php $mejoraPerfecta = (int) $motor->mae_min - (int) $perfecta->mae_min; @endphp
+                                <span class="badge bg-{{ $mejoraPerfecta > 0 ? 'success' : ($mejoraPerfecta < 0 ? 'danger' : 'secondary') }}">
+                                    {{ $mejoraPerfecta > 0 ? 'mejora ' . $mejoraPerfecta : ($mejoraPerfecta < 0 ? 'empeora ' . abs($mejoraPerfecta) : 'empata') }} min de MAE contra la normal
+                                </span>
+                            @endif
+                            <div class="text-muted">
+                                viaje y vuelta con el p25 de la ruta medido, sin espera ni descanso del conductor,
+                                sin franjas inactivas y con el ruteo en vía libre. Es un PISO optimista: se equivoca
+                                para el lado temprano (sesgo negativo), no reemplaza a la normal.
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -305,6 +331,7 @@
                     <th>Ancla<br><span class="fw-normal small">fin de descargue</span></th>
                     <th class="text-success">Rápido</th>
                     <th class="text-secondary">Consenso</th>
+                    <th class="text-danger">Perfecta<br><span class="fw-normal small">6.ª fecha</span></th>
                     <th class="text-primary">Predicho</th>
                     <th class="text-info">Base ajustada<br><span class="fw-normal small">4.ª fecha</span></th>
                     <th class="text-warning">Tardado</th>
@@ -353,6 +380,15 @@
                             @if(($fila->error_consenso_min ?? null) !== null)
                                 <span class="badge bg-{{ $colorError($fila->error_consenso_min) }}">
                                     {{ $signo($fila->error_consenso_min) }}
+                                </span>
+                            @endif
+                        </td>
+                        {{-- 6.ª fecha: p25 de la ruta, sin descanso, sin franjas y en vía libre --}}
+                        <td class="small text-danger text-nowrap">
+                            {{ ($fila->perfecta ?? null) ? $fila->perfecta->format('d/m H:i') : '—' }}
+                            @if(($fila->error_perfecta_min ?? null) !== null)
+                                <span class="badge bg-{{ $colorError($fila->error_perfecta_min) }}">
+                                    {{ $signo($fila->error_perfecta_min) }}
                                 </span>
                             @endif
                         </td>

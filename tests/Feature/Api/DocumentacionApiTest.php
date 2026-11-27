@@ -8,13 +8,13 @@ use Tests\TestCase;
 
 /**
  * La página "API de predicción" (`/lupita/prediccion/documentacion`) es la
- * referencia que se mira para integrar el API: tiene que nombrar las cinco
+ * referencia que se mira para integrar el API: tiene que nombrar las seis
  * fechas publicadas. Se rompió al agregar la cuarta y el consenso (el texto
- * seguía diciendo "las tres fechas").
+ * seguía diciendo "las tres fechas") y otra vez con la sexta.
  */
 class DocumentacionApiTest extends TestCase
 {
-    public function test_la_documentacion_nombra_las_cinco_fechas(): void
+    public function test_la_documentacion_nombra_las_seis_fechas(): void
     {
         $this->withoutMiddleware();
         $usuario = User::query()->first();
@@ -24,23 +24,28 @@ class DocumentacionApiTest extends TestCase
 
         $html = (string) $this->get(route('lupita.prediccion.documentacion'))->assertOk()->getContent();
 
-        // el ejemplo del JSON trae los campos de las cinco fechas (Blade escapa
+        // el ejemplo del JSON trae los campos de las seis fechas (Blade escapa
         // las comillas del <pre>, así que se busca el nombre pelado)
-        foreach (['presenta_rapido', 'presenta', 'presenta_tardado', 'presenta_probable', 'presenta_consenso'] as $campo) {
+        foreach (['presenta_rapido', 'presenta', 'presenta_tardado', 'presenta_probable', 'presenta_consenso',
+                  'presenta_perfecta'] as $campo) {
             $this->assertStringContainsString($campo, $html, 'falta ' . $campo . ' en el ejemplo');
         }
 
-        // y la lista de presentaciones tiene las cinco claves
-        foreach (['rapido', 'normal', 'tardado', 'probable', 'consenso'] as $clave) {
+        // y la lista de presentaciones tiene las seis claves
+        foreach (['rapido', 'normal', 'tardado', 'probable', 'consenso', 'perfecta'] as $clave) {
             $this->assertStringContainsString('clave&quot;: &quot;' . $clave, $html, 'falta la clave ' . $clave);
         }
 
         // el texto de la sección y la tabla de campos, al día
-        $this->assertStringContainsString('Las cinco fechas', $html);
+        $this->assertStringContainsString('Las seis fechas', $html);
         $this->assertStringContainsString('Base ajustada (4.ª)', $html);
         $this->assertStringContainsString('Consenso', $html);
+        $this->assertStringContainsString('Perfecta', $html);
         $this->assertStringContainsString('presenta_consenso', $html);
+        $this->assertStringContainsString('presenta_perfecta', $html);
+        $this->assertStringContainsString('perfecta_tarde', $html, 'la advertencia nueva tiene que estar');
         $this->assertStringNotContainsString('las tres fechas', $html, 'quedó texto viejo de tres fechas');
+        $this->assertStringNotContainsString('Las cinco fechas', $html, 'quedó el título de cinco fechas');
         $this->assertStringNotContainsString('Más probable', $html, 'la cuarta fecha se llama base ajustada');
     }
 
@@ -62,8 +67,9 @@ class DocumentacionApiTest extends TestCase
         $this->assertStringContainsString('en orden de prioridad por precisión', $html);
         $this->assertStringContainsString('3.085 presentaciones reales', $html);
 
-        // el orden de los badges
-        $orden = ['1. Rápido', '2. Consenso', '3. Normal', '4. Base ajustada', '5. Tardado'];
+        // el orden de los badges (la perfecta va al final, fuera del orden de
+        // prioridad: es un piso, no una hora para prometer)
+        $orden = ['1. Rápido', '2. Consenso', '3. Normal', '4. Base ajustada', '5. Tardado', '6. Perfecta'];
         $posiciones = array_map(fn ($texto) => strpos($html, $texto), $orden);
 
         foreach ($posiciones as $i => $posicion) {

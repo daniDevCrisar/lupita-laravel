@@ -121,9 +121,19 @@ final class Geoapify
      *
      * Sin hora de salida se pide vía libre: si no se sabe cuándo sale el camión,
      * no se adivina el tráfico (y no se gasta la llamada con tráfico).
+     *
+     * `$sinTrafico` fuerza la VÍA LIBRE sin importar la hora: es lo que usa la
+     * fecha "perfecta" (escenario sin demoras). No apaga el tráfico del resto de
+     * la predicción: es por llamada, y el caché de rutas guarda las dos variantes
+     * por separado (la llave lleva `libre` / `approximated`).
      */
-    public static function trafico_para(?Carbon $salida, ?string $ubigeoOrigen, ?string $ubigeoDestino): ?string
+    public static function trafico_para(?Carbon $salida, ?string $ubigeoOrigen, ?string $ubigeoDestino,
+                                        bool $sinTrafico = false): ?string
     {
+        if ($sinTrafico) {
+            return null;   // la fecha perfecta se pide siempre en vía libre
+        }
+
         $pedido = self::trafico();
 
         if ($pedido === null) {
@@ -291,10 +301,12 @@ final class Geoapify
      * `$salida` es la hora a la que el camión sale de verdad: con eso se decide
      * si se pide el tiempo CON tráfico (hora pico) o de vía libre (ver
      * App\Prediccion\HoraPico). Sin hora, se pide vía libre: no se adivina.
+     * `$sinTrafico` pide vía libre a propósito (fecha perfecta).
      *
      * @return object{min: int, km: float|null, desde: string, hasta: string, modo: string, trafico: string|null}|null
      */
-    public static function ruta(?string $origen, ?string $destino, ?Carbon $salida = null): ?object
+    public static function ruta(?string $origen, ?string $destino, ?Carbon $salida = null,
+                                bool $sinTrafico = false): ?object
     {
         $origen = trim((string) $origen);
         $destino = trim((string) $destino);
@@ -303,7 +315,7 @@ final class Geoapify
             return null;
         }
 
-        $trafico = self::trafico_para($salida, $origen, $destino);
+        $trafico = self::trafico_para($salida, $origen, $destino, $sinTrafico);
         $llave = $origen . '>' . $destino . '|' . ($trafico ?? 'libre');
         if (array_key_exists($llave, self::$rutas)) {
             return self::$rutas[$llave];
@@ -327,16 +339,17 @@ final class Geoapify
      *
      * `$ubigeoOrigen` no se usa para rutear (el punto ya tiene coordenadas): sirve
      * sólo para saber si el viaje toca la capital y, con `$salida`, decidir si
-     * corresponde pedir tráfico.
+     * corresponde pedir tráfico. `$sinTrafico` fuerza la vía libre (perfecta).
      */
     public static function ruta_desde_coords(float $lat, float $lng, ?string $ubigeoDestino,
-                                             ?Carbon $salida = null, ?string $ubigeoOrigen = null): ?object
+                                             ?Carbon $salida = null, ?string $ubigeoOrigen = null,
+                                             bool $sinTrafico = false): ?object
     {
         if (!self::disponible()) {
             return null;
         }
 
-        $trafico = self::trafico_para($salida, $ubigeoOrigen, $ubigeoDestino);
+        $trafico = self::trafico_para($salida, $ubigeoOrigen, $ubigeoDestino, $sinTrafico);
         $llave = 'punto|' . $lat . ',' . $lng . '>' . (string) $ubigeoDestino . '|' . ($trafico ?? 'libre');
         if (array_key_exists($llave, self::$rutas)) {
             return self::$rutas[$llave];

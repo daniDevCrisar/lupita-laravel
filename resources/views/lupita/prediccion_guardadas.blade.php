@@ -438,8 +438,8 @@
                                 @endif
                                 <br>La comparación es <strong>cara a cara</strong>: sólo entran las filas que tienen
                                 <strong>todas</strong> las fechas tildadas. Si no, la fecha que está en más filas gana
-                                por tener más casos fáciles, no por ser mejor. Las guardadas viejas no tienen la cuarta
-                                ni el consenso: destildalas para comparar las demás con el historial completo.
+                                por tener más casos fáciles, no por ser mejor. Las guardadas viejas no tienen la cuarta,
+                                ni el consenso, ni la perfecta: destildalas para comparar las demás con el historial completo.
                             </div>
 
                             {{-- ============ QUIÉN GANA SEGÚN LA TOLERANCIA ============ --}}
@@ -525,14 +525,14 @@
                         guardada. Es la misma escalera que muestra la tabla de aciertos, para comparar las dos varas.
                     </div>
                 </div>
-                {{-- las cinco fechas DENTRO de cada segmento ------------------
+                {{-- las seis fechas DENTRO de cada segmento ------------------
                      Estos son los cuatro cuadros: evidencia, horizonte, confianza
-                     y origen, cada uno con las cinco fechas lado a lado. Antes
+                     y origen, cada uno con las fechas lado a lado. Antes
                      medían sólo la normal, así que no se veía que en `cadena`,
                      con confianza baja o pasando 24 h la mejor fecha es otra. --}}
                 <div class="col-12">
                     <div class="small fw-semibold mb-1">
-                        Las cinco fechas dentro de cada segmento
+                        Las fechas dentro de cada segmento
                         <span class="text-muted fw-normal">
                             (cara a cara: sólo filas con todas las fechas elegidas;
                             el MAE más bajo de cada tramo va en verde)

@@ -1,12 +1,17 @@
 {{--
-    Las CINCO fechas dentro de cada segmento (evidencia, horizonte, confianza y
-    origen).
+    Las fechas publicadas dentro de cada segmento (evidencia, horizonte,
+    confianza y origen).
 
     Antes cada desglose medía sólo la fecha normal: no se veía lo que importa, que
     en `cadena` o pasando 24 h la mejor fecha es otra. Cada celda trae el MAE de
     esa fecha dentro del tramo y, debajo, el acierto en la tolerancia; el MAE más
     bajo de la fila queda marcado y la última columna dice quién gana la carrera
     de "más cerca" en ese tramo.
+
+    Las columnas salen de `Tablero::catalogo_fechas()`, así que agregar una fecha
+    (la 1.47 sumó `perfecta`) no necesita tocar esta vista. OJO: la comparación es
+    cara a cara, así que una fila guardada antes de la 1.47 —sin la sexta— no
+    entra en el cuadro.
 
     Con `promediar` no cambia nada: acá se comparan las fechas publicadas, no el
     promedio.

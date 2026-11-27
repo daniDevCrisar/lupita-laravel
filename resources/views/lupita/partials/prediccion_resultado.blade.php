@@ -56,9 +56,9 @@
             @php
                 $fechas = $r->presentaciones ?? [];
                 // color por fecha, en el orden de prioridad: rápido, consenso, normal,
-                // base ajustada (clave `probable`), tardado
+                // base ajustada (clave `probable`), tardado y perfecta
                 $coloresFechas = ['rapido' => 'success', 'consenso' => 'secondary', 'normal' => 'primary',
-                                  'probable' => 'info', 'tardado' => 'warning'];
+                                  'probable' => 'info', 'tardado' => 'warning', 'perfecta' => 'danger'];
             @endphp
 
             <div class="row g-2 mb-3">

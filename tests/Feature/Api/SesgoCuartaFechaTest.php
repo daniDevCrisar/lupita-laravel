@@ -210,9 +210,10 @@ class SesgoCuartaFechaTest extends TestCase
 
         $this->assertStringContainsString('−240 min', $encendido, 'la fila tiene que decir cuánto se corrió');
         $this->assertStringContainsString('más cerca:', $encendido, 'tiene que decir cuál quedó más cerca');
-        $this->assertStringContainsString('más cerca de las cinco', $encendido,
+        $this->assertStringContainsString('más cerca de las seis', $encendido,
             'la carrera del encabezado compara todas las fechas publicadas');
         $this->assertStringContainsString('Consenso', $encendido, 'el consenso también se mide');
+        $this->assertStringContainsString('Perfecta', $encendido, 'la sexta fecha también se mide');
         $this->assertStringNotContainsString('igual a la normal', $encendido);
     }
 
@@ -234,6 +235,9 @@ class SesgoCuartaFechaTest extends TestCase
             // quinta fecha: el consenso, con su hora y su error
             $this->assertObjectHasProperty('consenso', $fila);
             $this->assertObjectHasProperty('error_consenso_min', $fila);
+            // sexta fecha: la perfecta, con su hora y su error
+            $this->assertObjectHasProperty('perfecta', $fila);
+            $this->assertObjectHasProperty('error_perfecta_min', $fila);
 
             if ($fila->rapido === null || $fila->error_rapido_min === null) {
                 continue;
@@ -260,7 +264,12 @@ class SesgoCuartaFechaTest extends TestCase
         $this->assertSame($b->resumen_motor->n, $b->carrera->n);
         $this->assertSame($b->carrera->n,
             $b->carrera->rapido + $b->carrera->normal + $b->carrera->tardado
-            + $b->carrera->probable + $b->carrera->consenso);
+            + $b->carrera->probable + $b->carrera->consenso + $b->carrera->perfecta);
+
+        // y la sexta fecha se resume aparte, igual que la cuarta y el consenso
+        $this->assertObjectHasProperty('resumen_perfecta', $b);
+        $this->assertSame($b->resumen_motor->n, $b->resumen_perfecta->n,
+            'la perfecta se mide sobre las mismas filas');
     }
 
     public function test_el_api_publica_la_cuarta_fecha_y_la_clase(): void
@@ -286,11 +295,15 @@ class SesgoCuartaFechaTest extends TestCase
         $this->assertArrayHasKey('sesgo', (array) $respuesta->json());
         $this->assertNotNull($respuesta->json('sesgo.clase'));
 
-        // la lista de presentaciones trae las cinco fechas publicadas
+        // la lista de presentaciones trae las seis fechas publicadas
         $claves = array_column((array) $respuesta->json('presentaciones'), 'clave');
         $this->assertContains('probable', $claves);
         $this->assertContains('consenso', $claves);
-        $this->assertCount(5, $claves);
+        $this->assertContains('perfecta', $claves);
+        $this->assertCount(6, $claves);
+
+        // y la sexta viaja como campo propio
+        $this->assertNotNull($respuesta->json('presenta_perfecta'));
 
         // y el consenso viaja como campo propio, entre la rápida y la tardada
         $this->assertNotNull($respuesta->json('presenta_consenso'));

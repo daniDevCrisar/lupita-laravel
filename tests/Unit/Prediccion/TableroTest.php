@@ -326,10 +326,10 @@ class TableroTest extends TestCase
 
     public function test_la_seleccion_de_fechas_se_normaliza(): void
     {
-        // null o vacía = todas las publicadas (hoy cinco)
+        // null o vacía = todas las publicadas (hoy seis)
         $this->assertSame(Tablero::FECHAS, Tablero::limpiar_seleccion(null));
         $this->assertSame(Tablero::FECHAS, Tablero::limpiar_seleccion([]));
-        $this->assertCount(5, Tablero::FECHAS, 'rápido, normal, tardado, probable y consenso');
+        $this->assertCount(6, Tablero::FECHAS, 'rápido, normal, tardado, probable, consenso y perfecta');
 
         // se descarta lo que no es una fecha y se respeta el orden publicado
         $this->assertSame(['rapido', 'probable'], Tablero::limpiar_seleccion(['probable', 'inventada', 'rapido']));
@@ -476,6 +476,13 @@ class TableroTest extends TestCase
 
     // ---- las cinco fechas dentro de cada segmento -------------------------
 
+    /**
+     * Las cinco fechas "viejas", en el orden publicado. Las pruebas de abajo
+     * piden EXPLÍCITAMENTE esta selección: así siguen midiendo lo mismo desde que
+     * existe la sexta (`perfecta`), y la perfecta tiene su propia prueba.
+     */
+    private const CINCO = ['rapido', 'consenso', 'normal', 'probable', 'tardado'];
+
     /** Fila de producción con las cinco fechas y el segmento que se quiera medir. */
     private function filaSegmento(array $errores, array $segmento = []): object
     {
@@ -499,7 +506,7 @@ class TableroTest extends TestCase
             $this->filaSegmento([2000, 100, 3000, 1500, 1200], ['evidencia' => 'cadena']),
         ];
 
-        $t = Tablero::fechas_por($filas, 'evidencia', 180);
+        $t = Tablero::fechas_por($filas, 'evidencia', 180, self::CINCO);
 
         $this->assertSame('evidencia', $t['clave']);
         $this->assertSame('Por evidencia', $t['titulo']);
@@ -535,7 +542,7 @@ class TableroTest extends TestCase
         $completa = $this->filaSegmento([30, 60, 90, 120, 150], ['evidencia' => 'medido']);
         $sinConsenso = $this->filaSegmento([30, 60, 90, 120, null], ['evidencia' => 'medido']);
 
-        $t = Tablero::fechas_por([$completa, $sinConsenso], 'evidencia', 180);
+        $t = Tablero::fechas_por([$completa, $sinConsenso], 'evidencia', 180, self::CINCO);
 
         $this->assertSame(1, $t['filas'][0]['n'], 'la incompleta no compite con las cinco');
         // rápido, consenso, normal, base ajustada, tardado
@@ -548,7 +555,7 @@ class TableroTest extends TestCase
         $this->assertCount(4, $cuatro['filas'][0]['celdas']);
 
         // sin ninguna fila completa no inventa filas
-        $vacio = Tablero::fechas_por([$sinConsenso], 'evidencia', 180);
+        $vacio = Tablero::fechas_por([$sinConsenso], 'evidencia', 180, self::CINCO);
         $this->assertSame([], $vacio['filas']);
     }
 
@@ -561,7 +568,7 @@ class TableroTest extends TestCase
             $this->filaSegmento([30, 60, 90, 120, 150], ['horizonte_min' => null]),
         ];
 
-        $t = Tablero::fechas_por($filas, 'horizonte', 180);
+        $t = Tablero::fechas_por($filas, 'horizonte', 180, self::CINCO);
 
         $this->assertSame(['hasta 1 h', '6 a 24 h', 'más de 24 h', 'sin ancla'],
             array_column($t['filas'], 'clave'));
@@ -584,7 +591,7 @@ class TableroTest extends TestCase
             $this->filaSegmento([120, 60, 90, 120, 150], ['confianza' => 150]),
         ];
 
-        $t = Tablero::fechas_por($filas, 'confianza', 180);
+        $t = Tablero::fechas_por($filas, 'confianza', 180, self::CINCO);
 
         $this->assertSame(['0–20', '21–40', '71–95', '96–100'], array_column($t['filas'], 'clave'));
         $this->assertSame('Por confianza declarada', $t['titulo']);
@@ -606,12 +613,29 @@ class TableroTest extends TestCase
             $this->filaSegmento([30, 60, 90, 120, 150], ['origen' => 'api']),
         ];
 
-        $t = Tablero::fechas_por($filas, 'origen', 180);
+        $t = Tablero::fechas_por($filas, 'origen', 180, self::CINCO);
 
         $this->assertSame(['api', 'pantalla'], array_column($t['filas'], 'clave'),
             'el orden es api, aciertos, pantalla; no el de aparición');
         $this->assertSame('Por origen', $t['titulo']);
         $this->assertSame('rapido', $t['filas'][0]['gana']);
         $this->assertSame('normal', $t['filas'][1]['gana']);
+    }
+
+    public function test_fechas_por_incluye_la_perfecta_y_saltea_la_que_no_la_tiene(): void
+    {
+        // una fila con la sexta fecha y otra sin ella (las guardadas antes de la 1.47)
+        $conPerfecta = $this->filaSegmento([30, 60, 90, 120, 150],
+            ['evidencia' => 'medido', 'error_perfecta_min' => 20]);
+        $sinPerfecta = $this->filaSegmento([30, 60, 90, 120, 150], ['evidencia' => 'medido']);
+
+        $t = Tablero::fechas_por([$conPerfecta, $sinPerfecta], 'evidencia', 180);
+
+        $this->assertSame(['Rápido', 'Consenso', 'Normal', 'Base ajustada', 'Tardado', 'Perfecta'],
+            array_column($t['fechas'], 'etiqueta'), 'la perfecta va al final del orden publicado');
+        $this->assertSame(1, $t['filas'][0]['n'], 'la fila sin la sexta no compite');
+        $this->assertSame([30, 150, 60, 120, 90, 20], array_column($t['filas'][0]['celdas'], 'mae'));
+        $this->assertSame(5, $t['filas'][0]['mejor'], 'dentro de la fila, la perfecta es la más fina');
+        $this->assertSame('perfecta', $t['filas'][0]['gana']);
     }
 }

@@ -16,6 +16,7 @@
   "presenta_tardado": "2026-11-16 18:44:00",
   "presenta_probable": "2026-11-15 12:41:00",
   "presenta_consenso": "2026-11-15 06:34:00",
+  "presenta_perfecta": "2026-11-14 23:58:00",
   "sesgo": { "clase": "parcial|largo", "min": -194, "aplicado": true },
   "presentaciones": [
     { "clave": "rapido",   "etiqueta": "Rápido",        "fecha": "2026-11-14 21:33:00", "desde_ahora": "60:33",
@@ -27,7 +28,9 @@
     { "clave": "probable", "etiqueta": "Base ajustada", "fecha": "2026-11-15 12:41:00", "desde_ahora": "99:41",
       "delta_normal_min": 194, "construccion": "normal + 3:14 (sesgo de la clase parcial|largo: -194 min)" },
     { "clave": "tardado",  "etiqueta": "Tardado",       "fecha": "2026-11-16 18:44:00", "desde_ahora": "129:44",
-      "delta_normal_min": 1997, "construccion": "normal + 33:17 · banda medida (cubre 70 %)" }
+      "delta_normal_min": 1997, "construccion": "normal + 33:17 · banda medida (cubre 70 %)" },
+    { "clave": "perfecta", "etiqueta": "Perfecta",      "fecha": "2026-11-14 23:58:00", "desde_ahora": "86:58",
+      "delta_normal_min": -612, "construccion": "viaje y vuelta con el p25 de la ruta medida (sin mezclar con la placa ni con el día y la hora), sin espera ni descanso del conductor, sin franjas inactivas y con el ruteo en vía libre · traslado: ruta_medida · normal − 10:12" }
   ],
   "inicio_carga": "2026-11-15 11:16:00",
   "espera_hhmm": "1:49",
@@ -61,7 +64,7 @@ JSON;
             <p class="text-muted mb-1">
                 Predice a qué hora un camión se va a <strong>presentar para cargar</strong> y a qué hora
                 <strong>empieza a cargar</strong>. Es pública (sin token), como el resto de <code>/api</code>.
-                Devuelve <strong>cinco fechas</strong> y los pasos con los que se armó cada hora. Si hay que
+                Devuelve <strong>seis fechas</strong> y los pasos con los que se armó cada hora. Si hay que
                 elegir una, el orden de prioridad por precisión es:
                 <span class="badge bg-light text-dark">rápido</span> &gt;
                 <span class="badge bg-secondary">consenso</span> &gt;
@@ -145,9 +148,9 @@ JSON;
         </div>
     </div>
 
-    {{-- ================= LAS CINCO FECHAS ================= --}}
+    {{-- ================= LAS SEIS FECHAS ================= --}}
     <div class="card mb-3">
-        <div class="card-header bg-success text-white"><strong>2. Las cinco fechas</strong></div>
+        <div class="card-header bg-success text-white"><strong>2. Las seis fechas</strong></div>
         <div class="card-body">
             {{-- PRIORIDAD POR PRECISIÓN: es el orden en que se leen y se publican --}}
             <div class="alert alert-success py-2 mb-3">
@@ -158,9 +161,12 @@ JSON;
                     <span class="badge bg-secondary">3. Normal</span>
                     <span class="badge bg-info text-dark">4. Base ajustada</span>
                     <span class="badge bg-warning text-dark">5. Tardado</span>
+                    <span class="badge bg-danger">6. Perfecta (fuera del orden: es un piso)</span>
                 </div>
                 <div class="small mb-0">
-                    Ése es el orden con el que se publican y se comparan las cinco fechas. Lo medido sobre
+                    Ése es el orden con el que se publican y se comparan las fechas. La
+                    <strong>perfecta</strong> va al final a propósito: todavía no está medida y su papel no es
+                    estimar la hora sino marcar el <strong>piso optimista</strong>. Lo medido sobre
                     <strong>3.085 presentaciones reales</strong>, de las filas en que alguna fecha entra en el
                     margen, el porcentaje que se lleva cada una:
                     <div class="table-responsive mt-1">
@@ -275,6 +281,22 @@ JSON;
                         </div>
                     </div>
                 </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-danger">
+                        <div class="card-body py-2">
+                            <div class="fw-bold text-danger">6. Perfecta — el piso optimista (6.ª)</div>
+                            <div class="small text-muted">
+                                No es una banda de otra fecha: es <strong>otra cuenta</strong>. Se recalcula el
+                                viaje entero con el <strong>p25 de la ruta compilada</strong> (el viaje cuando sale
+                                bien), sin mezclarlo con la placa ni con la celda día/hora, <strong>sin</strong> espera
+                                ni descanso del conductor, <strong>sin</strong> franjas inactivas (no espera
+                                descanso ni almuerzo) y con el ruteo de Geoapify en <strong>vía libre</strong>.
+                                Sirve para "no puede presentarse antes de…": la presentación real cae después de
+                                ella el 93 % de las veces. No reemplaza a la normal.
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="alert alert-light border mt-3 mb-0 small">
                 El <strong>rápido nunca es menor que el traslado medido</strong>: el camión no puede llegar antes de lo
@@ -372,8 +394,9 @@ JSON;
                         <tr><td><code>presenta_rapido</code> / <code>presenta</code> / <code>presenta_tardado</code></td><td>la banda: la temprana, la normal y la tardía</td></tr>
                         <tr><td><code>presenta_probable</code></td><td>la <strong>cuarta</strong>, que se publica como <strong>base ajustada</strong>: la normal corregida con la mediana del error de su clase. Con el sesgo apagado es igual a <code>presenta</code></td></tr>
                         <tr><td><code>presenta_consenso</code></td><td>la <strong>quinta</strong>: el promedio de la rápida, la normal y la base ajustada. Gana por tolerancia (±30m/±1h/±3h); no siempre gana en "quién quedó más cerca"</td></tr>
+                        <tr><td><code>presenta_perfecta</code></td><td>la <strong>sexta</strong>: el escenario perfecto. NO es una banda de otra fecha: se recalcula el viaje entero con el <strong>p25 de la ruta compilada</strong> (sin mezclar con la placa ni con la celda día/hora), <strong>sin</strong> espera ni descanso del conductor, <strong>sin</strong> franjas inactivas y con el ruteo de Geoapify en <strong>vía libre</strong>. Es un piso optimista: se equivoca para el lado temprano, así que no reemplaza a la normal</td></tr>
                         <tr><td><code>sesgo</code></td><td><code>clase</code> (evidencia × tramo del horizonte), <code>min</code> (cuánto se corrió; negativo = se adelantó) y <code>aplicado</code></td></tr>
-                        <tr><td><code>presentaciones</code></td><td>las cinco fechas con etiqueta y <code>desde_ahora</code> en <code>h:mm</code>, EN ORDEN DE PRIORIDAD POR PRECISIÓN: <code>rapido</code>, <code>consenso</code>, <code>normal</code>, <code>probable</code> (etiqueta «Base ajustada»), <code>tardado</code>. Cada una trae además <code>delta_normal_min</code> (minutos respecto de la normal; negativo = antes) y <code>construccion</code> (de dónde sale ESA fecha, en una línea)</td></tr>
+                        <tr><td><code>presentaciones</code></td><td>las seis fechas con etiqueta y <code>desde_ahora</code> en <code>h:mm</code>, EN ORDEN DE PRIORIDAD POR PRECISIÓN: <code>rapido</code>, <code>consenso</code>, <code>normal</code>, <code>probable</code> (etiqueta «Base ajustada»), <code>tardado</code> y <code>perfecta</code>. Cada una trae además <code>delta_normal_min</code> (minutos respecto de la normal; negativo = antes) y <code>construccion</code> (de dónde sale ESA fecha, en una línea)</td></tr>
                         <tr><td><code>inicio_carga</code></td><td>presenta normal + espera en planta</td></tr>
                         <tr><td><code>espera_hhmm</code></td><td>la espera en planta, en <code>h:mm</code></td></tr>
                         <tr><td><code>duracion_total_hhmm</code></td><td>del ancla a la presentación normal (puede pasar de 24 h: <code>96:27</code>)</td></tr>
@@ -428,8 +451,11 @@ JSON;
                             implicaba menos de 15 km/h en línea recta (no es un camión andando): se acotó a esa
                             velocidad y se avisa.</li>
                         <li><code>en_planta</code> — la ubicación declarada <strong>es la planta de carga</strong>:
-                            no hay traslado ni viaje que esperar (las cinco fechas quedan en el corte) y lo único
+                            no hay traslado ni viaje que esperar (las seis fechas quedan en el corte) y lo único
                             que queda es la espera en planta, que se suma en <code>inicio_carga</code>.</li>
+                        <li><code>perfecta_tarde</code> — el escenario perfecto cayó <strong>después</strong> de la
+                            hora publicada: el hueco medido de la placa es más corto que el p25 de la ruta. La fecha se
+                            publica igual (son cuentas distintas), sólo se avisa.</li>
                     </ul>
                 </div>
             </div>
@@ -475,7 +501,9 @@ JSON;
                             Si tenés que elegir una, el orden de prioridad por precisión es
                             <strong>rápido → consenso → normal → base ajustada → tardado</strong>; la
                             <strong>base ajustada</strong> es la que mejor MAE da y el <strong>consenso</strong> el que
-                            más veces cae dentro de ±1h / ±3h.</li>
+                            más veces cae dentro de ±1h / ±3h. La <strong>perfecta</strong> no entra en ese orden: es un
+                            <strong>piso optimista</strong> (sirve para "no puede presentarse antes de…"), no una
+                            estimación central.</li>
                         <li>Comparar solo filas que tengan TODAS las fechas: si una no está, esa fila no entra
                             (así ninguna gana por tener más casos fáciles).</li>
                         <li>Para predecir sin viaje en curso, mandar <code>ubicacion</code> (local o ubigeo).</li>

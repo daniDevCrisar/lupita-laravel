@@ -153,6 +153,7 @@ class DBPrediccionResultados
                 'desglose' => self::desgloseJson((object) [
                     'presenta_probable' => $fila->probable ?? null,
                     'presenta_consenso' => $fila->consenso ?? null,
+                    'presenta_perfecta' => $fila->perfecta ?? null,
                     'sesgo_clase' => $fila->sesgo_clase ?? null,
                     'sesgo_min' => $fila->sesgo_min ?? 0,
                 ]),
@@ -336,15 +337,18 @@ class DBPrediccionResultados
                 'rapido' => $rapido,
                 'predicho' => $predicho,
                 'tardado' => $tardado,
-                // la cuarta fecha y el consenso: dentro de `desglose` (sin columnas nuevas)
+                // la cuarta fecha, el consenso y la perfecta: dentro de `desglose`
+                // (sin columnas nuevas)
                 'probable' => self::probableGuardada($fila->desglose ?? null),
                 'consenso' => $consenso,
+                'perfecta' => self::perfectaGuardada($fila->desglose ?? null),
                 'real' => $real,
                 'error_min' => $error,
                 'error_rapido_min' => self::error($real, $rapido),
                 'error_tardado_min' => self::error($real, $tardado),
                 'error_probable_min' => self::error($real, self::probableGuardada($fila->desglose ?? null)),
                 'error_consenso_min' => self::error($real, $consenso),
+                'error_perfecta_min' => self::error($real, self::perfectaGuardada($fila->desglose ?? null)),
                 'en_ventana' => $enVentana,
                 'evidencia' => (string) $fila->evidencia,
                 'confianza' => (int) $fila->confianza,
@@ -391,11 +395,12 @@ class DBPrediccionResultados
     }
 
     /**
-     * El JSON que va en `desglose`: los pasos MÁS la cuarta fecha.
+     * El JSON que va en `desglose`: los pasos MÁS las fechas que no tienen columna.
      *
-     * `desglose` es `longtext` y nadie lo lee como lista, así que ahí se guarda la
-     * fecha `presenta_probable` (y el sesgo que se le aplicó). Se hace así y no con
-     * una columna nueva porque en producción no hay consola para migrar.
+     * `desglose` es `longtext` y nadie lo lee como lista, así que ahí se guardan
+     * `presenta_probable` (con el sesgo que se le aplicó), el consenso y la fecha
+     * perfecta. Se hace así y no con columnas nuevas porque en producción no hay
+     * consola para migrar.
      */
     private static function desgloseJson(stdClass $resultado): string
     {
@@ -403,6 +408,7 @@ class DBPrediccionResultados
             'pasos' => $resultado->desglose ?? [],
             'probable' => self::fechaSql($resultado->presenta_probable ?? null),
             'consenso' => self::fechaSql($resultado->presenta_consenso ?? null),
+            'perfecta' => self::fechaSql($resultado->presenta_perfecta ?? null),
             'sesgo_clase' => $resultado->sesgo_clase ?? null,
             'sesgo_min' => (int) ($resultado->sesgo_min ?? 0),
         ], JSON_UNESCAPED_UNICODE);
@@ -440,5 +446,11 @@ class DBPrediccionResultados
     public static function consensoGuardada($desglose): ?Carbon
     {
         return self::fechaGuardada($desglose, 'consenso');
+    }
+
+    /** La fecha "perfecta" guardada en `desglose` (NULL en las filas viejas). */
+    public static function perfectaGuardada($desglose): ?Carbon
+    {
+        return self::fechaGuardada($desglose, 'perfecta');
     }
 }

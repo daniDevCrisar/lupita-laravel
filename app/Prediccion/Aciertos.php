@@ -24,13 +24,15 @@ final class Aciertos
     public const TOLERANCIAS = [30, 60, 120, 180, 360, 720];
 
     /**
-     * Las cinco fechas que publica el motor, EN EL ORDEN DE PRIORIDAD POR PRECISIÓN
-     * que definió el negocio: rápido, consenso, normal, base ajustada, tardado.
+     * Las seis fechas que publica el motor, EN EL ORDEN DE PRIORIDAD POR PRECISIÓN
+     * que definió el negocio: rápido, consenso, normal, base ajustada, tardado y
+     * —al final, porque todavía no está medida— perfecta.
      *
      * `rapido` es el extremo temprano de la banda; `consenso` el promedio de rápido,
      * normal y base ajustada; `normal` la estimación central; `probable` (que se
      * publica como **base ajustada**) la normal corregida con el sesgo de su clase;
-     * `tardado` el extremo tardío.
+     * `tardado` el extremo tardío; `perfecta` el escenario sin descanso, sin
+     * franjas y sin tráfico (p25 de la ruta).
      */
     public const FECHAS = [
         'rapido' => 'rápido',
@@ -38,6 +40,7 @@ final class Aciertos
         'normal' => 'normal',
         'probable' => 'base ajustada',
         'tardado' => 'tardado',
+        'perfecta' => 'perfecta',
     ];
 
     /**
@@ -51,6 +54,7 @@ final class Aciertos
         'normal' => 'error_min',
         'probable' => 'error_probable_min',
         'tardado' => 'error_tardado_min',
+        'perfecta' => 'error_perfecta_min',
     ];
 
     /**

@@ -453,6 +453,78 @@ final class MotorPresenta
                 . Tiempo::hhmm($espera) . ')';
         }
 
+        // SEXTA FECHA — "PERFECTA": no es una banda alrededor de otra fecha, es la
+        // cadena entera armada como si el viaje saliera perfecto. Se recalcula el
+        // viaje con el P25 de la ruta (y de cada etapa medida), no se suma la
+        // espera ni el descanso del conductor y no se corren las franjas
+        // inactivas; el ruteo se pidió en vía libre (ver `config/prediccion.php`).
+        //
+        // Las piezas vienen YA calculadas desde `Servicio::predecir()` (es el único
+        // que puede mirar la base y pedirle a Geoapify): acá sólo se arma la hora.
+        $perfecta = null;
+        $piezasPerfecta = is_object($e->perfecta ?? null) ? $e->perfecta : null;
+
+        if ($piezasPerfecta !== null && (int) ($piezasPerfecta->activa ?? 1) === 1) {
+            $trasladoPerfecta = is_object($piezasPerfecta->traslado ?? null) ? $piezasPerfecta->traslado : null;
+            $tramoPerfecta = is_object($piezasPerfecta->tramo ?? null) ? $piezasPerfecta->tramo : null;
+            $restantePerfecta = isset($piezasPerfecta->restante_min) && is_numeric($piezasPerfecta->restante_min)
+                ? (int) $piezasPerfecta->restante_min
+                : null;
+
+            if ($cerrada) {
+                $tFinPerfecta = $fechaAncla->copy();
+            } elseif ($tramoPerfecta !== null) {
+                // desde la posición declarada hasta el destino, en vía libre
+                $tFinPerfecta = $ahora->copy()->addMinutes(max(1, (int) ($tramoPerfecta->min ?? 0))
+                    + max(0, (int) ($tramoPerfecta->resto_min ?? 0)));
+            } elseif ($restantePerfecta !== null) {
+                // el p25 de lo que le falta, menos lo ya manejado. NO se espera al
+                // p75 cuando el p25 ya se consumió: eso es el techo de la normal.
+                $descontarPerfecta = (int) ($p->descontar_transcurrido ?? 1) === 1;
+                $edadPerfecta = max(0, (int) round($fechaAncla->diffInMinutes($ahora)));
+                $quedaPerfecta = $descontarPerfecta
+                    ? max(0, $restantePerfecta - $edadPerfecta)
+                    : $restantePerfecta;
+                $tFinPerfecta = ($descontarPerfecta ? $ahora->copy() : $fechaAncla->copy())
+                    ->addMinutes($quedaPerfecta);
+            } else {
+                $tFinPerfecta = null;
+            }
+
+            if ($tFinPerfecta !== null) {
+                $perfecta = $tFinPerfecta->lessThan($ahora) ? $ahora->copy() : $tFinPerfecta->copy();
+
+                // el regreso a la planta de carga suma siempre (es física)
+                if ($trasladoPerfecta !== null) {
+                    $perfecta->addMinutes(max(0, (int) ($trasladoPerfecta->min ?? 0)));
+                }
+
+                // por diseño NO hay tiempo muerto. Con `perfecta_sin_muerto` en 0
+                // se le suma el tiempo muerto por defecto: sirve para medir cuánto
+                // de la diferencia entre la perfecta y la normal es sólo el descanso.
+                if ((int) ($p->perfecta_sin_muerto ?? 1) !== 1) {
+                    $perfecta->addMinutes($muertoDefecto);
+                }
+
+                // y tampoco se corren las franjas inactivas: el escenario es un
+                // camión que no espera descanso ni almuerzo.
+                if ((int) ($p->perfecta_sin_franjas ?? 1) !== 1) {
+                    $perfecta = Ventanas::desplazar($perfecta, $ventanas,
+                        max(0, (int) ($p->max_desplazamiento_min ?? 600)))->fecha;
+                }
+
+                if ($perfecta->lessThan($ahora)) {
+                    $perfecta = $ahora->copy();
+                }
+            }
+        }
+
+        // en la planta de carga tampoco hay escenario que estimar: la sexta fecha
+        // es el corte (sólo si se pudo armar; con la perfecta apagada queda null)
+        if ($perfecta !== null && (bool) ($e->en_planta ?? false)) {
+            $perfecta = $ahora->copy();
+        }
+
         $confianza = self::confianza((object) [
             'nivel' => $evidencia,
             'iqr' => ($cal !== null && ($cal->p25_min ?? null) !== null && ($cal->p75_min ?? null) !== null)
@@ -471,6 +543,19 @@ final class MotorPresenta
         $salida->presenta = $t;
         $salida->presenta_rapido = $rapido;
         $salida->presenta_tardado = $tardado;
+        $salida->presenta_perfecta = $perfecta;
+
+        // La perfecta es más temprana que la normal por construcción (p25 + sin
+        // descanso). Cuando sale DESPUÉS no se recorta —es otro escenario, no una
+        // banda— pero se avisa: casi siempre significa que el hueco medido de la
+        // placa es más corto que el p25 de la ruta.
+        if ($perfecta !== null && $perfecta->greaterThan($t)) {
+            $salida->advertencias[] = 'perfecta_tarde: el escenario perfecto ('
+                . Tiempo::hhmm((int) round(($perfecta->getTimestamp() - $ahora->getTimestamp()) / 60))
+                . ' desde el corte) cae DESPUÉS de la hora publicada ('
+                . Tiempo::hhmm((int) round(($t->getTimestamp() - $ahora->getTimestamp()) / 60))
+                . '): el hueco medido es más corto que el p25 de la ruta. Se publica igual, sin recortar';
+        }
 
         // QUINTA fecha: el CONSENSO de la rápida, la normal y la cuarta. Medido en
         // las guardadas: acierta más por tolerancia que cualquiera de las tres
@@ -494,7 +579,7 @@ final class MotorPresenta
             $salida->presenta_consenso, $cal, $ventanaMedida !== null ? 'residuos' : null,
             $sesgoMin, $salida->sesgo_clase,
             $ventanaMedida !== null ? ($ventanaMedida->cobertura ?? null) : null,
-            $rapidoAcotado ?? false);
+            $rapidoAcotado ?? false, $perfecta, $piezasPerfecta);
         $salida->inicio_carga = $t->copy()->addMinutes($espera);
         $salida->espera_min = $espera;
         $salida->evidencia = $evidencia;
@@ -533,6 +618,14 @@ final class MotorPresenta
         }
         if ($notaDia !== null) {
             $salida->supuestos[] = $notaDia;
+        }
+        if ($perfecta !== null) {
+            $salida->supuestos[] = 'la fecha "perfecta" no es una banda: es otra cuenta, con el p25 de la ruta '
+                . 'medida, sin espera ni descanso del conductor, sin franjas inactivas y con el ruteo en vía libre '
+                . '(' . ($piezasPerfecta->cuantil ?? 'p25') . ' · traslado: '
+                . (is_object($piezasPerfecta->traslado ?? null)
+                    ? (string) ($piezasPerfecta->traslado->fuente ?? 'sin dato')
+                    : 'sin dato') . ')';
         }
         $salida->pasos = self::pasos($e, $salida, $fechaAncla, $t, $restante, $hueco, $trasladoMin, $tiempoMuerto,
             $esperaVentana, $espera, $cerrada);
@@ -648,7 +741,8 @@ final class MotorPresenta
                                           Carbon $probable, ?Carbon $consenso, ?object $cal,
                                           ?string $fuente = null, int $sesgoMin = 0,
                                           ?string $sesgoClase = null, ?float $cobertura = null,
-                                          bool $rapidoAcotado = false): array
+                                          bool $rapidoAcotado = false, ?Carbon $perfecta = null,
+                                          ?object $piezasPerfecta = null): array
     {
         $desde = fn (Carbon $fecha) => Tiempo::hhmm((int) round(($fecha->getTimestamp() - $ahora->getTimestamp()) / 60));
         // minutos entre una fecha y la normal (negativo = antes)
@@ -667,7 +761,7 @@ final class MotorPresenta
             : 'normal ' . self::delta_texto($delta($rapido)) . ' · ' . $banda;
         $centro = $consenso ?? $normal;
 
-        return [
+        $salida = [
             [
                 'clave' => 'rapido',
                 'etiqueta' => 'Rápido',
@@ -724,6 +818,33 @@ final class MotorPresenta
                 'construccion' => 'normal ' . self::delta_texto($delta($tardado)) . ' · ' . $banda,
             ],
         ];
+
+        // SEXTA fecha: la perfecta. Va al final del orden publicado (el orden es de
+        // prioridad por precisión y esta todavía no está medida) y sólo aparece si
+        // se pudo armar: sin piezas no se inventa una fecha.
+        if ($perfecta !== null) {
+            $fuentePerfecta = is_object($piezasPerfecta->traslado ?? null)
+                ? (string) ($piezasPerfecta->traslado->fuente ?? 'sin dato')
+                : 'sin dato';
+
+            $salida[] = [
+                'clave' => 'perfecta',
+                'etiqueta' => 'Perfecta',
+                'descripcion' => 'si el viaje sale perfecto: p25 de la ruta, sin descanso del conductor,'
+                    . ' sin franjas inactivas y sin tráfico',
+                'fecha' => $perfecta->format('Y-m-d H:i:s'),
+                'desde_ahora' => $desde($perfecta),
+                'delta_normal_min' => $delta($perfecta),
+                // cómo se armó: es OTRA cuenta, no el borde de una banda
+                'construccion' => 'viaje y vuelta con el p25 de la ruta medida'
+                    . ' (sin mezclar con la placa ni con el día y la hora), sin espera ni descanso del conductor,'
+                    . ' sin franjas inactivas y con el ruteo en vía libre'
+                    . ' · traslado: ' . $fuentePerfecta
+                    . ' · normal ' . self::delta_texto($delta($perfecta)),
+            ];
+        }
+
+        return $salida;
     }
 
     /** "+ 2:30" / "− 9:45" para explicar cuánto se corrió una fecha respecto de la normal. */
@@ -1007,6 +1128,69 @@ final class MotorPresenta
     }
 
     /**
+     * `faltantes_sin_viaje()` con el p25 de cada etapa: la descarga y la vuelta
+     * que siguen a la llegada, cuando la ida se calcula desde la posición
+     * declarada del camión. Es la pieza de la fecha "perfecta" en ese camino.
+     *
+     * @param  array<string, int|float|string|null>  $etapas
+     */
+    public static function faltantes_sin_viaje_p25(?string $hito, array $etapas): ?int
+    {
+        if ($hito === null) {
+            return null;
+        }
+
+        $claves = self::FALTANTES[$hito] ?? null;
+        if ($claves === null) {
+            return null;
+        }
+
+        $total = 0;
+        foreach (array_diff($claves, ['e4']) as $clave) {
+            $valor = $etapas[$clave . '_p25'] ?? $etapas[$clave] ?? null;
+            if ($valor === null || !is_numeric($valor)) {
+                return null;
+            }
+            $total += min(self::TOPE_ETAPA, max(0, (int) round((float) $valor)));
+        }
+
+        return min(self::TOPE_ETAPA, $total);
+    }
+
+    /**
+     * Lo mismo que `faltantes()` pero con el P25 de cada etapa: es la pieza de la
+     * fecha "perfecta" (el viaje cuando sale bien).
+     *
+     * Cada etapa usa su `_p25` (el compilado de la ruta trae `e4_p25`, y las
+     * demás salen de las mismas referencias) y, si esa etapa no tiene p25, cae a
+     * la mediana: la columna existe siempre, así que no se pierde la fecha por
+     * una etapa corta.
+     *
+     * @param  array<string, int|float|string|null>  $etapas
+     */
+    public static function faltantes_p25(?string $hito, array $etapas): ?int
+    {
+        if ($hito === null) {
+            return null;
+        }
+
+        $claves = self::FALTANTES[$hito] ?? null;
+        if ($claves === null) {
+            return null;
+        }
+
+        $total = 0;
+        foreach ($claves as $clave) {
+            $valor = $etapas[$clave . '_p25'] ?? $etapas[$clave] ?? null;
+            if ($valor === null || !is_numeric($valor)) {
+                return null;
+            }
+            $total += min(self::TOPE_ETAPA, max(0, (int) round((float) $valor)));
+        }
+
+        return min(self::TOPE_ETAPA, $total);
+    }
+    /**
      * Dónde está y qué está haciendo el conductor ahora mismo, derivado de su
      * último hito y de sus franjas inactivas.
      */
@@ -1112,6 +1296,7 @@ final class MotorPresenta
             'duracion_total' => null,
             'presenta_rapido' => null,
             'presenta_tardado' => null,
+            'presenta_perfecta' => null,
             'presentaciones' => [],
         ];
     }

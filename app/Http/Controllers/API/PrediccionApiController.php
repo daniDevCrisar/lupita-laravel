@@ -255,6 +255,7 @@ class PrediccionApiController extends Controller
                 'rapido' => self::fecha($fila->rapido ?? null),
                 'predicho' => self::fecha($fila->predicho),
                 'tardado' => self::fecha($fila->tardado ?? null),
+                'perfecta' => self::fecha($fila->perfecta ?? null),
                 'real' => self::fecha($fila->real),
                 'error_min' => $fila->error_min,
                 'dentro_ventana' => $fila->dentro,
@@ -278,6 +279,7 @@ class PrediccionApiController extends Controller
             'descartados' => $datos->descartados,
             'sin_ruta' => $datos->sin_ruta ?? 0,
             'resumen_motor' => $datos->resumen_motor,
+            'resumen_perfecta' => $datos->resumen_perfecta ?? null,
         ]);
     }
 
@@ -462,6 +464,9 @@ class PrediccionApiController extends Controller
             // cuarta). Se publica para poder MEDIRLO: gana por tolerancia, no en
             // "quién quedó más cerca".
             'presenta_consenso' => self::fecha($resultado->presenta_consenso ?? null),
+            // SEXTA fecha: el escenario perfecto (p25 de la ruta, sin descanso del
+            // conductor, sin franjas inactivas y con el ruteo en vía libre)
+            'presenta_perfecta' => self::fecha($resultado->presenta_perfecta ?? null),
             'sesgo' => [
                 'clase' => $resultado->sesgo_clase ?? null,
                 // minutos que se corrió la hora publicada: negativo = se adelantó

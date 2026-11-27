@@ -283,4 +283,33 @@ return [
     'sesgo_clase_medido_corto' => 0,
     'sesgo_clase_medido_medio' => 0,
     'sesgo_clase_medido_largo' => 0,
+
+    // SEXTA FECHA — "PERFECTA": la cadena armada como si el viaje saliera
+    // perfecto. No es una banda alrededor de otra fecha: se recalcula el viaje
+    // entero con otras piezas.
+    //
+    //   1. el viaje y el traslado usan el **p25** de la ruta compilada
+    //      (`tiempos_ruta_promedio.p25_min`) y el p25 de cada etapa medida,
+    //      SIN mezclar con la placa ni con la celda día/hora (esas son medianas:
+    //      mezclarlas devuelve la fecha hacia la normal y se pierde el p25);
+    //   2. NO se suma la espera ni el descanso del conductor (`tiempo_muerto`);
+    //   3. NO se aplican las franjas inactivas (el camión no espera descanso ni
+    //      almuerzo) ni el factor del día;
+    //   4. el ruteo de Geoapify se pide SIN tráfico (vía libre).
+    //
+    // Medido el 20/11/2026: el p25 de la ruta es 0,79–0,90 de su mediana
+    // (CARAL→BABEL_MAXO: 224 min contra 270), o sea entre 10 % y 21 % menos
+    // tiempo de manejo. La fecha se publica SIEMPRE y se mide contra la real en
+    // la tabla de aciertos, igual que las otras cinco.
+    'perfecta_activa' => 1,
+    // cuantil de la ruta compilada que usa la fecha perfecta (0,25 = p25)
+    'perfecta_cuantil' => 0.25,
+    // 1 = el ruteo de la perfecta se pide con `traffic = null` (vía libre)
+    'perfecta_sin_trafico' => 1,
+    // 1 = no se suma el tiempo muerto (espera y descanso del conductor)
+    'perfecta_sin_muerto' => 1,
+    // 1 = no se corren las franjas inactivas (ni el factor del día)
+    'perfecta_sin_franjas' => 1,
+    // 1 = el p25 no se mezcla con la placa ni con la celda día/hora
+    'perfecta_sin_mezcla' => 1,
 ];

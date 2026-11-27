@@ -348,7 +348,7 @@ class TableroGuardadasTest extends TestCase
         $this->assertNull($desgloses['evidencia']['nota']);
 
         $html = (string) $vista->render();
-        $this->assertStringContainsString('Las cinco fechas dentro de cada segmento', $html);
+        $this->assertStringContainsString('Las fechas dentro de cada segmento', $html);
         $this->assertStringContainsString('Más cerca', $html);
         $this->assertStringContainsString('el MAE más bajo de cada tramo va en verde', $html);
     }

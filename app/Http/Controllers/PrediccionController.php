@@ -950,6 +950,24 @@ class PrediccionController extends Controller
                      . '(tiempos_ruta_horario), mezclado con lo medido de la ruta'],
                 ['clave' => 'horario_viajes_k', 'valor' => (int) ($enUso->horario_viajes_k ?? 3),
                  'texto' => 'Peso de la celda día/hora en el viaje y en el traslado: w = viajes/(viajes+k)'],
+                // SEXTA fecha "perfecta": qué la gobierna (se cambia por import o en config)
+                ['clave' => 'perfecta_activa', 'valor' => (int) ($enUso->perfecta_activa ?? 1),
+                 'texto' => 'Publica la sexta fecha "perfecta": p25 de la ruta, sin espera ni descanso del '
+                     . 'conductor, sin franjas inactivas y con el ruteo en vía libre'],
+                ['clave' => 'perfecta_cuantil', 'valor' => (float) ($enUso->perfecta_cuantil ?? 0.25),
+                 'texto' => 'Cuantil de la ruta compilada que usa la perfecta: 0,25 = p25 (el viaje cuando sale '
+                     . 'bien), 0,5 = la mediana, 0,75 = p75'],
+                ['clave' => 'perfecta_sin_trafico', 'valor' => (int) ($enUso->perfecta_sin_trafico ?? 1),
+                 'texto' => 'El ruteo de la perfecta se pide con traffic=null (vía libre), aunque la salida caiga '
+                     . 'en hora pico'],
+                ['clave' => 'perfecta_sin_muerto', 'valor' => (int) ($enUso->perfecta_sin_muerto ?? 1),
+                 'texto' => '1 = la perfecta no suma el tiempo muerto (espera y descanso del conductor); con 0 se '
+                     . 'le suma el muerto por defecto, para medir cuánto de la diferencia es sólo el descanso'],
+                ['clave' => 'perfecta_sin_franjas', 'valor' => (int) ($enUso->perfecta_sin_franjas ?? 1),
+                 'texto' => '1 = la perfecta no se corre de las franjas inactivas (no espera descanso ni almuerzo)'],
+                ['clave' => 'perfecta_sin_mezcla', 'valor' => (int) ($enUso->perfecta_sin_mezcla ?? 1),
+                 'texto' => '1 = el p25 de la ruta NO se mezcla con la placa ni con la celda día/hora (son '
+                     . 'medianas de otra distribución: mezclarlas devuelve la fecha hacia la normal)'],
                 ['clave' => 'descontar_transcurrido', 'valor' => (int) ($enUso->descontar_transcurrido ?? 1),
                  'texto' => 'Descuenta el tiempo ya manejado y, si la mediana se consumió, espera hasta el p75'],
                 ['clave' => 'dia_activo', 'valor' => (int) ($enUso->dia_activo ?? 1),

@@ -633,6 +633,104 @@ class Servicio
             $anclaTexto = 'Sin ancla';
         }
 
+        // SEXTA FECHA — "PERFECTA". Se arma acá, no en el motor, porque hay que
+        // mirar la base (p25 de la ruta compilada) y pedirle el ruteo a Geoapify
+        // en vía libre. El motor sólo suma: t_fin del p25 + traslado del p25, sin
+        // tiempo muerto y sin franjas inactivas.
+        $perfecta = null;
+        if ((int) ($p->perfecta_activa ?? 1) === 1) {
+            // 0,25 = p25 (lo de fábrica) · 0,5 = mediana · 0,75 = p75
+            $cuantilPerfecta = (float) ($p->perfecta_cuantil ?? 0.25) >= 0.6
+                ? 'p75'
+                : ((float) ($p->perfecta_cuantil ?? 0.25) > 0.4 ? 'mediana' : 'p25');
+            $sinTraficoPerfecta = (int) ($p->perfecta_sin_trafico ?? 1) === 1;
+
+            // el traslado de regreso: misma escalera que la normal, con el p25
+            $trasladoPerfecta = $plantaCarga !== ''
+                ? DBPrediccion::traslado($plantaCarga, $desdePlanta !== '' ? $desdePlanta : null,
+                    $desdeUbigeo !== '' ? $desdeUbigeo : null, (string) ($fila->ubigeo_origen ?? ''),
+                    $etapasPorRuta, $rutaRef !== '' ? $rutaRef : null, (int) $p->traslado_defecto_min,
+                    $ubicacionDeclarada && !$viajeEnCurso, $salidaRegreso,
+                    fn (string $ruta): ?object => self::viaje_ruta($ruta, $etapasPorRuta, $salidaRegreso,
+                        $placa, $desde, $ahora, $p, $cuantilPerfecta),
+                    $p, $cuantilPerfecta, $sinTraficoPerfecta)
+                : null;
+            $trasladoPerfecta = self::limitar_traslado($trasladoPerfecta, $p);
+
+            // posición declarada como TEXTO libre: el regreso sale del ruteo desde
+            // ese punto, igual que en la normal pero en vía libre
+            if ($coords !== null && $plantaCarga !== '' && !$viajeEnCurso) {
+                $geoPerfecta = Geoapify::ruta_desde_coords($coords->lat, $coords->lng,
+                    (string) ($fila->ubigeo_origen ?? ''), $salidaRegreso, $ubicacionUbigeo,
+                    $sinTraficoPerfecta);
+
+                if ($geoPerfecta !== null) {
+                    $trasladoPerfecta = (object) [
+                        'min' => max(1, (int) $geoPerfecta->min),
+                        'fuente' => 'geoapify',
+                        'ruta' => null,
+                        'texto' => $geoPerfecta->desde . ' → ' . $geoPerfecta->hasta,
+                        'km' => $geoPerfecta->km,
+                        'min_medido' => null,
+                        'viaje' => null,
+                        'sentido' => 'vacio',
+                        'factor_vacio' => 1.0,
+                        'cuantil' => $cuantilPerfecta,
+                        'sin_trafico' => $sinTraficoPerfecta,
+                    ];
+                }
+            }
+
+            if ($enLaPlanta) {
+                $trasladoPerfecta = (object) [
+                    'min' => 0, 'fuente' => 'ya_esta_en_planta', 'ruta' => null,
+                    'texto' => 'la unidad ya está en '
+                        . DBPrediccion::texto_ubicacion($plantaCarga, $plantaUbigeo),
+                    'km' => 0, 'min_medido' => null, 'viaje' => null, 'sentido' => 'vacio',
+                    'factor_vacio' => 1.0, 'cuantil' => $cuantilPerfecta,
+                    'sin_trafico' => $sinTraficoPerfecta,
+                ];
+            }
+
+            // lo que le falta del viaje en curso, con el p25 de cada etapa. La ida
+            // (e4) NO se mezcla con la placa ni con la celda día/hora: son medianas.
+            $restantePerfecta = $viajeEnCurso
+                ? MotorPresenta::faltantes_p25((string) ($ancla->hito ?? ''), $etapasAncla)
+                : null;
+
+            // con posición declarada y viaje en curso, la ida se rutea en vía libre.
+            // Si la normal ya la resolvió por coordenadas o por promedio, el número
+            // es el mismo (el tráfico no entra ahí) y se reusa.
+            $tramoPerfecta = null;
+            if ($viajeEnCurso && $tramoDeclarado !== null) {
+                if ((string) ($tramoDeclarado->fuente ?? '') === 'geoapify') {
+                    $tramoPerfecta = self::tramo_hacia_destino($coords, $ubicacionUbigeo, $ubicacionResueltaTexto,
+                        $ancla, $etapasPorRuta, $rutaAncla !== '' ? $rutaAncla : null, $ahora, $p,
+                        $ubicacionTipo === 'local' ? $ubicacionId : '', $sinTraficoPerfecta);
+                } else {
+                    $tramoPerfecta = clone $tramoDeclarado;
+                }
+
+                if (is_object($tramoPerfecta)) {
+                    if (isset($tramoPerfecta->error)) {
+                        $tramoPerfecta = null;
+                    } else {
+                        $tramoPerfecta->resto_min = MotorPresenta::faltantes_sin_viaje_p25(
+                            (string) ($ancla->hito ?? ''), $etapasAncla) ?? (int) ($tramoPerfecta->resto_min ?? 0);
+                    }
+                }
+            }
+
+            $perfecta = (object) [
+                'activa' => true,
+                'cuantil' => $cuantilPerfecta,
+                'sin_trafico' => $sinTraficoPerfecta,
+                'traslado' => $trasladoPerfecta,
+                'restante_min' => $restantePerfecta,
+                'tramo' => $tramoPerfecta,
+            ];
+        }
+
         $resultado = MotorPresenta::predecir((object) [
             'ahora' => $ahora,
             'ref' => $ref,
@@ -650,6 +748,8 @@ class Servicio
             'calibrador' => $calibrador,
             'traslado' => $traslado,
             'tramo_en_curso' => $tramoDeclarado,
+            // sexta fecha: p25 de la ruta, sin descanso y sin franjas
+            'perfecta' => $perfecta,
             'ventana_residuos' => $ventanaMedida,
             'factor_dia' => $factoresDia,
             'dia_modo' => (int) ($p->dia_modo ?? Calibrador::DIA_FLOTA),
@@ -684,7 +784,9 @@ class Servicio
         // día en toda la aplicación (contador de la tabla `geoapify_uso`).
         $usoGeoTraslado = ($traslado->fuente ?? '') === 'geoapify';
         $usoGeoTramo = ($tramoDeclarado->fuente ?? '') === 'geoapify';
-        $usoGeo = $usoGeoTraslado || $usoGeoTramo;
+        $usoGeoPerfecta = is_object($perfecta) && is_object($perfecta->traslado ?? null)
+            && (string) ($perfecta->traslado->fuente ?? '') === 'geoapify';
+        $usoGeo = $usoGeoTraslado || $usoGeoTramo || $usoGeoPerfecta;
         $llamadas = Geoapify::llamadas() - $llamadasGeo;
 
         // ¿la hora del corte o la salida del regreso caen en hora pico de la zona
@@ -717,6 +819,16 @@ class Servicio
                     ? 'el tramo que le falta al viaje salió del ruteo desde la ubicación declarada'
                     : 'no había promedio compilado para ese par de ubicaciones')
                 : 'se usó el promedio medido de la flota',
+            // la fecha perfecta pide su propio ruteo, en VÍA LIBRE
+            'perfecta' => is_object($perfecta)
+                ? (object) [
+                    'usado' => $usoGeoPerfecta,
+                    'fuente' => is_object($perfecta->traslado ?? null)
+                        ? (string) ($perfecta->traslado->fuente ?? 'sin_dato') : null,
+                    'cuantil' => (string) ($perfecta->cuantil ?? 'p25'),
+                    'sin_trafico' => (bool) ($perfecta->sin_trafico ?? true),
+                ]
+                : null,
             'llamadas' => $llamadas,
             'uso_hoy' => \App\Database\DBGeoapify::hoy(),
         ];
@@ -756,6 +868,26 @@ class Servicio
             // sin ningún promedio, el traslado sale de las coordenadas de los locales
             'traslado_km' => $traslado->km ?? null,
             'traslado_ajuste' => $traslado->ajuste ?? null,
+            // la sexta fecha: con qué p25 y con qué traslado se armó (auditoría)
+            'perfecta' => is_object($perfecta)
+                ? (object) [
+                    'cuantil' => (string) ($perfecta->cuantil ?? 'p25'),
+                    'sin_trafico' => (bool) ($perfecta->sin_trafico ?? true),
+                    'traslado_fuente' => is_object($perfecta->traslado ?? null)
+                        ? (string) ($perfecta->traslado->fuente ?? 'sin_dato') : null,
+                    'traslado_ruta' => is_object($perfecta->traslado ?? null)
+                        ? ($perfecta->traslado->ruta ?? null) : null,
+                    'traslado_sentido' => is_object($perfecta->traslado ?? null)
+                        ? (string) ($perfecta->traslado->sentido ?? 'desconocido') : null,
+                    'traslado_factor_vacio' => is_object($perfecta->traslado ?? null)
+                        ? (float) ($perfecta->traslado->factor_vacio ?? 1.0) : null,
+                    'traslado_km' => is_object($perfecta->traslado ?? null)
+                        ? ($perfecta->traslado->km ?? null) : null,
+                    'restante_min' => $perfecta->restante_min ?? null,
+                    'tramo_min' => is_object($perfecta->tramo ?? null)
+                        ? (int) ($perfecta->tramo->min ?? 0) : null,
+                ]
+                : null,
         ];
 
         // De dónde salió la posición del camión y, sobre todo, SI ENTRÓ en el
@@ -1567,6 +1699,29 @@ class Servicio
                 : null;
             $traslado = self::limitar_traslado($traslado, $p);
 
+            // SEXTA FECHA en el backtest: el MISMO cálculo que producción, o la
+            // tabla de aciertos mediría otra cosa. Geoapify está apagado acá, así
+            // que la única diferencia con producción es el tráfico (que en la
+            // perfecta es vía libre de todos modos): lo que se mide es el p25.
+            $perfecta = $plantaCarga !== ''
+                ? (object) [
+                    'activa' => (int) ($p->perfecta_activa ?? 1) === 1,
+                    'cuantil' => 'p25',
+                    'sin_trafico' => true,
+                    'traslado' => self::limitar_traslado(
+                        DBPrediccion::traslado($plantaCarga, $desdePlanta !== '' ? $desdePlanta : null,
+                            $desdeUbigeo !== '' ? $desdeUbigeo : null, $plantaUbigeo,
+                            $etapas, $rutaSiguiente !== '' ? $rutaSiguiente : null,
+                            (int) $p->traslado_defecto_min, false, null,
+                            fn (string $ruta): ?object => self::viaje_ruta($ruta, $etapas, null, '',
+                                null, null, $p, 'p25'),
+                            $p, 'p25', true),
+                        $p),
+                    'restante_min' => null,
+                    'tramo' => null,
+                ]
+                : null;
+
             // Calibración as-of, con la MISMA base y la MISMA regla de grupo que
             // producción (ver clave_calibracion()): la placa, salvo que el
             // conductor de esta ref concentre menos de la mitad de los viajes
@@ -1676,6 +1831,7 @@ class Servicio
                 'feriado_activo' => (int) ($p->feriado_activo ?? 1),
                 'ventana_residuos' => $ventanaMedida,
                 'ventanas' => $ventanasCache[$llaveVentana]['ventanas'],
+                'perfecta' => $perfecta,
                 'espera_carga_min' => DBPrediccion::espera_carga($plantaCarga !== '' ? $plantaCarga : null,
                     $rutaSiguiente !== '' ? $rutaSiguiente : null),
                 'parametros' => $p,
@@ -1684,6 +1840,10 @@ class Servicio
             $real = $par->presenta;
             $predicho = $resultado->presenta;
             $error = $predicho !== null ? self::minutos($real, $predicho) : null;
+
+            // la SEXTA: el escenario perfecto (p25 de la ruta, sin descanso)
+            $perfectaFecha = $resultado->presenta_perfecta ?? null;
+            $errorPerfecta = $perfectaFecha !== null ? self::minutos($real, $perfectaFecha) : null;
 
             // la CUARTA fecha: la publicada corregida por el sesgo de su clase
             $probable = $resultado->presenta_probable ?? null;
@@ -1750,6 +1910,8 @@ class Servicio
                 'error_probable_min' => $errorProbable,
                 'consenso' => $consenso,
                 'error_consenso_min' => $errorConsenso,
+                'perfecta' => $perfectaFecha,
+                'error_perfecta_min' => $errorPerfecta,
                 'error_rapido_min' => $errorRapido,
                 'error_tardado_min' => $errorTardado,
                 'sesgo_clase' => $resultado->sesgo_clase ?? null,
@@ -1772,6 +1934,15 @@ class Servicio
         }
         $resumenConsenso = Aciertos::resumir($erroresConsenso);
 
+        // la SEXTA fecha se mide igual que las otras: es una fecha publicada más
+        $erroresPerfecta = [];
+        foreach ($filas as $fila) {
+            if (!$fila->fuera_tope && $fila->error_perfecta_min !== null) {
+                $erroresPerfecta[] = $fila->error_perfecta_min;
+            }
+        }
+        $resumenPerfecta = Aciertos::resumir($erroresPerfecta);
+
         \App\Prediccion\Geoapify::activar();
 
         return (object) [
@@ -1779,6 +1950,7 @@ class Servicio
             'resumen_motor' => $resumenMotor,
             'resumen_probable' => $resumenProbable,
             'resumen_consenso' => $resumenConsenso,
+            'resumen_perfecta' => $resumenPerfecta,
             // carrera de las fechas publicadas: cuántas veces gana cada una
             'carrera' => Aciertos::carrera($filas),
             'sesgo_activo' => (int) ($p->sesgo_clase_activo ?? 0) === 1,
@@ -2133,7 +2305,7 @@ class Servicio
     private static function tramo_hacia_destino(?object $coords, string $desdeUbigeo, string $desdeTexto,
                                                 ?object $ancla, array $etapas, ?string $rutaAncla,
                                                 ?Carbon $salida = null, ?object $p = null,
-                                                string $desdeLocal = ''): ?object
+                                                string $desdeLocal = '', bool $sinTrafico = false): ?object
     {
         if ($ancla === null) {
             return null;
@@ -2172,7 +2344,8 @@ class Servicio
         if ($coords !== null) {
             $geo = Geoapify::ruta_desde_coords($coords->lat, $coords->lng,
                 $destinoUbigeo !== '' ? $destinoUbigeo : null, $salida,
-                $desdeUbigeo !== '' ? $desdeUbigeo : (string) ($ancla->ubigeo_origen ?? ''));
+                $desdeUbigeo !== '' ? $desdeUbigeo : (string) ($ancla->ubigeo_origen ?? ''),
+                $sinTrafico);
 
             return $geo !== null ? $respuesta((int) $geo->min, $geo->km, 'geoapify') : null;
         }
@@ -2184,7 +2357,7 @@ class Servicio
         // 2) local/ubigeo declarado: ruteo REAL con las lat/lng de los dos extremos
         // (Geoapify ya resuelve el ubigeo a coordenadas, geocodificándolo si hace falta)
         if ($destinoUbigeo !== '') {
-            $geo = Geoapify::ruta($desdeUbigeo, $destinoUbigeo, $salida);
+            $geo = Geoapify::ruta($desdeUbigeo, $destinoUbigeo, $salida, $sinTrafico);
             if ($geo !== null) {
                 return $respuesta((int) $geo->min, $geo->km, 'geoapify');
             }
@@ -2306,11 +2479,12 @@ class Servicio
      *
      * @param  array<string, array<string, int|null>>  $etapas  salida de etapas_por_ruta()
      * @return object{min: int, base: int, tras_placa: int, placa: ?int, placa_n: int,
-     *                celda: ?int, celda_viajes: int, celda_dia: ?int, celda_hora: ?int}|null
+     *                celda: ?int, celda_viajes: int, celda_dia: ?int, celda_hora: ?int,
+     *                cuantil: string, mezclado: bool}|null
      */
     public static function viaje_ruta(string $ruta, array $etapas, ?Carbon $salida = null,
                                       string $placa = '', ?Carbon $desde = null, ?Carbon $hasta = null,
-                                      ?object $p = null): ?object
+                                      ?object $p = null, string $cuantil = 'mediana'): ?object
     {
         $ruta = trim($ruta);
         if ($ruta === '') {
@@ -2319,16 +2493,23 @@ class Servicio
 
         $p = $p ?? Parametros::cargar();
 
-        $base = DBPrediccion::viaje_ruta_base($ruta, $etapas);
+        $base = DBPrediccion::viaje_ruta_base($ruta, $etapas, $cuantil);
         if ($base === null) {
             return null;
         }
+
+        // LA FECHA PERFECTA VA PURA: el p25 no se mezcla con la placa ni con la
+        // celda día/hora. Las dos son MEDIANAS de otra distribución; mezclarlas
+        // con el p25 devuelve la fecha hacia la normal y se pierde justo lo que
+        // se busca (el viaje cuando sale bien). Se puede apagar con
+        // `perfecta_sin_mezcla` en 0 si alguna vez se quiere probar lo contrario.
+        $mezclar = $cuantil !== 'p25' || (int) ($p->perfecta_sin_mezcla ?? 1) !== 1;
 
         $min = $base;
         $placaMediana = null;
         $placaN = 0;
 
-        if ($placa !== '' && $desde !== null && $hasta !== null) {
+        if ($mezclar && $placa !== '' && $desde !== null && $hasta !== null) {
             $propio = DBPrediccion::viaje_placa($placa, $ruta, $desde, $hasta);
             $placaMediana = $propio['mediana'] ?? null;
             $placaN = (int) ($propio['n'] ?? 0);
@@ -2341,7 +2522,7 @@ class Servicio
         // El compilado por día y hora de la RUTA (tiempos_ruta_horario): ahí está la
         // demora de la hora pico, que la mediana diaria no tiene. Entra con el peso
         // de la muestra de la celda, igual que la placa: dos viajes no mueven la aguja.
-        if ((int) ($p->horario_activo ?? 1) === 1 && $salida !== null) {
+        if ($mezclar && (int) ($p->horario_activo ?? 1) === 1 && $salida !== null) {
             $celda = DBPrediccion::viaje_horario($ruta, $salida, (int) ($p->horario_viajes_min ?? 3));
 
             if ($celda !== null) {
@@ -2364,6 +2545,8 @@ class Servicio
             'celda_viajes' => $celda !== null ? (int) $celda->viajes : 0,
             'celda_dia' => $celda !== null ? (int) $celda->dia : null,
             'celda_hora' => $celda !== null ? (int) $celda->hora : null,
+            'cuantil' => $cuantil,
+            'mezclado' => $mezclar,
         ];
     }
 
