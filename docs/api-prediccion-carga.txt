@@ -2818,6 +2818,44 @@ evidencia. Hay tres niveles.
                      atrasada; con ancla explicita sigue siendo `inicio_ruta` /
                      `hacia_destino`).
 
+  1.46 26/11/2026  - SI LA UNIDAD ESTA EN LA PLANTA DE CARGA NO HAY TRASLADO (bug).
+                     Caso real (ref 1196252, placa V5O831): el operador declaro la
+                     posicion `LOC_CARAL`, que ES la planta de carga de la ref. El motor,
+                     como habia un viaje en curso (ancla 1194690), ignoro la declaracion
+                     ("ubicacion_no_usada"), tomo el destino de ese viaje como origen del
+                     regreso y publico:
+                       traslado 39:50 (ruta de la propia referencia, x0,83 por vacio)
+                       presenta 28/11 07:56 (41:10 despues del corte)
+                       paso `ajuste` de 43:59 para reencajar la hora contra el corte
+                     Cuando el camion ya esta en la planta, nada de eso existe.
+
+                     REGLA: si la ubicacion declarada es la planta de carga —mismo local
+                     (`LOC_...`) o mismo ubigeo— el motor:
+                       - NO usa el viaje en curso como ancla (la planta manda);
+                       - pone el traslado en 0 (`fuente: ya_esta_en_planta`);
+                       - presenta AHORA y lo unico que queda es la espera en planta
+                         (fuera + dentro), que se suma en `inicio_carga`;
+                       - deja las cinco fechas en la hora del corte (sin banda: no hay
+                         viaje del que dudar) y avisa `en_planta`.
+                     La comparacion es por local/ubigeo, NO por coordenadas: geocodificar
+                     la planta para comparar gastaria cuota y daria falsos positivos (un
+                     punto declarado sobre la planta ya sale con traslado ~0).
+
+                     (b) LA UBICACION DECLARADA SE RESPETA SIEMPRE. Si el camion va en
+                     viaje pero no se puede estimar lo que le falta desde donde dice el
+                     operador, el viaje DEJA de ser el ancla: el calculo arranca en esa
+                     posicion y desde ahi vuelve a la planta (antes quedaba
+                     `ubicacion_no_usada` y la hora salia del destino del viaje). Ademas
+                     el tramo parcial usa las coordenadas del LOCAL declarado
+                     (`locales.lat/lng`) y no solo el centroide de su ubigeo, asi que un
+                     local sin `distrito_ubigeo` tambien se usa. El error
+                     `ubicacion_no_geolocalizable` solo salta cuando NADA ubica la
+                     posicion: ni el local, ni el ubigeo, ni una ruta medida.
+
+                     Tests: MotorPresentaTest::test_en_planta_se_presenta_ahora_y_solo_queda_la_espera,
+                     TramoDeclaradoTest::test_si_la_unidad_esta_en_la_planta_no_hay_traslado_ni_espera_de_viaje
+                     y TramoDeclaradoTest::test_un_local_sin_ruteo_igual_usa_sus_coordenadas.
+
 ================================================================================
  FIN
 ================================================================================

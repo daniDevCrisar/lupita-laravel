@@ -124,7 +124,9 @@ JSON;
                             partida es esa posición (ahora) y <em>no</em> se deduce el último viaje de la placa;
                             sin ubicación, se deduce el último viaje.</td></tr>
                         <tr><td><code>ubicacion_tipo</code></td><td><code>auto</code> · <code>local</code> · <code>ubigeo</code> · <code>indeterminado</code></td></tr>
-                        <tr><td><code>ubicacion_id</code></td><td>id del local (<code>LOC_CARAL</code>) o ubigeo de 6 dígitos (<code>140101</code>)</td></tr>
+                        <tr><td><code>ubicacion_id</code></td><td>id del local (<code>LOC_CARAL</code>) o ubigeo de 6 dígitos (<code>140101</code>).
+                            <strong>Si es la planta de carga</strong>: no hay traslado ni viaje que esperar, se
+                            presenta ahora y sólo queda la espera en planta.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -425,6 +427,9 @@ JSON;
                         <li><code>tramo_lento</code> — el tramo desde la ubicación declarada hasta el destino
                             implicaba menos de 15 km/h en línea recta (no es un camión andando): se acotó a esa
                             velocidad y se avisa.</li>
+                        <li><code>en_planta</code> — la ubicación declarada <strong>es la planta de carga</strong>:
+                            no hay traslado ni viaje que esperar (las cinco fechas quedan en el corte) y lo único
+                            que queda es la espera en planta, que se suma en <code>inicio_carga</code>.</li>
                     </ul>
                 </div>
             </div>

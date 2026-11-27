@@ -230,6 +230,43 @@ class TramoDeclaradoTest extends TestCase
         $this->assertSame('hacia_destino', $conAncla->json('ubicacion.modo'));
     }
 
+    /**
+     * La unidad está declarada EN la planta de carga: no hay traslado ni viaje que
+     * esperar, así que se presenta ahora y sólo queda la espera en planta.
+     * Caso real (ref 1196252): con el viaje en curso el motor publicaba la
+     * presentación 41 h después y un traslado de 39:50.
+     */
+    public function test_si_la_unidad_esta_en_la_planta_no_hay_traslado_ni_espera_de_viaje(): void
+    {
+        $this->geoapify();
+
+        // la planta de la ruta del ref es el ubigeo 050101: se declara esa posición
+        // CON el viaje en curso como ancla (el peor caso: el ancla dice otra cosa)
+        $r = $this->predecir(self::REF_VIAJE, '&ubicacion_tipo=ubigeo&ubicacion_id=050101');
+
+        $r->assertOk()->assertJsonPath('success', true);
+        $this->assertSame('ubicacion_declarada', $r->json('ancla.hito'), 'la planta manda sobre el viaje');
+        $this->assertSame('hacia_planta', $r->json('ubicacion.modo'));
+        $this->assertSame('ya_esta_en_planta', $r->json('historia.traslado_fuente'));
+        $this->assertSame(0, (int) $r->json('desglose.1.min'), 'el traslado de regreso es 0');
+
+        // se presenta ahora (el corte) y la carga empieza después de la espera
+        $presenta = (string) $r->json('presenta');
+        $this->assertStringStartsWith('2027-01-03 14:30', $presenta, 'se presenta en el corte, no 41 h después');
+
+        $inicio = \Carbon\Carbon::parse((string) $r->json('inicio_carga'));
+        $this->assertSame((int) $r->json('espera_min'),
+            (int) round(\Carbon\Carbon::parse($presenta)->diffInMinutes($inicio)));
+
+        // las cinco fechas colapsan en la hora del corte
+        foreach ((array) $r->json('presentaciones') as $presentacion) {
+            $this->assertSame(0, (int) $presentacion['delta_normal_min'], $presentacion['clave']);
+        }
+
+        $this->assertContains('en_planta', array_map(fn ($a) => explode(':', (string) $a)[0],
+            (array) $r->json('advertencias')));
+    }
+
     public function test_sin_geoapify_la_ubicacion_declarada_no_rompe_la_prediccion(): void
     {
         // sin key (el servidor de producción hoy): el texto tiene que seguir
@@ -247,6 +284,29 @@ class TramoDeclaradoTest extends TestCase
         $this->assertFalse((bool) $r->json('historia.geoapify_disponible'));
         $this->assertContains($r->json('ubicacion.modo'), ['hacia_destino', 'no_usada']);
         Http::assertNothingSent();
+    }
+
+    /**
+     * La ubicación declarada se respeta SIEMPRE: con el ruteo caído el tramo sale de
+     * las coordenadas del local declarado (no queda `ubicacion_no_usada` ni se usa el
+     * destino del viaje como si el camión no se hubiera movido).
+     */
+    public function test_un_local_sin_ruteo_igual_usa_sus_coordenadas(): void
+    {
+        config(['geoapify.key' => '']);
+        Geoapify::olvidar();
+        Http::fake();
+
+        $r = $this->predecir(self::REF_VIAJE, '&ubicacion_tipo=local&ubicacion_id=LOC_CHICLAYO');
+
+        $r->assertOk()->assertJsonPath('success', true);
+        $this->assertTrue((bool) $r->json('ubicacion.usada'), 'la ubicación declarada se usa siempre');
+        $this->assertSame('hacia_destino', $r->json('ubicacion.modo'));
+        $this->assertSame('coordenadas', $r->json('ubicacion.tramo.fuente'));
+        $this->assertGreaterThan(0, (int) $r->json('ubicacion.tramo.min'));
+
+        $advertencias = array_map(fn ($a) => explode(':', (string) $a)[0], (array) $r->json('advertencias'));
+        $this->assertNotContains('ubicacion_no_usada', $advertencias);
     }
 
     /**

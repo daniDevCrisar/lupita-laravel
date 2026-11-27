@@ -820,6 +820,38 @@ class MotorPresentaTest extends TestCase
         $this->assertSame('2026-11-14 12:00', $r->presenta_rapido->format('Y-m-d H:i'));  // 09:00 + 180
     }
 
+    /**
+     * La unidad está declarada EN la planta de carga: no hay traslado, ni viaje que
+     * esperar, ni hueco. Se presenta ahora y lo único que queda es la espera en
+     * planta. Caso real (ref 1196252): el motor seguía usando el viaje en curso y
+     * publicaba la presentación 41 h después.
+     */
+    public function test_en_planta_se_presenta_ahora_y_solo_queda_la_espera(): void
+    {
+        $r = MotorPresenta::predecir($this->entrada([
+            'en_planta' => true,
+            'traslado' => (object) ['min' => 0, 'fuente' => 'ya_esta_en_planta'],
+        ]));
+
+        // ahora 10:00: se presenta ya, y la carga empieza después de la espera (100')
+        $this->assertSame('2026-11-14 10:00', $r->presenta->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-14 11:40', $r->inicio_carga->format('Y-m-d H:i'));
+        $this->assertSame(100, $r->espera_min);
+
+        // las cinco fechas colapsan en la hora del corte: no hay incertidumbre de viaje
+        $this->assertSame($r->presenta->getTimestamp(), $r->presenta_rapido->getTimestamp());
+        $this->assertSame($r->presenta->getTimestamp(), $r->presenta_tardado->getTimestamp());
+        $this->assertSame($r->presenta->getTimestamp(), $r->presenta_probable->getTimestamp());
+        $this->assertSame($r->presenta->getTimestamp(), $r->presenta_consenso->getTimestamp());
+        foreach ($r->presentaciones as $presentacion) {
+            $this->assertSame(0, (int) $presentacion['delta_normal_min'], $presentacion['clave']);
+        }
+
+        // sin hueco no hay tiempo muerto, y se explica
+        $this->assertSame(0, collect($r->desglose)->firstWhere('concepto', 'tiempo_muerto')['min']);
+        $this->assertContains('en_planta', array_map(fn ($a) => explode(':', $a)[0], $r->advertencias));
+    }
+
     public function test_estado_del_conductor(): void
     {
         $enRuta = MotorPresenta::estado('inicio_ruta', Carbon::parse('2026-11-14 08:00'),

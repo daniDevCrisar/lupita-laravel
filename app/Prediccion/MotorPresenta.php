@@ -434,6 +434,25 @@ final class MotorPresenta
 
         $tiempoMuerto = $esCadena ? $muertoDefecto : max(0, $hueco - (int) ($trasladoMin ?? 0));
 
+        // LA UNIDAD ESTÁ EN LA PLANTA DE CARGA (lo declaró el operador): no hay
+        // traslado, ni viaje que esperar, ni hueco. Se presenta AHORA y lo único que
+        // queda es la espera en planta (fuera + dentro), que se suma en
+        // `inicio_carga`. Antes el motor seguía usando el viaje en curso y publicaba
+        // la presentación 41 h después (ref 1196252).
+        if ((bool) ($e->en_planta ?? false)) {
+            $restante = 0;
+            $hueco = 0;
+            $tiempoMuerto = 0;
+            $t = $ahora->copy();
+            $rapido = $ahora->copy();
+            $tardado = $ahora->copy();
+            $salida->presenta_probable = $ahora->copy();
+            $salida->sesgo_min = 0;
+            $salida->advertencias[] = 'en_planta: la unidad está declarada en la planta de carga; no hay traslado '
+                . 'ni viaje que esperar, se presenta ahora y queda la espera en planta ('
+                . Tiempo::hhmm($espera) . ')';
+        }
+
         $confianza = self::confianza((object) [
             'nivel' => $evidencia,
             'iqr' => ($cal !== null && ($cal->p25_min ?? null) !== null && ($cal->p75_min ?? null) !== null)

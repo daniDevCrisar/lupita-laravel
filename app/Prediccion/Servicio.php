@@ -173,6 +173,16 @@ class Servicio
         // CON UBICACIÓN DECLARADA Y SIN ANCLA NO SE BUSCA: el operador ya dijo dónde
         // está el camión y deducir un viaje viejo inventa un punto de partida (y una
         // hora recortada contra el corte).
+        $plantaCarga = (string) ($fila->origen_id ?? '');
+        $plantaUbigeo = (string) ($fila->ubigeo_origen ?? '');
+
+        // ¿el operador declaró que la unidad YA ESTÁ en la planta de carga? Entonces
+        // no hay viaje que esperar ni traslado: se presenta ahora y queda la espera
+        // en planta. Manda sobre el ancla, incluso si el pedido la mandó explícita:
+        // el viaje en curso es un dato viejo al lado de "está acá".
+        $enLaPlanta = $ubicacionDeclarada && self::en_planta($ubicacionTipo, $ubicacionId,
+            $ubicacionUbigeo, $plantaCarga, $plantaUbigeo);
+
         $ancla = null;
         $pedida = isset($opciones['ancla_ref']) ? (string) $opciones['ancla_ref'] : '';
         foreach ($candidatos as $viaje) {
@@ -181,20 +191,22 @@ class Servicio
                 break;
             }
         }
-        if ($ancla === null && $pedida === '' && !$ubicacionDeclarada && $candidatos !== []) {
+        if ($enLaPlanta) {
+            // la unidad ya está en la planta: el viaje no dice nada de dónde está
+            $ancla = null;
+        } elseif ($ancla === null && $pedida === '' && !$ubicacionDeclarada && $candidatos !== []) {
             $ancla = $candidatos[0];
         }
 
         // el pedido no trae ancla y sí ubicación: el ancla es la posición declarada
         // (el motor la arma más abajo); se usa para explicarlo en las advertencias
-        $anclaPorUbicacion = $pedida === '' && $ubicacionDeclarada;
+        $anclaPorUbicacion = $enLaPlanta || ($pedida === '' && $ubicacionDeclarada);
 
         // se pidió un ancla concreta y no es un viaje de este camión antes del
         // corte: mejor decirlo que predecir desde otro lado sin avisar
-        $anclaPedidaNoEncontrada = $pedida !== '' && $ancla === null;
+        $anclaPedidaNoEncontrada = $pedida !== '' && $ancla === null && !$enLaPlanta;
 
         // ($rutaRef ya quedó arriba: la ref sin ruta no llega hasta acá)
-        $plantaCarga = (string) ($fila->origen_id ?? '');
         $etapasPorRuta = DBPrediccion::etapas_por_ruta($desde, $ahora);
 
         // desde dónde vuelve el camión: su última posición conocida o lo que declare el usuario
@@ -232,6 +244,57 @@ class Servicio
         $viajeEnCurso = $ancla !== null && !$anclaDeclarada && !($ancla->cerrado ?? false)
             && in_array((string) ($ancla->hito ?? ''), MotorPresenta::HITOS_CON_VIAJE, true);
 
+        $rutaAncla = $ancla !== null ? (string) ($ancla->ruta_id ?? '') : '';
+
+        // ¿Se puede estimar lo que le falta al viaje desde la posición declarada hasta
+        // el DESTINO? Se resuelve ANTES del traslado porque de eso depende si el viaje
+        // sirve o no como punto de partida.
+        $tramoDeclarado = ($viajeEnCurso && $ubicacionDeclarada)
+            ? self::tramo_hacia_destino($coords, $ubicacionUbigeo, $ubicacionResueltaTexto,
+                $ancla, $etapasPorRuta, $rutaAncla !== '' ? $rutaAncla : null, $ahora, $p,
+                $ubicacionTipo === 'local' ? $ubicacionId : '')
+            : null;
+
+        // la posición declarada no se pudo ubicar de ninguna forma: sin punto no hay
+        // tramo, ni distancia, ni ruteo. Se corta con error en vez de publicar una hora
+        // armada desde el ancla entera como si el camión no se hubiera movido.
+        if (is_object($tramoDeclarado) && isset($tramoDeclarado->error)) {
+            return (object) [
+                'ref' => $ref,
+                'error' => (string) $tramoDeclarado->error,
+                'placa' => $placa,
+                'ahora' => $ahora,
+                'presenta' => null,
+                'desglose' => [],
+                'supuestos' => [],
+                'advertencias' => [
+                    'ubicacion_no_geolocalizable: el ubigeo ' . (string) $tramoDeclarado->ubigeo
+                    . ' (' . (string) $tramoDeclarado->texto . ') no está en el catálogo de coordenadas y '
+                    . 'Geoapify no lo encontró. Sin un punto no se puede estimar el tramo que le falta al '
+                    . 'camión; no se predice.',
+                ],
+                'candidatos' => $candidatos,
+                'historia' => null,
+            ];
+        }
+
+        // SIEMPRE SE RESPETA LA UBICACIÓN DECLARADA. Si el camión va en viaje pero no
+        // se pudo estimar lo que le falta desde donde dice el operador, el viaje deja
+        // de ser el ancla: el cálculo arranca en la posición declarada y desde ahí
+        // vuelve a la planta. Antes quedaba `ubicacion_no_usada` y la hora salía del
+        // destino del viaje (ref 1196252: presenta 41 h después del corte).
+        if ($viajeEnCurso && $ubicacionDeclarada && $tramoDeclarado === null) {
+            $ancla = (object) [
+                'ref' => '', 'hito' => 'ubicacion_declarada', 'fecha' => $ahora->copy(),
+                'cerrado' => true, 'ruta_id' => '', 'destino_id' => '', 'ubigeo_destino' => '',
+                'edad_min' => 0,
+            ];
+            $anclaDeclarada = true;
+            $anclaPorUbicacion = true;
+            $viajeEnCurso = false;
+            $rutaAncla = '';
+        }
+
         if (!$viajeEnCurso) {
             if ($ubicacionTipo === 'local' && $ubicacionId !== '') {
                 $desdePlanta = $ubicacionId;
@@ -249,8 +312,6 @@ class Servicio
                 $desdeUbigeo = '';
             }
         }
-
-        $rutaAncla = $ancla !== null ? (string) ($ancla->ruta_id ?? '') : '';
 
         // Hora a la que el camión SALE hacia la planta de carga: si va en viaje,
         // cuando termine (ancla + las etapas que le faltan); si ya está libre,
@@ -301,6 +362,24 @@ class Servicio
                     'min_medido' => null,
                 ];
             }
+        }
+
+        // LA UNIDAD YA ESTÁ EN LA PLANTA: el operador lo declaró. No hay traslado
+        // que estimar —ni con ruta, ni con coordenadas, ni con Geoapify—: está ahí.
+        // Manda sobre cualquier estimación anterior.
+        if ($enLaPlanta) {
+            $traslado = (object) [
+                'min' => 0,
+                'fuente' => 'ya_esta_en_planta',
+                'ruta' => null,
+                'texto' => 'la unidad ya está en '
+                    . DBPrediccion::texto_ubicacion($plantaCarga, $plantaUbigeo),
+                'km' => 0,
+                'min_medido' => null,
+                'viaje' => null,
+                'sentido' => 'vacio',
+                'factor_vacio' => 1.0,
+            ];
         }
 
         // Las piezas con las que se armó el traslado (ruta → placa → día y hora).
@@ -378,52 +457,21 @@ class Servicio
             }
         }
 
-        // Lo que le falta al viaje en curso desde la posición declarada hasta el
-        // DESTINO del viaje. Es la etapa que se reemplaza: la mediana de la ruta
-        // cuenta el viaje entero desde el último hito, no lo que falta desde
-        // dónde está el camión ahora. Lo que viene después (descarga y vuelta al
-        // destino) no depende de su posición y se sigue sumando.
-        $tramoDeclarado = null;
+        // El tramo desde la posición declarada hasta el DESTINO del viaje ya se
+        // resolvió arriba (hace falta antes del traslado, para decidir si el viaje
+        // sirve como ancla). Acá sólo se completa lo que sigue después de llegar:
+        // descarga y vuelta al destino, que no dependen de dónde está el camión.
         $avisoTramo = null;
-        if ($viajeEnCurso && $ubicacionDeclarada) {
-            $tramoDeclarado = self::tramo_hacia_destino($coords, $ubicacionUbigeo, $ubicacionResueltaTexto,
-                $ancla, $etapasAncla, $rutaAncla !== '' ? $rutaAncla : null, $ahora, $p);
+        if ($tramoDeclarado !== null) {
+            $tramoDeclarado->resto_min = MotorPresenta::faltantes_sin_viaje(
+                (string) ($ancla->hito ?? ''), $etapasAncla) ?? 0;
 
-            // la posición declarada no se pudo ubicar de ninguna forma: sin punto no
-            // hay tramo, ni distancia, ni ruteo. Se corta con error en vez de publicar
-            // una hora armada desde el ancla entera como si el camión no se hubiera
-            // movido.
-            if (is_object($tramoDeclarado) && isset($tramoDeclarado->error)) {
-                return (object) [
-                    'ref' => $ref,
-                    'error' => (string) $tramoDeclarado->error,
-                    'placa' => $placa,
-                    'ahora' => $ahora,
-                    'presenta' => null,
-                    'desglose' => [],
-                    'supuestos' => [],
-                    'advertencias' => [
-                        'ubicacion_no_geolocalizable: el ubigeo ' . (string) $tramoDeclarado->ubigeo
-                        . ' (' . (string) $tramoDeclarado->texto . ') no está en el catálogo de coordenadas y '
-                        . 'Geoapify no lo encontró. Sin un punto no se puede estimar el tramo que le falta al '
-                        . 'camión; no se predice.',
-                    ],
-                    'candidatos' => $candidatos,
-                    'historia' => null,
-                ];
-            }
-
-            if ($tramoDeclarado !== null) {
-                $tramoDeclarado->resto_min = MotorPresenta::faltantes_sin_viaje(
-                    (string) ($ancla->hito ?? ''), $etapasAncla) ?? 0;
-
-                // el tramo parcial se estima como manejo SIN paradas: si el ajuste de
-                // distancia implicaba menos de 15 km/h en línea recta, se recortó
-                if ((string) ($tramoDeclarado->aviso ?? '') === 'tramo_lento') {
-                    $avisoTramo = 'tramo_lento: el tramo desde la ubicación declarada hasta el '
-                        . 'destino implicaba menos de ' . (int) ($p->coords_parcial_km_h_min ?? 15)
-                        . ' km/h en línea recta; se acotó a esa velocidad';
-                }
+            // el tramo parcial se estima como manejo SIN paradas: si el ajuste de
+            // distancia implicaba menos de 15 km/h en línea recta, se recortó
+            if ((string) ($tramoDeclarado->aviso ?? '') === 'tramo_lento') {
+                $avisoTramo = 'tramo_lento: el tramo desde la ubicación declarada hasta el '
+                    . 'destino implicaba menos de ' . (int) ($p->coords_parcial_km_h_min ?? 15)
+                    . ' km/h en línea recta; se acotó a esa velocidad';
             }
         }
 
@@ -608,6 +656,8 @@ class Servicio
             'feriado_activo' => (int) ($p->feriado_activo ?? 1),
             'ventanas' => $ventanas['ventanas'],
             'espera_carga_min' => $esperaCarga,
+            // la unidad está declarada en la planta de carga: se presenta ahora
+            'en_planta' => $enLaPlanta,
             'parametros' => $p,
         ]);
 
@@ -2031,6 +2081,34 @@ class Servicio
     }
 
     /**
+     * ¿La posición declarada es la planta de carga?
+     *
+     * Dos formas de decirlo: por local (`LOC_CARAL`) o por ubigeo (150601). Cuando
+     * es así el camión ya está donde tiene que cargar: no hay traslado ni viaje que
+     * esperar, sólo la espera en planta.
+     *
+     * NO se compara por coordenadas a propósito: para eso habría que geocodificar
+     * la planta (gasta cuota) y cualquier punto geocodificado "parecido" daría un
+     * falso positivo. Un punto declarado sobre la planta ya sale con traslado ~0.
+     */
+    private static function en_planta(string $tipo, string $id, string $ubigeo,
+                                      string $plantaLocal, string $plantaUbigeo): bool
+    {
+        $plantaLocal = trim($plantaLocal);
+        $plantaUbigeo = trim($plantaUbigeo);
+
+        if ($plantaLocal === '' && $plantaUbigeo === '') {
+            return false;
+        }
+
+        if ($tipo === 'local' && $id !== '' && $id === $plantaLocal) {
+            return true;
+        }
+
+        return $ubigeo !== '' && $plantaUbigeo !== '' && $ubigeo === $plantaUbigeo;
+    }
+
+    /**
      * Lo que le falta al viaje en curso desde la posición declarada del camión
      * hasta el DESTINO de ese viaje (el destino del ancla), en minutos.
      *
@@ -2054,7 +2132,8 @@ class Servicio
      */
     private static function tramo_hacia_destino(?object $coords, string $desdeUbigeo, string $desdeTexto,
                                                 ?object $ancla, array $etapas, ?string $rutaAncla,
-                                                ?Carbon $salida = null, ?object $p = null): ?object
+                                                ?Carbon $salida = null, ?object $p = null,
+                                                string $desdeLocal = ''): ?object
     {
         if ($ancla === null) {
             return null;
@@ -2112,8 +2191,12 @@ class Servicio
         }
 
         // 3) sin ruteo: distancia recta con el ajuste de tramo PARCIAL. Es lo que le
-        // falta al camión AHORA: manejo casi sin paradas, velocidad de camión.
-        $porCoordenadas = DBPrediccion::tramo_por_coordenadas(null, $desdeUbigeo,
+        // falta al camión AHORA: manejo casi sin paradas, velocidad de camión. Se
+        // pasan las coordenadas del LOCAL declarado cuando lo hay: `locales.lat/lng`
+        // es mejor dato que el centroide de su distrito.
+        $porCoordenadas = DBPrediccion::tramo_por_coordenadas(
+            $desdeLocal !== '' ? $desdeLocal : null,
+            $desdeUbigeo !== '' ? $desdeUbigeo : null,
             $destinoLocal !== '' ? $destinoLocal : null,
             $destinoUbigeo !== '' ? $destinoUbigeo : null,
             $p, null, true);
@@ -2132,12 +2215,16 @@ class Servicio
             return $respuesta((int) $medido->min, $medido->km ?? null, (string) $medido->fuente);
         }
 
-        // nada pudo ubicar la posición declarada: ni coordenadas, ni ruteo, ni una
-        // ruta medida para ese par. Es un problema del pedido, no una predicción rara.
-        if (DBPrediccion::coord_ubicacion(null, $desdeUbigeo) === null) {
+        // nada pudo ubicar la posición declarada: ni coordenadas (del local ni del
+        // ubigeo), ni ruteo, ni una ruta medida para ese par. Es un problema del
+        // pedido, no una predicción rara.
+        $puntoDeclarado = DBPrediccion::coord_ubicacion($desdeLocal !== '' ? $desdeLocal : null,
+            $desdeUbigeo !== '' ? $desdeUbigeo : null);
+
+        if ($puntoDeclarado === null) {
             return (object) [
                 'error' => 'ubicacion_no_geolocalizable',
-                'ubigeo' => $desdeUbigeo,
+                'ubigeo' => $desdeUbigeo !== '' ? $desdeUbigeo : $desdeLocal,
                 'texto' => $desde,
             ];
         }

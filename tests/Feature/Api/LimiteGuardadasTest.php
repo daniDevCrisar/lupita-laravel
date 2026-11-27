@@ -67,15 +67,17 @@ class LimiteGuardadasTest extends TestCase
 
     public function test_todas_las_guardadas_pasan_las_2000(): void
     {
-        $hay = DB::table('prediccion_resultados')->count();
-        if ($hay <= 2000) {
-            $this->markTestSkipped('la base tiene ' . $hay . ' predicciones guardadas');
+        // el tope se prueba sobre el RANGO, no sobre la tabla entera: el rango puede
+        // tener menos filas que la tabla (la base local se recarga seguido)
+        $todas = DBPrediccionResultados::resumen(
+            Carbon::parse(self::DESDE), Carbon::parse(self::HASTA), 0);
+
+        if ((int) $todas['guardadas'] <= 2000) {
+            $this->markTestSkipped('el rango tiene ' . (int) $todas['guardadas'] . ' guardadas');
         }
 
         $dosMil = DBPrediccionResultados::resumen(
             Carbon::parse(self::DESDE), Carbon::parse(self::HASTA), 2000);
-        $todas = DBPrediccionResultados::resumen(
-            Carbon::parse(self::DESDE), Carbon::parse(self::HASTA), 0);
 
         $this->assertSame(2000, (int) $dosMil['guardadas'], 'con 2.000 se corta en 2.000');
         $this->assertGreaterThan(2000, (int) $todas['guardadas'], '"todas" trae más de 2.000');
