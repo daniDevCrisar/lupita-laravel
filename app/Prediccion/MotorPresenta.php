@@ -492,7 +492,15 @@ final class MotorPresenta
             }
 
             if ($tFinPerfecta !== null) {
-                $perfecta = $tFinPerfecta->lessThan($ahora) ? $ahora->copy() : $tFinPerfecta->copy();
+                // OJO: NO se sube `t_fin` a `ahora`. El escenario perfecto cuenta
+                // desde que el camión quedó libre (el ancla), no desde el corte: si
+                // quedó libre hace 2 h y el viaje perfecto tarda 3:26, presenta a
+                // las 3:26 del ancla, no a las 3:26 del corte. Antes se subía a
+                // `ahora` y los minutos que el camión ya llevaba libre entraban en
+                // la cuenta: ref 1197736 publicaba exactamente la hora de la normal
+                // (326 = 120 ya libres + 206 de viaje) y parecía que no se omitía ni
+                // el descanso ni el recorte. Sólo se acota al final, contra el corte.
+                $perfecta = $tFinPerfecta->copy();
 
                 // el regreso a la planta de carga suma siempre (es física)
                 if ($trasladoPerfecta !== null) {
@@ -620,8 +628,9 @@ final class MotorPresenta
             $salida->supuestos[] = $notaDia;
         }
         if ($perfecta !== null) {
-            $salida->supuestos[] = 'la fecha "perfecta" no es una banda: es otra cuenta, con el p25 de la ruta '
-                . 'medida, sin espera ni descanso del conductor, sin franjas inactivas y con el ruteo en vía libre '
+            $salida->supuestos[] = 'la fecha "perfecta" no es una banda: es otra cuenta que arranca cuando el '
+                . 'camión quedó libre (el ancla, no el corte), con el p25 de la ruta medida, sin espera ni '
+                . 'descanso del conductor, sin franjas inactivas y con el ruteo en vía libre '
                 . '(' . ($piezasPerfecta->cuantil ?? 'p25') . ' · traslado: '
                 . (is_object($piezasPerfecta->traslado ?? null)
                     ? (string) ($piezasPerfecta->traslado->fuente ?? 'sin dato')

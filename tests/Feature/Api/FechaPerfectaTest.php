@@ -103,6 +103,73 @@ class FechaPerfectaTest extends TestCase
         $this->assertSame(['rapido', 'consenso', 'normal', 'probable', 'tardado', 'perfecta'], $claves);
     }
 
+    /**
+     * EL ESCENARIO PERFECTO CUENTA DESDE QUE EL CAMIÓN QUEDÓ LIBRE, NO DESDE EL
+     * CORTE. Caso real (ref 1197736): ancla fin de descargue 08:27, corte 10:26
+     * (120 min ya libre), traslado perfecto 3:26. Publicaba 13:52:52 = corte + 3:26
+     * —exactamente la hora de la normal (326 = 120 ya libres + 206 de viaje)—, o sea
+     * parecía que no omitía ni el descanso ni el recorte. Lo correcto es
+     * 08:27 + 3:26 = 11:53.
+     */
+    public function test_la_perfecta_cuenta_desde_el_ancla_y_no_desde_el_corte(): void
+    {
+        $ahora = Carbon::parse('2026-11-27 10:26:52');
+        $ancla = Carbon::parse('2026-11-27 08:27:00');
+
+        $salida = MotorPresenta::predecir((object) [
+            'ahora' => $ahora,
+            'ancla' => (object) ['hito' => 'fin_descargue', 'fecha' => $ancla, 'cerrada' => true],
+            // la normal de ese caso: hueco 326 (traslado 256 + 60 de muerto, ×1.03 del día)
+            'traslado' => (object) ['min' => 256, 'fuente' => 'ruta_medida'],
+            'calibrador' => null,
+            'espera_carga_min' => 96,
+            'perfecta' => (object) [
+                'activa' => true, 'cuantil' => 'p25', 'sin_trafico' => true,
+                'traslado' => (object) ['min' => 206, 'fuente' => 'ruta_medida', 'sentido' => 'cargado'],
+                'restante_min' => null, 'tramo' => null,
+            ],
+            'parametros' => Parametros::cargar(),
+        ]);
+
+        // 08:27 + 3:26 = 11:53, no 10:26 + 3:26
+        $this->assertSame('2026-11-27 11:53',
+            $salida->presenta_perfecta->format('Y-m-d H:i'));
+
+        // y ahora sí queda ANTES de la normal por todo lo que el escenario omite:
+        // sin descanso (60) y con el p25 en vez de la mediana (256 → 206). La normal
+        // de este caso es ancla + 316 = 13:43 (sin factor del día: el real sumaba
+        // 10 más y daba 13:53)
+        $this->assertSame('2026-11-27 13:43', $salida->presenta->format('Y-m-d H:i'));
+        $this->assertSame(110, (int) round(
+            ($salida->presenta->getTimestamp() - $salida->presenta_perfecta->getTimestamp()) / 60),
+            '110 = 60 de descanso + 50 de p25 en vez de mediana');
+        $this->assertStringNotContainsString('perfecta_tarde', implode(' | ', $salida->advertencias));
+    }
+
+    /** Si el escenario perfecto ya venció (ancla + viaje < corte), se publica el corte. */
+    public function test_si_el_escenario_perfecto_ya_vencio_se_publica_el_corte(): void
+    {
+        $ahora = Carbon::parse('2026-11-27 10:26:52');
+
+        $salida = MotorPresenta::predecir((object) [
+            'ahora' => $ahora,
+            'ancla' => (object) ['hito' => 'fin_descargue',
+                                 'fecha' => $ahora->copy()->subHours(6), 'cerrada' => true],
+            'traslado' => (object) ['min' => 256, 'fuente' => 'ruta_medida'],
+            'calibrador' => (object) ['gap_min' => 326, 'p25_min' => 300, 'p75_min' => 400, 'n' => 8,
+                                      'nivel' => 'medido'],
+            'espera_carga_min' => 96,
+            'perfecta' => (object) [
+                'activa' => true, 'cuantil' => 'p25', 'sin_trafico' => true,
+                'traslado' => (object) ['min' => 206, 'fuente' => 'ruta_medida'],
+                'restante_min' => null, 'tramo' => null,
+            ],
+            'parametros' => Parametros::cargar(),
+        ]);
+
+        $this->assertSame($ahora->format('Y-m-d H:i'), $salida->presenta_perfecta->format('Y-m-d H:i'));
+    }
+
     public function test_sin_piezas_no_se_publica_la_perfecta(): void
     {
         $ahora = Carbon::parse('2026-11-20 08:00');

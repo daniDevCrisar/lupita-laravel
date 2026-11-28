@@ -291,6 +291,9 @@ JSON;
                                 bien), sin mezclarlo con la placa ni con la celda día/hora, <strong>sin</strong> espera
                                 ni descanso del conductor, <strong>sin</strong> franjas inactivas (no espera
                                 descanso ni almuerzo) y con el ruteo de Geoapify en <strong>vía libre</strong>.
+                                Arranca cuando el camión <strong>quedó libre</strong> (el ancla), no en el corte:
+                                si quedó libre hace 2 h y el viaje perfecto tarda 3:26, presenta a las 3:26 del
+                                ancla; si ese escenario ya venció, se publica el corte.
                                 Sirve para "no puede presentarse antes de…": la presentación real cae después de
                                 ella el 93 % de las veces. No reemplaza a la normal.
                             </div>
@@ -394,7 +397,7 @@ JSON;
                         <tr><td><code>presenta_rapido</code> / <code>presenta</code> / <code>presenta_tardado</code></td><td>la banda: la temprana, la normal y la tardía</td></tr>
                         <tr><td><code>presenta_probable</code></td><td>la <strong>cuarta</strong>, que se publica como <strong>base ajustada</strong>: la normal corregida con la mediana del error de su clase. Con el sesgo apagado es igual a <code>presenta</code></td></tr>
                         <tr><td><code>presenta_consenso</code></td><td>la <strong>quinta</strong>: el promedio de la rápida, la normal y la base ajustada. Gana por tolerancia (±30m/±1h/±3h); no siempre gana en "quién quedó más cerca"</td></tr>
-                        <tr><td><code>presenta_perfecta</code></td><td>la <strong>sexta</strong>: el escenario perfecto. NO es una banda de otra fecha: se recalcula el viaje entero con el <strong>p25 de la ruta compilada</strong> (sin mezclar con la placa ni con la celda día/hora), <strong>sin</strong> espera ni descanso del conductor, <strong>sin</strong> franjas inactivas y con el ruteo de Geoapify en <strong>vía libre</strong>. Es un piso optimista: se equivoca para el lado temprano, así que no reemplaza a la normal</td></tr>
+                        <tr><td><code>presenta_perfecta</code></td><td>la <strong>sexta</strong>: el escenario perfecto. NO es una banda de otra fecha: se recalcula el viaje entero con el <strong>p25 de la ruta compilada</strong> (sin mezclar con la placa ni con la celda día/hora), <strong>sin</strong> espera ni descanso del conductor, <strong>sin</strong> franjas inactivas y con el ruteo de Geoapify en <strong>vía libre</strong>. Cuenta desde que el camión quedó libre (el ancla), no desde el corte. Es un piso optimista: se equivoca para el lado temprano, así que no reemplaza a la normal</td></tr>
                         <tr><td><code>sesgo</code></td><td><code>clase</code> (evidencia × tramo del horizonte), <code>min</code> (cuánto se corrió; negativo = se adelantó) y <code>aplicado</code></td></tr>
                         <tr><td><code>presentaciones</code></td><td>las seis fechas con etiqueta y <code>desde_ahora</code> en <code>h:mm</code>, EN ORDEN DE PRIORIDAD POR PRECISIÓN: <code>rapido</code>, <code>consenso</code>, <code>normal</code>, <code>probable</code> (etiqueta «Base ajustada»), <code>tardado</code> y <code>perfecta</code>. Cada una trae además <code>delta_normal_min</code> (minutos respecto de la normal; negativo = antes) y <code>construccion</code> (de dónde sale ESA fecha, en una línea)</td></tr>
                         <tr><td><code>inicio_carga</code></td><td>presenta normal + espera en planta</td></tr>
